@@ -21,6 +21,8 @@ import BranchDetailPage from "@/features/branches/BranchDetailPage";
 import ProductListPage from "@/features/inventory/ProductListPage";
 import ProductFormPage from "@/features/inventory/ProductFormPage";
 import ProductDetailPage from "@/features/inventory/ProductDetailPage";
+import BrandListPage from "@/features/inventory/BrandListPage";
+import CategoryListPage from "@/features/inventory/CategoryListPage";
 import StockPage from "@/features/inventory/StockPage";
 import LowStockPage from "@/features/inventory/LowStockPage";
 import StockMovementsPage from "@/features/inventory/StockMovementsPage";
@@ -176,6 +178,22 @@ export default function App() {
               />
 
               <Route path="/inventory/products" element={<ProductListPage />} />
+              <Route
+                path="/inventory/brands"
+                element={
+                  <ProtectedRoute allow={["ADMIN"]}>
+                    <BrandListPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/inventory/categories"
+                element={
+                  <ProtectedRoute allow={["ADMIN"]}>
+                    <CategoryListPage />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/inventory/products/new"
                 element={<ProductFormPage />}

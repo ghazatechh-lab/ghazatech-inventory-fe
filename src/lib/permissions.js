@@ -1,8 +1,8 @@
 /* Permissions helpers */
 
-export const isAdmin = (u) => u?.role?.code === "ADMIN";
-export const isBranchManager = (u) => u?.role?.code === "BM";
-export const isStaff = (u) => u?.role?.code === "STAFF";
+export const isAdmin = (u) => u?.role_code === "ADMIN";
+export const isBranchManager = (u) => u?.role_code === "BM";
+export const isStaff = (u) => u?.role_code === "STAFF";
 
 // Module-level permission map. Kept simple for the frontend guard.
 // Backend still enforces final permission.
@@ -22,11 +22,20 @@ export function canAccessModule(user, moduleName) {
   return allow.includes(user?.role?.code);
 }
 export function canCreate(user, moduleName) {
-  if (isStaff(user)) return ["quotations", "customers", "invoices", "pos", "leaves", "attendance"].includes(moduleName);
+  if (isStaff(user))
+    return [
+      "quotations",
+      "customers",
+      "invoices",
+      "pos",
+      "leaves",
+      "attendance",
+    ].includes(moduleName);
   return true;
 }
 export function canEdit(user, moduleName) {
-  if (isStaff(user)) return ["quotations", "customers", "pos"].includes(moduleName);
+  if (isStaff(user))
+    return ["quotations", "customers", "pos"].includes(moduleName);
   return true;
 }
 export function canDelete(user, moduleName) {
