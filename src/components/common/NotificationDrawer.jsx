@@ -1,8 +1,15 @@
 import React from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Link } from "react-router-dom";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api, { unwrap } from "@/lib/api";
-import { CheckCheck, Circle } from "lucide-react";
+import { CheckCheck, Circle, ArrowRight } from "lucide-react";
 import { formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -14,57 +21,141 @@ const priorityColor = {
 };
 
 export function NotificationDrawer({ open, onOpenChange }) {
-  const qc = useQueryClient();
-  const { data } = useQuery({
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({
     queryKey: ["notifications-drawer"],
-    queryFn: async () => unwrap(await api.get("/notifications/", { params: { page_size: 30 } })),
+    queryFn: async () =>
+      unwrap(
+        await api.get("/notifications/", {
+          params: { page_size: 10 },
+        }),
+      ),
     enabled: open,
   });
 
   const items = data?.results || [];
 
   const markAllRead = async () => {
-    await api.post("/notifications/mark-all-read/");
-    toast.success("All notifications marked as read");
-    qc.invalidateQueries({ queryKey: ["notifications-drawer"] });
-    qc.invalidateQueries({ queryKey: ["notif-count"] });
+    try {
+      await api.post("/notifications/mark-all-read/");
+      toast.success("All notifications marked as read.");
+      queryClient.invalidateQueries({ queryKey: ["notifications-drawer"] });
+      queryClient.invalidateQueries({ queryKey: ["notif-count"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    } catch (error) {
+      if (!error?.__apiErrorShown) {
+        toast.error("Unable to mark notifications as read.");
+      }
+    }
   };
 
   const markRead = async (id) => {
-    await api.post(`/notifications/${id}/mark-read/`);
-    qc.invalidateQueries({ queryKey: ["notifications-drawer"] });
-    qc.invalidateQueries({ queryKey: ["notif-count"] });
+    try {
+      await api.post(`/notifications/${id}/mark-read/`);
+      queryClient.invalidateQueries({ queryKey: ["notifications-drawer"] });
+      queryClient.invalidateQueries({ queryKey: ["notif-count"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    } catch (error) {
+      if (!error?.__apiErrorShown) {
+        toast.error("Unable to update the notification.");
+      }
+    }
+  };
+
+  const closeDrawer = () => {
+    onOpenChange(false);
   };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-md bg-[#0A0E17] border-l border-white/5">
-        <SheetHeader>
-          <div className="flex items-center justify-between">
+      <SheetContent className="flex w-full flex-col border-l border-white/5 bg-[#0A0E17] p-0 sm:max-w-md">
+        <SheetHeader className="border-b border-white/5 px-6 py-5">
+          <div className="flex items-center justify-between gap-3 pr-7">
             <SheetTitle className="text-white">Notifications</SheetTitle>
-            <button onClick={markAllRead} className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1" data-testid="mark-all-read-btn">
-              <CheckCheck className="w-3.5 h-3.5" /> Mark all as read
+
+            <button
+              type="button"
+              onClick={markAllRead}
+              className="flex items-center gap-1 text-xs text-blue-400 transition hover:text-blue-300"
+              data-testid="mark-all-read-btn"
+            >
+              <CheckCheck className="h-3.5 w-3.5" />
+              Mark all as read
             </button>
           </div>
         </SheetHeader>
-        <div className="mt-5 space-y-2 overflow-y-auto max-h-[calc(100vh-100px)] pr-1">
-          {items.length === 0 && <div className="text-sm text-slate-500 py-8 text-center">No notifications</div>}
-          {items.map(n => (
-            <button
-              key={n.id}
-              onClick={() => markRead(n.id)}
-              className={`w-full text-left p-3 rounded-lg border transition ${n.is_read ? "border-white/5 bg-white/[0.02]" : "border-blue-500/20 bg-blue-500/5"}`}
-              data-testid={`notification-item-${n.id}`}
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          {isLoading ? (
+            <div className="py-10 text-center text-sm text-slate-500">
+              Loading notifications...
+            </div>
+          ) : items.length === 0 ? (
+            <div className="py-10 text-center text-sm text-slate-500">
+              No notifications
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {items.map((notification) => (
+                <button
+                  type="button"
+                  key={notification.id}
+                  onClick={() => markRead(notification.id)}
+                  className={`w-full rounded-lg border p-3 text-left transition ${
+                    notification.is_read
+                      ? "border-white/5 bg-white/[0.02]"
+                      : "border-blue-500/20 bg-blue-500/5"
+                  }`}
+                  data-testid={`notification-item-${notification.id}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${
+                        priorityColor[notification.priority] ||
+                        priorityColor.info
+                      }`}
+                    >
+                      {notification.priority}
+                    </div>
+
+                    {!notification.is_read && (
+                      <Circle className="mt-1.5 h-2 w-2 fill-blue-400 text-blue-400" />
+                    )}
+                  </div>
+
+                  <div className="mt-1.5 text-sm font-medium text-slate-100">
+                    {notification.title}
+                  </div>
+
+                  <div className="text-xs text-slate-400">
+                    {notification.message}
+                  </div>
+
+                  <div className="mt-1 text-[10px] font-numeric text-slate-500">
+                    {formatDateTime(notification.created_at)}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-white/5 bg-[#0A0E17] p-4">
+          <Button
+            asChild
+            variant="outline"
+            className="w-full border-white/10 bg-white/[0.02] hover:bg-white/[0.05]"
+          >
+            <Link
+              to="/notifications"
+              onClick={closeDrawer}
+              data-testid="view-more-notifications-btn"
             >
-              <div className="flex items-start gap-3">
-                <div className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${priorityColor[n.priority] || priorityColor.info}`}>{n.priority}</div>
-                {!n.is_read && <Circle className="w-2 h-2 fill-blue-400 text-blue-400 mt-1.5" />}
-              </div>
-              <div className="mt-1.5 text-sm text-slate-100 font-medium">{n.title}</div>
-              <div className="text-xs text-slate-400">{n.message}</div>
-              <div className="mt-1 text-[10px] text-slate-500 font-numeric">{formatDateTime(n.created_at)}</div>
-            </button>
-          ))}
+              View more notifications
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
         </div>
       </SheetContent>
     </Sheet>

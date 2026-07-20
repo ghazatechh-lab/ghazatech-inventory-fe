@@ -2,45 +2,35 @@ import React from "react";
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
-  Bell,
-  Users,
   FileText,
-  ShoppingCart,
   ReceiptText,
-  CircleDollarSign,
-  Undo2,
-  ContactRound,
+  ShoppingCart,
+  RotateCcw,
+  Wallet,
+  Users,
+  Boxes,
+  Tag,
+  Layers,
+  TrendingDown,
+  GitBranch,
   ClipboardList,
-  PackageCheck,
-  HandCoins,
-  PackageX,
-  Package,
-  Shapes,
-  Tags,
-  Warehouse,
-  TriangleAlert,
-  ArrowRightLeft,
-  SlidersHorizontal,
   Truck,
-  Repeat2,
-  UserRoundCog,
-  CalendarCheck2,
+  PackageCheck,
+  PackagePlus,
+  Building2,
+  ArrowLeftRight,
+  UserSquare2,
+  CalendarCheck,
   CalendarDays,
   Banknote,
-  FileWarning,
+  ShieldAlert,
   BadgeDollarSign,
-  WalletCards,
   Landmark,
+  HandCoins,
   BookOpenText,
-  ChartNoAxesCombined,
-  ChartColumnBig,
-  PackageSearch,
-  ChartPie,
-  UsersRound,
-  ChartSpline,
-  Building2,
+  PieChart,
   ScrollText,
-  Settings,
+  Cog,
   ChevronLeft,
   ChevronRight,
   Cpu,
@@ -51,27 +41,15 @@ import { useAuth } from "@/lib/auth";
 import { isAdmin, isStaff } from "@/lib/permissions";
 import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
 
-/**
- * Navigation order follows a standard ERP workflow:
- * overview -> sales -> purchasing -> inventory -> logistics -> HR -> finance
- * -> reports -> administration.
- *
- * Master data is placed beside the module where it is used:
- * - Customers are under Sales.
- * - Suppliers are under Purchasing.
- * - Brands and Categories are under Inventory.
- */
 const groups = [
   {
     label: "Overview",
     items: [
-      { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { to: "/notifications", label: "Notifications", icon: Bell },
-    ],
-  },
-  {
-    label: "Administration",
-    items: [
+      {
+        to: "/dashboard",
+        label: "Dashboard",
+        icon: LayoutDashboard,
+      },
       {
         to: "/branches",
         label: "Branches",
@@ -87,7 +65,7 @@ const groups = [
       {
         to: "/settings",
         label: "Settings",
-        icon: Settings,
+        icon: Cog,
         adminOnly: true,
       },
     ],
@@ -98,63 +76,89 @@ const groups = [
       {
         to: "/inventory/categories",
         label: "Categories",
-        icon: Shapes,
-        adminOnly: true,
+        icon: Layers,
       },
-      { to: "/inventory/products", label: "Products", icon: Package },
-
       {
         to: "/inventory/brands",
         label: "Brands",
-        icon: Tags,
-        adminOnly: true,
+        icon: Tag,
+      },
+      {
+        to: "/inventory/products",
+        label: "Products",
+        icon: Boxes,
       },
       {
         to: "/inventory/stock",
         label: "Stock Overview",
-        icon: Warehouse,
-      },
-      {
-        to: "/inventory/low-stock",
-        label: "Low Stock Items",
-        icon: TriangleAlert,
-        badge: "!",
+        icon: PackageCheck,
       },
       {
         to: "/inventory/movements",
         label: "Stock Movements",
-        icon: ArrowRightLeft,
+        icon: ArrowLeftRight,
       },
       {
         to: "/inventory/adjustments",
         label: "Stock Adjustments",
-        icon: SlidersHorizontal,
+        icon: ClipboardList,
+      },
+      {
+        to: "/inventory/low-stock",
+        label: "Low Stock Items",
+        icon: TrendingDown,
+        badge: "!",
       },
     ],
   },
   {
     label: "Sales",
     items: [
-      { to: "/customers", label: "Customers", icon: Users },
-      { to: "/sales/quotations", label: "Quotations", icon: FileText },
-      { to: "/sales/pos", label: "Direct Sale / POS", icon: ShoppingCart },
-      { to: "/sales/invoices", label: "Sales Invoices", icon: ReceiptText },
+      {
+        to: "/sales/quotations",
+        label: "Quotations",
+        icon: FileText,
+      },
+      {
+        to: "/sales/invoices",
+        label: "Invoices",
+        icon: ReceiptText,
+      },
+      {
+        to: "/sales/pos",
+        label: "Direct Sale / POS",
+        icon: ShoppingCart,
+      },
+      {
+        to: "/sales/credit-notes",
+        label: "Credit Notes",
+        icon: RotateCcw,
+      },
       {
         to: "/sales/payments",
-        label: "Customer Payments",
-        icon: CircleDollarSign,
+        label: "Sales Payments",
+        icon: Wallet,
       },
-      { to: "/sales/credit-notes", label: "Credit Notes", icon: Undo2 },
+      {
+        to: "/customers",
+        label: "Customers",
+        icon: Users,
+      },
     ],
   },
+
   {
-    label: "Purchasing",
+    label: "Purchases",
     items: [
-      { to: "/suppliers", label: "Suppliers", icon: ContactRound },
+      {
+        to: "/suppliers",
+        label: "Suppliers",
+        icon: Users,
+      },
       {
         to: "/purchases/orders",
         label: "Purchase Orders",
-        icon: ClipboardList,
+        icon: FileText,
       },
       {
         to: "/purchases/grn",
@@ -174,28 +178,43 @@ const groups = [
       {
         to: "/purchases/supplier-returns",
         label: "Supplier Returns",
-        icon: PackageX,
+        icon: RotateCcw,
       },
     ],
   },
-
   {
-    label: "Warehouse & Logistics",
+    label: "Operations",
     items: [
-      { to: "/transfers", label: "Stock Transfers", icon: Repeat2 },
-      { to: "/shipments", label: "Shipments", icon: Truck },
+      {
+        to: "/transfers",
+        label: "Stock Transfers",
+        icon: GitBranch,
+      },
+      {
+        to: "/shipments",
+        label: "Shipments",
+        icon: Truck,
+      },
     ],
   },
   {
-    label: "Human Resources",
+    label: "HRMS",
     items: [
-      { to: "/hrms/employees", label: "Employees", icon: UserRoundCog },
+      {
+        to: "/hrms/employees",
+        label: "Employees",
+        icon: UserSquare2,
+      },
       {
         to: "/hrms/attendance",
         label: "Attendance",
-        icon: CalendarCheck2,
+        icon: CalendarCheck,
       },
-      { to: "/hrms/leaves", label: "Leave Requests", icon: CalendarDays },
+      {
+        to: "/hrms/leaves",
+        label: "Leave Requests",
+        icon: CalendarDays,
+      },
       {
         to: "/hrms/payroll",
         label: "Payroll",
@@ -205,24 +224,63 @@ const groups = [
       {
         to: "/hrms/document-expiry",
         label: "Document Expiry",
-        icon: FileWarning,
+        icon: ShieldAlert,
       },
     ],
   },
   {
-    label: "Finance & Accounts",
-    hideForStaff: true,
+    label: "Reports",
     items: [
-      { to: "/finance/expenses", label: "Expenses", icon: BadgeDollarSign },
+      {
+        to: "/reports/dashboard",
+        label: "Dashboard Reports",
+        icon: PieChart,
+      },
+      {
+        to: "/reports/sales",
+        label: "Sales Reports",
+        icon: FileText,
+      },
+      {
+        to: "/reports/purchases",
+        label: "Purchase Reports",
+        icon: PackagePlus,
+      },
+      {
+        to: "/reports/inventory",
+        label: "Inventory Reports",
+        icon: Boxes,
+      },
+      {
+        to: "/reports/hrms",
+        label: "HRMS Reports",
+        icon: UserSquare2,
+      },
+      {
+        to: "/reports/finance",
+        label: "Finance Reports",
+        icon: BadgeDollarSign,
+      },
+    ],
+    hideForStaff: true,
+  },
+  {
+    label: "Finance",
+    items: [
+      {
+        to: "/finance/expenses",
+        label: "Expenses",
+        icon: BadgeDollarSign,
+      },
       {
         to: "/finance/receivables",
         label: "Customer Receivables",
-        icon: CircleDollarSign,
+        icon: HandCoins,
       },
       {
         to: "/finance/payables",
         label: "Supplier Payables",
-        icon: WalletCards,
+        icon: Wallet,
       },
       {
         to: "/finance/cash-register",
@@ -234,36 +292,13 @@ const groups = [
         label: "Bank Accounts",
         icon: Landmark,
       },
-      { to: "/finance/ledger", label: "General Ledger", icon: BookOpenText },
+      {
+        to: "/finance/ledger",
+        label: "Ledger",
+        icon: BookOpenText,
+      },
     ],
-  },
-  {
-    label: "Reports & Analytics",
     hideForStaff: true,
-    items: [
-      {
-        to: "/reports/dashboard",
-        label: "Reports Dashboard",
-        icon: ChartNoAxesCombined,
-      },
-      { to: "/reports/sales", label: "Sales Reports", icon: ChartColumnBig },
-      {
-        to: "/reports/purchases",
-        label: "Purchase Reports",
-        icon: PackageSearch,
-      },
-      {
-        to: "/reports/inventory",
-        label: "Inventory Reports",
-        icon: ChartPie,
-      },
-      { to: "/reports/hrms", label: "HRMS Reports", icon: UsersRound },
-      {
-        to: "/reports/finance",
-        label: "Finance Reports",
-        icon: ChartSpline,
-      },
-    ],
   },
 ];
 
@@ -293,6 +328,7 @@ export function Sidebar({ collapsed, onToggle }) {
             <div className="text-[13px] font-semibold leading-tight tracking-wide text-white">
               {APP_NAME}
             </div>
+
             <div className="text-[11px] leading-tight text-slate-500">
               {APP_TAGLINE}
             </div>
@@ -302,13 +338,17 @@ export function Sidebar({ collapsed, onToggle }) {
 
       <nav className="flex-1 space-y-4 overflow-y-auto px-2 py-3">
         {groups.map((group) => {
-          if (group.hideForStaff && isStaff(user)) return null;
+          if (group.hideForStaff && isStaff(user)) {
+            return null;
+          }
 
           const visibleItems = group.items.filter(
             (item) => !(item.adminOnly && !isAdmin(user)),
           );
 
-          if (!visibleItems.length) return null;
+          if (!visibleItems.length) {
+            return null;
+          }
 
           return (
             <div key={group.label}>
@@ -323,11 +363,9 @@ export function Sidebar({ collapsed, onToggle }) {
                   <NavLink
                     key={item.to}
                     to={item.to}
-                    end
                     data-testid={`nav-${item.to
                       .replace(/\//g, "-")
                       .replace(/^-/, "")}`}
-                    title={collapsed ? item.label : undefined}
                     className={({ isActive }) =>
                       cn(
                         "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all",
@@ -336,6 +374,7 @@ export function Sidebar({ collapsed, onToggle }) {
                           : "text-slate-400 hover:bg-white/[0.04] hover:text-white",
                       )
                     }
+                    end
                   >
                     <item.icon
                       className="h-4 w-4 shrink-0"
@@ -363,8 +402,8 @@ export function Sidebar({ collapsed, onToggle }) {
         type="button"
         onClick={onToggle}
         data-testid="sidebar-toggle-btn"
-        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         className="mx-3 mb-3 flex h-8 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition hover:bg-white/5 hover:text-white"
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
         {collapsed ? (
           <ChevronRight className="h-4 w-4" />
