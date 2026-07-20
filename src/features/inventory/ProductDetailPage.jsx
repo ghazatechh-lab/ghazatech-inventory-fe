@@ -96,14 +96,6 @@ export default function ProductDetailPage() {
 
         <div className="card-surface space-y-4 p-5 lg:col-span-2">
           <div className="grid grid-cols-2 gap-4 text-sm">
-            <Price label="Purchase price" value={product.purchase_price} />
-            <Price label="Retail price" value={product.retail_price} />
-            <Price label="Wholesale price" value={product.wholesale_price} />
-            <Price
-              label="Minimum selling"
-              value={product.minimum_selling_price}
-            />
-
             <div>
               <div className="text-[10px] uppercase tracking-widest text-slate-500">
                 Warranty
@@ -161,7 +153,8 @@ export default function ProductDetailPage() {
               Product variants
             </h3>
             <p className="mt-1 text-xs text-slate-500">
-              Variant-specific SKUs, barcodes, attributes, and price overrides.
+              Variant-specific SKUs, barcodes, attributes, opening quantities,
+              and prices.
             </p>
           </div>
           <Badge variant="secondary">{variants.length} variants</Badge>
@@ -177,6 +170,7 @@ export default function ProductDetailPage() {
                   <th className="px-3 py-3">Variant</th>
                   <th className="px-3 py-3">Attributes</th>
                   <th className="px-3 py-3">SKU / Barcode</th>
+                  <th className="px-3 py-3 text-right">Available Qty</th>
                   <th className="px-3 py-3 text-right">Purchase</th>
                   <th className="px-3 py-3 text-right">Retail</th>
                   <th className="px-3 py-3">Status</th>
@@ -219,6 +213,11 @@ export default function ProductDetailPage() {
                       <div className="mt-1 font-numeric">
                         {variant.barcode || "No barcode"}
                       </div>
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <span className="font-numeric font-medium text-slate-100">
+                        {Number(variant.available_qty ?? 0).toLocaleString()}
+                      </span>
                     </td>
                     <td className="px-3 py-3 text-right">
                       <CurrencyText value={variant.effective_purchase_price} />

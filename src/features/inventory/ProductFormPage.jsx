@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { ImagePlus, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -35,10 +35,6 @@ const defaultValues = {
   brand: "",
   category: "",
   description: "",
-  purchase_price: 0,
-  retail_price: 0,
-  wholesale_price: 0,
-  minimum_selling_price: 0,
   warranty_period_days: 180,
   reorder_level: 5,
   rack_location: "",
@@ -64,6 +60,59 @@ function apiErrorMessage(error) {
   return body?.message || "Unable to save product";
 }
 
+function normalizeText(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase();
+}
+
+function resolveRelatedId(item, key, options = []) {
+  if (!item) return "";
+
+  const directId = item[`${key}_id`];
+  const related = item[key];
+  const relatedDetail = item[`${key}_detail`];
+
+  const possibleId =
+    directId ??
+    relatedDetail?.id ??
+    related?.id ??
+    related?.value ??
+    (typeof related === "number" ? related : null);
+
+  if (possibleId !== null && possibleId !== undefined && possibleId !== "") {
+    return String(possibleId);
+  }
+
+  const possibleName =
+    item[`${key}_name`] ??
+    relatedDetail?.name ??
+    related?.name ??
+    (typeof related === "string" ? related : "");
+
+  if (!possibleName) return "";
+
+  const matchedOption = options.find(
+    (option) => normalizeText(option?.name) === normalizeText(possibleName),
+  );
+
+  return matchedOption?.id ? String(matchedOption.id) : "";
+}
+
+function ensureSelectedOption(options, selectedId, fallbackName) {
+  const list = Array.isArray(options) ? [...options] : [];
+  if (!selectedId) return list;
+
+  const exists = list.some(
+    (option) => String(option.id) === String(selectedId),
+  );
+  if (!exists) {
+    list.unshift({ id: selectedId, name: fallbackName || `#${selectedId}` });
+  }
+
+  return list;
+}
+
 function appendFormValue(formData, key, value) {
   if (value === undefined || value === null) return;
   formData.append(key, typeof value === "boolean" ? String(value) : value);
@@ -75,6 +124,7 @@ export default function ProductFormPage() {
   const queryClient = useQueryClient();
   const isEdit = Boolean(id);
   const fileInputRef = React.useRef(null);
+  const hydratedProductIdRef = React.useRef(null);
 
   const [selectedImage, setSelectedImage] = React.useState(null);
   const [imagePreview, setImagePreview] = React.useState("");
@@ -83,7 +133,7 @@ export default function ProductFormPage() {
   const [referenceDescription, setReferenceDescription] = React.useState("");
   const [variants, setVariants] = React.useState([]);
 
-  const { data: product } = useQuery({
+  const { data: product, isLoading: productLoading } = useQuery({
     queryKey: ["product", id],
     queryFn: async () => unwrap(await api.get(`/products/${id}/`)),
     enabled: isEdit,
@@ -111,6 +161,7 @@ export default function ProductFormPage() {
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     setValue,
@@ -119,39 +170,57 @@ export default function ProductFormPage() {
   } = useForm({ defaultValues });
 
   React.useEffect(() => {
-    if (!product || brandsLoading || categoriesLoading) return;
+    if (!product || !isEdit || brandsLoading || categoriesLoading) {
+      return;
+    }
 
-    const brandId =
-      product.brand_id ??
-      product.brand?.id ??
-      (typeof product.brand === "number" || typeof product.brand === "string"
-        ? product.brand
-        : "");
+    const hydrationKey = String(product.id ?? id);
+    if (hydratedProductIdRef.current === hydrationKey) return;
 
-    const categoryId =
-      product.category_id ??
-      product.category?.id ??
-      (typeof product.category === "number" ||
-      typeof product.category === "string"
-        ? product.category
-        : "");
+    const brandId = resolveRelatedId(product, "brand", brands);
+    const categoryId = resolveRelatedId(product, "category", categories);
 
-    reset({
+    console.group("[Product Edit] Hydration");
+    console.log("Product API response:", product);
+    console.log("Brand options:", brands);
+    console.log("Category options:", categories);
+    console.log("Resolved brand ID:", brandId, {
+      brand: product.brand,
+      brand_id: product.brand_id,
+      brand_name: product.brand_name,
+      brand_detail: product.brand_detail,
+    });
+    console.log("Resolved category ID:", categoryId, {
+      category: product.category,
+      category_id: product.category_id,
+      category_name: product.category_name,
+      category_detail: product.category_detail,
+    });
+    console.groupEnd();
+
+    const hydratedValues = {
       product_name: product.product_name ?? "",
       sku: product.sku ?? "",
       barcode: product.barcode ?? "",
-      brand: brandId ? String(brandId) : "",
-      category: categoryId ? String(categoryId) : "",
+      brand: brandId,
+      category: categoryId,
       description: product.description ?? "",
-      purchase_price: Number(product.purchase_price ?? 0),
-      retail_price: Number(product.retail_price ?? 0),
-      wholesale_price: Number(product.wholesale_price ?? 0),
-      minimum_selling_price: Number(product.minimum_selling_price ?? 0),
       warranty_period_days: Number(product.warranty_period_days ?? 0),
       reorder_level: Number(product.reorder_level ?? 0),
       rack_location: product.rack_location ?? "",
       is_active: product.is_active ?? true,
-    });
+    };
+
+    console.log("[Product Edit] Values passed to reset:", hydratedValues);
+    reset(hydratedValues);
+
+    // Verify React Hook Form received the selected string IDs.
+    window.setTimeout(() => {
+      console.log("[Product Edit] Form values after reset:", {
+        brand: String(hydratedValues.brand || ""),
+        category: String(hydratedValues.category || ""),
+      });
+    }, 0);
 
     setVariants(
       (product.variants || []).map((variant) => ({
@@ -159,6 +228,7 @@ export default function ProductFormPage() {
         variant_name: variant.variant_name || "",
         sku: variant.sku || "",
         barcode: variant.barcode || "",
+        available_qty: variant.available_qty ?? 0,
         purchase_price: variant.purchase_price ?? "",
         retail_price: variant.retail_price ?? "",
         wholesale_price: variant.wholesale_price ?? "",
@@ -176,9 +246,19 @@ export default function ProductFormPage() {
 
     setSelectedImage(null);
     setImagePreview(product.product_image_url || product.product_image || "");
+    hydratedProductIdRef.current = hydrationKey;
 
     if (fileInputRef.current) fileInputRef.current.value = "";
-  }, [product, brandsLoading, categoriesLoading, reset]);
+  }, [
+    product,
+    isEdit,
+    id,
+    reset,
+    brands,
+    categories,
+    brandsLoading,
+    categoriesLoading,
+  ]);
 
   React.useEffect(() => {
     return () => {
@@ -188,6 +268,26 @@ export default function ProductFormPage() {
 
   const selectedBrand = watch("brand");
   const selectedCategory = watch("category");
+
+  const brandOptions = React.useMemo(
+    () =>
+      ensureSelectedOption(
+        brands,
+        selectedBrand,
+        product?.brand_name || product?.brand?.name,
+      ),
+    [brands, selectedBrand, product],
+  );
+
+  const categoryOptions = React.useMemo(
+    () =>
+      ensureSelectedOption(
+        categories,
+        selectedCategory,
+        product?.category_name || product?.category?.name,
+      ),
+    [categories, selectedCategory, product],
+  );
 
   const createReferenceMutation = useMutation({
     mutationFn: async () => {
@@ -267,6 +367,7 @@ export default function ProductFormPage() {
         variant_name: "",
         sku: "",
         barcode: "",
+        available_qty: 0,
         purchase_price: "",
         retail_price: "",
         wholesale_price: "",
@@ -390,73 +491,94 @@ export default function ProductFormPage() {
   };
 
   const submit = async (values) => {
-    const formData = new FormData();
+    try {
+      console.group("[Product Edit] Submit");
+      console.log("React Hook Form values:", values);
+      console.log("Variant state:", variants);
 
-    const payload = {
-      product_name: values.product_name,
-      sku: values.sku,
-      barcode: values.barcode || "",
-      brand: Number(values.brand),
-      category: Number(values.category),
-      description: values.description || "",
-      purchase_price: Number(values.purchase_price ?? 0),
-      retail_price: Number(values.retail_price ?? 0),
-      wholesale_price: Number(values.wholesale_price ?? 0),
-      minimum_selling_price: Number(values.minimum_selling_price ?? 0),
-      warranty_period_days: Number(values.warranty_period_days ?? 0),
-      reorder_level: Number(values.reorder_level ?? 0),
-      rack_location: values.rack_location || "",
-      is_active: Boolean(values.is_active),
-    };
+      const formData = new FormData();
 
-    Object.entries(payload).forEach(([key, value]) =>
-      appendFormValue(formData, key, value),
-    );
+      const brandId = Number(values.brand);
+      const categoryId = Number(values.category);
 
-    const normalizedVariants = variants.map((variant, index) => {
-      if (!variant.variant_name.trim()) {
-        throw new Error(`Variant ${index + 1}: name is required.`);
-      }
-      if (!variant.sku.trim()) {
-        throw new Error(`Variant ${index + 1}: SKU is required.`);
+      if (!Number.isInteger(brandId) || brandId <= 0) {
+        throw new Error("Please select a brand.");
       }
 
-      const attributes = {};
-      variant.attributes.forEach((attribute) => {
-        const name = attribute.name.trim();
-        const value = attribute.value.trim();
-        if (name && value) attributes[name] = value;
+      if (!Number.isInteger(categoryId) || categoryId <= 0) {
+        throw new Error("Please select a category.");
+      }
+
+      const payload = {
+        product_name: values.product_name?.trim(),
+        sku: values.sku?.trim(),
+        barcode: values.barcode?.trim() || "",
+        brand: brandId,
+        category: categoryId,
+        description: values.description?.trim() || "",
+        warranty_period_days: Number(values.warranty_period_days ?? 0),
+        reorder_level: Number(values.reorder_level ?? 0),
+        rack_location: values.rack_location?.trim() || "",
+        is_active: Boolean(values.is_active),
+      };
+
+      Object.entries(payload).forEach(([key, value]) =>
+        appendFormValue(formData, key, value),
+      );
+
+      const normalizedVariants = variants.map((variant, index) => {
+        if (!variant.variant_name.trim()) {
+          throw new Error(`Variant ${index + 1}: name is required.`);
+        }
+        if (!variant.sku.trim()) {
+          throw new Error(`Variant ${index + 1}: SKU is required.`);
+        }
+
+        const attributes = {};
+        variant.attributes.forEach((attribute) => {
+          const name = attribute.name.trim();
+          const value = attribute.value.trim();
+          if (name && value) attributes[name] = value;
+        });
+
+        const nullableNumber = (value) =>
+          value === "" || value === null || value === undefined
+            ? null
+            : Number(value);
+
+        const parsedInitialQty = Number.parseInt(variant.available_qty, 10);
+
+        return {
+          ...(variant.id ? { id: variant.id } : {}),
+          variant_name: variant.variant_name.trim(),
+          sku: variant.sku.trim(),
+          barcode: variant.barcode.trim() || null,
+          attributes,
+          available_qty:
+            Number.isFinite(parsedInitialQty) && parsedInitialQty >= 0
+              ? parsedInitialQty
+              : 0,
+          purchase_price: nullableNumber(variant.purchase_price),
+          retail_price: nullableNumber(variant.retail_price),
+          wholesale_price: nullableNumber(variant.wholesale_price),
+          minimum_selling_price: nullableNumber(variant.minimum_selling_price),
+          is_default: Boolean(variant.is_default),
+          is_active: Boolean(variant.is_active),
+        };
       });
 
-      const nullableNumber = (value) =>
-        value === "" || value === null || value === undefined
-          ? null
-          : Number(value);
+      formData.append("variants", JSON.stringify(normalizedVariants));
 
-      return {
-        ...(variant.id ? { id: variant.id } : {}),
-        variant_name: variant.variant_name.trim(),
-        sku: variant.sku.trim(),
-        barcode: variant.barcode.trim() || null,
-        attributes,
-        purchase_price: nullableNumber(variant.purchase_price),
-        retail_price: nullableNumber(variant.retail_price),
-        wholesale_price: nullableNumber(variant.wholesale_price),
-        minimum_selling_price: nullableNumber(variant.minimum_selling_price),
-        is_default: Boolean(variant.is_default),
-        is_active: Boolean(variant.is_active),
-      };
-    });
+      console.log("Normalized product payload:", payload);
+      console.log("Normalized variants:", normalizedVariants);
+      console.groupEnd();
 
-    formData.append("variants", JSON.stringify(normalizedVariants));
+      // Preserve the existing image on edit. Only send this field when the
+      // user has selected a new File object.
+      if (selectedImage instanceof File) {
+        formData.append("product_image", selectedImage);
+      }
 
-    // Preserve the existing image on edit. Only send this field when the
-    // user has selected a new File object.
-    if (selectedImage instanceof File) {
-      formData.append("product_image", selectedImage);
-    }
-
-    try {
       // Do not set Content-Type manually for FormData.
       // The browser must add the multipart boundary automatically.
       if (isEdit) {
@@ -465,14 +587,47 @@ export default function ProductFormPage() {
         await api.post("/products/", formData);
       }
 
+      await queryClient.invalidateQueries({ queryKey: ["products"] });
+      await queryClient.invalidateQueries({ queryKey: ["product", id] });
+
       toast.success(`Product ${isEdit ? "updated" : "created"} successfully`);
       navigate("/inventory/products");
     } catch (error) {
+      console.groupEnd();
+      console.error("[Product Edit] Submit failed:", error);
       if (!error?.__apiErrorShown) {
         toast.error(error?.message || apiErrorMessage(error));
       }
     }
   };
+
+  const handleInvalidSubmit = (formErrors) => {
+    console.group("[Product Edit] Form validation failed");
+    console.error("Validation errors:", formErrors);
+    console.log("Current form values:", watch());
+    console.log("Current variants:", variants);
+    console.groupEnd();
+
+    const firstError = Object.values(formErrors || {})[0];
+    toast.error(firstError?.message || "Please complete all required fields.");
+  };
+
+  if (
+    isEdit &&
+    (productLoading || !product || brandsLoading || categoriesLoading)
+  ) {
+    return (
+      <div className="max-w-4xl">
+        <PageHeader
+          title="Edit product"
+          subtitle="Loading product details..."
+        />
+        <div className="card-surface p-6 text-sm text-muted-foreground">
+          Loading product and variant quantities...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl">
@@ -482,18 +637,9 @@ export default function ProductFormPage() {
       />
 
       <form
-        onSubmit={handleSubmit(submit)}
+        onSubmit={handleSubmit(submit, handleInvalidSubmit)}
         className="card-surface p-6 space-y-5"
       >
-        <input
-          type="hidden"
-          {...register("brand", { required: "Brand is required" })}
-        />
-        <input
-          type="hidden"
-          {...register("category", { required: "Category is required" })}
-        />
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
             <Label>Product image</Label>
@@ -582,31 +728,35 @@ export default function ProductFormPage() {
                 Add brand
               </Button>
             </div>
-            <Select
-              value={selectedBrand ? String(selectedBrand) : ""}
-              onValueChange={(value) =>
-                setValue("brand", value, {
-                  shouldValidate: true,
-                  shouldDirty: true,
-                })
-              }
-              disabled={brandsLoading}
-            >
-              <SelectTrigger className="mt-1.5">
-                <SelectValue
-                  placeholder={
-                    brandsLoading ? "Loading brands…" : "Select brand"
-                  }
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {brands.map((brand) => (
-                  <SelectItem key={brand.id} value={String(brand.id)}>
-                    {brand.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Controller
+              name="brand"
+              control={control}
+              rules={{ required: "Brand is required" }}
+              render={({ field }) => (
+                <select
+                  ref={field.ref}
+                  name={field.name}
+                  value={field.value == null ? "" : String(field.value)}
+                  onBlur={field.onBlur}
+                  onChange={(event) => {
+                    const value = String(event.target.value);
+                    console.log("[Product Form] Brand selected:", value);
+                    field.onChange(value);
+                  }}
+                  disabled={brandsLoading}
+                  className="mt-1.5 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="">
+                    {brandsLoading ? "Loading brands…" : "Select brand"}
+                  </option>
+                  {brandOptions.map((brand) => (
+                    <option key={brand.id} value={String(brand.id)}>
+                      {brand.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            />
             {errors.brand && (
               <p className="mt-1 text-xs text-red-400">
                 {errors.brand.message}
@@ -628,33 +778,37 @@ export default function ProductFormPage() {
                 Add category
               </Button>
             </div>
-            <Select
-              value={selectedCategory ? String(selectedCategory) : ""}
-              onValueChange={(value) =>
-                setValue("category", value, {
-                  shouldValidate: true,
-                  shouldDirty: true,
-                })
-              }
-              disabled={categoriesLoading}
-            >
-              <SelectTrigger className="mt-1.5">
-                <SelectValue
-                  placeholder={
-                    categoriesLoading
+            <Controller
+              name="category"
+              control={control}
+              rules={{ required: "Category is required" }}
+              render={({ field }) => (
+                <select
+                  ref={field.ref}
+                  name={field.name}
+                  value={field.value == null ? "" : String(field.value)}
+                  onBlur={field.onBlur}
+                  onChange={(event) => {
+                    const value = String(event.target.value);
+                    console.log("[Product Form] Category selected:", value);
+                    field.onChange(value);
+                  }}
+                  disabled={categoriesLoading}
+                  className="mt-1.5 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="">
+                    {categoriesLoading
                       ? "Loading categories…"
-                      : "Select category"
-                  }
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={String(category.id)}>
-                    {category.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                      : "Select category"}
+                  </option>
+                  {categoryOptions.map((category) => (
+                    <option key={category.id} value={String(category.id)}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            />
             {errors.category && (
               <p className="mt-1 text-xs text-red-400">
                 {errors.category.message}
@@ -708,8 +862,8 @@ export default function ProductFormPage() {
               </h3>
               <p className="mt-1 text-xs text-slate-500">
                 Add combinations such as Color, RAM, Storage, Condition, or any
-                custom attribute. Empty variant prices inherit the main product
-                prices.
+                custom attribute. Enter the available quantity for each variant.
+                Empty quantity is saved as 0.
               </p>
             </div>
             <Button
@@ -725,8 +879,8 @@ export default function ProductFormPage() {
 
           {variants.length === 0 ? (
             <div className="rounded-lg border border-dashed border-white/10 p-6 text-center text-sm text-slate-500">
-              This product has no variants. The main product SKU and prices will
-              be used.
+              This product has no variants. Add at least one variant to manage
+              pricing and available quantity.
             </div>
           ) : (
             <div className="space-y-4">
@@ -791,6 +945,32 @@ export default function ProductFormPage() {
                         }
                         className="mt-1.5"
                       />
+                    </div>
+                    <div>
+                      <Label>Available qty</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={variant.available_qty ?? 0}
+                        onChange={(event) =>
+                          updateVariant(
+                            variantIndex,
+                            "available_qty",
+                            event.target.value,
+                          )
+                        }
+                        onBlur={(event) => {
+                          if (event.target.value === "") {
+                            updateVariant(variantIndex, "available_qty", 0);
+                          }
+                        }}
+                        placeholder="0"
+                        className="mt-1.5 font-numeric"
+                      />
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        Empty value will be saved as 0.
+                      </p>
                     </div>
                     <div className="flex items-end gap-6 pb-2">
                       <div className="flex items-center gap-2">

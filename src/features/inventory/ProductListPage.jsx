@@ -40,6 +40,23 @@ const getResults = (response) => {
 const getProductImage = (product) =>
   product?.product_image_url || product?.product_image || null;
 
+const getAvailableQuantity = (product) => {
+  const variants = Array.isArray(product?.variants) ? product.variants : [];
+
+  if (variants.length) {
+    return variants.reduce((total, variant) => {
+      const quantity = Number(variant?.available_qty ?? 0);
+      return total + (Number.isFinite(quantity) && quantity > 0 ? quantity : 0);
+    }, 0);
+  }
+
+  const fallback = Number(
+    product?.total_available_qty ?? product?.available_qty ?? 0,
+  );
+
+  return Number.isFinite(fallback) && fallback > 0 ? fallback : 0;
+};
+
 const getRelatedName = (value, fallback) => {
   if (value && typeof value === "object") {
     return value.name || fallback || "—";
@@ -205,6 +222,16 @@ export default function ProductListPage() {
       header: "Category",
       cell: (product) =>
         getRelatedName(product.category, product.category_name),
+    },
+    {
+      key: "available_qty",
+      header: "Available Qty",
+      align: "right",
+      cell: (product) => (
+        <span className="font-numeric font-medium text-slate-200">
+          {getAvailableQuantity(product)}
+        </span>
+      ),
     },
     {
       key: "rack_location",
