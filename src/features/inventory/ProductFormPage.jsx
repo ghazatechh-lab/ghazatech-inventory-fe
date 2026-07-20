@@ -34,6 +34,12 @@ const defaultValues = {
   barcode: "",
   brand: "",
   category: "",
+  compatible_models: "",
+  condition: "NEW",
+  unit: "PCS",
+  vat_inclusive: true,
+  vat_rate: 5,
+  supplier: "",
   description: "",
   warranty_period_days: 180,
   reorder_level: 5,
@@ -159,6 +165,16 @@ export default function ProductFormPage() {
       ),
   });
 
+  const { data: suppliers = [], isLoading: suppliersLoading } = useQuery({
+    queryKey: ["suppliers", "active-options"],
+    queryFn: async () =>
+      listResults(
+        await api.get("/suppliers/", {
+          params: { is_active: true, page_size: 500 },
+        }),
+      ),
+  });
+
   const {
     register,
     control,
@@ -170,7 +186,13 @@ export default function ProductFormPage() {
   } = useForm({ defaultValues });
 
   React.useEffect(() => {
-    if (!product || !isEdit || brandsLoading || categoriesLoading) {
+    if (
+      !product ||
+      !isEdit ||
+      brandsLoading ||
+      categoriesLoading ||
+      suppliersLoading
+    ) {
       return;
     }
 
@@ -204,6 +226,17 @@ export default function ProductFormPage() {
       barcode: product.barcode ?? "",
       brand: brandId,
       category: categoryId,
+      compatible_models: product.compatible_models ?? "",
+      condition: product.condition ?? "NEW",
+      unit: product.unit ?? "PCS",
+      vat_inclusive: product.vat_inclusive ?? true,
+      vat_rate: Number(product.vat_rate ?? 5),
+      supplier:
+        product.supplier?.id != null
+          ? String(product.supplier.id)
+          : product.supplier != null
+            ? String(product.supplier)
+            : "",
       description: product.description ?? "",
       warranty_period_days: Number(product.warranty_period_days ?? 0),
       reorder_level: Number(product.reorder_level ?? 0),
@@ -258,6 +291,7 @@ export default function ProductFormPage() {
     categories,
     brandsLoading,
     categoriesLoading,
+    suppliersLoading,
   ]);
 
   React.useEffect(() => {
@@ -515,6 +549,12 @@ export default function ProductFormPage() {
         barcode: values.barcode?.trim() || "",
         brand: brandId,
         category: categoryId,
+        compatible_models: values.compatible_models?.trim() || "",
+        condition: values.condition || "NEW",
+        unit: values.unit || "PCS",
+        vat_inclusive: Boolean(values.vat_inclusive),
+        vat_rate: Number(values.vat_rate ?? 5),
+        supplier: values.supplier ? Number(values.supplier) : "",
         description: values.description?.trim() || "",
         warranty_period_days: Number(values.warranty_period_days ?? 0),
         reorder_level: Number(values.reorder_level ?? 0),
@@ -614,7 +654,11 @@ export default function ProductFormPage() {
 
   if (
     isEdit &&
-    (productLoading || !product || brandsLoading || categoriesLoading)
+    (productLoading ||
+      !product ||
+      brandsLoading ||
+      categoriesLoading ||
+      suppliersLoading)
   ) {
     return (
       <div className="max-w-4xl">
@@ -814,6 +858,117 @@ export default function ProductFormPage() {
                 {errors.category.message}
               </p>
             )}
+          </div>
+
+          <div className="md:col-span-2">
+            <Label>Compatible models</Label>
+            <Input
+              {...register("compatible_models")}
+              placeholder="e.g. Latitude 5420, 5430, Precision 3560"
+              className="mt-1.5"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Used for spare-parts search matching. Separate models with commas.
+            </p>
+          </div>
+
+          <div>
+            <Label>Condition</Label>
+            <Controller
+              name="condition"
+              control={control}
+              render={({ field }) => (
+                <select
+                  {...field}
+                  value={field.value || "NEW"}
+                  className="mt-1.5 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="NEW">New</option>
+                  <option value="USED">Used</option>
+                  <option value="REFURBISHED">Refurbished</option>
+                </select>
+              )}
+            />
+          </div>
+
+          <div>
+            <Label>Unit</Label>
+            <Controller
+              name="unit"
+              control={control}
+              render={({ field }) => (
+                <select
+                  {...field}
+                  value={field.value || "PCS"}
+                  className="mt-1.5 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="PCS">Pcs</option>
+                  <option value="SET">Set</option>
+                  <option value="BOX">Box</option>
+                  <option value="PACK">Pack</option>
+                  <option value="PAIR">Pair</option>
+                </select>
+              )}
+            />
+          </div>
+
+          <div>
+            <Label>Supplier</Label>
+            <Controller
+              name="supplier"
+              control={control}
+              render={({ field }) => (
+                <select
+                  ref={field.ref}
+                  name={field.name}
+                  value={field.value == null ? "" : String(field.value)}
+                  onBlur={field.onBlur}
+                  onChange={(event) => field.onChange(event.target.value)}
+                  disabled={suppliersLoading}
+                  className="mt-1.5 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">
+                    {suppliersLoading
+                      ? "Loading suppliers…"
+                      : "Select supplier"}
+                  </option>
+                  {suppliers.map((supplier) => (
+                    <option key={supplier.id} value={String(supplier.id)}>
+                      {supplier.supplier_name ||
+                        supplier.name ||
+                        supplier.supplier_code}
+                    </option>
+                  ))}
+                </select>
+              )}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>VAT</Label>
+            <div className="flex min-h-10 items-center gap-3">
+              <Switch
+                checked={Boolean(watch("vat_inclusive"))}
+                onCheckedChange={(value) =>
+                  setValue("vat_inclusive", value, { shouldDirty: true })
+                }
+              />
+              <span className="text-sm text-muted-foreground">
+                Inclusive in variant retail price
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <Label>VAT rate (%)</Label>
+            <Input
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              {...register("vat_rate", { valueAsNumber: true })}
+              className="mt-1.5 font-numeric"
+            />
           </div>
 
           <div className="md:col-span-2">
@@ -1099,7 +1254,12 @@ export default function ProductFormPage() {
         <div className="flex gap-2">
           <Button
             type="submit"
-            disabled={isSubmitting || brandsLoading || categoriesLoading}
+            disabled={
+              isSubmitting ||
+              brandsLoading ||
+              categoriesLoading ||
+              suppliersLoading
+            }
             className="bg-blue-600 hover:bg-blue-700"
             data-testid="product-save-btn"
           >

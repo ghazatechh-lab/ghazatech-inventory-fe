@@ -112,6 +112,41 @@ const groups = [
     ],
   },
   {
+    label: "Purchases",
+    items: [
+      {
+        to: "/suppliers",
+        label: "Suppliers",
+        icon: Users,
+      },
+      {
+        to: "/purchases/orders",
+        label: "Purchase Orders",
+        icon: FileText,
+      },
+      {
+        to: "/purchases/grn",
+        label: "Goods Received Notes",
+        icon: PackageCheck,
+      },
+      {
+        to: "/purchases/supplier-bills",
+        label: "Supplier Bills",
+        icon: ReceiptText,
+      },
+      {
+        to: "/purchases/supplier-payments",
+        label: "Supplier Payments",
+        icon: HandCoins,
+      },
+      {
+        to: "/purchases/supplier-returns",
+        label: "Supplier Returns",
+        icon: RotateCcw,
+      },
+    ],
+  },
+  {
     label: "Sales",
     items: [
       {
@@ -147,41 +182,6 @@ const groups = [
     ],
   },
 
-  {
-    label: "Purchases",
-    items: [
-      {
-        to: "/suppliers",
-        label: "Suppliers",
-        icon: Users,
-      },
-      {
-        to: "/purchases/orders",
-        label: "Purchase Orders",
-        icon: FileText,
-      },
-      {
-        to: "/purchases/grn",
-        label: "Goods Received Notes",
-        icon: PackageCheck,
-      },
-      {
-        to: "/purchases/supplier-bills",
-        label: "Supplier Bills",
-        icon: ReceiptText,
-      },
-      {
-        to: "/purchases/supplier-payments",
-        label: "Supplier Payments",
-        icon: HandCoins,
-      },
-      {
-        to: "/purchases/supplier-returns",
-        label: "Supplier Returns",
-        icon: RotateCcw,
-      },
-    ],
-  },
   {
     label: "Operations",
     items: [
