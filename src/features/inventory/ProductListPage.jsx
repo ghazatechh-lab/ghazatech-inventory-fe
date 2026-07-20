@@ -15,7 +15,6 @@ import { useDebouncedValue } from "@/hooks/useDebounce";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { SearchInput } from "@/components/common/SearchInput";
-import { CurrencyText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
@@ -206,20 +205,6 @@ export default function ProductListPage() {
       header: "Category",
       cell: (product) =>
         getRelatedName(product.category, product.category_name),
-    },
-    {
-      key: "purchase_price",
-      header: "Purchase",
-      align: "right",
-      cell: (product) => <CurrencyText value={product.purchase_price} />,
-    },
-    {
-      key: "retail_price",
-      header: "Retail",
-      align: "right",
-      cell: (product) => (
-        <CurrencyText value={product.retail_price} className="text-slate-100" />
-      ),
     },
     {
       key: "rack_location",
