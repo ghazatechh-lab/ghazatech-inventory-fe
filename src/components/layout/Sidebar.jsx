@@ -120,11 +120,6 @@ const groups = [
         label: "Stock Transfers",
         icon: GitBranch,
       },
-      {
-        to: "/shipments",
-        label: "Shipments",
-        icon: Truck,
-      },
     ],
   },
   {
@@ -134,6 +129,11 @@ const groups = [
         to: "/suppliers",
         label: "Suppliers",
         icon: Users,
+      },
+      {
+        to: "/shipments",
+        label: "Shipments",
+        icon: Truck,
       },
       {
         to: "/purchases/orders",

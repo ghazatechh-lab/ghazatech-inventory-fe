@@ -13,6 +13,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const emptyBaseStock = {
   attributes: [],
@@ -92,6 +100,9 @@ export default function ProductFormPage() {
   const lastAppliedHeaderBranchRef = React.useRef(undefined);
   const [image, setImage] = React.useState(null);
   const [imagePreview, setImagePreview] = React.useState("");
+  const [stockConfirmOpen, setStockConfirmOpen] = React.useState(false);
+  const [pendingFormValues, setPendingFormValues] = React.useState(null);
+  const [pendingStockChanges, setPendingStockChanges] = React.useState([]);
   const [variants, setVariants] = React.useState([{ ...emptyBaseStock }]);
 
   const {
@@ -442,7 +453,7 @@ export default function ProductFormPage() {
       ),
     );
 
-  const submit = async (values) => {
+  const saveProduct = async (values) => {
     try {
       const normalizedVariants = (
         hasVariants ? variants : [variants[0] || emptyBaseStock]
@@ -521,6 +532,58 @@ export default function ProductFormPage() {
     }
   };
 
+  const requestSubmit = async (values) => {
+    if (!isEdit || !product) {
+      await saveProduct(values);
+      return;
+    }
+
+    const originalVariants = product.variants || [];
+    const nextVariants = hasVariants
+      ? variants
+      : [variants[0] || emptyBaseStock];
+
+    const changes = nextVariants
+      .map((variant, index) => {
+        const original = variant.id
+          ? originalVariants.find(
+              (item) => String(item.id) === String(variant.id),
+            )
+          : originalVariants[index];
+        const before = Number(original?.available_qty || 0);
+        const after = Number(variant.available_qty || 0);
+        if (before === after) return null;
+        const label = hasVariants
+          ? Object.values(
+              Object.fromEntries(
+                (variant.attributes || []).map((a) => [a.name, a.value]),
+              ),
+            )
+              .filter(Boolean)
+              .join(" / ") || `Variant ${index + 1}`
+          : "Base product";
+        return { label, before, after, difference: after - before };
+      })
+      .filter(Boolean);
+
+    if (!changes.length) {
+      await saveProduct(values);
+      return;
+    }
+
+    setPendingFormValues(values);
+    setPendingStockChanges(changes);
+    setStockConfirmOpen(true);
+  };
+
+  const confirmProductStockUpdate = async () => {
+    if (!pendingFormValues) return;
+    setStockConfirmOpen(false);
+    await saveProduct(pendingFormValues);
+    setPendingFormValues(null);
+    setPendingStockChanges([]);
+  };
+
   React.useEffect(() => {
     if (!racksError) return;
 
@@ -552,7 +615,7 @@ export default function ProductFormPage() {
       </div>
 
       <form
-        onSubmit={handleSubmit(submit, (formErrors) => {
+        onSubmit={handleSubmit(requestSubmit, (formErrors) => {
           console.error("[Product Form] Validation failed:", formErrors);
 
           toast.error("Please complete the required fields.");
@@ -1280,6 +1343,61 @@ export default function ProductFormPage() {
           </Button>
         </div>
       </form>
+
+      <Dialog open={stockConfirmOpen} onOpenChange={setStockConfirmOpen}>
+        <DialogContent className="border-white/10 bg-slate-950 sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Confirm stock update</DialogTitle>
+            <DialogDescription>
+              This will change real branch stock and create a stock-movement
+              audit entry with your user account and the current time.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            {pendingStockChanges.map((change) => (
+              <div
+                key={change.label}
+                className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.025] p-4"
+              >
+                <div>
+                  <p className="font-medium text-white">{change.label}</p>
+                  <p className="text-xs text-slate-500">
+                    {change.before} → {change.after}
+                  </p>
+                </div>
+                <span
+                  className={
+                    change.difference > 0
+                      ? "font-mono font-semibold text-emerald-400"
+                      : "font-mono font-semibold text-red-400"
+                  }
+                >
+                  {change.difference > 0 ? "+" : ""}
+                  {change.difference}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setStockConfirmOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={confirmProductStockUpdate}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Confirm and update stock
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
