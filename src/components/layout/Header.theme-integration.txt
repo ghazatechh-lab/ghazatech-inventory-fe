@@ -1,0 +1,7 @@
+Add this import to Header.jsx:
+
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+
+Render this before the notification Bell button:
+
+<ThemeToggle />

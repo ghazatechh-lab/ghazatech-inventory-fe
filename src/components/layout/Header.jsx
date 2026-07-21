@@ -24,6 +24,7 @@ import {
 import { isAdmin } from "@/lib/permissions";
 import { BranchSelector } from "@/components/common/BranchSelector";
 import { NotificationDrawer } from "@/components/common/NotificationDrawer";
+import { ThemeToggle } from "@/components/common/ThemeToggle";
 
 const routeLabels = {
   dashboard: "Dashboard",
@@ -93,19 +94,26 @@ function Breadcrumbs() {
         return (
           <React.Fragment key={generatedPath}>
             {index > 0 && (
-              <span className="text-slate-600" aria-hidden="true">
+              <span
+                className="text-slate-300 dark:text-slate-600"
+                aria-hidden="true"
+              >
                 /
               </span>
             )}
 
             {isLast ? (
-              <span className="font-medium text-slate-200">{label}</span>
+              <span className="font-medium text-slate-900 dark:text-slate-200">
+                {label}
+              </span>
             ) : isSectionOnly ? (
-              <span className="cursor-default text-slate-500">{label}</span>
+              <span className="text-slate-500 dark:text-slate-500">
+                {label}
+              </span>
             ) : (
               <Link
                 to={generatedPath}
-                className="text-slate-500 transition-colors hover:text-slate-200"
+                className="text-slate-500 transition-colors hover:text-slate-950 dark:text-slate-500 dark:hover:text-slate-200"
               >
                 {label}
               </Link>
@@ -164,11 +172,11 @@ export function Header({ onOpenMobileSidebar }) {
     "No branch";
 
   return (
-    <header className="sticky top-0 z-30 border-b border-white/5 bg-[#0A0E17]/85 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 shadow-sm backdrop-blur-xl dark:border-white/5 dark:bg-[#0A0E17]/85 dark:shadow-none">
       <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
         <button
           type="button"
-          className="rounded-md p-2 text-slate-400 transition hover:bg-white/5 hover:text-white lg:hidden"
+          className="rounded-md p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white lg:hidden"
           onClick={onOpenMobileSidebar}
           aria-label="Open navigation"
         >
@@ -179,7 +187,7 @@ export function Header({ onOpenMobileSidebar }) {
 
         <div className="flex-1" />
 
-        <div className="hidden h-9 w-72 items-center gap-1.5 rounded-lg border border-white/10 px-3 text-sm text-slate-500 md:flex">
+        <div className="hidden h-9 w-72 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-500 shadow-sm md:flex dark:border-white/10 dark:bg-white/[0.02] dark:shadow-none">
           <Search className="h-4 w-4" />
           <span>Search anything…</span>
         </div>
@@ -187,16 +195,18 @@ export function Header({ onOpenMobileSidebar }) {
         {isAdmin(user) ? (
           <BranchSelector />
         ) : (
-          <div className="hidden h-9 items-center gap-1.5 rounded-lg border border-white/10 px-3 text-xs text-slate-300 md:flex">
-            <Building2 className="h-3.5 w-3.5" />
+          <div className="hidden h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 shadow-sm md:flex dark:border-white/10 dark:bg-white/[0.02] dark:text-slate-300 dark:shadow-none">
+            <Building2 className="h-3.5 w-3.5 text-slate-500" />
 
             <span>{userBranchCode}</span>
           </div>
         )}
 
+        <ThemeToggle />
+
         <button
           type="button"
-          className="relative rounded-md p-2 text-slate-400 transition hover:bg-white/5 hover:text-white"
+          className="relative rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white"
           onClick={() => setNotificationOpen(true)}
           aria-label="Open notifications"
         >
@@ -213,17 +223,27 @@ export function Header({ onOpenMobileSidebar }) {
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="flex items-center gap-2 rounded-md p-1 transition hover:bg-white/5"
+              className="flex items-center gap-2 rounded-lg p-1 pr-2 transition hover:bg-slate-100 dark:hover:bg-white/5"
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-sm font-semibold text-white">
                 {userInitial}
               </div>
 
-              <ChevronDown className="h-4 w-4 text-slate-400" />
+              <div className="hidden flex-col items-start leading-tight sm:flex">
+                <span className="text-xs font-medium text-slate-900 dark:text-slate-200">
+                  {user?.full_name || user?.username || "User"}
+                </span>
+
+                <span className="text-[10px] text-slate-500">
+                  {user?.role?.name || user?.role_detail?.name || ""}
+                </span>
+              </div>
+
+              <ChevronDown className="h-4 w-4 text-slate-500" />
             </button>
           </DropdownMenuTrigger>
 
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
               {user?.full_name || user?.username || "User"}
             </DropdownMenuLabel>
@@ -233,13 +253,18 @@ export function Header({ onOpenMobileSidebar }) {
             <DropdownMenuItem asChild>
               <Link to="/settings">
                 <User2 className="mr-2 h-4 w-4" />
-                Settings
+                Profile & Settings
               </Link>
             </DropdownMenuItem>
 
-            <DropdownMenuItem onClick={logout}>
+            <DropdownMenuSeparator />
+
+            <DropdownMenuItem
+              onClick={logout}
+              className="text-red-500 focus:text-red-600 dark:text-red-400 dark:focus:text-red-300"
+            >
               <LogOut className="mr-2 h-4 w-4" />
-              Logout
+              Log out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

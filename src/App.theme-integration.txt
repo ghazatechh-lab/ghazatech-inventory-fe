@@ -1,0 +1,14 @@
+Add these imports to frontend/src/App.js:
+
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import "@/styles/theme.css";
+
+Then wrap the existing BrowserRouter:
+
+<QueryClientProvider client={queryClient}>
+  <ThemeProvider defaultTheme="system">
+    <BrowserRouter>
+      ...
+    </BrowserRouter>
+  </ThemeProvider>
+</QueryClientProvider>
