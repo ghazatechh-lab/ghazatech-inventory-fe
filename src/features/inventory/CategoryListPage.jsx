@@ -1,11 +1,11 @@
 import React from "react";
-import ReferenceDataPage from "@/features/inventory/ReferenceDataPage";
+import ReferenceDataPage from "./ReferenceDataPage";
 
 export default function CategoryListPage() {
   return (
     <ReferenceDataPage
       title="Categories"
-      description="Manage product categories used to organize inventory."
+      subtitle="Organize products into clear inventory categories."
       singular="Category"
       endpoint="/categories/"
       queryKey="categories"

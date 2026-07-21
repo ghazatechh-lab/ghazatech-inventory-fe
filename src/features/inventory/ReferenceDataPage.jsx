@@ -1,16 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Eye,
-  MoreHorizontal,
-  Pencil,
-  Plus,
-  Search,
-  Trash2,
-} from "lucide-react";
+import { Edit3, Plus, Search, Tag, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import api, { getApiErrorMessage, unwrap } from "@/lib/api";
+import api, { unwrap } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,45 +16,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+
+const normalizeList = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.results)) return value.results;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.results)) return value.data.results;
+  return [];
+};
 
 const emptyForm = {
   name: "",
-  description: "",
   is_active: true,
 };
 
-const getItemsFromResponse = (response) => {
-  const data = unwrap(response);
-
-  if (Array.isArray(data)) {
-    return data;
-  }
-
-  return data?.results || [];
-};
-
-const getFallbackError = (error, fallback) =>
-  getApiErrorMessage(error, fallback);
-
 export default function ReferenceDataPage({
   title,
-  description,
+  subtitle,
   singular,
   endpoint,
   queryKey,
@@ -69,401 +40,368 @@ export default function ReferenceDataPage({
 }) {
   const queryClient = useQueryClient();
 
-  const [search, setSearch] = useState("");
-  const [formOpen, setFormOpen] = useState(false);
-  const [viewTarget, setViewTarget] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [editingItem, setEditingItem] = useState(null);
-  const [form, setForm] = useState(emptyForm);
-
-  const normalizedEndpoint = endpoint.endsWith("/") ? endpoint : `${endpoint}/`;
+  const [search, setSearch] = React.useState("");
+  const [formOpen, setFormOpen] = React.useState(false);
+  const [editingItem, setEditingItem] = React.useState(null);
+  const [deleteItem, setDeleteItem] = React.useState(null);
+  const [form, setForm] = React.useState(emptyForm);
+  const [fieldError, setFieldError] = React.useState("");
 
   const {
-    data: items = [],
+    data: response,
     isLoading,
     isError,
-    error,
+    refetch,
   } = useQuery({
     queryKey: [queryKey],
     queryFn: async () => {
-      const response = await api.get(normalizedEndpoint, {
-        params: {
-          page_size: 500,
-        },
+      const apiResponse = await api.get(endpoint, {
+        params: { page_size: 500 },
       });
-
-      return getItemsFromResponse(response);
+      return unwrap(apiResponse);
     },
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
-  const filteredItems = useMemo(() => {
-    const term = search.trim().toLowerCase();
+  const items = React.useMemo(() => normalizeList(response), [response]);
 
-    if (!term) {
-      return items;
-    }
+  const visibleItems = React.useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return items;
 
-    return items.filter((item) => {
-      const name = String(item?.name || "").toLowerCase();
-      const itemDescription = String(item?.description || "").toLowerCase();
-
-      return name.includes(term) || itemDescription.includes(term);
-    });
+    return items.filter((item) =>
+      String(item.name || "")
+        .toLowerCase()
+        .includes(query),
+    );
   }, [items, search]);
 
-  const closeForm = () => {
-    setFormOpen(false);
+  const openCreateModal = () => {
     setEditingItem(null);
     setForm(emptyForm);
-  };
-
-  const openCreateForm = () => {
-    setEditingItem(null);
-    setForm(emptyForm);
+    setFieldError("");
     setFormOpen(true);
   };
 
-  const openEditForm = (item) => {
+  const openEditModal = (item) => {
     setEditingItem(item);
-
     setForm({
-      name: item?.name || "",
-      description: item?.description || "",
-      is_active: typeof item?.is_active === "boolean" ? item.is_active : true,
+      name: item.name || "",
+      is_active: typeof item.is_active === "boolean" ? item.is_active : true,
     });
-
+    setFieldError("");
     setFormOpen(true);
   };
 
   const saveMutation = useMutation({
     mutationFn: async (payload) => {
       if (editingItem?.id) {
-        return api.patch(`${normalizedEndpoint}${editingItem.id}/`, payload);
+        return api.patch(`${endpoint}${editingItem.id}/`, payload);
       }
-
-      return api.post(normalizedEndpoint, payload);
+      return api.post(endpoint, payload);
     },
-
-    onSuccess: () => {
-      queryClient.invalidateQueries({
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
         queryKey: [queryKey],
       });
 
       toast.success(
-        editingItem
-          ? `${singular} updated successfully.`
-          : `${singular} created successfully.`,
+        `${singular} ${editingItem ? "updated" : "created"} successfully.`,
       );
 
-      closeForm();
+      setFormOpen(false);
+      setEditingItem(null);
+      setForm(emptyForm);
     },
+    onError: (error) => {
+      const responseData =
+        error?.response?.data?.data || error?.response?.data || {};
 
-    onError: (mutationError) => {
-      /*
-       * api.js already shows the exact backend validation error.
-       * Only show a fallback when the shared interceptor did not.
-       */
-      if (!mutationError?.__apiErrorShown) {
+      const nameError = responseData?.name?.[0] || responseData?.name;
+
+      if (nameError) {
+        setFieldError(String(nameError));
+      }
+
+      if (!error?.__apiErrorShown) {
         toast.error(
-          getFallbackError(
-            mutationError,
-            `Unable to save ${singular.toLowerCase()}.`,
-          ),
+          `Unable to ${
+            editingItem ? "update" : "create"
+          } ${singular.toLowerCase()}.`,
         );
       }
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (itemId) => {
-      return api.delete(`${normalizedEndpoint}${itemId}/`);
-    },
-
-    onSuccess: () => {
-      queryClient.invalidateQueries({
+    mutationFn: async (id) => api.delete(`${endpoint}${id}/`),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
         queryKey: [queryKey],
       });
 
       toast.success(`${singular} deleted successfully.`);
 
-      setDeleteTarget(null);
+      setDeleteItem(null);
     },
-
-    onError: (mutationError) => {
-      /*
-       * Prevent duplicate error toast.
-       * The shared api.js interceptor normally displays it.
-       */
-      if (!mutationError?.__apiErrorShown) {
-        toast.error(
-          getFallbackError(
-            mutationError,
-            `Unable to delete this ${singular.toLowerCase()}.`,
-          ),
-        );
+    onError: (error) => {
+      if (!error?.__apiErrorShown) {
+        toast.error(`Unable to delete ${singular.toLowerCase()}.`);
       }
-
-      setDeleteTarget(null);
     },
   });
 
-  const handleFormChange = (event) => {
-    const { name, value } = event.target;
-
-    setForm((current) => ({
-      ...current,
-      [name]: value,
-    }));
-  };
-
-  const handleSubmit = (event) => {
+  const submitForm = (event) => {
     event.preventDefault();
 
     const name = form.name.trim();
 
     if (!name) {
-      toast.error(`${singular} name is required.`);
+      setFieldError(`${singular} name is required.`);
       return;
     }
 
+    setFieldError("");
+
     saveMutation.mutate({
       name,
-      description: form.description.trim(),
       is_active: Boolean(form.is_active),
     });
   };
 
-  const handleDeleteConfirm = () => {
-    if (!deleteTarget?.id) {
-      return;
-    }
-
-    deleteMutation.mutate(deleteTarget.id);
-  };
-
   return (
-    <div className="space-y-6" data-testid={`${testIdPrefix}-page`}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+    <div className="mx-auto w-full max-w-6xl space-y-6 pb-10">
+      <div className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950/50 shadow-xl shadow-black/20">
+        <div className="flex flex-col gap-4 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
+              <Tag className="h-5 w-5" />
+            </div>
 
-          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-white">
+              {title}
+            </h1>
+
+            <p className="mt-1 text-sm text-slate-400">{subtitle}</p>
+          </div>
+
+          <Button
+            type="button"
+            onClick={openCreateModal}
+            className="h-10 bg-blue-600 px-4 shadow-lg shadow-blue-950/30 hover:bg-blue-700"
+            data-testid={`${testIdPrefix}-add-btn`}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add {singular}
+          </Button>
         </div>
-
-        <Button
-          type="button"
-          onClick={openCreateForm}
-          data-testid={`${testIdPrefix}-add-button`}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add {singular}
-        </Button>
       </div>
 
-      <div className="rounded-xl border bg-card">
-        <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative w-full sm:max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4 shadow-lg shadow-black/10">
+        <Label htmlFor={`${testIdPrefix}-search`}>Search</Label>
 
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder={`Search ${title.toLowerCase()}...`}
-              className="pl-9"
-              data-testid={`${testIdPrefix}-search-input`}
-            />
-          </div>
+        <div className="relative mt-2 max-w-xl">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
 
-          <div className="text-sm text-muted-foreground">
-            {filteredItems.length} record
-            {filteredItems.length === 1 ? "" : "s"}
-          </div>
+          <Input
+            id={`${testIdPrefix}-search`}
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={`Search ${title.toLowerCase()}`}
+            className="h-11 border-white/10 bg-slate-900/80 pl-9"
+          />
         </div>
+      </div>
 
+      <div className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/70 shadow-xl shadow-black/10">
         <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-[90px] text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
+          <table className="w-full">
+            <thead className="border-b border-white/10 bg-white/[0.025]">
+              <tr>
+                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Name
+                </th>
+                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Status
+                </th>
+                <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Actions
+                </th>
+              </tr>
+            </thead>
 
-            <TableBody>
+            <tbody>
               {isLoading ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={4}
-                    className="h-28 text-center text-muted-foreground"
+                <tr>
+                  <td
+                    colSpan={3}
+                    className="px-5 py-14 text-center text-sm text-slate-400"
                   >
                     Loading {title.toLowerCase()}...
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ) : isError ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={4}
-                    className="h-28 text-center text-destructive"
-                  >
-                    {getFallbackError(
-                      error,
-                      `Unable to load ${title.toLowerCase()}.`,
-                    )}
-                  </TableCell>
-                </TableRow>
-              ) : filteredItems.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={4}
-                    className="h-28 text-center text-muted-foreground"
-                  >
-                    No {title.toLowerCase()} found.
-                  </TableCell>
-                </TableRow>
+                <tr>
+                  <td colSpan={3} className="px-5 py-14 text-center">
+                    <p className="text-sm text-red-400">
+                      Unable to load {title.toLowerCase()}.
+                    </p>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="mt-4"
+                      onClick={() => refetch()}
+                    >
+                      Try again
+                    </Button>
+                  </td>
+                </tr>
+              ) : visibleItems.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="px-5 py-14 text-center">
+                    <p className="font-medium text-white">
+                      No {title.toLowerCase()} found
+                    </p>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      Create your first {singular.toLowerCase()} to get started.
+                    </p>
+                  </td>
+                </tr>
               ) : (
-                filteredItems.map((item) => (
-                  <TableRow
+                visibleItems.map((item) => (
+                  <tr
                     key={item.id}
-                    data-testid={`${testIdPrefix}-row-${item.id}`}
+                    className="border-b border-white/5 transition last:border-0 hover:bg-white/[0.025]"
                   >
-                    <TableCell className="font-medium">{item.name}</TableCell>
+                    <td className="px-5 py-4">
+                      <div className="font-medium text-slate-100">
+                        {item.name}
+                      </div>
+                    </td>
 
-                    <TableCell className="max-w-md text-muted-foreground">
-                      {item.description || "—"}
-                    </TableCell>
-
-                    <TableCell>
-                      <Badge variant={item.is_active ? "default" : "secondary"}>
+                    <td className="px-5 py-4">
+                      <span
+                        className={
+                          item.is_active
+                            ? "inline-flex rounded-full border border-emerald-500/15 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-400"
+                            : "inline-flex rounded-full border border-slate-500/15 bg-slate-500/10 px-2.5 py-1 text-xs font-medium text-slate-400"
+                        }
+                      >
                         {item.is_active ? "Active" : "Inactive"}
-                      </Badge>
-                    </TableCell>
+                      </span>
+                    </td>
 
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            aria-label={`${singular} actions`}
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
+                    <td className="px-5 py-4">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openEditModal(item)}
+                          className="border-white/10 bg-white/[0.025]"
+                        >
+                          <Edit3 className="mr-2 h-4 w-4" />
+                          Edit
+                        </Button>
 
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setViewTarget(item)}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View
-                          </DropdownMenuItem>
-
-                          <DropdownMenuItem onClick={() => openEditForm(item)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-
-                          <DropdownMenuSeparator />
-
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => setDeleteTarget(item)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setDeleteItem(item)}
+                          className="border-red-500/20 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
                 ))
               )}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </div>
       </div>
 
       <Dialog
         open={formOpen}
         onOpenChange={(open) => {
-          if (!open && !saveMutation.isPending) {
-            closeForm();
+          setFormOpen(open);
+          if (!open) {
+            setEditingItem(null);
+            setFieldError("");
           }
         }}
       >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>
+        <DialogContent className="overflow-hidden border-white/10 bg-slate-950 p-0 sm:max-w-lg">
+          <DialogHeader className="border-b border-white/10 bg-gradient-to-r from-slate-950 to-blue-950/40 px-6 py-5">
+            <DialogTitle className="text-xl text-white">
               {editingItem ? `Edit ${singular}` : `Add ${singular}`}
             </DialogTitle>
 
-            <DialogDescription>
-              {editingItem
-                ? `Update the selected ${singular.toLowerCase()}.`
-                : `Create a new ${singular.toLowerCase()} record.`}
+            <DialogDescription className="text-slate-400">
+              Enter the {singular.toLowerCase()} name and choose its status.
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor={`${testIdPrefix}-name`}>Name</Label>
-
-              <Input
-                id={`${testIdPrefix}-name`}
-                name="name"
-                value={form.name}
-                onChange={handleFormChange}
-                placeholder={`Enter ${singular.toLowerCase()} name`}
-                disabled={saveMutation.isPending}
-                required
-                data-testid={`${testIdPrefix}-name-input`}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor={`${testIdPrefix}-description`}>Description</Label>
-
-              <textarea
-                id={`${testIdPrefix}-description`}
-                name="description"
-                value={form.description}
-                onChange={handleFormChange}
-                placeholder="Enter a short description"
-                disabled={saveMutation.isPending}
-                rows={4}
-                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm outline-none placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                data-testid={`${testIdPrefix}-description-input`}
-              />
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg border p-4">
+          <form onSubmit={submitForm}>
+            <div className="space-y-5 px-6 py-6">
               <div>
-                <Label htmlFor={`${testIdPrefix}-active`}>Active status</Label>
+                <Label htmlFor={`${testIdPrefix}-name`}>
+                  {singular} name
+                  <span className="ml-1 text-red-400">*</span>
+                </Label>
 
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Inactive records remain available for historical data.
-                </p>
+                <Input
+                  id={`${testIdPrefix}-name`}
+                  autoFocus
+                  value={form.name}
+                  onChange={(event) => {
+                    setForm((current) => ({
+                      ...current,
+                      name: event.target.value,
+                    }));
+                    if (fieldError) setFieldError("");
+                  }}
+                  placeholder={`Enter ${singular.toLowerCase()} name`}
+                  className="mt-2 h-11 border-white/10 bg-slate-900/80"
+                />
+
+                {fieldError && (
+                  <p className="mt-1.5 text-sm text-red-400">{fieldError}</p>
+                )}
               </div>
 
-              <Switch
-                id={`${testIdPrefix}-active`}
-                checked={form.is_active}
-                onCheckedChange={(checked) =>
-                  setForm((current) => ({
-                    ...current,
-                    is_active: checked,
-                  }))
-                }
-                disabled={saveMutation.isPending}
-              />
+              <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.025] px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-200">Active</p>
+
+                  <p className="text-xs text-slate-500">
+                    Allow this item to be selected in product forms.
+                  </p>
+                </div>
+
+                <Switch
+                  checked={form.is_active}
+                  onCheckedChange={(value) =>
+                    setForm((current) => ({
+                      ...current,
+                      is_active: value,
+                    }))
+                  }
+                />
+              </div>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="border-t border-white/10 bg-white/[0.02] px-6 py-4">
               <Button
                 type="button"
-                variant="outline"
-                onClick={closeForm}
+                variant="ghost"
+                onClick={() => setFormOpen(false)}
                 disabled={saveMutation.isPending}
               >
                 Cancel
@@ -472,13 +410,13 @@ export default function ReferenceDataPage({
               <Button
                 type="submit"
                 disabled={saveMutation.isPending}
-                data-testid={`${testIdPrefix}-save-button`}
+                className="min-w-28 bg-blue-600 hover:bg-blue-700"
               >
                 {saveMutation.isPending
                   ? "Saving..."
                   : editingItem
-                    ? `Update ${singular}`
-                    : `Create ${singular}`}
+                    ? "Save changes"
+                    : `Create ${singular.toLowerCase()}`}
               </Button>
             </DialogFooter>
           </form>
@@ -486,106 +424,32 @@ export default function ReferenceDataPage({
       </Dialog>
 
       <Dialog
-        open={Boolean(viewTarget)}
+        open={Boolean(deleteItem)}
         onOpenChange={(open) => {
-          if (!open) {
-            setViewTarget(null);
-          }
+          if (!open) setDeleteItem(null);
         }}
       >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{singular} details</DialogTitle>
+        <DialogContent className="overflow-hidden border-white/10 bg-slate-950 p-0 sm:max-w-md">
+          <DialogHeader className="border-b border-white/10 bg-red-500/[0.04] px-6 py-5">
+            <DialogTitle className="text-white">Delete {singular}</DialogTitle>
 
-            <DialogDescription>Review the selected record.</DialogDescription>
-          </DialogHeader>
-
-          {viewTarget && (
-            <div className="space-y-4">
-              <div className="rounded-lg border p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Name
-                </p>
-
-                <p className="mt-1 font-medium">{viewTarget.name}</p>
-              </div>
-
-              <div className="rounded-lg border p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Description
-                </p>
-
-                <p className="mt-1 whitespace-pre-wrap text-sm">
-                  {viewTarget.description || "No description"}
-                </p>
-              </div>
-
-              <div className="rounded-lg border p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Status
-                </p>
-
-                <div className="mt-2">
-                  <Badge
-                    variant={viewTarget.is_active ? "default" : "secondary"}
-                  >
-                    {viewTarget.is_active ? "Active" : "Inactive"}
-                  </Badge>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setViewTarget(null)}
-            >
-              Close
-            </Button>
-
-            <Button
-              type="button"
-              onClick={() => {
-                const selectedItem = viewTarget;
-                setViewTarget(null);
-                openEditForm(selectedItem);
-              }}
-            >
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={Boolean(deleteTarget)}
-        onOpenChange={(open) => {
-          if (!open && !deleteMutation.isPending) {
-            setDeleteTarget(null);
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete {singular}</DialogTitle>
-
-            <DialogDescription>
-              Are you sure you want to delete{" "}
-              <strong>
-                {deleteTarget?.name || `this ${singular.toLowerCase()}`}
-              </strong>
-              ? This action cannot be undone.
+            <DialogDescription className="text-slate-400">
+              This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
 
-          <DialogFooter>
+          <div className="px-6 py-6">
+            <p className="text-sm text-slate-300">
+              Are you sure you want to delete{" "}
+              <strong className="text-white">{deleteItem?.name}</strong>?
+            </p>
+          </div>
+
+          <DialogFooter className="border-t border-white/10 bg-white/[0.02] px-6 py-4">
             <Button
               type="button"
-              variant="outline"
-              onClick={() => setDeleteTarget(null)}
+              variant="ghost"
+              onClick={() => setDeleteItem(null)}
               disabled={deleteMutation.isPending}
             >
               Cancel
@@ -594,11 +458,9 @@ export default function ReferenceDataPage({
             <Button
               type="button"
               variant="destructive"
-              onClick={handleDeleteConfirm}
               disabled={deleteMutation.isPending}
+              onClick={() => deleteMutation.mutate(deleteItem.id)}
             >
-              <Trash2 className="mr-2 h-4 w-4" />
-
               {deleteMutation.isPending ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>

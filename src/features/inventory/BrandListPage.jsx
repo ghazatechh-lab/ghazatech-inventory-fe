@@ -1,11 +1,11 @@
 import React from "react";
-import ReferenceDataPage from "@/features/inventory/ReferenceDataPage";
+import ReferenceDataPage from "./ReferenceDataPage";
 
 export default function BrandListPage() {
   return (
     <ReferenceDataPage
       title="Brands"
-      description="Manage product manufacturers and brand information."
+      subtitle="Manage product brands used across the inventory catalogue."
       singular="Brand"
       endpoint="/brands/"
       queryKey="brands"

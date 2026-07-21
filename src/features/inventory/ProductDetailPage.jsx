@@ -1,287 +1,148 @@
 import React from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Barcode as BarcodeIcon, Boxes, Pencil, Printer } from "lucide-react";
 
 import api, { unwrap } from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
-import { EmptyState, LoadingState } from "@/components/common/States";
 import { Button } from "@/components/ui/button";
-import { CurrencyText } from "@/components/common/CurrencyText";
-import { StatusBadge } from "@/components/common/StatusBadge";
-import { Badge } from "@/components/ui/badge";
 
-const relatedName = (value, fallback) => {
-  if (value && typeof value === "object") return value.name || fallback || "—";
-  return fallback || value || "—";
-};
-
-const modelList = (value) => {
-  if (Array.isArray(value)) return value;
-  if (!value) return [];
-  return String(value)
-    .split(/[,\n]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-};
+const money = (value) =>
+  value == null || value === "" ? "—" : `AED ${Number(value).toFixed(2)}`;
 
 export default function ProductDetailPage() {
   const { id } = useParams();
-
-  const { data, isLoading } = useQuery({
+  const { data: product, isLoading } = useQuery({
     queryKey: ["product", id],
     queryFn: async () => unwrap(await api.get(`/products/${id}/`)),
   });
-
-  if (isLoading) return <LoadingState />;
-
-  const product = data || {};
+  if (isLoading) return <div>Loading product...</div>;
+  if (!product) return <div>Product not found.</div>;
   const variants = product.variants || [];
-  const image = product.product_image_url || product.product_image;
-  const compatibleModels = modelList(product.compatible_models);
+  const visibleVariants = product.has_variants
+    ? variants.filter((item) => !item.is_base)
+    : variants.slice(0, 1);
 
   return (
     <div>
       <PageHeader
-        title={product.product_name || "Product"}
-        subtitle={`SKU ${product.sku || "—"} · ${relatedName(
-          product.brand,
-          product.brand_name,
-        )} · ${relatedName(product.category, product.category_name)}`}
+        title={product.product_name}
+        subtitle={`${product.sku} • ${product.branch_name || "No branch"}`}
         actions={
-          <>
-            <Button variant="outline" data-testid="print-barcode-btn">
-              <Printer className="mr-1.5 h-4 w-4" />
-              Print barcode
-            </Button>
-            <Button asChild variant="outline">
-              <Link to={`/inventory/products/${id}/edit`}>
-                <Pencil className="mr-1.5 h-4 w-4" />
-                Edit
-              </Link>
-            </Button>
-          </>
+          <Button asChild variant="outline">
+            <Link to={`/inventory/products/${id}/edit`}>Edit</Link>
+          </Button>
         }
       />
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="card-surface p-5 lg:col-span-1">
-          {image ? (
+      <div className="grid gap-6 lg:grid-cols-3">
+        <section className="card-surface p-6 lg:col-span-2">
+          <h2 className="mb-4 text-lg font-semibold">Product details</h2>
+          <dl className="grid gap-4 md:grid-cols-2">
+            <div>
+              <dt className="text-slate-400">Brand</dt>
+              <dd>{product.brand_name || "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-400">Category</dt>
+              <dd>{product.category_name || "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-400">Branch</dt>
+              <dd>{product.branch_name || "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-400">Rack</dt>
+              <dd>{product.rack_code || "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-400">Supplier</dt>
+              <dd>{product.supplier_name || "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-400">Available qty</dt>
+              <dd>{product.total_available_qty ?? 0}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-400">Type</dt>
+              <dd>
+                {product.has_variants
+                  ? "Attribute variants"
+                  : "Product without variants"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-400">Condition</dt>
+              <dd>{product.condition || "—"}</dd>
+            </div>
+          </dl>
+        </section>
+        {product.product_image_url && (
+          <section className="card-surface p-6">
             <img
-              src={image}
-              alt={product.product_name || "Product"}
-              className="h-56 w-full rounded-lg object-cover"
+              src={product.product_image_url}
+              alt={product.product_name}
+              className="w-full rounded-lg object-cover"
             />
-          ) : (
-            <div className="flex h-56 w-full items-center justify-center rounded-lg bg-white/[0.03]">
-              <Boxes className="h-10 w-10 text-slate-600" />
-            </div>
-          )}
-
-          <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
-            <span className="flex items-center gap-1.5">
-              <BarcodeIcon className="h-3.5 w-3.5" />
-              <span className="font-numeric">
-                {product.barcode || "No barcode"}
-              </span>
-            </span>
-            <span>
-              Rack{" "}
-              <span className="font-numeric text-slate-200">
-                {product.rack_location || "—"}
-              </span>
-            </span>
-          </div>
-        </div>
-
-        <div className="card-surface space-y-4 p-5 lg:col-span-2">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <div className="text-[10px] uppercase tracking-widest text-slate-500">
-                Warranty
-              </div>
-              <div className="mt-0.5 font-numeric text-slate-200">
-                {product.warranty_period_days || 0} days
-              </div>
-            </div>
-
-            <div>
-              <div className="text-[10px] uppercase tracking-widest text-slate-500">
-                Reorder level
-              </div>
-              <div className="mt-0.5 font-numeric text-slate-200">
-                {product.reorder_level || 0}
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <div className="mb-1.5 text-[10px] uppercase tracking-widest text-slate-500">
-              Compatible models
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {compatibleModels.length ? (
-                compatibleModels.map((model) => (
-                  <span
-                    key={model}
-                    className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[11px] text-slate-300"
-                  >
-                    {model}
-                  </span>
-                ))
-              ) : (
-                <span className="text-sm text-slate-500">—</span>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <div className="mb-1.5 text-[10px] uppercase tracking-widest text-slate-500">
-              Description
-            </div>
-            <p className="text-sm text-slate-300">
-              {product.description || "—"}
-            </p>
-          </div>
-        </div>
+          </section>
+        )}
       </div>
-
-      <div className="card-surface mt-4 p-5">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-semibold text-slate-200">
-              Product variants
-            </h3>
-            <p className="mt-1 text-xs text-slate-500">
-              Variant-specific SKUs, barcodes, attributes, opening quantities,
-              and prices.
-            </p>
-          </div>
-          <Badge variant="secondary">{variants.length} variants</Badge>
+      <section className="card-surface mt-6 overflow-hidden">
+        <div className="border-b border-white/10 p-5">
+          <h2 className="text-lg font-semibold">
+            {product.has_variants
+              ? "Attributes, stock and prices"
+              : "Stock and prices"}
+          </h2>
         </div>
-
-        {variants.length === 0 ? (
-          <EmptyState />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
-              <thead>
-                <tr className="border-b border-white/10 text-left text-[10px] uppercase tracking-wider text-slate-500">
-                  <th className="px-3 py-3">Variant</th>
-                  <th className="px-3 py-3">Attributes</th>
-                  <th className="px-3 py-3">SKU / Barcode</th>
-                  <th className="px-3 py-3 text-right">Available Qty</th>
-                  <th className="px-3 py-3 text-right">Purchase</th>
-                  <th className="px-3 py-3 text-right">Retail</th>
-                  <th className="px-3 py-3">Status</th>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-white/10 text-left text-slate-400">
+                {product.has_variants && <th className="p-4">Attributes</th>}
+                <th className="p-4">Available Qty</th>
+                <th className="p-4">Purchase</th>
+                <th className="p-4">Retail</th>
+                <th className="p-4">Wholesale</th>
+                <th className="p-4">Minimum</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleVariants.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="p-6 text-center">
+                    No stock or pricing record.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {variants.map((variant) => (
-                  <tr
-                    key={variant.id}
-                    className="border-b border-white/5 last:border-0"
-                  >
-                    <td className="px-3 py-3">
-                      <div className="font-medium text-slate-100">
-                        {variant.variant_name}
-                      </div>
-                      {variant.is_default && (
-                        <Badge className="mt-1" variant="outline">
-                          Default
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="flex flex-wrap gap-1.5">
+              ) : (
+                visibleVariants.map((variant) => (
+                  <tr key={variant.id} className="border-b border-white/5">
+                    {product.has_variants && (
+                      <td className="p-4">
                         {Object.entries(variant.attributes || {}).map(
-                          ([name, value]) => (
+                          ([key, value]) => (
                             <span
-                              key={`${name}-${value}`}
-                              className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[11px] text-blue-300"
+                              key={key}
+                              className="mr-2 inline-flex rounded bg-white/5 px-2 py-1"
                             >
-                              {name}: {value}
+                              {key}: {value}
                             </span>
                           ),
                         )}
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 text-xs text-slate-400">
-                      <div className="font-numeric text-slate-200">
-                        {variant.sku}
-                      </div>
-                      <div className="mt-1 font-numeric">
-                        {variant.barcode || "No barcode"}
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 text-right">
-                      <span className="font-numeric font-medium text-slate-100">
-                        {Number(variant.available_qty ?? 0).toLocaleString()}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 text-right">
-                      <CurrencyText value={variant.effective_purchase_price} />
-                    </td>
-                    <td className="px-3 py-3 text-right">
-                      <CurrencyText
-                        value={variant.effective_retail_price}
-                        className="text-slate-100"
-                      />
-                    </td>
-                    <td className="px-3 py-3">
-                      <StatusBadge
-                        status={variant.is_active ? "active" : "closed"}
-                        label={variant.is_active ? "Active" : "Inactive"}
-                      />
+                      </td>
+                    )}
+                    <td className="p-4">{variant.available_qty ?? 0}</td>
+                    <td className="p-4">{money(variant.purchase_price)}</td>
+                    <td className="p-4">{money(variant.retail_price)}</td>
+                    <td className="p-4">{money(variant.wholesale_price)}</td>
+                    <td className="p-4">
+                      {money(variant.minimum_selling_price)}
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      <div className="card-surface mt-4 p-5">
-        <h3 className="mb-3 text-sm font-semibold text-slate-200">
-          Stock by branch
-        </h3>
-        {(product.stock_by_branch || []).length === 0 ? (
-          <EmptyState />
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {product.stock_by_branch.map((stock) => (
-              <div
-                key={stock.id}
-                className="rounded-lg border border-white/5 bg-white/[0.02] p-3"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-slate-100">
-                    {stock.branch?.name || stock.branch_name || "Branch"}
-                  </div>
-                  <StatusBadge status={stock.status} />
-                </div>
-                <div className="mt-2 text-2xl font-semibold font-numeric text-white">
-                  {stock.quantity ?? stock.current_stock ?? 0}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Price({ label, value }) {
-  return (
-    <div>
-      <div className="text-[10px] uppercase tracking-widest text-slate-500">
-        {label}
-      </div>
-      <div className="mt-0.5">
-        <CurrencyText value={value} className="text-slate-100" />
-      </div>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }

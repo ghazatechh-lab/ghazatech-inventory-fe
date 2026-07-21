@@ -34,6 +34,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Cpu,
+  Rows3,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -84,6 +85,11 @@ const groups = [
         icon: Tag,
       },
       {
+        to: "/inventory/racks",
+        label: "Racks",
+        icon: Rows3,
+      },
+      {
         to: "/inventory/products",
         label: "Products",
         icon: Boxes,
@@ -108,6 +114,16 @@ const groups = [
         label: "Low Stock Items",
         icon: TrendingDown,
         badge: "!",
+      },
+      {
+        to: "/transfers",
+        label: "Stock Transfers",
+        icon: GitBranch,
+      },
+      {
+        to: "/shipments",
+        label: "Shipments",
+        icon: Truck,
       },
     ],
   },
@@ -178,22 +194,6 @@ const groups = [
         to: "/customers",
         label: "Customers",
         icon: Users,
-      },
-    ],
-  },
-
-  {
-    label: "Operations",
-    items: [
-      {
-        to: "/transfers",
-        label: "Stock Transfers",
-        icon: GitBranch,
-      },
-      {
-        to: "/shipments",
-        label: "Shipments",
-        icon: Truck,
       },
     ],
   },

@@ -1,452 +1,411 @@
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Controller, useForm } from "react-hook-form";
-import { ImagePlus, Plus, Trash2, X } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import api, { unwrap } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
-const defaultValues = {
+const emptyBaseStock = {
+  attributes: [],
+  available_qty: 0,
+  purchase_price: "",
+  retail_price: 0,
+  wholesale_price: 0,
+  minimum_selling_price: 0,
+  is_active: true,
+};
+
+const defaults = {
   product_name: "",
   sku: "",
   barcode: "",
   brand: "",
   category: "",
+  branch: "",
+  rack: "",
+  supplier: "",
+  has_variants: false,
   compatible_models: "",
   condition: "NEW",
   unit: "PCS",
   vat_inclusive: true,
   vat_rate: 5,
-  supplier: "",
   description: "",
-  warranty_period_days: 180,
-  reorder_level: 5,
-  rack_location: "",
+  warranty_period_days: 0,
+  reorder_level: 0,
   is_active: true,
 };
 
-function listResults(response) {
+function list(response) {
   const data = unwrap(response);
   return Array.isArray(data) ? data : data?.results || [];
 }
 
-function apiErrorMessage(error) {
-  const body = error?.response?.data;
-  const details = body?.errors || body?.data || body;
+function relatedId(item, key) {
+  const directValue = item?.[key];
+  const detailValue = item?.[`${key}_detail`];
 
-  if (details && typeof details === "object") {
-    const firstValue = Object.values(details)[0];
-    if (Array.isArray(firstValue) && firstValue[0])
-      return String(firstValue[0]);
-    if (typeof firstValue === "string") return firstValue;
-  }
+  const value =
+    item?.[`${key}_id`] ??
+    directValue?.id ??
+    detailValue?.id ??
+    directValue ??
+    "";
 
-  return body?.message || "Unable to save product";
+  return value === null || value === undefined ? "" : String(value);
 }
 
-function normalizeText(value) {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase();
-}
-
-function resolveRelatedId(item, key, options = []) {
-  if (!item) return "";
-
-  const directId = item[`${key}_id`];
-  const related = item[key];
-  const relatedDetail = item[`${key}_detail`];
-
-  const possibleId =
-    directId ??
-    relatedDetail?.id ??
-    related?.id ??
-    related?.value ??
-    (typeof related === "number" ? related : null);
-
-  if (possibleId !== null && possibleId !== undefined && possibleId !== "") {
-    return String(possibleId);
-  }
-
-  const possibleName =
-    item[`${key}_name`] ??
-    relatedDetail?.name ??
-    related?.name ??
-    (typeof related === "string" ? related : "");
-
-  if (!possibleName) return "";
-
-  const matchedOption = options.find(
-    (option) => normalizeText(option?.name) === normalizeText(possibleName),
-  );
-
-  return matchedOption?.id ? String(matchedOption.id) : "";
-}
-
-function ensureSelectedOption(options, selectedId, fallbackName) {
-  const list = Array.isArray(options) ? [...options] : [];
-  if (!selectedId) return list;
-
-  const exists = list.some(
-    (option) => String(option.id) === String(selectedId),
-  );
-  if (!exists) {
-    list.unshift({ id: selectedId, name: fallbackName || `#${selectedId}` });
-  }
-
-  return list;
-}
-
-function appendFormValue(formData, key, value) {
-  if (value === undefined || value === null) return;
-  formData.append(key, typeof value === "boolean" ? String(value) : value);
+function variantFromApi(item) {
+  return {
+    id: item.id,
+    attributes: Object.entries(item.attributes || {}).map(([name, value]) => ({
+      name,
+      value,
+    })),
+    available_qty: item.available_qty ?? 0,
+    purchase_price: item.purchase_price ?? "",
+    retail_price: item.retail_price ?? 0,
+    wholesale_price: item.wholesale_price ?? 0,
+    minimum_selling_price: item.minimum_selling_price ?? 0,
+    is_active: item.is_active ?? true,
+  };
 }
 
 export default function ProductFormPage() {
   const { id } = useParams();
+  const isEdit = Boolean(id);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const isEdit = Boolean(id);
-  const fileInputRef = React.useRef(null);
-  const hydratedProductIdRef = React.useRef(null);
-
-  const [selectedImage, setSelectedImage] = React.useState(null);
+  const { branchOverride } = useAuth();
+  const fileRef = React.useRef(null);
+  const hydratedRef = React.useRef(false);
+  const previousBranchRef = React.useRef("");
+  const lastAppliedHeaderBranchRef = React.useRef(undefined);
+  const [image, setImage] = React.useState(null);
   const [imagePreview, setImagePreview] = React.useState("");
-  const [referenceDialog, setReferenceDialog] = React.useState(null);
-  const [referenceName, setReferenceName] = React.useState("");
-  const [referenceDescription, setReferenceDescription] = React.useState("");
-  const [variants, setVariants] = React.useState([]);
+  const [variants, setVariants] = React.useState([{ ...emptyBaseStock }]);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm({ defaultValues: defaults });
+  const selectedBranch = watch("branch");
+  const hasVariants = Boolean(watch("has_variants"));
 
   const { data: product, isLoading: productLoading } = useQuery({
     queryKey: ["product", id],
     queryFn: async () => unwrap(await api.get(`/products/${id}/`)),
     enabled: isEdit,
+    staleTime: 0,
   });
-
   const { data: brands = [], isLoading: brandsLoading } = useQuery({
-    queryKey: ["brands", "active-options"],
+    queryKey: ["brands", "product-options"],
     queryFn: async () =>
-      listResults(
+      list(
         await api.get("/brands/", {
-          params: { is_active: true, page_size: 500 },
+          params: { page_size: 500, is_active: true },
         }),
       ),
   });
-
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
-    queryKey: ["categories", "active-options"],
+    queryKey: ["categories", "product-options"],
     queryFn: async () =>
-      listResults(
+      list(
         await api.get("/categories/", {
-          params: { is_active: true, page_size: 500 },
+          params: { page_size: 500, is_active: true },
         }),
       ),
   });
-
-  const { data: suppliers = [], isLoading: suppliersLoading } = useQuery({
-    queryKey: ["suppliers", "active-options"],
+  const { data: branches = [], isLoading: branchesLoading } = useQuery({
+    queryKey: ["branches", "product-options"],
     queryFn: async () =>
-      listResults(
+      list(await api.get("/branches/", { params: { page_size: 500 } })),
+  });
+  const { data: suppliers = [], isLoading: suppliersLoading } = useQuery({
+    queryKey: ["suppliers", "product-options"],
+    queryFn: async () =>
+      list(
         await api.get("/suppliers/", {
-          params: { is_active: true, page_size: 500 },
+          params: { page_size: 500, is_active: true },
         }),
       ),
   });
 
+  React.useEffect(() => {
+    if (isEdit || branchesLoading) {
+      return;
+    }
+
+    const normalizedHeaderBranch =
+      branchOverride === null ||
+      branchOverride === undefined ||
+      branchOverride === ""
+        ? null
+        : String(branchOverride);
+
+    /*
+     * Apply only when the HEADER selection itself changes.
+     * This prevents a branch-options refetch from overwriting a branch
+     * that the user manually selected inside the product form.
+     */
+    if (lastAppliedHeaderBranchRef.current === normalizedHeaderBranch) {
+      return;
+    }
+
+    lastAppliedHeaderBranchRef.current = normalizedHeaderBranch;
+
+    /*
+     * "All branches" should not force or clear the product form branch.
+     * The user can continue selecting the product branch manually.
+     */
+    if (normalizedHeaderBranch === null) {
+      console.log(
+        "[Product Form] Header changed to All branches. Product branch left unchanged.",
+      );
+      return;
+    }
+
+    const matchingBranch = branches.find(
+      (branch) => String(branch.id) === normalizedHeaderBranch,
+    );
+
+    if (!matchingBranch) {
+      console.warn(
+        "[Product Form] Header branch was not found in product branch options:",
+        {
+          branchOverride,
+          normalizedHeaderBranch,
+          branches,
+        },
+      );
+
+      /*
+       * Allow another attempt when the branch options are refreshed.
+       */
+      lastAppliedHeaderBranchRef.current = undefined;
+      return;
+    }
+
+    const branchId = String(matchingBranch.id);
+
+    console.log("[Product Form] Applying changed header branch:", {
+      branchOverride,
+      branchId,
+      branchCode: matchingBranch.branch_code,
+      branchName: matchingBranch.branch_name,
+    });
+
+    setValue("branch", branchId, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
+
+    /*
+     * A rack belongs to a branch. Clear the old rack whenever the header
+     * changes the product branch, then load racks for the new branch.
+     */
+    setValue("rack", "", {
+      shouldDirty: true,
+      shouldTouch: false,
+      shouldValidate: true,
+    });
+
+    previousBranchRef.current = branchId;
+  }, [isEdit, branchesLoading, branches, branchOverride, setValue]);
   const {
-    register,
-    control,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    formState: { isSubmitting, errors },
-  } = useForm({ defaultValues });
+    data: rackResponse = [],
+    isLoading: racksLoading,
+    isError: racksError,
+    error: racksQueryError,
+  } = useQuery({
+    queryKey: ["racks", "product-options", selectedBranch],
+    queryFn: async () => {
+      const response = await api.get("/racks/", {
+        params: {
+          page_size: 500,
+          branch: selectedBranch,
+        },
+      });
+
+      const result = list(response);
+
+      console.group("[Product Form] Rack options");
+      console.log("Selected branch:", selectedBranch);
+      console.log("Rack API response:", unwrap(response));
+      console.log("Normalized racks:", result);
+      console.groupEnd();
+
+      return result;
+    },
+    enabled: Boolean(selectedBranch),
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+
+  const selectedRackId = watch("rack");
+
+  const racks = React.useMemo(() => {
+    const branchRacks = rackResponse.filter((rack) => {
+      const rackBranchId =
+        rack?.branch_id ?? rack?.branch?.id ?? rack?.branch ?? "";
+
+      return !selectedBranch || String(rackBranchId) === String(selectedBranch);
+    });
+
+    if (
+      isEdit &&
+      selectedRackId &&
+      !branchRacks.some((rack) => String(rack.id) === String(selectedRackId))
+    ) {
+      const productRack =
+        product?.rack_detail ||
+        (product?.rack && typeof product.rack === "object"
+          ? product.rack
+          : null);
+
+      const existingRack = {
+        ...(productRack || {}),
+        id: selectedRackId,
+        rack_code:
+          productRack?.rack_code ||
+          product?.rack_code ||
+          `Rack #${selectedRackId}`,
+        rack_name: productRack?.rack_name || product?.rack_name || "",
+        branch:
+          productRack?.branch ??
+          productRack?.branch_id ??
+          product?.branch?.id ??
+          product?.branch_id ??
+          product?.branch ??
+          selectedBranch,
+      };
+
+      console.log("[Product Edit] Preserving saved rack option:", existingRack);
+
+      return [existingRack, ...branchRacks];
+    }
+
+    return branchRacks;
+  }, [rackResponse, selectedBranch, isEdit, product, selectedRackId]);
 
   React.useEffect(() => {
     if (
       !product ||
-      !isEdit ||
+      hydratedRef.current ||
       brandsLoading ||
       categoriesLoading ||
+      branchesLoading ||
       suppliersLoading
-    ) {
+    )
       return;
-    }
-
-    const hydrationKey = String(product.id ?? id);
-    if (hydratedProductIdRef.current === hydrationKey) return;
-
-    const brandId = resolveRelatedId(product, "brand", brands);
-    const categoryId = resolveRelatedId(product, "category", categories);
-
-    console.group("[Product Edit] Hydration");
-    console.log("Product API response:", product);
-    console.log("Brand options:", brands);
-    console.log("Category options:", categories);
-    console.log("Resolved brand ID:", brandId, {
-      brand: product.brand,
-      brand_id: product.brand_id,
-      brand_name: product.brand_name,
-      brand_detail: product.brand_detail,
-    });
-    console.log("Resolved category ID:", categoryId, {
-      category: product.category,
-      category_id: product.category_id,
-      category_name: product.category_name,
-      category_detail: product.category_detail,
-    });
-    console.groupEnd();
-
-    const hydratedValues = {
-      product_name: product.product_name ?? "",
-      sku: product.sku ?? "",
-      barcode: product.barcode ?? "",
-      brand: brandId,
-      category: categoryId,
-      compatible_models: product.compatible_models ?? "",
-      condition: product.condition ?? "NEW",
-      unit: product.unit ?? "PCS",
+    const values = {
+      product_name: product.product_name || "",
+      sku: product.sku || "",
+      barcode: product.barcode || "",
+      brand: relatedId(product, "brand"),
+      category: relatedId(product, "category"),
+      branch: relatedId(product, "branch"),
+      rack: relatedId(product, "rack"),
+      supplier: relatedId(product, "supplier"),
+      has_variants: Boolean(product.has_variants),
+      compatible_models: product.compatible_models || "",
+      condition: product.condition || "NEW",
+      unit: product.unit || "PCS",
       vat_inclusive: product.vat_inclusive ?? true,
       vat_rate: Number(product.vat_rate ?? 5),
-      supplier:
-        product.supplier?.id != null
-          ? String(product.supplier.id)
-          : product.supplier != null
-            ? String(product.supplier)
-            : "",
-      description: product.description ?? "",
+      description: product.description || "",
       warranty_period_days: Number(product.warranty_period_days ?? 0),
       reorder_level: Number(product.reorder_level ?? 0),
-      rack_location: product.rack_location ?? "",
       is_active: product.is_active ?? true,
     };
-
-    console.log("[Product Edit] Values passed to reset:", hydratedValues);
-    reset(hydratedValues);
-
-    // Verify React Hook Form received the selected string IDs.
-    window.setTimeout(() => {
-      console.log("[Product Edit] Form values after reset:", {
-        brand: String(hydratedValues.brand || ""),
-        category: String(hydratedValues.category || ""),
-      });
-    }, 0);
-
-    setVariants(
-      (product.variants || []).map((variant) => ({
-        id: variant.id,
-        variant_name: variant.variant_name || "",
-        sku: variant.sku || "",
-        barcode: variant.barcode || "",
-        available_qty: variant.available_qty ?? 0,
-        purchase_price: variant.purchase_price ?? "",
-        retail_price: variant.retail_price ?? "",
-        wholesale_price: variant.wholesale_price ?? "",
-        minimum_selling_price: variant.minimum_selling_price ?? "",
-        is_default: Boolean(variant.is_default),
-        is_active: variant.is_active ?? true,
-        attributes: Object.entries(variant.attributes || {}).map(
-          ([name, value]) => ({
-            name,
-            value,
-          }),
-        ),
-      })),
-    );
-
-    setSelectedImage(null);
+    console.group("[Product Edit] Hydration");
+    console.log("Product response:", product);
+    console.log("Resolved form values:", values);
+    console.log("Brand options:", brands);
+    console.log("Category options:", categories);
+    console.log("Branch options:", branches);
+    console.log("Resolved branch ID:", values.branch);
+    console.log("Resolved rack ID:", values.rack);
+    console.log("Rack detail:", product.rack_detail);
+    console.log("Rack field:", product.rack);
+    console.groupEnd();
+    reset(values);
+    const apiVariants = (product.variants || []).map(variantFromApi);
+    setVariants(apiVariants.length ? apiVariants : [{ ...emptyBaseStock }]);
     setImagePreview(product.product_image_url || product.product_image || "");
-    hydratedProductIdRef.current = hydrationKey;
-
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    previousBranchRef.current = String(values.branch || "");
+    hydratedRef.current = true;
   }, [
     product,
-    isEdit,
-    id,
     reset,
-    brands,
-    categories,
     brandsLoading,
     categoriesLoading,
+    branchesLoading,
     suppliersLoading,
+    brands,
+    categories,
+    branches,
   ]);
 
   React.useEffect(() => {
-    return () => {
-      if (imagePreview?.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
-    };
-  }, [imagePreview]);
-
-  const selectedBrand = watch("brand");
-  const selectedCategory = watch("category");
-
-  const brandOptions = React.useMemo(
-    () =>
-      ensureSelectedOption(
-        brands,
-        selectedBrand,
-        product?.brand_name || product?.brand?.name,
-      ),
-    [brands, selectedBrand, product],
-  );
-
-  const categoryOptions = React.useMemo(
-    () =>
-      ensureSelectedOption(
-        categories,
-        selectedCategory,
-        product?.category_name || product?.category?.name,
-      ),
-    [categories, selectedCategory, product],
-  );
-
-  const createReferenceMutation = useMutation({
-    mutationFn: async () => {
-      const isBrand = referenceDialog === "brand";
-      const endpoint = isBrand ? "/brands/" : "/categories/";
-
-      const response = await api.post(endpoint, {
-        name: referenceName.trim(),
-        description: referenceDescription.trim(),
-        is_active: true,
-      });
-
-      return {
-        item: unwrap(response),
-        type: referenceDialog,
-      };
-    },
-    onSuccess: async ({ item, type }) => {
-      const queryKey =
-        type === "brand"
-          ? ["brands", "active-options"]
-          : ["categories", "active-options"];
-
-      await queryClient.invalidateQueries({ queryKey });
-
-      if (item?.id) {
-        setValue(type, String(item.id), {
-          shouldValidate: true,
-          shouldDirty: true,
-        });
-      }
-
-      toast.success(
-        `${type === "brand" ? "Brand" : "Category"} created successfully`,
-      );
-      setReferenceDialog(null);
-      setReferenceName("");
-      setReferenceDescription("");
-    },
-    onError: (error) => {
-      if (!error?.__apiErrorShown) {
-        toast.error(`Unable to create ${referenceDialog}`);
-      }
-    },
-  });
-
-  const openReferenceDialog = (type) => {
-    setReferenceDialog(type);
-    setReferenceName("");
-    setReferenceDescription("");
-  };
-
-  const closeReferenceDialog = () => {
-    if (createReferenceMutation.isPending) return;
-    setReferenceDialog(null);
-    setReferenceName("");
-    setReferenceDescription("");
-  };
-
-  const handleCreateReference = (event) => {
-    event.preventDefault();
-
-    if (!referenceName.trim()) {
-      toast.error(
-        `${referenceDialog === "brand" ? "Brand" : "Category"} name is required`,
-      );
+    if (!selectedBranch) {
+      previousBranchRef.current = "";
       return;
     }
 
-    createReferenceMutation.mutate();
-  };
+    if (!hydratedRef.current) {
+      previousBranchRef.current = String(selectedBranch);
+      return;
+    }
 
-  const addVariant = () => {
+    const previousBranch = previousBranchRef.current;
+
+    if (previousBranch && String(previousBranch) !== String(selectedBranch)) {
+      console.log("[Product Form] Branch changed manually. Clearing rack.", {
+        previousBranch,
+        selectedBranch,
+      });
+
+      setValue("rack", "", {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+
+    previousBranchRef.current = String(selectedBranch);
+  }, [selectedBranch, setValue]);
+
+  const updateVariant = (index, field, value) =>
+    setVariants((current) =>
+      current.map((variant, i) =>
+        i === index ? { ...variant, [field]: value } : variant,
+      ),
+    );
+  const addVariant = () =>
     setVariants((current) => [
       ...current,
-      {
-        variant_name: "",
-        sku: "",
-        barcode: "",
-        available_qty: 0,
-        purchase_price: "",
-        retail_price: "",
-        wholesale_price: "",
-        minimum_selling_price: "",
-        is_default: current.length === 0,
-        is_active: true,
-        attributes: [{ name: "Color", value: "" }],
-      },
+      { ...emptyBaseStock, attributes: [{ name: "", value: "" }] },
     ]);
-  };
-
-  const updateVariant = (index, field, value) => {
+  const removeVariant = (index) =>
+    setVariants((current) => current.filter((_, i) => i !== index));
+  const addAttribute = (variantIndex) =>
     setVariants((current) =>
-      current
-        .map((variant, variantIndex) => {
-          if (variantIndex !== index) return variant;
-
-          if (field === "is_default" && value) {
-            return { ...variant, is_default: true };
-          }
-
-          return { ...variant, [field]: value };
-        })
-        .map((variant, variantIndex) =>
-          field === "is_default" && value && variantIndex !== index
-            ? { ...variant, is_default: false }
-            : variant,
-        ),
-    );
-  };
-
-  const removeVariant = (index) => {
-    setVariants((current) => {
-      const next = current.filter((_, variantIndex) => variantIndex !== index);
-      if (next.length && !next.some((variant) => variant.is_default)) {
-        next[0] = { ...next[0], is_default: true };
-      }
-      return next;
-    });
-  };
-
-  const addVariantAttribute = (variantIndex) => {
-    setVariants((current) =>
-      current.map((variant, index) =>
-        index === variantIndex
+      current.map((variant, i) =>
+        i === variantIndex
           ? {
               ...variant,
               attributes: [...variant.attributes, { name: "", value: "" }],
@@ -454,453 +413,460 @@ export default function ProductFormPage() {
           : variant,
       ),
     );
-  };
-
-  const updateVariantAttribute = (
-    variantIndex,
-    attributeIndex,
-    field,
-    value,
-  ) => {
+  const updateAttribute = (variantIndex, attributeIndex, field, value) =>
     setVariants((current) =>
-      current.map((variant, index) =>
-        index === variantIndex
+      current.map((variant, i) =>
+        i === variantIndex
           ? {
               ...variant,
-              attributes: variant.attributes.map(
-                (attribute, currentAttributeIndex) =>
-                  currentAttributeIndex === attributeIndex
-                    ? { ...attribute, [field]: value }
-                    : attribute,
+              attributes: variant.attributes.map((attribute, j) =>
+                j === attributeIndex
+                  ? { ...attribute, [field]: value }
+                  : attribute,
               ),
             }
           : variant,
       ),
     );
-  };
-
-  const removeVariantAttribute = (variantIndex, attributeIndex) => {
+  const removeAttribute = (variantIndex, attributeIndex) =>
     setVariants((current) =>
-      current.map((variant, index) =>
-        index === variantIndex
+      current.map((variant, i) =>
+        i === variantIndex
           ? {
               ...variant,
               attributes: variant.attributes.filter(
-                (_, currentAttributeIndex) =>
-                  currentAttributeIndex !== attributeIndex,
+                (_, j) => j !== attributeIndex,
               ),
             }
           : variant,
       ),
     );
-  };
-
-  const handleImageChange = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error("Select a JPG, PNG, or WebP image");
-      event.target.value = "";
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Product image must be 5 MB or smaller");
-      event.target.value = "";
-      return;
-    }
-
-    if (imagePreview?.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
-    setSelectedImage(file);
-    setImagePreview(URL.createObjectURL(file));
-  };
-
-  const clearSelectedImage = () => {
-    if (imagePreview?.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
-    setSelectedImage(null);
-    setImagePreview(product?.product_image_url || product?.product_image || "");
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
 
   const submit = async (values) => {
     try {
-      console.group("[Product Edit] Submit");
-      console.log("React Hook Form values:", values);
-      console.log("Variant state:", variants);
-
-      const formData = new FormData();
-
-      const brandId = Number(values.brand);
-      const categoryId = Number(values.category);
-
-      if (!Number.isInteger(brandId) || brandId <= 0) {
-        throw new Error("Please select a brand.");
-      }
-
-      if (!Number.isInteger(categoryId) || categoryId <= 0) {
-        throw new Error("Please select a category.");
-      }
-
-      const payload = {
-        product_name: values.product_name?.trim(),
-        sku: values.sku?.trim(),
-        barcode: values.barcode?.trim() || "",
-        brand: brandId,
-        category: categoryId,
-        compatible_models: values.compatible_models?.trim() || "",
-        condition: values.condition || "NEW",
-        unit: values.unit || "PCS",
-        vat_inclusive: Boolean(values.vat_inclusive),
-        vat_rate: Number(values.vat_rate ?? 5),
-        supplier: values.supplier ? Number(values.supplier) : "",
-        description: values.description?.trim() || "",
-        warranty_period_days: Number(values.warranty_period_days ?? 0),
-        reorder_level: Number(values.reorder_level ?? 0),
-        rack_location: values.rack_location?.trim() || "",
-        is_active: Boolean(values.is_active),
-      };
-
-      Object.entries(payload).forEach(([key, value]) =>
-        appendFormValue(formData, key, value),
-      );
-
-      const normalizedVariants = variants.map((variant, index) => {
-        if (!variant.variant_name.trim()) {
-          throw new Error(`Variant ${index + 1}: name is required.`);
-        }
-        if (!variant.sku.trim()) {
-          throw new Error(`Variant ${index + 1}: SKU is required.`);
-        }
-
-        const attributes = {};
-        variant.attributes.forEach((attribute) => {
-          const name = attribute.name.trim();
-          const value = attribute.value.trim();
-          if (name && value) attributes[name] = value;
-        });
-
-        const nullableNumber = (value) =>
-          value === "" || value === null || value === undefined
-            ? null
-            : Number(value);
-
-        const parsedInitialQty = Number.parseInt(variant.available_qty, 10);
-
+      const normalizedVariants = (
+        hasVariants ? variants : [variants[0] || emptyBaseStock]
+      ).map((variant, index) => {
+        const attributes = Object.fromEntries(
+          (variant.attributes || [])
+            .map((attribute) => [
+              String(attribute.name || "").trim(),
+              String(attribute.value || "").trim(),
+            ])
+            .filter(([name, value]) => name && value),
+        );
+        if (hasVariants && Object.keys(attributes).length === 0)
+          throw new Error(`Variant ${index + 1}: add at least one attribute.`);
         return {
           ...(variant.id ? { id: variant.id } : {}),
-          variant_name: variant.variant_name.trim(),
-          sku: variant.sku.trim(),
-          barcode: variant.barcode.trim() || null,
-          attributes,
-          available_qty:
-            Number.isFinite(parsedInitialQty) && parsedInitialQty >= 0
-              ? parsedInitialQty
-              : 0,
-          purchase_price: nullableNumber(variant.purchase_price),
-          retail_price: nullableNumber(variant.retail_price),
-          wholesale_price: nullableNumber(variant.wholesale_price),
-          minimum_selling_price: nullableNumber(variant.minimum_selling_price),
-          is_default: Boolean(variant.is_default),
-          is_active: Boolean(variant.is_active),
+          attributes: hasVariants ? attributes : {},
+          available_qty: Math.max(0, Number(variant.available_qty || 0)),
+          purchase_price:
+            variant.purchase_price === "" || variant.purchase_price == null
+              ? null
+              : Number(variant.purchase_price),
+          retail_price: Number(variant.retail_price || 0),
+          wholesale_price: Number(variant.wholesale_price || 0),
+          minimum_selling_price: Number(variant.minimum_selling_price || 0),
+          is_active: variant.is_active ?? true,
         };
       });
 
+      const formData = new FormData();
+      const payload = {
+        product_name: values.product_name.trim(),
+        sku: values.sku.trim(),
+        barcode: values.barcode?.trim() || "",
+        brand: Number(values.brand),
+        category: Number(values.category),
+        branch: Number(values.branch),
+        rack: values.rack ? Number(values.rack) : "",
+        supplier: values.supplier ? Number(values.supplier) : "",
+        has_variants: Boolean(values.has_variants),
+        compatible_models: values.compatible_models?.trim() || "",
+        condition: values.condition,
+        unit: values.unit,
+        vat_inclusive: Boolean(values.vat_inclusive),
+        vat_rate: Number(values.vat_rate || 0),
+        description: values.description?.trim() || "",
+        warranty_period_days: Number(values.warranty_period_days || 0),
+        reorder_level: Number(values.reorder_level || 0),
+        is_active: Boolean(values.is_active),
+      };
+      Object.entries(payload).forEach(([key, value]) =>
+        formData.append(key, value),
+      );
       formData.append("variants", JSON.stringify(normalizedVariants));
+      if (image) formData.append("product_image", image);
 
-      console.log("Normalized product payload:", payload);
-      console.log("Normalized variants:", normalizedVariants);
+      console.group("[Product Form] Submit");
+      console.log("Product payload:", payload);
+      console.log("Variants payload:", normalizedVariants);
       console.groupEnd();
 
-      // Preserve the existing image on edit. Only send this field when the
-      // user has selected a new File object.
-      if (selectedImage instanceof File) {
-        formData.append("product_image", selectedImage);
-      }
-
-      // Do not set Content-Type manually for FormData.
-      // The browser must add the multipart boundary automatically.
-      if (isEdit) {
-        await api.patch(`/products/${id}/`, formData);
-      } else {
-        await api.post("/products/", formData);
-      }
-
+      if (isEdit) await api.patch(`/products/${id}/`, formData);
+      else await api.post("/products/", formData);
       await queryClient.invalidateQueries({ queryKey: ["products"] });
       await queryClient.invalidateQueries({ queryKey: ["product", id] });
-
-      toast.success(`Product ${isEdit ? "updated" : "created"} successfully`);
+      toast.success(
+        isEdit
+          ? "Product updated successfully."
+          : "Product created successfully.",
+      );
       navigate("/inventory/products");
     } catch (error) {
-      console.groupEnd();
-      console.error("[Product Edit] Submit failed:", error);
-      if (!error?.__apiErrorShown) {
-        toast.error(error?.message || apiErrorMessage(error));
-      }
+      console.error("[Product Form] Save failed:", error);
+      if (error instanceof Error && !error.response) toast.error(error.message);
+      else if (!error?.__apiErrorShown) toast.error("Unable to save product.");
     }
   };
 
-  const handleInvalidSubmit = (formErrors) => {
-    console.group("[Product Edit] Form validation failed");
-    console.error("Validation errors:", formErrors);
-    console.log("Current form values:", watch());
-    console.log("Current variants:", variants);
-    console.groupEnd();
+  React.useEffect(() => {
+    if (!racksError) return;
 
-    const firstError = Object.values(formErrors || {})[0];
-    toast.error(firstError?.message || "Please complete all required fields.");
-  };
-
-  if (
-    isEdit &&
-    (productLoading ||
-      !product ||
-      brandsLoading ||
-      categoriesLoading ||
-      suppliersLoading)
-  ) {
-    return (
-      <div className="max-w-4xl">
-        <PageHeader
-          title="Edit product"
-          subtitle="Loading product details..."
-        />
-        <div className="card-surface p-6 text-sm text-muted-foreground">
-          Loading product and variant quantities...
-        </div>
-      </div>
+    console.error(
+      "[Product Form] Rack loading failed:",
+      racksQueryError?.response?.data || racksQueryError,
     );
-  }
+  }, [racksError, racksQueryError]);
+
+  const busy =
+    productLoading ||
+    brandsLoading ||
+    categoriesLoading ||
+    branchesLoading ||
+    suppliersLoading ||
+    (selectedBranch && racksLoading);
+  if (isEdit && busy)
+    return <div className="p-6">Loading product details...</div>;
 
   return (
-    <div className="max-w-4xl">
-      <PageHeader
-        title={isEdit ? "Edit product" : "New product"}
-        subtitle="Create and maintain the spare-parts product catalog"
-      />
+    <div className="mx-auto w-full max-w-7xl space-y-6 pb-10">
+      <div className="rounded-2xl border border-white/10 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950/50 p-1 shadow-2xl shadow-black/20">
+        <div className="rounded-[14px] bg-slate-950/70 px-6 py-5 backdrop-blur">
+          <PageHeader
+            title={isEdit ? "Edit product" : "New product"}
+            subtitle="Create and maintain products, branch stock, rack location and pricing"
+          />
+        </div>
+      </div>
 
       <form
-        onSubmit={handleSubmit(submit, handleInvalidSubmit)}
-        className="card-surface p-6 space-y-5"
+        onSubmit={handleSubmit(submit, (formErrors) => {
+          console.error("[Product Form] Validation failed:", formErrors);
+
+          toast.error("Please complete the required fields.");
+        })}
+        className="space-y-6"
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2">
-            <Label>Product image</Label>
-            <div className="mt-1.5 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="h-36 w-36 overflow-hidden rounded-lg border border-dashed bg-muted/30 flex items-center justify-center">
-                {imagePreview ? (
-                  <img
-                    src={imagePreview}
-                    alt="Product preview"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <ImagePlus className="h-9 w-9 text-muted-foreground" />
-                )}
-              </div>
+        <section className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/70 shadow-xl shadow-black/10">
+          <div className="border-b border-white/10 bg-white/[0.025] px-6 py-4">
+            <h2 className="text-lg font-semibold text-white">
+              Product information
+            </h2>
 
-              <div className="space-y-2">
-                <Input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleImageChange}
-                  className="max-w-sm"
-                />
-                <p className="text-xs text-muted-foreground">
-                  JPG, PNG, or WebP. Maximum file size: 5 MB.
-                </p>
-                {selectedImage && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={clearSelectedImage}
-                  >
-                    <X className="mr-2 h-4 w-4" />
-                    Cancel new image
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="md:col-span-2">
-            <Label>Product name</Label>
-            <Input
-              {...register("product_name", {
-                required: "Product name is required",
-              })}
-              className="mt-1.5"
-              data-testid="product-name-input"
-            />
-            {errors.product_name && (
-              <p className="mt-1 text-xs text-red-400">
-                {errors.product_name.message}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <Label>SKU</Label>
-            <Input
-              {...register("sku", { required: "SKU is required" })}
-              className="mt-1.5"
-            />
-            {errors.sku && (
-              <p className="mt-1 text-xs text-red-400">{errors.sku.message}</p>
-            )}
-          </div>
-
-          <div>
-            <Label>Barcode</Label>
-            <Input {...register("barcode")} className="mt-1.5" />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between gap-2">
-              <Label>Brand</Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs"
-                onClick={() => openReferenceDialog("brand")}
-              >
-                <Plus className="mr-1 h-3.5 w-3.5" />
-                Add brand
-              </Button>
-            </div>
-            <Controller
-              name="brand"
-              control={control}
-              rules={{ required: "Brand is required" }}
-              render={({ field }) => (
-                <select
-                  ref={field.ref}
-                  name={field.name}
-                  value={field.value == null ? "" : String(field.value)}
-                  onBlur={field.onBlur}
-                  onChange={(event) => {
-                    const value = String(event.target.value);
-                    console.log("[Product Form] Brand selected:", value);
-                    field.onChange(value);
-                  }}
-                  disabled={brandsLoading}
-                  className="mt-1.5 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="">
-                    {brandsLoading ? "Loading brands…" : "Select brand"}
-                  </option>
-                  {brandOptions.map((brand) => (
-                    <option key={brand.id} value={String(brand.id)}>
-                      {brand.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            />
-            {errors.brand && (
-              <p className="mt-1 text-xs text-red-400">
-                {errors.brand.message}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between gap-2">
-              <Label>Category</Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs"
-                onClick={() => openReferenceDialog("category")}
-              >
-                <Plus className="mr-1 h-3.5 w-3.5" />
-                Add category
-              </Button>
-            </div>
-            <Controller
-              name="category"
-              control={control}
-              rules={{ required: "Category is required" }}
-              render={({ field }) => (
-                <select
-                  ref={field.ref}
-                  name={field.name}
-                  value={field.value == null ? "" : String(field.value)}
-                  onBlur={field.onBlur}
-                  onChange={(event) => {
-                    const value = String(event.target.value);
-                    console.log("[Product Form] Category selected:", value);
-                    field.onChange(value);
-                  }}
-                  disabled={categoriesLoading}
-                  className="mt-1.5 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="">
-                    {categoriesLoading
-                      ? "Loading categories…"
-                      : "Select category"}
-                  </option>
-                  {categoryOptions.map((category) => (
-                    <option key={category.id} value={String(category.id)}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            />
-            {errors.category && (
-              <p className="mt-1 text-xs text-red-400">
-                {errors.category.message}
-              </p>
-            )}
-          </div>
-
-          <div className="md:col-span-2">
-            <Label>Compatible models</Label>
-            <Input
-              {...register("compatible_models")}
-              placeholder="e.g. Latitude 5420, 5430, Precision 3560"
-              className="mt-1.5"
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              Used for spare-parts search matching. Separate models with commas.
+            <p className="mt-1 text-sm text-slate-400">
+              Basic catalogue details, branch assignment and storage location.
             </p>
           </div>
 
-          <div>
-            <Label>Condition</Label>
-            <Controller
-              name="condition"
-              control={control}
-              render={({ field }) => (
+          <div className="space-y-7 p-6">
+            <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-4">
+              <Label className="text-sm font-medium text-slate-200">
+                Product image
+              </Label>
+
+              <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center">
+                <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-slate-900">
+                  {imagePreview ? (
+                    <img
+                      src={imagePreview}
+                      alt="Product preview"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="px-3 text-center text-xs text-slate-500">
+                      No image selected
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex-1">
+                  <Input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="cursor-pointer border-white/10 bg-slate-900/80 file:mr-4 file:rounded-md file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-blue-700"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0] || null;
+
+                      setImage(file);
+
+                      if (file) {
+                        setImagePreview(URL.createObjectURL(file));
+                      }
+                    }}
+                  />
+
+                  <p className="mt-2 text-xs text-slate-500">
+                    PNG, JPG or WebP. Recommended square image.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-5 lg:grid-cols-2">
+              <div className="lg:col-span-2">
+                <Label>
+                  Product name
+                  <span className="ml-1 text-red-400">*</span>
+                </Label>
+
+                <Input
+                  {...register("product_name", {
+                    required: "Product name is required.",
+                  })}
+                  placeholder="Enter product name"
+                  className="mt-2 h-11 border-white/10 bg-slate-900/80"
+                />
+
+                {errors.product_name && (
+                  <p className="mt-1.5 text-sm text-red-400">
+                    {errors.product_name.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label>
+                  SKU
+                  <span className="ml-1 text-red-400">*</span>
+                </Label>
+
+                <Input
+                  {...register("sku", {
+                    required: "SKU is required.",
+                  })}
+                  placeholder="e.g. LAP-ASUS-001"
+                  className="mt-2 h-11 border-white/10 bg-slate-900/80"
+                />
+
+                {errors.sku && (
+                  <p className="mt-1.5 text-sm text-red-400">
+                    {errors.sku.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label>Barcode</Label>
+
+                <Input
+                  {...register("barcode")}
+                  placeholder="Scan or enter barcode"
+                  className="mt-2 h-11 border-white/10 bg-slate-900/80"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              <div>
+                <Label>
+                  Brand
+                  <span className="ml-1 text-red-400">*</span>
+                </Label>
+
                 <select
-                  {...field}
-                  value={field.value || "NEW"}
-                  className="mt-1.5 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  {...register("brand", {
+                    required: "Brand is required.",
+                  })}
+                  className="mt-2 h-11 w-full rounded-md border border-white/10 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="">Select brand</option>
+
+                  {brands.map((item) => (
+                    <option key={item.id} value={String(item.id)}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+
+                {errors.brand && (
+                  <p className="mt-1.5 text-sm text-red-400">
+                    {errors.brand.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label>
+                  Category
+                  <span className="ml-1 text-red-400">*</span>
+                </Label>
+
+                <select
+                  {...register("category", {
+                    required: "Category is required.",
+                  })}
+                  className="mt-2 h-11 w-full rounded-md border border-white/10 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="">Select category</option>
+
+                  {categories.map((item) => (
+                    <option key={item.id} value={String(item.id)}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+
+                {errors.category && (
+                  <p className="mt-1.5 text-sm text-red-400">
+                    {errors.category.message}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label>Supplier</Label>
+
+                <select
+                  {...register("supplier")}
+                  className="mt-2 h-11 w-full rounded-md border border-white/10 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="">No supplier</option>
+
+                  {suppliers.map((item) => (
+                    <option key={item.id} value={String(item.id)}>
+                      {item.supplier_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-blue-500/15 bg-blue-500/[0.035] p-5">
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-blue-100">
+                  Branch and storage
+                </h3>
+
+                <p className="mt-1 text-xs text-slate-400">
+                  Assign the product to a branch and optionally select its rack.
+                </p>
+              </div>
+
+              <div className="grid gap-5 md:grid-cols-2">
+                <div>
+                  <Label>
+                    Branch
+                    <span className="ml-1 text-red-400">*</span>
+                  </Label>
+
+                  <select
+                    {...register("branch", {
+                      required: "Branch is required.",
+                    })}
+                    className="mt-2 h-11 w-full rounded-md border border-white/10 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  >
+                    <option value="">Select branch</option>
+
+                    {branches.map((item) => (
+                      <option key={item.id} value={String(item.id)}>
+                        {item.branch_code ||
+                          item.branch_name ||
+                          `Branch #${item.id}`}
+                        {item.branch_name && item.branch_code
+                          ? ` - ${item.branch_name}`
+                          : ""}
+                      </option>
+                    ))}
+                  </select>
+
+                  {errors.branch && (
+                    <p className="mt-1.5 text-sm text-red-400">
+                      {errors.branch.message}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label>Rack</Label>
+
+                  <select
+                    {...register("rack")}
+                    disabled={!selectedBranch || racksLoading}
+                    className="mt-2 h-11 w-full rounded-md border border-white/10 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                    onChange={(event) => {
+                      console.log(
+                        "[Product Form] Rack selected:",
+                        event.target.value,
+                      );
+
+                      setValue("rack", event.target.value, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
+                    }}
+                  >
+                    <option value="">
+                      {!selectedBranch
+                        ? "Select branch first"
+                        : racksLoading
+                          ? "Loading racks..."
+                          : racks.length
+                            ? "Select rack"
+                            : "No racks available"}
+                    </option>
+
+                    {racks.map((item) => (
+                      <option key={item.id} value={String(item.id)}>
+                        {item.rack_code || item.rack_name || `Rack #${item.id}`}
+                        {item.rack_name && item.rack_code
+                          ? ` - ${item.rack_name}`
+                          : ""}
+                      </option>
+                    ))}
+                  </select>
+
+                  {racksError && (
+                    <p className="mt-1.5 text-sm text-red-400">
+                      Unable to load racks for this branch.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              <div>
+                <Label>Compatible models</Label>
+
+                <Input
+                  {...register("compatible_models")}
+                  placeholder="e.g. Dell Latitude 5420"
+                  className="mt-2 h-11 border-white/10 bg-slate-900/80"
+                />
+              </div>
+
+              <div>
+                <Label>Condition</Label>
+
+                <select
+                  {...register("condition")}
+                  className="mt-2 h-11 w-full rounded-md border border-white/10 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 >
                   <option value="NEW">New</option>
                   <option value="USED">Used</option>
                   <option value="REFURBISHED">Refurbished</option>
                 </select>
-              )}
-            />
-          </div>
+              </div>
 
-          <div>
-            <Label>Unit</Label>
-            <Controller
-              name="unit"
-              control={control}
-              render={({ field }) => (
+              <div>
+                <Label>Unit</Label>
+
                 <select
-                  {...field}
-                  value={field.value || "PCS"}
-                  className="mt-1.5 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  {...register("unit")}
+                  className="mt-2 h-11 w-full rounded-md border border-white/10 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 >
                   <option value="PCS">Pcs</option>
                   <option value="SET">Set</option>
@@ -908,442 +874,412 @@ export default function ProductFormPage() {
                   <option value="PACK">Pack</option>
                   <option value="PAIR">Pair</option>
                 </select>
-              )}
-            />
-          </div>
+              </div>
+            </div>
 
-          <div>
-            <Label>Supplier</Label>
-            <Controller
-              name="supplier"
-              control={control}
-              render={({ field }) => (
-                <select
-                  ref={field.ref}
-                  name={field.name}
-                  value={field.value == null ? "" : String(field.value)}
-                  onBlur={field.onBlur}
-                  onChange={(event) => field.onChange(event.target.value)}
-                  disabled={suppliersLoading}
-                  className="mt-1.5 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">
-                    {suppliersLoading
-                      ? "Loading suppliers…"
-                      : "Select supplier"}
-                  </option>
-                  {suppliers.map((supplier) => (
-                    <option key={supplier.id} value={String(supplier.id)}>
-                      {supplier.supplier_name ||
-                        supplier.name ||
-                        supplier.supplier_code}
-                    </option>
-                  ))}
-                </select>
-              )}
-            />
-          </div>
+            <div>
+              <Label>Description</Label>
 
-          <div className="space-y-2">
-            <Label>VAT</Label>
-            <div className="flex min-h-10 items-center gap-3">
-              <Switch
-                checked={Boolean(watch("vat_inclusive"))}
-                onCheckedChange={(value) =>
-                  setValue("vat_inclusive", value, { shouldDirty: true })
-                }
+              <Textarea
+                {...register("description")}
+                placeholder="Product description, technical notes or compatibility information"
+                className="mt-2 min-h-28 border-white/10 bg-slate-900/80"
               />
-              <span className="text-sm text-muted-foreground">
-                Inclusive in variant retail price
-              </span>
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-3">
+              <div>
+                <Label>Warranty period</Label>
+
+                <div className="relative mt-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    {...register("warranty_period_days", {
+                      valueAsNumber: true,
+                    })}
+                    className="h-11 border-white/10 bg-slate-900/80 pr-14"
+                  />
+
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500">
+                    days
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <Label>Reorder level</Label>
+
+                <Input
+                  type="number"
+                  min="0"
+                  {...register("reorder_level", {
+                    valueAsNumber: true,
+                  })}
+                  className="mt-2 h-11 border-white/10 bg-slate-900/80"
+                />
+              </div>
+
+              <div>
+                <Label>VAT rate</Label>
+
+                <div className="relative mt-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    {...register("vat_rate", {
+                      valueAsNumber: true,
+                    })}
+                    className="h-11 border-white/10 bg-slate-900/80 pr-10"
+                  />
+
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">
+                    %
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.025] px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-200">
+                    VAT inclusive
+                  </p>
+
+                  <p className="text-xs text-slate-500">
+                    Prices already include VAT.
+                  </p>
+                </div>
+
+                <Switch
+                  checked={Boolean(watch("vat_inclusive"))}
+                  onCheckedChange={(value) => setValue("vat_inclusive", value)}
+                />
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.025] px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-200">
+                    Product variants
+                  </p>
+
+                  <p className="text-xs text-slate-500">
+                    Use attribute combinations.
+                  </p>
+                </div>
+
+                <Switch
+                  checked={Boolean(watch("has_variants"))}
+                  onCheckedChange={(value) => {
+                    setValue("has_variants", value);
+
+                    if (
+                      value &&
+                      variants.length === 1 &&
+                      variants[0].attributes.length === 0
+                    ) {
+                      setVariants([
+                        {
+                          ...variants[0],
+                          attributes: [
+                            {
+                              name: "",
+                              value: "",
+                            },
+                          ],
+                        },
+                      ]);
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.025] px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-200">
+                    Active product
+                  </p>
+
+                  <p className="text-xs text-slate-500">
+                    Available across the system.
+                  </p>
+                </div>
+
+                <Switch
+                  checked={Boolean(watch("is_active"))}
+                  onCheckedChange={(value) => setValue("is_active", value)}
+                />
+              </div>
             </div>
           </div>
+        </section>
 
-          <div>
-            <Label>VAT rate (%)</Label>
-            <Input
-              type="number"
-              min="0"
-              max="100"
-              step="0.01"
-              {...register("vat_rate", { valueAsNumber: true })}
-              className="mt-1.5 font-numeric"
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <Label>Description</Label>
-            <Textarea
-              {...register("description")}
-              className="mt-1.5"
-              rows={3}
-            />
-          </div>
-
-          <div>
-            <Label>Warranty (days)</Label>
-            <Input
-              type="number"
-              min="0"
-              {...register("warranty_period_days", { valueAsNumber: true })}
-              className="mt-1.5 font-numeric"
-            />
-          </div>
-          <div>
-            <Label>Reorder level</Label>
-            <Input
-              type="number"
-              min="0"
-              {...register("reorder_level", { valueAsNumber: true })}
-              className="mt-1.5 font-numeric"
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <Label>Rack location</Label>
-            <Input
-              {...register("rack_location")}
-              placeholder="e.g. R3-S2-B10"
-              className="mt-1.5"
-            />
-          </div>
-        </div>
-
-        <section className="space-y-4 rounded-xl border border-white/10 bg-white/[0.02] p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <section className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/70 shadow-xl shadow-black/10">
+          <div className="flex flex-col gap-4 border-b border-white/10 bg-white/[0.025] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="text-sm font-semibold text-slate-100">
-                Product variants
-              </h3>
-              <p className="mt-1 text-xs text-slate-500">
-                Add combinations such as Color, RAM, Storage, Condition, or any
-                custom attribute. Enter the available quantity for each variant.
-                Empty quantity is saved as 0.
+              <h2 className="text-lg font-semibold text-white">
+                {hasVariants
+                  ? "Attributes, stock and pricing"
+                  : "Stock and pricing"}
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-400">
+                {hasVariants
+                  ? "Create attribute combinations such as RAM, color and storage."
+                  : "Manage stock and pricing for this non-variant product."}
               </p>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={addVariant}
-            >
-              <Plus className="mr-1.5 h-4 w-4" />
-              Add variant
-            </Button>
+
+            {hasVariants && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={addVariant}
+                className="border-blue-500/30 bg-blue-500/5 text-blue-200 hover:bg-blue-500/10 hover:text-blue-100"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add combination
+              </Button>
+            )}
           </div>
 
-          {variants.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-white/10 p-6 text-center text-sm text-slate-500">
-              This product has no variants. Add at least one variant to manage
-              pricing and available quantity.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {variants.map((variant, variantIndex) => (
+          <div className="space-y-5 p-6">
+            {(hasVariants ? variants : [variants[0] || emptyBaseStock]).map(
+              (variant, variantIndex) => (
                 <div
                   key={variant.id || variantIndex}
-                  className="rounded-lg border border-white/10 p-4"
+                  className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/90 to-slate-950 shadow-lg shadow-black/10"
                 >
-                  <div className="mb-4 flex items-center justify-between gap-3">
-                    <div className="text-sm font-medium text-slate-200">
-                      Variant {variantIndex + 1}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="text-red-400 hover:bg-red-500/10 hover:text-red-300"
-                      onClick={() => removeVariant(variantIndex)}
-                      title="Remove variant"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  {hasVariants && (
+                    <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.025] px-5 py-3">
+                      <div>
+                        <p className="text-sm font-semibold text-white">
+                          Attribute combination {variantIndex + 1}
+                        </p>
 
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div>
-                      <Label>Variant name</Label>
-                      <Input
-                        value={variant.variant_name}
-                        onChange={(event) =>
-                          updateVariant(
-                            variantIndex,
-                            "variant_name",
-                            event.target.value,
-                          )
-                        }
-                        placeholder="e.g. Black / 16 GB / 512 GB"
-                        className="mt-1.5"
-                      />
-                    </div>
-                    <div>
-                      <Label>Variant SKU</Label>
-                      <Input
-                        value={variant.sku}
-                        onChange={(event) =>
-                          updateVariant(variantIndex, "sku", event.target.value)
-                        }
-                        placeholder="e.g. DELL-16-BLK"
-                        className="mt-1.5"
-                      />
-                    </div>
-                    <div>
-                      <Label>Variant barcode</Label>
-                      <Input
-                        value={variant.barcode}
-                        onChange={(event) =>
-                          updateVariant(
-                            variantIndex,
-                            "barcode",
-                            event.target.value,
-                          )
-                        }
-                        className="mt-1.5"
-                      />
-                    </div>
-                    <div>
-                      <Label>Available qty</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={variant.available_qty ?? 0}
-                        onChange={(event) =>
-                          updateVariant(
-                            variantIndex,
-                            "available_qty",
-                            event.target.value,
-                          )
-                        }
-                        onBlur={(event) => {
-                          if (event.target.value === "") {
-                            updateVariant(variantIndex, "available_qty", 0);
-                          }
-                        }}
-                        placeholder="0"
-                        className="mt-1.5 font-numeric"
-                      />
-                      <p className="mt-1 text-[11px] text-slate-500">
-                        Empty value will be saved as 0.
-                      </p>
-                    </div>
-                    <div className="flex items-end gap-6 pb-2">
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={variant.is_default}
-                          onCheckedChange={(value) =>
-                            updateVariant(variantIndex, "is_default", value)
-                          }
-                        />
-                        <Label>Default</Label>
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          Define one or more attribute values.
+                        </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={variant.is_active}
-                          onCheckedChange={(value) =>
-                            updateVariant(variantIndex, "is_active", value)
-                          }
-                        />
-                        <Label>Active</Label>
-                      </div>
-                    </div>
-                  </div>
 
-                  <div className="mt-4">
-                    <div className="mb-2 flex items-center justify-between">
-                      <Label>Attributes</Label>
                       <Button
                         type="button"
-                        variant="ghost"
                         size="sm"
-                        onClick={() => addVariantAttribute(variantIndex)}
+                        variant="ghost"
+                        onClick={() => removeVariant(variantIndex)}
+                        disabled={variants.length === 1}
+                        className="text-red-400 hover:bg-red-500/10 hover:text-red-300"
                       >
-                        <Plus className="mr-1 h-3.5 w-3.5" />
-                        Add attribute
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                    <div className="space-y-2">
-                      {variant.attributes.map((attribute, attributeIndex) => (
-                        <div
-                          key={attributeIndex}
-                          className="grid grid-cols-[1fr_1fr_auto] gap-2"
-                        >
-                          <Input
-                            value={attribute.name}
-                            onChange={(event) =>
-                              updateVariantAttribute(
-                                variantIndex,
-                                attributeIndex,
-                                "name",
-                                event.target.value,
-                              )
-                            }
-                            placeholder="Attribute, e.g. RAM"
-                          />
-                          <Input
-                            value={attribute.value}
-                            onChange={(event) =>
-                              updateVariantAttribute(
-                                variantIndex,
-                                attributeIndex,
-                                "value",
-                                event.target.value,
-                              )
-                            }
-                            placeholder="Value, e.g. 16 GB"
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              removeVariantAttribute(
-                                variantIndex,
-                                attributeIndex,
-                              )
-                            }
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  )}
 
-                  <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    {[
-                      ["purchase_price", "Purchase price"],
-                      ["retail_price", "Retail price"],
-                      ["wholesale_price", "Wholesale price"],
-                      ["minimum_selling_price", "Minimum selling"],
-                    ].map(([field, label]) => (
-                      <div key={field}>
-                        <Label>{label} (AED)</Label>
+                  <div className="space-y-5 p-5">
+                    {hasVariants && (
+                      <div className="rounded-xl border border-white/10 bg-black/10 p-4">
+                        <div className="space-y-3">
+                          {variant.attributes.map(
+                            (attribute, attributeIndex) => (
+                              <div
+                                key={attributeIndex}
+                                className="grid gap-3 md:grid-cols-[1fr_1fr_auto]"
+                              >
+                                <Input
+                                  placeholder="Attribute, e.g. RAM"
+                                  value={attribute.name}
+                                  onChange={(event) =>
+                                    updateAttribute(
+                                      variantIndex,
+                                      attributeIndex,
+                                      "name",
+                                      event.target.value,
+                                    )
+                                  }
+                                  className="h-11 border-white/10 bg-slate-900/80"
+                                />
+
+                                <Input
+                                  placeholder="Value, e.g. 16 GB"
+                                  value={attribute.value}
+                                  onChange={(event) =>
+                                    updateAttribute(
+                                      variantIndex,
+                                      attributeIndex,
+                                      "value",
+                                      event.target.value,
+                                    )
+                                  }
+                                  className="h-11 border-white/10 bg-slate-900/80"
+                                />
+
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  onClick={() =>
+                                    removeAttribute(
+                                      variantIndex,
+                                      attributeIndex,
+                                    )
+                                  }
+                                  className="h-11 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ),
+                          )}
+                        </div>
+
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => addAttribute(variantIndex)}
+                          className="mt-3 border-white/10 bg-white/[0.025]"
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add attribute
+                        </Button>
+                      </div>
+                    )}
+
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                      <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.035] p-3">
+                        <Label className="text-emerald-100">
+                          Available qty
+                        </Label>
+
+                        <Input
+                          type="number"
+                          min="0"
+                          value={variant.available_qty ?? 0}
+                          onChange={(event) =>
+                            updateVariant(
+                              variantIndex,
+                              "available_qty",
+                              event.target.value,
+                            )
+                          }
+                          className="mt-2 h-11 border-emerald-500/20 bg-slate-950/80"
+                        />
+                      </div>
+
+                      <div>
+                        <Label>
+                          Purchase price
+                          <span className="ml-1 text-xs font-normal text-slate-500">
+                            Optional
+                          </span>
+                        </Label>
+
                         <Input
                           type="number"
                           min="0"
                           step="0.01"
-                          value={variant[field]}
+                          value={variant.purchase_price ?? ""}
                           onChange={(event) =>
                             updateVariant(
                               variantIndex,
-                              field,
+                              "purchase_price",
                               event.target.value,
                             )
                           }
-                          placeholder="Inherit"
-                          className="mt-1.5 font-numeric"
+                          placeholder="0.00"
+                          className="mt-2 h-11 border-white/10 bg-slate-900/80"
                         />
                       </div>
-                    ))}
+
+                      <div>
+                        <Label>Retail price</Label>
+
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={variant.retail_price ?? 0}
+                          onChange={(event) =>
+                            updateVariant(
+                              variantIndex,
+                              "retail_price",
+                              event.target.value,
+                            )
+                          }
+                          className="mt-2 h-11 border-white/10 bg-slate-900/80"
+                        />
+                      </div>
+
+                      <div>
+                        <Label>Wholesale price</Label>
+
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={variant.wholesale_price ?? 0}
+                          onChange={(event) =>
+                            updateVariant(
+                              variantIndex,
+                              "wholesale_price",
+                              event.target.value,
+                            )
+                          }
+                          className="mt-2 h-11 border-white/10 bg-slate-900/80"
+                        />
+                      </div>
+
+                      <div>
+                        <Label>Minimum selling</Label>
+
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={variant.minimum_selling_price ?? 0}
+                          onChange={(event) =>
+                            updateVariant(
+                              variantIndex,
+                              "minimum_selling_price",
+                              event.target.value,
+                            )
+                          }
+                          className="mt-2 h-11 border-white/10 bg-slate-900/80"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              ),
+            )}
+          </div>
         </section>
 
-        <div className="flex items-center gap-2">
-          <Switch
-            checked={Boolean(watch("is_active"))}
-            onCheckedChange={(value) => setValue("is_active", value)}
-          />
-          <Label>Active</Label>
-        </div>
-
-        <div className="flex gap-2">
-          <Button
-            type="submit"
-            disabled={
-              isSubmitting ||
-              brandsLoading ||
-              categoriesLoading ||
-              suppliersLoading
-            }
-            className="bg-blue-600 hover:bg-blue-700"
-            data-testid="product-save-btn"
-          >
-            {isSubmitting
-              ? "Saving…"
-              : isEdit
-                ? "Save changes"
-                : "Create product"}
-          </Button>
+        <div className="sticky bottom-4 z-20 flex flex-col-reverse gap-3 rounded-2xl border border-white/10 bg-slate-950/90 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-end">
           <Button
             type="button"
             variant="ghost"
             onClick={() => navigate("/inventory/products")}
+            disabled={isSubmitting}
+            className="sm:min-w-28"
           >
             Cancel
           </Button>
+
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="min-w-40 bg-blue-600 shadow-lg shadow-blue-950/40 hover:bg-blue-700"
+          >
+            {isSubmitting
+              ? "Saving..."
+              : isEdit
+                ? "Save changes"
+                : "Create product"}
+          </Button>
         </div>
       </form>
-
-      <Dialog
-        open={Boolean(referenceDialog)}
-        onOpenChange={(open) => {
-          if (!open) closeReferenceDialog();
-        }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              Add {referenceDialog === "brand" ? "brand" : "category"}
-            </DialogTitle>
-            <DialogDescription>
-              Create it here and it will be selected automatically for this
-              product.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleCreateReference} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="reference-name">Name</Label>
-              <Input
-                id="reference-name"
-                value={referenceName}
-                onChange={(event) => setReferenceName(event.target.value)}
-                placeholder={`Enter ${referenceDialog === "brand" ? "brand" : "category"} name`}
-                autoFocus
-                disabled={createReferenceMutation.isPending}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="reference-description">Description</Label>
-              <Textarea
-                id="reference-description"
-                value={referenceDescription}
-                onChange={(event) =>
-                  setReferenceDescription(event.target.value)
-                }
-                placeholder="Optional description"
-                rows={3}
-                disabled={createReferenceMutation.isPending}
-              />
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={closeReferenceDialog}
-                disabled={createReferenceMutation.isPending}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={createReferenceMutation.isPending}
-              >
-                {createReferenceMutation.isPending
-                  ? "Creating…"
-                  : "Create and select"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

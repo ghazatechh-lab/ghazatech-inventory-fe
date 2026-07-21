@@ -14,15 +14,18 @@ import NotFoundPage from "@/pages/NotFoundPage";
 import UnauthorizedPage from "@/pages/UnauthorizedPage";
 
 import DashboardPage from "@/features/dashboard/DashboardPage";
+
 import BranchListPage from "@/features/branches/BranchListPage";
 import BranchFormPage from "@/features/branches/BranchFormPage";
 import BranchDetailPage from "@/features/branches/BranchDetailPage";
 
+import CategoryListPage from "@/features/inventory/CategoryListPage";
+import BrandListPage from "@/features/inventory/BrandListPage";
 import ProductListPage from "@/features/inventory/ProductListPage";
 import ProductFormPage from "@/features/inventory/ProductFormPage";
 import ProductDetailPage from "@/features/inventory/ProductDetailPage";
-import BrandListPage from "@/features/inventory/BrandListPage";
-import CategoryListPage from "@/features/inventory/CategoryListPage";
+import RackListPage from "@/features/inventory/RackListPage";
+import RackFormPage from "@/features/inventory/RackFormPage";
 import StockPage from "@/features/inventory/StockPage";
 import LowStockPage from "@/features/inventory/LowStockPage";
 import StockMovementsPage from "@/features/inventory/StockMovementsPage";
@@ -45,6 +48,7 @@ import SalesPaymentsPage from "@/features/sales/SalesPaymentsPage";
 import SupplierListPage from "@/features/suppliers/SupplierListPage";
 import SupplierFormPage from "@/features/suppliers/SupplierFormPage";
 import SupplierDetailPage from "@/features/suppliers/SupplierDetailPage";
+
 import POListPage from "@/features/purchases/POListPage";
 import POFormPage from "@/features/purchases/POFormPage";
 import PODetailPage from "@/features/purchases/PODetailPage";
@@ -91,14 +95,20 @@ import SettingsPage from "@/features/settings/SettingsPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false },
+    queries: {
+      staleTime: 30_000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
   },
 });
 
 function ProtectedRoute({ children, allow }) {
   const { user, isLoading } = useAuth();
 
-  if (isLoading) return null;
+  if (isLoading) {
+    return null;
+  }
 
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -110,10 +120,6 @@ function ProtectedRoute({ children, allow }) {
     user.is_superuser === true ||
     roleCode === "ADMIN" ||
     user.role_name === "Super Admin";
-
-  console.log("User:", user);
-  console.log("Role code:", roleCode);
-  console.log("Allowed roles:", allow);
 
   if (allow && !isSuperUser && !allow.includes(roleCode)) {
     return <Navigate to="/unauthorized" replace />;
@@ -128,12 +134,18 @@ export default function App() {
       <BrowserRouter>
         <AuthProvider>
           <Toaster theme="dark" position="top-right" richColors closeButton />
+
           <Routes>
+            {/* Public routes */}
             <Route path="/login" element={<LoginPage />} />
+
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
+            {/* Authenticated application routes */}
             <Route
               element={
                 <ProtectedRoute>
@@ -142,8 +154,10 @@ export default function App() {
               }
             >
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
               <Route path="/dashboard" element={<DashboardPage />} />
 
+              {/* Branches */}
               <Route
                 path="/branches"
                 element={
@@ -152,6 +166,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/branches/new"
                 element={
@@ -160,6 +175,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/branches/:id"
                 element={
@@ -168,6 +184,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/branches/:id/edit"
                 element={
@@ -177,108 +194,173 @@ export default function App() {
                 }
               />
 
-              <Route path="/inventory/products" element={<ProductListPage />} />
-              <Route
-                path="/inventory/brands"
-                element={
-                  <ProtectedRoute allow={["ADMIN"]}>
-                    <BrandListPage />
-                  </ProtectedRoute>
-                }
-              />
+              {/* Inventory */}
               <Route
                 path="/inventory/categories"
-                element={
-                  <ProtectedRoute allow={["ADMIN"]}>
-                    <CategoryListPage />
-                  </ProtectedRoute>
-                }
+                element={<CategoryListPage />}
               />
+
+              <Route path="/inventory/brands" element={<BrandListPage />} />
+
+              <Route path="/inventory/products" element={<ProductListPage />} />
+
               <Route
                 path="/inventory/products/new"
                 element={<ProductFormPage />}
               />
+
               <Route
                 path="/inventory/products/:id"
                 element={<ProductDetailPage />}
               />
+
               <Route
                 path="/inventory/products/:id/edit"
                 element={<ProductFormPage />}
               />
+
+              <Route path="/inventory/racks" element={<RackListPage />} />
+
+              <Route path="/inventory/racks/new" element={<RackFormPage />} />
+
+              <Route
+                path="/inventory/racks/:id/edit"
+                element={<RackFormPage />}
+              />
+
               <Route path="/inventory/stock" element={<StockPage />} />
+
               <Route path="/inventory/low-stock" element={<LowStockPage />} />
+
               <Route
                 path="/inventory/movements"
                 element={<StockMovementsPage />}
               />
+
               <Route
                 path="/inventory/adjustments"
                 element={<StockAdjustmentPage />}
               />
 
+              {/* Customers */}
               <Route path="/customers" element={<CustomerListPage />} />
+
               <Route path="/customers/new" element={<CustomerFormPage />} />
+
               <Route path="/customers/:id" element={<CustomerDetailPage />} />
+
               <Route
                 path="/customers/:id/edit"
                 element={<CustomerFormPage />}
               />
 
+              {/* Sales */}
               <Route path="/sales/quotations" element={<QuotationListPage />} />
+
               <Route
                 path="/sales/quotations/new"
                 element={<QuotationFormPage />}
               />
+
               <Route
                 path="/sales/quotations/:id"
                 element={<QuotationDetailPage />}
               />
+
               <Route
                 path="/sales/quotations/:id/edit"
                 element={<QuotationFormPage />}
               />
+
               <Route path="/sales/invoices" element={<InvoiceListPage />} />
+
               <Route path="/sales/invoices/new" element={<InvoiceFormPage />} />
+
               <Route
                 path="/sales/invoices/:id"
                 element={<InvoiceDetailPage />}
               />
+
               <Route path="/sales/pos" element={<POSPage />} />
+
               <Route path="/sales/credit-notes" element={<CreditNotesPage />} />
+
               <Route path="/sales/payments" element={<SalesPaymentsPage />} />
 
+              {/* Suppliers */}
               <Route path="/suppliers" element={<SupplierListPage />} />
+
               <Route path="/suppliers/new" element={<SupplierFormPage />} />
+
               <Route path="/suppliers/:id" element={<SupplierDetailPage />} />
+
+              <Route
+                path="/suppliers/:id/edit"
+                element={<SupplierFormPage />}
+              />
+
+              {/* Purchases */}
               <Route path="/purchases/orders" element={<POListPage />} />
+
               <Route path="/purchases/orders/new" element={<POFormPage />} />
+
               <Route path="/purchases/orders/:id" element={<PODetailPage />} />
+
+              <Route
+                path="/purchases/orders/:id/edit"
+                element={<POFormPage />}
+              />
+
               <Route path="/purchases/grn" element={<GRNListPage />} />
+
               <Route path="/purchases/grn/new" element={<GRNFormPage />} />
+
               <Route path="/purchases/grn/:id" element={<GRNDetailPage />} />
+
+              <Route path="/purchases/grn/:id/edit" element={<GRNFormPage />} />
+
               <Route
                 path="/purchases/supplier-bills"
                 element={<SupplierBillsPage />}
               />
+
               <Route
                 path="/purchases/supplier-payments"
                 element={<SupplierPaymentsPage />}
               />
+
               <Route
                 path="/purchases/supplier-returns"
                 element={<SupplierReturnsPage />}
               />
 
+              {/* Transfers */}
               <Route path="/transfers" element={<TransferListPage />} />
+
               <Route path="/transfers/new" element={<TransferFormPage />} />
+
               <Route path="/transfers/:id" element={<TransferDetailPage />} />
 
+              <Route
+                path="/transfers/:id/edit"
+                element={<TransferFormPage />}
+              />
+
+              {/* Shipments */}
               <Route path="/shipments" element={<ShipmentListPage />} />
+
               <Route path="/shipments/new" element={<ShipmentFormPage />} />
+
               <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
 
+              <Route
+                path="/shipments/:id/edit"
+                element={<ShipmentFormPage />}
+              />
+
+              {/* HRMS */}
               <Route path="/hrms/employees" element={<EmployeeListPage />} />
+
               <Route
                 path="/hrms/employees/new"
                 element={
@@ -287,10 +369,12 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/hrms/employees/:id"
                 element={<EmployeeDetailPage />}
               />
+
               <Route
                 path="/hrms/employees/:id/edit"
                 element={
@@ -299,8 +383,11 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route path="/hrms/attendance" element={<AttendancePage />} />
+
               <Route path="/hrms/leaves" element={<LeavesPage />} />
+
               <Route
                 path="/hrms/payroll"
                 element={
@@ -309,11 +396,13 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/hrms/document-expiry"
                 element={<DocumentExpiryPage />}
               />
 
+              {/* Finance */}
               <Route
                 path="/finance/expenses"
                 element={
@@ -322,6 +411,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/finance/receivables"
                 element={
@@ -330,6 +420,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/finance/payables"
                 element={
@@ -338,6 +429,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/finance/cash-register"
                 element={
@@ -346,6 +438,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/finance/bank-accounts"
                 element={
@@ -354,6 +447,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/finance/ledger"
                 element={
@@ -363,6 +457,7 @@ export default function App() {
                 }
               />
 
+              {/* Reports */}
               <Route
                 path="/reports/dashboard"
                 element={
@@ -371,6 +466,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/reports/sales"
                 element={
@@ -379,6 +475,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/reports/purchases"
                 element={
@@ -387,6 +484,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/reports/inventory"
                 element={
@@ -395,6 +493,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/reports/finance"
                 element={
@@ -403,6 +502,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+
               <Route
                 path="/reports/hrms"
                 element={
@@ -412,7 +512,9 @@ export default function App() {
                 }
               />
 
+              {/* Notifications and administration */}
               <Route path="/notifications" element={<NotificationsPage />} />
+
               <Route
                 path="/audit-logs"
                 element={
@@ -421,7 +523,15 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route path="/settings" element={<SettingsPage />} />
+
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute allow={["ADMIN"]}>
+                    <SettingsPage />
+                  </ProtectedRoute>
+                }
+              />
             </Route>
 
             <Route path="*" element={<NotFoundPage />} />
