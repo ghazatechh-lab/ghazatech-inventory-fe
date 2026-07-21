@@ -5,7 +5,7 @@ export default function BrandListPage() {
   return (
     <ReferenceDataPage
       title="Brands"
-      subtitle="Manage product brands used across the inventory catalogue."
+      subtitle="Manage product brands used across inventory."
       singular="Brand"
       endpoint="/brands/"
       queryKey="brands"
