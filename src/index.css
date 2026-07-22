@@ -173,16 +173,42 @@
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
   }
 
-  .sidebar-surface {
-    background: #ffffff;
-    border-right: 1px solid #e2e8f0;
-    box-shadow: 4px 0 24px rgba(15, 23, 42, 0.03);
+  /*
+   * Sidebar stays blue in both light and dark themes.
+   * Only the rest of the application changes theme.
+   */
+  .sidebar-surface,
+  .dark .sidebar-surface,
+  .light .sidebar-surface {
+    background: linear-gradient(180deg, #123d8f 0%, #0f347d 48%, #0a2864 100%);
+    border-right: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 6px 0 28px rgba(15, 52, 125, 0.18);
+    color: #ffffff;
   }
 
-  .dark .sidebar-surface {
-    background: #05070a;
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: none;
+  .sidebar-always-blue {
+    color-scheme: dark;
+  }
+
+  .sidebar-always-blue nav {
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  }
+
+  .sidebar-always-blue nav::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .sidebar-always-blue nav::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .sidebar-always-blue nav::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+  }
+
+  .sidebar-always-blue nav::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
   }
 
   .table-row-hover {
@@ -349,4 +375,48 @@ html.light [role="menu"] {
     opacity: 1;
     transform: none;
   }
+}
+
+/*
+ * Keep sidebar colors untouched by light-mode compatibility overrides.
+ */
+html.light .sidebar-always-blue,
+html.light .sidebar-always-blue .bg-slate-950,
+html.light .sidebar-always-blue .bg-slate-950\/70,
+html.light .sidebar-always-blue .bg-slate-950\/80,
+html.light .sidebar-always-blue .bg-slate-950\/90,
+html.light .sidebar-always-blue .bg-slate-900,
+html.light .sidebar-always-blue .bg-slate-900\/80,
+html.light .sidebar-always-blue .bg-white\/\[0\.02\],
+html.light .sidebar-always-blue .bg-white\/\[0\.025\],
+html.light .sidebar-always-blue .bg-white\/5 {
+  background-color: transparent !important;
+}
+
+html.light .sidebar-always-blue .text-white,
+html.light .sidebar-always-blue .text-slate-100,
+html.light .sidebar-always-blue .text-slate-200 {
+  color: #ffffff !important;
+}
+
+html.light .sidebar-always-blue .text-slate-300,
+html.light .sidebar-always-blue .text-slate-400,
+html.light .sidebar-always-blue .text-slate-500,
+html.light .sidebar-always-blue .text-slate-600 {
+  color: rgba(219, 234, 254, 0.76) !important;
+}
+
+html.light .sidebar-always-blue .border-white\/5,
+html.light .sidebar-always-blue .border-white\/10,
+html.light .sidebar-always-blue .border-white\/20 {
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+html.light .sidebar-always-blue .hover\:bg-white\/5:hover,
+html.light .sidebar-always-blue .hover\:bg-white\/\[0\.025\]:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+html.light .sidebar-always-blue .hover\:text-white:hover {
+  color: #ffffff !important;
 }

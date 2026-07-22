@@ -131,14 +131,14 @@ const groups = [
         icon: Users,
       },
       {
-        to: "/shipments",
-        label: "Shipments",
-        icon: Truck,
-      },
-      {
         to: "/purchases/orders",
         label: "Purchase Orders",
         icon: FileText,
+      },
+      {
+        to: "/shipments",
+        label: "Shipments",
+        icon: Truck,
       },
       {
         to: "/purchases/grn",
@@ -308,14 +308,14 @@ export function Sidebar({ collapsed, onToggle }) {
   return (
     <aside
       className={cn(
-        "sidebar-surface sticky top-0 flex h-screen flex-col transition-[width] duration-200",
+        "sidebar-surface sidebar-always-blue sticky top-0 flex h-screen flex-col text-white transition-[width] duration-200",
         collapsed ? "w-[68px]" : "w-[264px]",
       )}
       data-testid="app-sidebar"
     >
       <div
         className={cn(
-          "flex items-center gap-2.5 border-b border-white/5 px-4 py-4",
+          "flex items-center gap-2.5 border-b border-blue-400/20 px-4 py-4",
           collapsed && "px-3",
         )}
       >
@@ -329,7 +329,7 @@ export function Sidebar({ collapsed, onToggle }) {
               {APP_NAME}
             </div>
 
-            <div className="text-[11px] leading-tight text-slate-500">
+            <div className="text-[11px] leading-tight text-blue-100/65">
               {APP_TAGLINE}
             </div>
           </div>
@@ -353,7 +353,7 @@ export function Sidebar({ collapsed, onToggle }) {
           return (
             <div key={group.label}>
               {!collapsed && (
-                <div className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-600">
+                <div className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-blue-100/55">
                   {group.label}
                 </div>
               )}
@@ -370,8 +370,8 @@ export function Sidebar({ collapsed, onToggle }) {
                       cn(
                         "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all",
                         isActive
-                          ? "border border-blue-500/25 bg-blue-600/15 text-white shadow-[inset_0_0_0_1px_rgba(59,130,246,0.15)]"
-                          : "text-slate-400 hover:bg-white/[0.04] hover:text-white",
+                          ? "border border-white/20 bg-white/15 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
+                          : "text-blue-100/75 hover:bg-white/10 hover:text-white",
                       )
                     }
                     end
@@ -402,7 +402,7 @@ export function Sidebar({ collapsed, onToggle }) {
         type="button"
         onClick={onToggle}
         data-testid="sidebar-toggle-btn"
-        className="mx-3 mb-3 flex h-8 items-center justify-center rounded-lg border border-white/10 text-slate-400 transition hover:bg-white/5 hover:text-white"
+        className="mx-3 mb-3 flex h-8 items-center justify-center rounded-lg border border-white/20 text-blue-100/75 transition hover:bg-white/10 hover:text-white"
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
         {collapsed ? (
