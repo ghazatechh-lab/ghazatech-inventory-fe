@@ -70,6 +70,12 @@ export default function LowStockPage() {
       ),
     },
     {
+      key: "sku",
+      header: "SKU",
+      sortKey: "product__sku",
+      sortType: "text",
+    },
+    {
       key: "branch_code",
       header: "Branch",
       sortKey: "branch__branch_code",

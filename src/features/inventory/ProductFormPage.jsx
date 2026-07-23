@@ -605,8 +605,8 @@ export default function ProductFormPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6 pb-10">
-      <div className="rounded-2xl border border-white/10 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950/50 p-1 shadow-2xl shadow-black/20">
-        <div className="rounded-[14px] bg-slate-950/70 px-6 py-5 backdrop-blur">
+      <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950/50 p-1 shadow-2xl shadow-black/20">
+        <div className="rounded-[14px] bg-white dark:bg-slate-950/70 px-6 py-5 backdrop-blur">
           <PageHeader
             title={isEdit ? "Edit product" : "New product"}
             subtitle="Create and maintain products, branch stock, rack location and pricing"
@@ -622,25 +622,25 @@ export default function ProductFormPage() {
         })}
         className="space-y-6"
       >
-        <section className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/70 shadow-xl shadow-black/10">
-          <div className="border-b border-white/10 bg-white/[0.025] px-6 py-4">
-            <h2 className="text-lg font-semibold text-white">
+        <section className="overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/70 shadow-xl shadow-black/10">
+          <div className="border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.025] px-6 py-4">
+            <h2 className="text-lg font-semibold text-slate-950 dark:text-white">
               Product information
             </h2>
 
-            <p className="mt-1 text-sm text-slate-400">
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
               Basic catalogue details, branch assignment and storage location.
             </p>
           </div>
 
           <div className="space-y-7 p-6">
-            <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-4">
-              <Label className="text-sm font-medium text-slate-200">
+            <div className="rounded-xl border border-dashed border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.02] p-4">
+              <Label className="text-sm font-medium text-slate-800 dark:text-slate-200">
                 Product image
               </Label>
 
               <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center">
-                <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-slate-900">
+                <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900">
                   {imagePreview ? (
                     <img
                       src={imagePreview}
@@ -648,7 +648,7 @@ export default function ProductFormPage() {
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <span className="px-3 text-center text-xs text-slate-500">
+                    <span className="px-3 text-center text-xs text-slate-500 dark:text-slate-500">
                       No image selected
                     </span>
                   )}
@@ -659,7 +659,7 @@ export default function ProductFormPage() {
                     ref={fileRef}
                     type="file"
                     accept="image/png,image/jpeg,image/webp"
-                    className="cursor-pointer border-white/10 bg-slate-900/80 file:mr-4 file:rounded-md file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-blue-700"
+                    className="cursor-pointer border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80 file:mr-4 file:rounded-md file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-950 dark:text-white hover:file:bg-blue-700"
                     onChange={(event) => {
                       const file = event.target.files?.[0] || null;
 
@@ -671,7 +671,7 @@ export default function ProductFormPage() {
                     }}
                   />
 
-                  <p className="mt-2 text-xs text-slate-500">
+                  <p className="mt-2 text-xs text-slate-500 dark:text-slate-500">
                     PNG, JPG or WebP. Recommended square image.
                   </p>
                 </div>
@@ -690,7 +690,7 @@ export default function ProductFormPage() {
                     required: "Product name is required.",
                   })}
                   placeholder="Enter product name"
-                  className="mt-2 h-11 border-white/10 bg-slate-900/80"
+                  className="mt-2 h-11 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80"
                 />
 
                 {errors.product_name && (
@@ -711,7 +711,7 @@ export default function ProductFormPage() {
                     required: "SKU is required.",
                   })}
                   placeholder="e.g. LAP-ASUS-001"
-                  className="mt-2 h-11 border-white/10 bg-slate-900/80"
+                  className="mt-2 h-11 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80"
                 />
 
                 {errors.sku && (
@@ -727,7 +727,7 @@ export default function ProductFormPage() {
                 <Input
                   {...register("barcode")}
                   placeholder="Scan or enter barcode"
-                  className="mt-2 h-11 border-white/10 bg-slate-900/80"
+                  className="mt-2 h-11 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80"
                 />
               </div>
             </div>
@@ -743,7 +743,7 @@ export default function ProductFormPage() {
                   {...register("brand", {
                     required: "Brand is required.",
                   })}
-                  className="mt-2 h-11 w-full rounded-md border border-white/10 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  className="mt-2 h-11 w-full rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 >
                   <option value="">Select brand</option>
 
@@ -771,7 +771,7 @@ export default function ProductFormPage() {
                   {...register("category", {
                     required: "Category is required.",
                   })}
-                  className="mt-2 h-11 w-full rounded-md border border-white/10 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  className="mt-2 h-11 w-full rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 >
                   <option value="">Select category</option>
 
@@ -794,7 +794,7 @@ export default function ProductFormPage() {
 
                 <select
                   {...register("supplier")}
-                  className="mt-2 h-11 w-full rounded-md border border-white/10 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  className="mt-2 h-11 w-full rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 >
                   <option value="">No supplier</option>
 
@@ -813,7 +813,7 @@ export default function ProductFormPage() {
                   Branch and storage
                 </h3>
 
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
                   Assign the product to a branch and optionally select its rack.
                 </p>
               </div>
@@ -829,7 +829,7 @@ export default function ProductFormPage() {
                     {...register("branch", {
                       required: "Branch is required.",
                     })}
-                    className="mt-2 h-11 w-full rounded-md border border-white/10 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                    className="mt-2 h-11 w-full rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                   >
                     <option value="">Select branch</option>
 
@@ -858,7 +858,7 @@ export default function ProductFormPage() {
                   <select
                     {...register("rack")}
                     disabled={!selectedBranch || racksLoading}
-                    className="mt-2 h-11 w-full rounded-md border border-white/10 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="mt-2 h-11 w-full rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                     onChange={(event) => {
                       console.log(
                         "[Product Form] Rack selected:",
@@ -907,7 +907,7 @@ export default function ProductFormPage() {
                 <Input
                   {...register("compatible_models")}
                   placeholder="e.g. Dell Latitude 5420"
-                  className="mt-2 h-11 border-white/10 bg-slate-900/80"
+                  className="mt-2 h-11 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80"
                 />
               </div>
 
@@ -916,7 +916,7 @@ export default function ProductFormPage() {
 
                 <select
                   {...register("condition")}
-                  className="mt-2 h-11 w-full rounded-md border border-white/10 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  className="mt-2 h-11 w-full rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 >
                   <option value="NEW">New</option>
                   <option value="USED">Used</option>
@@ -929,7 +929,7 @@ export default function ProductFormPage() {
 
                 <select
                   {...register("unit")}
-                  className="mt-2 h-11 w-full rounded-md border border-white/10 bg-slate-900/80 px-3 text-sm text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  className="mt-2 h-11 w-full rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 >
                   <option value="PCS">Pcs</option>
                   <option value="SET">Set</option>
@@ -946,7 +946,7 @@ export default function ProductFormPage() {
               <Textarea
                 {...register("description")}
                 placeholder="Product description, technical notes or compatibility information"
-                className="mt-2 min-h-28 border-white/10 bg-slate-900/80"
+                className="mt-2 min-h-28 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80"
               />
             </div>
 
@@ -961,10 +961,10 @@ export default function ProductFormPage() {
                     {...register("warranty_period_days", {
                       valueAsNumber: true,
                     })}
-                    className="h-11 border-white/10 bg-slate-900/80 pr-14"
+                    className="h-11 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80 pr-14"
                   />
 
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500">
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 dark:text-slate-500">
                     days
                   </span>
                 </div>
@@ -979,7 +979,7 @@ export default function ProductFormPage() {
                   {...register("reorder_level", {
                     valueAsNumber: true,
                   })}
-                  className="mt-2 h-11 border-white/10 bg-slate-900/80"
+                  className="mt-2 h-11 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80"
                 />
               </div>
 
@@ -994,10 +994,10 @@ export default function ProductFormPage() {
                     {...register("vat_rate", {
                       valueAsNumber: true,
                     })}
-                    className="h-11 border-white/10 bg-slate-900/80 pr-10"
+                    className="h-11 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80 pr-10"
                   />
 
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500 dark:text-slate-500">
                     %
                   </span>
                 </div>
@@ -1005,13 +1005,13 @@ export default function ProductFormPage() {
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
-              <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.025] px-4 py-3">
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.025] px-4 py-3">
                 <div>
-                  <p className="text-sm font-medium text-slate-200">
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
                     VAT inclusive
                   </p>
 
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-500 dark:text-slate-500">
                     Prices already include VAT.
                   </p>
                 </div>
@@ -1022,13 +1022,13 @@ export default function ProductFormPage() {
                 />
               </div>
 
-              <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.025] px-4 py-3">
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.025] px-4 py-3">
                 <div>
-                  <p className="text-sm font-medium text-slate-200">
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
                     Product variants
                   </p>
 
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-500 dark:text-slate-500">
                     Use attribute combinations.
                   </p>
                 </div>
@@ -1059,13 +1059,13 @@ export default function ProductFormPage() {
                 />
               </div>
 
-              <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.025] px-4 py-3">
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.025] px-4 py-3">
                 <div>
-                  <p className="text-sm font-medium text-slate-200">
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
                     Active product
                   </p>
 
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-500 dark:text-slate-500">
                     Available across the system.
                   </p>
                 </div>
@@ -1079,16 +1079,16 @@ export default function ProductFormPage() {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/70 shadow-xl shadow-black/10">
-          <div className="flex flex-col gap-4 border-b border-white/10 bg-white/[0.025] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <section className="overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/70 shadow-xl shadow-black/10">
+          <div className="flex flex-col gap-4 border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.025] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-white">
+              <h2 className="text-lg font-semibold text-slate-950 dark:text-white">
                 {hasVariants
                   ? "Attributes, stock and pricing"
                   : "Stock and pricing"}
               </h2>
 
-              <p className="mt-1 text-sm text-slate-400">
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                 {hasVariants
                   ? "Create attribute combinations such as RAM, color and storage."
                   : "Manage stock and pricing for this non-variant product."}
@@ -1100,7 +1100,7 @@ export default function ProductFormPage() {
                 type="button"
                 variant="outline"
                 onClick={addVariant}
-                className="border-blue-500/30 bg-blue-500/5 text-blue-200 hover:bg-blue-500/10 hover:text-blue-100"
+                className="border-blue-500/30 bg-blue-500/5 text-blue-700 hover:bg-blue-500/10 hover:text-blue-800 dark:text-blue-200 dark:hover:text-blue-100"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add combination
@@ -1113,16 +1113,16 @@ export default function ProductFormPage() {
               (variant, variantIndex) => (
                 <div
                   key={variant.id || variantIndex}
-                  className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/90 to-slate-950 shadow-lg shadow-black/10"
+                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/60 dark:border-white/10 dark:bg-gradient-to-br dark:from-slate-900/90 dark:to-slate-950 dark:shadow-black/10"
                 >
                   {hasVariants && (
-                    <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.025] px-5 py-3">
+                    <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.025] px-5 py-3">
                       <div>
-                        <p className="text-sm font-semibold text-white">
+                        <p className="text-sm font-semibold text-slate-950 dark:text-white">
                           Attribute combination {variantIndex + 1}
                         </p>
 
-                        <p className="mt-0.5 text-xs text-slate-500">
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-500">
                           Define one or more attribute values.
                         </p>
                       </div>
@@ -1142,7 +1142,7 @@ export default function ProductFormPage() {
 
                   <div className="space-y-5 p-5">
                     {hasVariants && (
-                      <div className="rounded-xl border border-white/10 bg-black/10 p-4">
+                      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900/60 dark:shadow-none">
                         <div className="space-y-3">
                           {variant.attributes.map(
                             (attribute, attributeIndex) => (
@@ -1161,7 +1161,7 @@ export default function ProductFormPage() {
                                       event.target.value,
                                     )
                                   }
-                                  className="h-11 border-white/10 bg-slate-900/80"
+                                  className="h-11 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80"
                                 />
 
                                 <Input
@@ -1175,7 +1175,7 @@ export default function ProductFormPage() {
                                       event.target.value,
                                     )
                                   }
-                                  className="h-11 border-white/10 bg-slate-900/80"
+                                  className="h-11 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80"
                                 />
 
                                 <Button
@@ -1201,7 +1201,7 @@ export default function ProductFormPage() {
                           size="sm"
                           variant="outline"
                           onClick={() => addAttribute(variantIndex)}
-                          className="mt-3 border-white/10 bg-white/[0.025]"
+                          className="mt-3 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.025]"
                         >
                           <Plus className="mr-2 h-4 w-4" />
                           Add attribute
@@ -1211,7 +1211,7 @@ export default function ProductFormPage() {
 
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                       <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.035] p-3">
-                        <Label className="text-emerald-100">
+                        <Label className="text-emerald-700 dark:text-emerald-100">
                           Available qty
                         </Label>
 
@@ -1226,14 +1226,14 @@ export default function ProductFormPage() {
                               event.target.value,
                             )
                           }
-                          className="mt-2 h-11 border-emerald-500/20 bg-slate-950/80"
+                          className="mt-2 h-11 border-emerald-500/20 bg-white dark:bg-slate-950/80"
                         />
                       </div>
 
                       <div>
                         <Label>
                           Purchase price
-                          <span className="ml-1 text-xs font-normal text-slate-500">
+                          <span className="ml-1 text-xs font-normal text-slate-500 dark:text-slate-500">
                             Optional
                           </span>
                         </Label>
@@ -1251,7 +1251,7 @@ export default function ProductFormPage() {
                             )
                           }
                           placeholder="0.00"
-                          className="mt-2 h-11 border-white/10 bg-slate-900/80"
+                          className="mt-2 h-11 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80"
                         />
                       </div>
 
@@ -1270,7 +1270,7 @@ export default function ProductFormPage() {
                               event.target.value,
                             )
                           }
-                          className="mt-2 h-11 border-white/10 bg-slate-900/80"
+                          className="mt-2 h-11 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80"
                         />
                       </div>
 
@@ -1289,7 +1289,7 @@ export default function ProductFormPage() {
                               event.target.value,
                             )
                           }
-                          className="mt-2 h-11 border-white/10 bg-slate-900/80"
+                          className="mt-2 h-11 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80"
                         />
                       </div>
 
@@ -1308,7 +1308,7 @@ export default function ProductFormPage() {
                               event.target.value,
                             )
                           }
-                          className="mt-2 h-11 border-white/10 bg-slate-900/80"
+                          className="mt-2 h-11 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80"
                         />
                       </div>
                     </div>
@@ -1319,7 +1319,7 @@ export default function ProductFormPage() {
           </div>
         </section>
 
-        <div className="sticky bottom-4 z-20 flex flex-col-reverse gap-3 rounded-2xl border border-white/10 bg-slate-950/90 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-end">
+        <div className="sticky bottom-4 z-20 flex flex-col-reverse gap-3 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/90 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-end">
           <Button
             type="button"
             variant="ghost"
@@ -1345,7 +1345,7 @@ export default function ProductFormPage() {
       </form>
 
       <Dialog open={stockConfirmOpen} onOpenChange={setStockConfirmOpen}>
-        <DialogContent className="border-white/10 bg-slate-950 sm:max-w-lg">
+        <DialogContent className="border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950 sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Confirm stock update</DialogTitle>
             <DialogDescription>
@@ -1358,11 +1358,13 @@ export default function ProductFormPage() {
             {pendingStockChanges.map((change) => (
               <div
                 key={change.label}
-                className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.025] p-4"
+                className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.025] p-4"
               >
                 <div>
-                  <p className="font-medium text-white">{change.label}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="font-medium text-slate-950 dark:text-white">
+                    {change.label}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-500">
                     {change.before} → {change.after}
                   </p>
                 </div>

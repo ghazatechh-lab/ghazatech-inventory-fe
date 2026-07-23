@@ -4,6 +4,8 @@ import { Edit3, Plus, Tag, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import api from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { isAdmin } from "@/lib/permissions";
 import { useListQuery, DataTable, SearchInput } from "@/hooks/useListQuery";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +34,8 @@ export default function ReferenceDataPage({
   testIdPrefix,
 }) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const canManage = isAdmin(user);
 
   const { query, page, setPage, q, setQ } = useListQuery(queryKey, endpoint);
 
@@ -157,6 +161,7 @@ export default function ReferenceDataPage({
         key: "is_active",
         header: "Status",
         sortKey: "is_active",
+        sortType: "active",
         cell: (row) => (
           <span
             className={
@@ -173,6 +178,7 @@ export default function ReferenceDataPage({
         key: "created_at",
         header: "Created",
         sortKey: "created_at",
+        sortType: "datetime",
         cell: (row) =>
           row.created_at ? new Date(row.created_at).toLocaleString() : "—",
       },
@@ -181,27 +187,30 @@ export default function ReferenceDataPage({
         header: "Actions",
         sortable: false,
         align: "right",
-        cell: (row) => (
-          <div className="flex justify-end gap-2">
-            <Button size="sm" variant="outline" onClick={() => openEdit(row)}>
-              <Edit3 className="mr-1.5 h-4 w-4" />
-              Edit
-            </Button>
+        cell: (row) =>
+          canManage ? (
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="outline" onClick={() => openEdit(row)}>
+                <Edit3 className="mr-1.5 h-4 w-4" />
+                Edit
+              </Button>
 
-            <Button
-              size="sm"
-              variant="outline"
-              className="border-red-500/20 text-red-400"
-              onClick={() => setDeleteItem(row)}
-            >
-              <Trash2 className="mr-1.5 h-4 w-4" />
-              Delete
-            </Button>
-          </div>
-        ),
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-red-500/20 text-red-400"
+                onClick={() => setDeleteItem(row)}
+              >
+                <Trash2 className="mr-1.5 h-4 w-4" />
+                Delete
+              </Button>
+            </div>
+          ) : (
+            <span className="text-xs text-slate-500">Admin only</span>
+          ),
       },
     ],
-    [],
+    [canManage],
   );
 
   return (

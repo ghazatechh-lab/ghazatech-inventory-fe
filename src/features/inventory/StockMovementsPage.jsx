@@ -19,6 +19,7 @@ export default function StockMovementsPage() {
       key: "created_at",
       header: "Date & time",
       sortKey: "created_at",
+      sortType: "datetime",
       cell: (row) =>
         row.created_at ? new Date(row.created_at).toLocaleString() : "—",
     },
@@ -55,11 +56,13 @@ export default function StockMovementsPage() {
       key: "movement_type_display",
       header: "Type",
       sortKey: "movement_type",
+      sortType: "status",
     },
     {
       key: "quantity",
       header: "Change",
       sortKey: "quantity",
+      sortType: "quantity",
       align: "right",
       cell: (row) => (
         <span
@@ -84,6 +87,7 @@ export default function StockMovementsPage() {
       key: "new_stock",
       header: "New stock",
       sortKey: "new_stock",
+      sortType: "quantity",
       align: "right",
     },
     {

@@ -1,11 +1,29 @@
 /* Permissions helpers */
 
-export const isAdmin = (u) => u?.role_code === "ADMIN";
-export const isBranchManager = (u) => u?.role_code === "BM";
-export const isStaff = (u) => u?.role_code === "STAFF";
+export const isAdmin = (user) =>
+  Boolean(
+    user?.is_superuser ||
+    user?.role_code === "ADMIN" ||
+    user?.role?.code === "ADMIN" ||
+    user?.role_detail?.code === "ADMIN",
+  );
 
-// Module-level permission map. Kept simple for the frontend guard.
-// Backend still enforces final permission.
+export const isBranchManager = (user) =>
+  user?.role_code === "BM" ||
+  user?.role?.code === "BM" ||
+  user?.role_detail?.code === "BM";
+
+export const isStaff = (user) =>
+  user?.role_code === "STAFF" ||
+  user?.role?.code === "STAFF" ||
+  user?.role_detail?.code === "STAFF";
+
+/*
+ * Module-level access map.
+ *
+ * The frontend uses this to hide restricted pages and actions.
+ * The backend must still enforce the final permission.
+ */
 export const MODULE_ACCESS = {
   branches: ["ADMIN"],
   users: ["ADMIN"],
@@ -13,16 +31,35 @@ export const MODULE_ACCESS = {
   settings: ["ADMIN"],
   payroll: ["ADMIN"],
   reports: ["ADMIN", "BM"],
-  // everyone else has read access to most modules by default
 };
 
+const getRoleCode = (user) =>
+  user?.role_code || user?.role?.code || user?.role_detail?.code || "";
+
 export function canAccessModule(user, moduleName) {
-  const allow = MODULE_ACCESS[moduleName];
-  if (!allow) return true;
-  return allow.includes(user?.role?.code);
+  const allowedRoles = MODULE_ACCESS[moduleName];
+
+  if (!allowedRoles) {
+    return true;
+  }
+
+  if (user?.is_superuser) {
+    return true;
+  }
+
+  return allowedRoles.includes(getRoleCode(user));
 }
+
 export function canCreate(user, moduleName) {
-  if (isStaff(user))
+  /*
+   * Categories, brands and racks:
+   * every authenticated user can add records.
+   */
+  if (["categories", "brands", "racks"].includes(moduleName)) {
+    return Boolean(user);
+  }
+
+  if (isStaff(user)) {
     return [
       "quotations",
       "customers",
@@ -31,18 +68,47 @@ export function canCreate(user, moduleName) {
       "leaves",
       "attendance",
     ].includes(moduleName);
+  }
+
   return true;
 }
+
 export function canEdit(user, moduleName) {
-  if (isStaff(user))
+  /*
+   * Only Admin or Django superuser can edit
+   * categories, brands and racks.
+   */
+  if (["categories", "brands", "racks"].includes(moduleName)) {
+    return isAdmin(user);
+  }
+
+  if (isStaff(user)) {
     return ["quotations", "customers", "pos"].includes(moduleName);
+  }
+
   return true;
 }
+
 export function canDelete(user, moduleName) {
+  /*
+   * Categories, brands and racks can only
+   * be deleted by Admin or superuser.
+   */
+  if (["categories", "brands", "racks"].includes(moduleName)) {
+    return isAdmin(user);
+  }
+
   return isAdmin(user);
 }
+
 export function canApprove(user, moduleName) {
-  if (moduleName === "leaves") return isAdmin(user) || isBranchManager(user);
-  if (moduleName === "payroll") return isAdmin(user);
+  if (moduleName === "leaves") {
+    return isAdmin(user) || isBranchManager(user);
+  }
+
+  if (moduleName === "payroll") {
+    return isAdmin(user);
+  }
+
   return isAdmin(user) || isBranchManager(user);
 }

@@ -5,6 +5,8 @@ import { Edit3, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import api from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { isAdmin } from "@/lib/permissions";
 import { useListQuery, DataTable, SearchInput } from "@/hooks/useListQuery";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -19,6 +21,8 @@ import {
 
 export default function RackListPage() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const canManage = isAdmin(user);
 
   const { query, page, setPage, q, setQ } = useListQuery("racks", "/racks/");
 
@@ -74,6 +78,7 @@ export default function RackListPage() {
       key: "is_active",
       header: "Status",
       sortKey: "is_active",
+      sortType: "active",
       cell: (row) => (
         <span className={row.is_active ? "text-emerald-400" : "text-slate-500"}>
           {row.is_active ? "Active" : "Inactive"}
@@ -84,6 +89,7 @@ export default function RackListPage() {
       key: "created_at",
       header: "Created",
       sortKey: "created_at",
+      sortType: "datetime",
       cell: (row) =>
         row.created_at ? new Date(row.created_at).toLocaleString() : "—",
     },
@@ -92,26 +98,29 @@ export default function RackListPage() {
       header: "Actions",
       sortable: false,
       align: "right",
-      cell: (row) => (
-        <div className="flex justify-end gap-2">
-          <Button asChild size="sm" variant="outline">
-            <Link to={`/inventory/racks/${row.id}/edit`}>
-              <Edit3 className="mr-1.5 h-4 w-4" />
-              Edit
-            </Link>
-          </Button>
+      cell: (row) =>
+        canManage ? (
+          <div className="flex justify-end gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link to={`/inventory/racks/${row.id}/edit`}>
+                <Edit3 className="mr-1.5 h-4 w-4" />
+                Edit
+              </Link>
+            </Button>
 
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-red-500/20 text-red-400"
-            onClick={() => setDeleteRack(row)}
-          >
-            <Trash2 className="mr-1.5 h-4 w-4" />
-            Delete
-          </Button>
-        </div>
-      ),
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-red-500/20 text-red-400"
+              onClick={() => setDeleteRack(row)}
+            >
+              <Trash2 className="mr-1.5 h-4 w-4" />
+              Delete
+            </Button>
+          </div>
+        ) : (
+          <span className="text-xs text-slate-500">Admin only</span>
+        ),
     },
   ];
 
