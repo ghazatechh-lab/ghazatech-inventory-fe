@@ -1,425 +1,337 @@
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-
 import api, { unwrap } from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-const generateSupplierCode = () => {
-  const timestamp = Date.now().toString().slice(-6);
-
-  const randomPart = Math.floor(100 + Math.random() * 900);
-
-  return `SUP-${timestamp}-${randomPart}`;
+const defaults = {
+  supplier_code: "",
+  supplier_name: "",
+  trade_name: "",
+  supplier_type: "Local Supplier",
+  supplier_category: "ELECTRONICS",
+  contact_person: "",
+  designation: "",
+  phone: "",
+  email: "",
+  billing_address: "",
+  city: "",
+  country: "UAE",
+  trn_number: "",
+  credit_limit: 0,
+  payment_terms_days: 15,
+  currency: "AED",
+  opening_balance: 0,
+  bank_name: "",
+  account_holder_name: "",
+  iban: "",
+  swift_code: "",
+  auto_block_credit_limit: true,
+  send_payment_reminders: false,
+  notes: "",
+  is_active: true,
 };
+const Section = ({ title, children }) => (
+  <section className="rounded-xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950/50">
+    <h2 className="mb-4 font-semibold">{title}</h2>
+    {children}
+  </section>
+);
+const Field = ({ label, error, children, required }) => (
+  <div>
+    <Label>
+      {label}
+      {required && <span className="ml-1 text-red-500">*</span>}
+    </Label>
+    <div className="mt-2">{children}</div>
+    {error && <p className="mt-1 text-sm text-red-500">{error.message}</p>}
+  </div>
+);
 
 export default function SupplierFormPage() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-
-  const isEdit = Boolean(id);
-
+  const { id } = useParams(),
+    edit = Boolean(id),
+    nav = useNavigate(),
+    qc = useQueryClient();
   const {
     register,
     handleSubmit,
     reset,
     setValue,
-    watch,
-    setError,
-    clearErrors,
-    formState: { errors, isSubmitting },
-  } = useForm({
-    defaultValues: {
-      supplier_code: "",
-      supplier_name: "",
-      contact_person: "",
-      phone: "",
-      email: "",
-      trn_number: "",
-      address: "",
-      city: "",
-      emirate: "",
-      country: "UAE",
-      payment_terms_days: 30,
-      is_active: true,
-    },
-  });
-
-  const { data: supplierData, isLoading: supplierLoading } = useQuery({
+    control,
+    formState: { errors },
+  } = useForm({ defaultValues: defaults });
+  const { data, isLoading } = useQuery({
     queryKey: ["supplier", id],
-    queryFn: async () => {
-      const response = await api.get(`/suppliers/${id}/`);
-
-      return unwrap(response);
-    },
-    enabled: isEdit,
+    queryFn: async () => unwrap(await api.get(`/suppliers/${id}/`)),
+    enabled: edit,
     staleTime: 0,
-    refetchOnMount: "always",
   });
-
   React.useEffect(() => {
-    if (!supplierData) {
-      return;
-    }
-
-    reset({
-      supplier_code: supplierData.supplier_code || "",
-      supplier_name: supplierData.supplier_name || "",
-      contact_person: supplierData.contact_person || "",
-      phone: supplierData.phone || "",
-      email: supplierData.email || "",
-      trn_number: supplierData.trn_number || "",
-      address: supplierData.address || "",
-      city: supplierData.city || "",
-      emirate: supplierData.emirate || "",
-      country: supplierData.country || "UAE",
-      payment_terms_days: supplierData.payment_terms_days ?? 30,
-      is_active:
-        typeof supplierData.is_active === "boolean"
-          ? supplierData.is_active
-          : true,
-    });
-
-    console.log("[Supplier Edit] Loaded supplier:", supplierData);
-  }, [supplierData, reset]);
-
-  const generateCode = () => {
-    const code = generateSupplierCode();
-
-    setValue("supplier_code", code, {
-      shouldDirty: true,
-      shouldValidate: true,
-    });
-
-    clearErrors("supplier_code");
-
-    console.log("[Supplier Form] Generated supplier code:", code);
-  };
-
-  const saveMutation = useMutation({
-    mutationFn: async (payload) => {
-      if (isEdit) {
-        return api.patch(`/suppliers/${id}/`, payload);
-      }
-
-      return api.post("/suppliers/", payload);
-    },
-
+    if (data) reset({ ...defaults, ...data });
+  }, [data, reset]);
+  const save = useMutation({
+    mutationFn: (v) =>
+      edit ? api.patch(`/suppliers/${id}/`, v) : api.post("/suppliers/", v),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ["suppliers"],
-      });
-
-      if (isEdit) {
-        await queryClient.invalidateQueries({
-          queryKey: ["supplier", id],
-        });
-      }
-
-      toast.success(
-        isEdit
-          ? "Supplier updated successfully."
-          : "Supplier created successfully.",
-      );
-
-      navigate("/suppliers");
-    },
-
-    onError: (error) => {
-      const responseData = error?.response?.data;
-
-      console.error("[Supplier Form] Save failed:", responseData || error);
-
-      const supplierCodeError =
-        responseData?.supplier_code?.[0] ||
-        responseData?.data?.supplier_code?.[0];
-
-      if (supplierCodeError) {
-        setError("supplier_code", {
-          type: "server",
-          message: supplierCodeError,
-        });
-      }
-
-      const supplierNameError =
-        responseData?.supplier_name?.[0] ||
-        responseData?.data?.supplier_name?.[0];
-
-      if (supplierNameError) {
-        setError("supplier_name", {
-          type: "server",
-          message: supplierNameError,
-        });
-      }
-
-      if (!error?.__apiErrorShown) {
-        toast.error(
-          isEdit ? "Unable to update supplier." : "Unable to create supplier.",
-        );
-      }
+      await qc.invalidateQueries({ queryKey: ["suppliers"] });
+      toast.success(edit ? "Supplier updated." : "Supplier created.");
+      nav("/suppliers");
     },
   });
-
-  const submit = async (values) => {
-    const supplierCode = values.supplier_code?.trim();
-
-    if (!supplierCode) {
-      setError("supplier_code", {
-        type: "required",
-        message: "Supplier code is required.",
-      });
-
-      toast.error("Enter or generate a supplier code.");
-
-      return;
-    }
-
-    const payload = {
-      supplier_code: supplierCode,
-      supplier_name: values.supplier_name?.trim(),
-      contact_person: values.contact_person?.trim() || "",
-      phone: values.phone?.trim() || "",
-      email: values.email?.trim() || "",
-      trn_number: values.trn_number?.trim() || "",
-      address: values.address?.trim() || "",
-      city: values.city?.trim() || "",
-      emirate: values.emirate?.trim() || "",
-      country: values.country?.trim() || "UAE",
-      payment_terms_days: Number.isFinite(values.payment_terms_days)
-        ? values.payment_terms_days
-        : 30,
-      is_active: Boolean(values.is_active),
-    };
-
-    console.log("[Supplier Form] Submit payload:", payload);
-
-    await saveMutation.mutateAsync(payload);
-  };
-
-  const onInvalid = (formErrors) => {
-    console.error("[Supplier Form] Validation failed:", formErrors);
-
-    toast.error("Please correct the highlighted fields.");
-  };
-
-  if (isEdit && supplierLoading) {
-    return (
-      <div className="max-w-3xl">
-        <PageHeader
-          title="Edit supplier"
-          subtitle="Loading supplier details..."
-        />
-
-        <div className="card-surface p-6">
-          <p className="text-sm text-muted-foreground">Loading supplier...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const saving = isSubmitting || saveMutation.isPending;
-
+  const submit = (v) =>
+    save.mutate({
+      ...v,
+      credit_limit: Number(v.credit_limit || 0),
+      opening_balance: Number(v.opening_balance || 0),
+      payment_terms_days: Number(v.payment_terms_days || 0),
+    });
+  if (edit && isLoading)
+    return <div className="card-surface p-6">Loading supplier...</div>;
   return (
-    <div className="max-w-3xl">
+    <div className="mx-auto max-w-5xl space-y-6">
       <PageHeader
-        title={isEdit ? "Edit supplier" : "New supplier"}
-        subtitle="Manage supplier contact, tax and payment details"
+        title={edit ? "Edit Supplier" : "Add Supplier"}
+        subtitle="Company identity, contacts, commercial terms, bank details and preferences"
       />
-
-      <form
-        onSubmit={handleSubmit(submit, onInvalid)}
-        className="card-surface space-y-5 p-6"
-      >
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <Label htmlFor="supplier_code">
-              Supplier code
-              <span className="ml-1 text-red-500">*</span>
-            </Label>
-
-            <div className="mt-1.5 flex gap-2">
+      <form onSubmit={handleSubmit(submit)} className="space-y-5">
+        <Section title="Company identity">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Supplier code" required error={errors.supplier_code}>
+              <div className="flex gap-2">
+                <Input
+                  {...register("supplier_code", {
+                    required: "Supplier code is required.",
+                  })}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    setValue(
+                      "supplier_code",
+                      `SUP-${Date.now().toString().slice(-6)}`,
+                    )
+                  }
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
+            </Field>
+            <Field label="Legal name" required error={errors.supplier_name}>
               <Input
-                id="supplier_code"
-                placeholder="e.g. SUP-0001"
-                {...register("supplier_code", {
-                  required: "Supplier code is required.",
+                {...register("supplier_name", {
+                  required: "Legal name is required.",
                 })}
               />
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={generateCode}
-                title="Generate supplier code"
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Generate
-              </Button>
+            </Field>
+            <Field label="Trade name">
+              <Input {...register("trade_name")} />
+            </Field>
+            <Field label="TRN / Tax ID">
+              <Input {...register("trn_number")} />
+            </Field>
+            <Field label="Supplier category">
+              <Controller
+                name="supplier_category"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ELECTRONICS">
+                        Electronics & Components
+                      </SelectItem>
+                      <SelectItem value="LAPTOPS">Laptops</SelectItem>
+                      <SelectItem value="SPARE_PARTS">Spare Parts</SelectItem>
+                      <SelectItem value="SERVICES">Services</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </Field>
+            <Field label="Supplier type">
+              <Input {...register("supplier_type")} />
+            </Field>
+          </div>
+        </Section>
+        <Section title="Contact details">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Contact person">
+              <Input {...register("contact_person")} />
+            </Field>
+            <Field label="Designation">
+              <Input {...register("designation")} />
+            </Field>
+            <Field label="Email">
+              <Input type="email" {...register("email")} />
+            </Field>
+            <Field label="Phone">
+              <Input {...register("phone")} />
+            </Field>
+            <div className="md:col-span-2">
+              <Field label="Billing address">
+                <Textarea {...register("billing_address")} />
+              </Field>
             </div>
-
-            {errors.supplier_code && (
-              <p className="mt-1 text-sm text-red-500">
-                {errors.supplier_code.message}
-              </p>
-            )}
+            <Field label="City">
+              <Input {...register("city")} />
+            </Field>
+            <Field label="Country">
+              <Input {...register("country")} />
+            </Field>
           </div>
-
-          <div>
-            <Label htmlFor="supplier_name">
-              Supplier name
-              <span className="ml-1 text-red-500">*</span>
-            </Label>
-
-            <Input
-              id="supplier_name"
-              {...register("supplier_name", {
-                required: "Supplier name is required.",
-              })}
-              className="mt-1.5"
+        </Section>
+        <Section title="Commercial terms">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Payment terms (days)">
+              <Input type="number" {...register("payment_terms_days")} />
+            </Field>
+            <Field label="Currency">
+              <Controller
+                name="currency"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {["AED", "USD", "EUR", "INR"].map((x) => (
+                        <SelectItem key={x} value={x}>
+                          {x}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </Field>
+            <Field label="Credit limit">
+              <Input type="number" step="0.01" {...register("credit_limit")} />
+            </Field>
+            <Field label="Opening balance">
+              <Input
+                type="number"
+                step="0.01"
+                {...register("opening_balance")}
+              />
+            </Field>
+          </div>
+        </Section>
+        <Section title="Bank details">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Bank name">
+              <Input {...register("bank_name")} />
+            </Field>
+            <Field label="Account holder name">
+              <Input {...register("account_holder_name")} />
+            </Field>
+            <Field label="IBAN">
+              <Input {...register("iban")} />
+            </Field>
+            <Field label="SWIFT / BIC code">
+              <Input {...register("swift_code")} />
+            </Field>
+          </div>
+        </Section>
+        <Section title="Preferences">
+          <div className="space-y-4">
+            <Controller
+              name="is_active"
+              control={control}
+              render={({ field }) => (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Mark as active</p>
+                    <p className="text-xs text-muted-foreground">
+                      Inactive suppliers cannot be selected on new purchase
+                      orders.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </div>
+              )}
             />
-
-            {errors.supplier_name && (
-              <p className="mt-1 text-sm text-red-500">
-                {errors.supplier_name.message}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <Label htmlFor="contact_person">Contact person</Label>
-
-            <Input
-              id="contact_person"
-              {...register("contact_person")}
-              className="mt-1.5"
+            <Controller
+              name="auto_block_credit_limit"
+              control={control}
+              render={({ field }) => (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">
+                      Auto-block on credit limit breach
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Stop new purchase orders after the credit limit is
+                      exceeded.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </div>
+              )}
             />
-          </div>
-
-          <div>
-            <Label htmlFor="phone">Phone</Label>
-
-            <Input id="phone" {...register("phone")} className="mt-1.5" />
-          </div>
-
-          <div>
-            <Label htmlFor="email">Email</Label>
-
-            <Input
-              id="email"
-              type="email"
-              {...register("email", {
-                pattern: {
-                  value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                  message: "Enter a valid email address.",
-                },
-              })}
-              className="mt-1.5"
+            <Controller
+              name="send_payment_reminders"
+              control={control}
+              render={({ field }) => (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Send payment reminders</p>
+                    <p className="text-xs text-muted-foreground">
+                      Enable reminders as invoices approach due date.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </div>
+              )}
             />
-
-            {errors.email && (
-              <p className="mt-1 text-sm text-red-500">
-                {errors.email.message}
-              </p>
-            )}
+            <Field label="Notes">
+              <Textarea {...register("notes")} />
+            </Field>
           </div>
-
-          <div>
-            <Label htmlFor="trn_number">TRN</Label>
-
-            <Input
-              id="trn_number"
-              {...register("trn_number")}
-              className="mt-1.5"
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <Label htmlFor="address">Address</Label>
-
-            <Input id="address" {...register("address")} className="mt-1.5" />
-          </div>
-
-          <div>
-            <Label htmlFor="city">City</Label>
-
-            <Input id="city" {...register("city")} className="mt-1.5" />
-          </div>
-
-          <div>
-            <Label htmlFor="emirate">Emirate</Label>
-
-            <Input id="emirate" {...register("emirate")} className="mt-1.5" />
-          </div>
-
-          <div>
-            <Label htmlFor="country">Country</Label>
-
-            <Input id="country" {...register("country")} className="mt-1.5" />
-          </div>
-
-          <div>
-            <Label htmlFor="payment_terms_days">Payment terms (days)</Label>
-
-            <Input
-              id="payment_terms_days"
-              type="number"
-              min="0"
-              {...register("payment_terms_days", {
-                valueAsNumber: true,
-                min: {
-                  value: 0,
-                  message: "Payment terms cannot be negative.",
-                },
-              })}
-              className="mt-1.5 font-numeric"
-            />
-
-            {errors.payment_terms_days && (
-              <p className="mt-1 text-sm text-red-500">
-                {errors.payment_terms_days.message}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Switch
-            id="is_active"
-            checked={Boolean(watch("is_active"))}
-            onCheckedChange={(checked) =>
-              setValue("is_active", checked, {
-                shouldDirty: true,
-              })
-            }
-          />
-
-          <Label htmlFor="is_active">Active supplier</Label>
-        </div>
-
-        <div className="flex gap-2">
-          <Button
-            type="submit"
-            disabled={saving}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            {saving ? "Saving..." : isEdit ? "Save changes" : "Create supplier"}
-          </Button>
-
+        </Section>
+        <div className="flex justify-end gap-2">
           <Button
             type="button"
             variant="ghost"
-            disabled={saving}
-            onClick={() => navigate("/suppliers")}
+            onClick={() => nav("/suppliers")}
           >
             Cancel
+          </Button>
+          <Button type="submit" disabled={save.isPending}>
+            {save.isPending
+              ? "Saving..."
+              : edit
+                ? "Save changes"
+                : "Create supplier"}
           </Button>
         </div>
       </form>

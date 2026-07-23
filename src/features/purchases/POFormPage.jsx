@@ -1,90 +1,377 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useParams } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import api, { unwrap } from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Plus } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CurrencyText } from "@/components/common/CurrencyText";
-import { formatAED } from "@/lib/utils";
-import { toast } from "sonner";
-
+const list = (v) =>
+  v?.results || v?.data?.results || (Array.isArray(v) ? v : []);
+const today = () => new Date().toISOString().slice(0, 10);
+const money = (n) => Number(n || 0);
 export default function POFormPage() {
-  const navigate = useNavigate();
-  const { data: suppliers } = useQuery({ queryKey: ["suppliers-sel"], queryFn: async () => unwrap(await api.get("/suppliers/", { params: { page_size: 100 } })) });
-  const { data: products } = useQuery({ queryKey: ["products-full"], queryFn: async () => unwrap(await api.get("/products/", { params: { page_size: 100 } })) });
-  const { data: branches } = useQuery({ queryKey: ["branches-sel"], queryFn: async () => unwrap(await api.get("/branches/")) });
-
-  const [supplierId, setSupplierId] = React.useState("");
-  const [branchId, setBranchId] = React.useState("");
-  const [items, setItems] = React.useState([]);
-  const [saving, setSaving] = React.useState(false);
-
-  const setProduct = (i, pid) => {
-    const p = products?.results?.find(pp => pp.id === pid);
-    if (p) update(i, { product_id: pid, product_name: p.product_name, sku: p.sku, unit_price: p.purchase_price });
-  };
-  const update = (i, patch) => setItems(v => v.map((it, idx) => idx === i ? { ...it, ...patch } : it));
-
-  const subtotal = items.reduce((s, it) => s + (it.quantity || 0) * (it.unit_price || 0), 0);
-  const vat = subtotal * 0.05;
-  const total = subtotal + vat;
-
-  const submit = async () => {
-    if (!supplierId || items.length === 0) return toast.error("Select supplier & add items");
-    setSaving(true);
-    try {
-      const body = { supplier_id: supplierId, branch_id: branchId || undefined, items: items.map(it => ({ product: { id: it.product_id, name: it.product_name, sku: it.sku }, quantity: it.quantity, unit_price: it.unit_price, line_total: it.quantity * it.unit_price })) };
-      const r = await api.post("/purchases/orders/", body);
-      toast.success("Purchase order created");
-      navigate(`/purchases/orders/${r.data.data.id}`);
-    } catch { setSaving(false); }
-  };
-
+  const { id } = useParams(),
+    edit = Boolean(id),
+    nav = useNavigate(),
+    qc = useQueryClient();
+  const [form, setForm] = React.useState({
+    supplier: "",
+    branch: "",
+    order_date: today(),
+    expected_delivery_date: "",
+    supplier_reference: "",
+    discount_amount: 0,
+    shipping_amount: 0,
+    notes: "",
+    status: "DRAFT",
+    items: [],
+  });
+  const { data: suppliers } = useQuery({
+    queryKey: ["supplier-options"],
+    queryFn: async () =>
+      unwrap(
+        await api.get("/suppliers/", {
+          params: { page_size: 500, is_active: true },
+        }),
+      ),
+  });
+  const { data: branches } = useQuery({
+    queryKey: ["branch-options"],
+    queryFn: async () =>
+      unwrap(await api.get("/branches/", { params: { page_size: 500 } })),
+  });
+  const { data: products } = useQuery({
+    queryKey: ["product-options"],
+    queryFn: async () =>
+      unwrap(
+        await api.get("/products/", {
+          params: { page_size: 500, is_active: true },
+        }),
+      ),
+  });
+  const { data: existing } = useQuery({
+    queryKey: ["purchase-order", id],
+    queryFn: async () => unwrap(await api.get(`/purchases/orders/${id}/`)),
+    enabled: edit,
+    staleTime: 0,
+  });
+  React.useEffect(() => {
+    if (existing)
+      setForm({
+        ...existing,
+        supplier: String(existing.supplier?.id || existing.supplier || ""),
+        branch: String(existing.branch?.id || existing.branch || ""),
+        items: (existing.items || []).map((x) => ({
+          ...x,
+          product: String(x.product?.id || x.product),
+          variant: x.variant ? String(x.variant?.id || x.variant) : "",
+        })),
+      });
+  }, [existing]);
+  const updateItem = (i, p) =>
+    setForm((s) => ({
+      ...s,
+      items: s.items.map((x, n) => (n === i ? { ...x, ...p } : x)),
+    }));
+  const subtotal = form.items.reduce(
+    (a, x) =>
+      a + money(x.quantity) * money(x.unit_price) - money(x.discount_amount),
+    0,
+  );
+  const vat = form.items.reduce((a, x) => a + money(x.vat_amount), 0);
+  const total =
+    subtotal - money(form.discount_amount) + money(form.shipping_amount) + vat;
+  const save = useMutation({
+    mutationFn: () => {
+      const body = {
+        ...form,
+        supplier: Number(form.supplier),
+        branch: Number(form.branch),
+        discount_amount: money(form.discount_amount),
+        shipping_amount: money(form.shipping_amount),
+        items: form.items.map((x) => ({
+          ...x,
+          product: Number(x.product),
+          variant: x.variant ? Number(x.variant) : null,
+          quantity: Number(x.quantity),
+          unit_price: money(x.unit_price),
+          discount_amount: money(x.discount_amount),
+          vat_amount: money(x.vat_amount),
+        })),
+      };
+      return edit
+        ? api.patch(`/purchases/orders/${id}/`, body)
+        : api.post("/purchases/orders/", body);
+    },
+    onSuccess: async (r) => {
+      await qc.invalidateQueries({ queryKey: ["purchase-orders"] });
+      toast.success(
+        edit ? "Purchase order updated." : "Purchase order created.",
+      );
+      nav(`/purchases/orders/${unwrap(r)?.id || id || ""}`);
+    },
+  });
   return (
-    <div>
-      <PageHeader title="New purchase order" subtitle="Order stock from a supplier" />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 card-surface p-5 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div><div className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Supplier</div>
-              <Select value={supplierId} onValueChange={setSupplierId}><SelectTrigger><SelectValue placeholder="Select supplier" /></SelectTrigger><SelectContent className="max-h-72">{(suppliers?.results || []).map(s => <SelectItem key={s.id} value={s.id}>{s.supplier_name}</SelectItem>)}</SelectContent></Select>
+    <div className="space-y-6">
+      <PageHeader
+        title={edit ? "Edit Purchase Order" : "New Purchase Order"}
+        subtitle="Raise an order against a supplier and track it through receiving"
+      />
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="space-y-5">
+          <div className="card-surface grid gap-4 p-5 md:grid-cols-2">
+            <div>
+              <Label>Supplier *</Label>
+              <Select
+                value={form.supplier}
+                onValueChange={(v) => setForm((s) => ({ ...s, supplier: v }))}
+              >
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Select supplier" />
+                </SelectTrigger>
+                <SelectContent>
+                  {list(suppliers).map((x) => (
+                    <SelectItem key={x.id} value={String(x.id)}>
+                      {x.supplier_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div><div className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Branch</div>
-              <Select value={branchId} onValueChange={setBranchId}><SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger><SelectContent>{(branches?.results || []).map(b => <SelectItem key={b.id} value={b.id}>{b.branch_name}</SelectItem>)}</SelectContent></Select>
+            <div>
+              <Label>Branch *</Label>
+              <Select
+                value={form.branch}
+                onValueChange={(v) => setForm((s) => ({ ...s, branch: v }))}
+              >
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Select branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  {list(branches).map((x) => (
+                    <SelectItem key={x.id} value={String(x.id)}>
+                      {x.branch_code || x.branch_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Order date</Label>
+              <Input
+                type="date"
+                className="mt-2"
+                value={form.order_date}
+                onChange={(e) =>
+                  setForm((s) => ({ ...s, order_date: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>Expected delivery</Label>
+              <Input
+                type="date"
+                className="mt-2"
+                value={form.expected_delivery_date || ""}
+                onChange={(e) =>
+                  setForm((s) => ({
+                    ...s,
+                    expected_delivery_date: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Label>Supplier reference</Label>
+              <Input
+                className="mt-2"
+                value={form.supplier_reference || ""}
+                onChange={(e) =>
+                  setForm((s) => ({ ...s, supplier_reference: e.target.value }))
+                }
+              />
             </div>
           </div>
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-sm font-semibold text-slate-200">Line items</div>
-              <Button size="sm" variant="outline" onClick={() => setItems(v => [...v, { product_id: "", quantity: 1, unit_price: 0 }])}><Plus className="w-3.5 h-3.5 mr-1" /> Add item</Button>
+          <div className="card-surface overflow-hidden">
+            <div className="flex items-center justify-between border-b p-4">
+              <div>
+                <h2 className="font-semibold">Line items</h2>
+                <p className="text-xs text-muted-foreground">
+                  Products, quantity and unit cost
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setForm((s) => ({
+                    ...s,
+                    items: [
+                      ...s.items,
+                      {
+                        product: "",
+                        variant: "",
+                        quantity: 1,
+                        unit_price: 0,
+                        discount_amount: 0,
+                        vat_amount: 0,
+                        description: "",
+                      },
+                    ],
+                  }))
+                }
+              >
+                <Plus className="mr-1 h-4 w-4" />
+                Add item
+              </Button>
             </div>
-            <div className="rounded-lg border border-white/5 divide-y divide-white/5">
-              <div className="grid grid-cols-12 gap-2 px-3 py-2 text-[10px] uppercase tracking-widest text-slate-500"><div className="col-span-5">Product</div><div className="col-span-2 text-right">Qty</div><div className="col-span-2 text-right">Unit cost</div><div className="col-span-2 text-right">Total</div><div className="col-span-1"/></div>
-              {items.map((it, i) => (
-                <div key={i} className="grid grid-cols-12 gap-2 px-3 py-2 items-center">
-                  <div className="col-span-5"><Select value={it.product_id} onValueChange={(v) => setProduct(i, v)}><SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select" /></SelectTrigger><SelectContent className="max-h-72">{(products?.results || []).map(p => <SelectItem key={p.id} value={p.id}>{p.product_name}</SelectItem>)}</SelectContent></Select></div>
-                  <div className="col-span-2"><Input type="number" value={it.quantity} onChange={e => update(i, { quantity: Number(e.target.value) || 0 })} className="h-9 text-right font-numeric" /></div>
-                  <div className="col-span-2"><Input type="number" step="0.01" value={it.unit_price} onChange={e => update(i, { unit_price: Number(e.target.value) || 0 })} className="h-9 text-right font-numeric" /></div>
-                  <div className="col-span-2 text-right font-numeric text-slate-100">{formatAED(it.quantity * it.unit_price)}</div>
-                  <div className="col-span-1 flex justify-end"><Button size="icon" variant="ghost" onClick={() => setItems(v => v.filter((_, x) => x !== i))}><Trash2 className="w-4 h-4 text-red-400" /></Button></div>
+            <div className="space-y-3 p-4">
+              {form.items.map((it, i) => (
+                <div
+                  key={i}
+                  className="grid items-end gap-3 rounded-xl border p-3 md:grid-cols-[2fr_90px_130px_130px_40px]"
+                >
+                  <div>
+                    <Label>Product</Label>
+                    <Select
+                      value={String(it.product || "")}
+                      onValueChange={(v) => {
+                        const p = list(products).find(
+                          (x) => String(x.id) === v,
+                        );
+                        const price = p?.variants?.[0]?.purchase_price || 0;
+                        updateItem(i, { product: v, unit_price: price });
+                      }}
+                    >
+                      <SelectTrigger className="mt-2">
+                        <SelectValue placeholder="Select product" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {list(products).map((p) => (
+                          <SelectItem key={p.id} value={String(p.id)}>
+                            {p.product_name} · {p.sku}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Qty</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      className="mt-2"
+                      value={it.quantity}
+                      onChange={(e) =>
+                        updateItem(i, { quantity: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>Unit cost</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      className="mt-2"
+                      value={it.unit_price}
+                      onChange={(e) =>
+                        updateItem(i, { unit_price: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>Line total</Label>
+                    <div className="mt-2 flex h-10 items-center justify-end rounded-md border px-3">
+                      <CurrencyText
+                        value={
+                          money(it.quantity) * money(it.unit_price) -
+                          money(it.discount_amount) +
+                          money(it.vat_amount)
+                        }
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    onClick={() =>
+                      setForm((s) => ({
+                        ...s,
+                        items: s.items.filter((_, n) => n !== i),
+                      }))
+                    }
+                  >
+                    <Trash2 className="h-4 w-4 text-red-500" />
+                  </Button>
                 </div>
               ))}
-              {items.length === 0 && <div className="px-3 py-6 text-center text-xs text-slate-500">No items.</div>}
+              {!form.items.length && (
+                <div className="py-10 text-center text-sm text-muted-foreground">
+                  No items added.
+                </div>
+              )}
             </div>
           </div>
+          <div className="card-surface p-5">
+            <Label>Notes</Label>
+            <Textarea
+              className="mt-2"
+              value={form.notes || ""}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, notes: e.target.value }))
+              }
+            />
+          </div>
         </div>
-        <div className="card-surface p-5 space-y-2 h-fit">
-          <Row label="Subtotal" value={formatAED(subtotal)} />
-          <Row label="VAT" value={formatAED(vat)} />
-          <div className="h-px bg-white/10 my-2" />
-          <div className="flex items-center justify-between"><span className="text-slate-300">Total</span><CurrencyText value={total} className="text-xl font-semibold text-white" /></div>
-          <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={submit} disabled={saving}>Create PO</Button>
+        <div className="card-surface h-fit space-y-4 p-5">
+          <h2 className="font-semibold">Order summary</h2>
+          {[
+            ["Subtotal", subtotal],
+            ["VAT", vat],
+            ["Shipping", form.shipping_amount],
+            ["Discount", -money(form.discount_amount)],
+          ].map(([l, v]) => (
+            <div key={l} className="flex justify-between text-sm">
+              <span className="text-muted-foreground">{l}</span>
+              <CurrencyText value={v} />
+            </div>
+          ))}
+          <div className="border-t pt-4 flex justify-between font-semibold">
+            <span>Total</span>
+            <CurrencyText value={total} />
+          </div>
+          <Button
+            className="w-full"
+            disabled={
+              save.isPending ||
+              !form.supplier ||
+              !form.branch ||
+              !form.items.length
+            }
+            onClick={() => save.mutate()}
+          >
+            {save.isPending
+              ? "Saving..."
+              : edit
+                ? "Save changes"
+                : "Create purchase order"}
+          </Button>
         </div>
       </div>
     </div>
   );
 }
-const Row = ({ label, value }) => (<div className="flex items-center justify-between text-sm"><span className="text-slate-400">{label}</span><span className="font-numeric text-slate-100">{value}</span></div>);

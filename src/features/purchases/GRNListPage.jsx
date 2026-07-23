@@ -1,83 +1,106 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
-import { useListQuery, DataTable } from "@/hooks/useListQuery";
-import { StatusBadge } from "@/components/common/StatusBadge";
+import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { DateText } from "@/components/common/CurrencyText";
-import { Plus } from "lucide-react";
+import { StatusBadge } from "@/components/common/StatusBadge";
 import { ListingRowActions } from "@/components/common/ListingRowActions";
-
 export default function GRNListPage() {
-  const { query, page, setPage } = useListQuery("grns", "/purchases/grn/");
-  const data = query.data || { results: [], count: 0 };
+  const { query, q, setQ, page, setPage } = useListQuery(
+    "grns",
+    "/purchases/grn/",
+  );
+  const payload = query.data || { results: [], count: 0 };
+  const rows = React.useMemo(() => payload.results || [], [payload.results]);
+  const cols = React.useMemo(
+    () => [
+      {
+        key: "grn_number",
+        header: "GRN #",
+        sortType: "text",
+        cell: (r) => (
+          <Link
+            to={`/purchases/grn/${r.id}`}
+            className="text-blue-600 hover:underline dark:text-blue-400"
+          >
+            {r.grn_number}
+          </Link>
+        ),
+      },
+      {
+        key: "po_number",
+        header: "Purchase order",
+        sortKey: "purchase_order__po_number",
+        sortType: "text",
+      },
+      {
+        key: "supplier_name",
+        header: "Supplier",
+        sortKey: "supplier__supplier_name",
+        sortType: "text",
+      },
+      {
+        key: "received_date",
+        header: "Received date",
+        sortType: "date",
+        cell: (r) => <DateText value={r.received_date} />,
+      },
+      { key: "warehouse_location", header: "Warehouse", sortType: "text" },
+      {
+        key: "status",
+        header: "Status",
+        sortType: "status",
+        cell: (r) => <StatusBadge status={r.status} />,
+      },
+      {
+        key: "actions",
+        header: "Actions",
+        sortable: false,
+        align: "right",
+        cell: (r) => (
+          <ListingRowActions
+            viewTo={`/purchases/grn/${r.id}`}
+            editTo={`/purchases/grn/${r.id}/edit`}
+            deleteUrl={`/purchases/grn/${r.id}/`}
+            queryKey="grns"
+            itemLabel={r.grn_number}
+          />
+        ),
+      },
+    ],
+    [],
+  );
   return (
-    <div>
+    <div className="space-y-6">
       <PageHeader
         title="Goods Received Notes"
-        subtitle="Confirmation of received stock from suppliers"
+        subtitle="Receive purchase orders, record quality checks and update inventory"
         actions={
-          <Button asChild className="bg-blue-600 hover:bg-blue-700">
+          <Button asChild>
             <Link to="/purchases/grn/new">
-              <Plus className="w-4 h-4 mr-1.5" /> New GRN
+              <Plus className="mr-2 h-4 w-4" />
+              New GRN
             </Link>
           </Button>
         }
       />
+      <SearchInput
+        value={q}
+        onChange={setQ}
+        placeholder="Search GRN, PO or supplier"
+      />
       <DataTable
-        columns={[
-          {
-            key: "grn_number",
-            header: "GRN #",
-            cell: (r) => (
-              <Link
-                to={`/purchases/grn/${r.id}`}
-                className="font-numeric text-blue-400"
-              >
-                {r.grn_number}
-              </Link>
-            ),
-          },
-          {
-            key: "date",
-            header: "Date",
-            cell: (r) => <DateText value={r.date} />,
-          },
-          {
-            key: "po",
-            header: "PO",
-            cell: (r) => (
-              <span className="font-numeric text-slate-400">
-                {r.purchase_order?.number}
-              </span>
-            ),
-          },
-          { key: "supplier", header: "Supplier", cell: (r) => r.supplier.name },
-          { key: "branch", header: "Branch", cell: (r) => r.branch.name },
-          {
-            key: "status",
-            header: "Status",
-            cell: (r) => <StatusBadge status={r.status} />,
-          },
-          {
-            key: "actions",
-            header: "Actions",
-            align: "right",
-            cell: (r) => (
-              <ListingRowActions
-                viewTo={`/purchases/grn/${r.id}`}
-                deleteUrl={`/purchases/grn/${r.id}/`}
-                queryKey="grns"
-                itemLabel={r.grn_number || "GRN"}
-              />
-            ),
-          },
-        ]}
-        data={data.results}
+        columns={cols}
+        data={rows}
         isLoading={query.isLoading}
         page={page}
-        total={data.count}
+        pageSize={12}
+        total={payload.count || 0}
         onPageChange={setPage}
+        emptyTitle="No GRNs"
+        emptyDescription="Create a GRN when goods arrive."
       />
     </div>
   );

@@ -1,13 +1,295 @@
 import React from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
+import { toast } from "sonner";
+import api, { unwrap } from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
-import { EmptyState } from "@/components/common/States";
-import { HandCoins } from "lucide-react";
-
+import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
+import { CurrencyText, DateText } from "@/components/common/CurrencyText";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+const list = (v) =>
+    v?.results || v?.data?.results || (Array.isArray(v) ? v : []),
+  today = () => new Date().toISOString().slice(0, 10);
+const blank = {
+  supplier: "",
+  payment_date: today(),
+  payment_method: "BANK_TRANSFER",
+  amount: "",
+  reference_number: "",
+  paid_from: "",
+  notes: "",
+  allocations: [],
+};
 export default function SupplierPaymentsPage() {
+  const qc = useQueryClient();
+  const { query, q, setQ, page, setPage } = useListQuery(
+    "supplier-payments",
+    "/purchases/supplier-payments/",
+  );
+  const payload = query.data || { results: [], count: 0 };
+  const rows = React.useMemo(() => payload.results || [], [payload.results]);
+  const [open, setOpen] = React.useState(false),
+    [form, setForm] = React.useState(blank);
+  const { data: suppliers } = useQuery({
+    queryKey: ["supplier-options"],
+    queryFn: async () =>
+      unwrap(await api.get("/suppliers/", { params: { page_size: 500 } })),
+  });
+  const { data: bills } = useQuery({
+    queryKey: ["open-bills", form.supplier],
+    queryFn: async () =>
+      unwrap(
+        await api.get("/purchases/supplier-bills/", {
+          params: {
+            page_size: 500,
+            supplier: form.supplier,
+            payment_status: ["UNPAID", "PARTIALLY_PAID"],
+          },
+        }),
+      ),
+    enabled: Boolean(form.supplier),
+  });
+  const toggle = (bill) =>
+    setForm((s) => ({
+      ...s,
+      allocations: s.allocations.some((x) => x.bill === bill.id)
+        ? s.allocations.filter((x) => x.bill !== bill.id)
+        : [
+            ...s.allocations,
+            { bill: bill.id, amount: Number(bill.balance_due) },
+          ],
+    }));
+  const create = useMutation({
+    mutationFn: () =>
+      api.post("/purchases/supplier-payments/", {
+        ...form,
+        supplier: Number(form.supplier),
+        amount: Number(form.amount),
+        allocations: form.allocations.map((x) => ({
+          ...x,
+          amount: Number(x.amount),
+        })),
+      }),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["supplier-payments"] }),
+        qc.invalidateQueries({ queryKey: ["supplier-bills"] }),
+      ]);
+      toast.success("Supplier payment recorded.");
+      setOpen(false);
+      setForm(blank);
+    },
+  });
+  const cols = React.useMemo(
+    () => [
+      { key: "payment_number", header: "Payment #", sortType: "text" },
+      {
+        key: "supplier_name",
+        header: "Supplier",
+        sortKey: "supplier__supplier_name",
+        sortType: "text",
+      },
+      {
+        key: "payment_date",
+        header: "Date",
+        sortType: "date",
+        cell: (r) => <DateText value={r.payment_date} />,
+      },
+      { key: "payment_method", header: "Method", sortType: "status" },
+      {
+        key: "amount",
+        header: "Amount",
+        sortType: "currency",
+        align: "right",
+        cell: (r) => <CurrencyText value={r.amount} />,
+      },
+      { key: "reference_number", header: "Reference", sortType: "text" },
+    ],
+    [],
+  );
   return (
-    <div>
-      <PageHeader title="Supplier Payments" subtitle="Payments issued to suppliers" />
-      <div className="card-surface p-6"><EmptyState icon={HandCoins} title="No supplier payments recorded yet" description="Record payments from Suppliers ▸ [Supplier] to see history here." /></div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Supplier Payments"
+        subtitle="Allocate supplier payments across one or more outstanding bills"
+        actions={
+          <Button onClick={() => setOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Record Payment
+          </Button>
+        }
+      />
+      <SearchInput
+        value={q}
+        onChange={setQ}
+        placeholder="Search payment, supplier or reference"
+      />
+      <DataTable
+        columns={cols}
+        data={rows}
+        isLoading={query.isLoading}
+        page={page}
+        pageSize={12}
+        total={payload.count || 0}
+        onPageChange={setPage}
+        emptyTitle="No supplier payments"
+        emptyDescription="Record the first supplier payment."
+      />
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Record supplier payment</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <Label>Supplier *</Label>
+              <Select
+                value={form.supplier}
+                onValueChange={(v) => setForm({ ...blank, supplier: v })}
+              >
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Select supplier" />
+                </SelectTrigger>
+                <SelectContent>
+                  {list(suppliers).map((x) => (
+                    <SelectItem key={x.id} value={String(x.id)}>
+                      {x.supplier_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Payment date</Label>
+              <Input
+                type="date"
+                className="mt-2"
+                value={form.payment_date}
+                onChange={(e) =>
+                  setForm((s) => ({ ...s, payment_date: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>Payment amount *</Label>
+              <Input
+                type="number"
+                step="0.01"
+                className="mt-2"
+                value={form.amount}
+                onChange={(e) =>
+                  setForm((s) => ({ ...s, amount: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>Method</Label>
+              <Select
+                value={form.payment_method}
+                onValueChange={(v) =>
+                  setForm((s) => ({ ...s, payment_method: v }))
+                }
+              >
+                <SelectTrigger className="mt-2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {["BANK_TRANSFER", "CHEQUE", "CASH"].map((x) => (
+                    <SelectItem key={x} value={x}>
+                      {x.replace("_", " ")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Reference</Label>
+              <Input
+                className="mt-2"
+                value={form.reference_number}
+                onChange={(e) =>
+                  setForm((s) => ({ ...s, reference_number: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <Label>Paid from</Label>
+              <Input
+                className="mt-2"
+                value={form.paid_from}
+                onChange={(e) =>
+                  setForm((s) => ({ ...s, paid_from: e.target.value }))
+                }
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Label>Bills to settle</Label>
+              <div className="mt-2 max-h-56 space-y-2 overflow-auto rounded-xl border p-3">
+                {list(bills).map((b) => (
+                  <label
+                    key={b.id}
+                    className="flex items-center justify-between rounded-lg border p-3"
+                  >
+                    <span>
+                      <input
+                        type="checkbox"
+                        className="mr-3"
+                        checked={form.allocations.some((x) => x.bill === b.id)}
+                        onChange={() => toggle(b)}
+                      />
+                      {b.bill_number}
+                    </span>
+                    <CurrencyText value={b.balance_due} />
+                  </label>
+                ))}
+                {!list(bills).length && (
+                  <p className="text-sm text-muted-foreground">
+                    Select a supplier to view outstanding bills.
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="md:col-span-2">
+              <Label>Notes</Label>
+              <Textarea
+                className="mt-2"
+                value={form.notes}
+                onChange={(e) =>
+                  setForm((s) => ({ ...s, notes: e.target.value }))
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={create.isPending || !form.supplier || !form.amount}
+              onClick={() => create.mutate()}
+            >
+              {create.isPending ? "Saving..." : "Record payment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

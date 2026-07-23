@@ -1,6 +1,6 @@
 /** GHAZA COMPUTER ERP — Root Application */
 import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 
@@ -58,6 +58,8 @@ import GRNDetailPage from "@/features/purchases/GRNDetailPage";
 import SupplierBillsPage from "@/features/purchases/SupplierBillsPage";
 import SupplierPaymentsPage from "@/features/purchases/SupplierPaymentsPage";
 import SupplierReturnsPage from "@/features/purchases/SupplierReturnsPage";
+import VendorCreditsPage from "@/features/purchases/VendorCreditsPage";
+import PurchaseExpensesPage from "@/features/purchases/PurchaseExpensesPage";
 
 import TransferListPage from "@/features/transfers/TransferListPage";
 import TransferFormPage from "@/features/transfers/TransferFormPage";
@@ -145,7 +147,7 @@ export default function App() {
 
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
-            {/* Authenticated application routes */}
+            {/* Authenticated routes */}
             <Route
               element={
                 <ProtectedRoute>
@@ -332,6 +334,16 @@ export default function App() {
               <Route
                 path="/purchases/supplier-returns"
                 element={<SupplierReturnsPage />}
+              />
+
+              <Route
+                path="/purchases/vendor-credits"
+                element={<VendorCreditsPage />}
+              />
+
+              <Route
+                path="/purchases/expenses"
+                element={<PurchaseExpensesPage />}
               />
 
               {/* Transfers */}
