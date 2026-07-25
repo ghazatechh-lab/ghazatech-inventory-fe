@@ -159,6 +159,8 @@ export default function ProductListPage() {
     onSuccess: () => {
       toast.success("Product deleted successfully.");
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["stock-overview"] });
+      queryClient.invalidateQueries({ queryKey: ["low-stock"] });
       setDeleteTarget(null);
     },
     onError: (error) => {
@@ -227,6 +229,11 @@ export default function ProductListPage() {
         getRelatedName(product.category, product.category_name),
     },
     {
+      key: "branch",
+      header: "Branch",
+      cell: (product) => product.branch_code || product.branch_name || "—",
+    },
+    {
       key: "available_qty",
       header: "Available Qty",
       align: "right",
@@ -241,7 +248,7 @@ export default function ProductListPage() {
       header: "Rack",
       cell: (product) => (
         <span className="font-numeric text-xs text-slate-400">
-          {product.rack_location || "—"}
+          {product.rack_code || product.rack_name || "—"}
         </span>
       ),
     },

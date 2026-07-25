@@ -76,6 +76,7 @@ export default function StockAdjustmentPage() {
     },
   });
 
+  const selectedBranchId = watch("branch");
   const selectedProductId = watch("product");
 
   const { data: branchResponse } = useQuery({
@@ -92,7 +93,7 @@ export default function StockAdjustmentPage() {
   });
 
   const { data: productResponse } = useQuery({
-    queryKey: ["adjustment-products", branchId],
+    queryKey: ["adjustment-products", selectedBranchId],
 
     queryFn: async () =>
       unwrap(
@@ -100,10 +101,11 @@ export default function StockAdjustmentPage() {
           params: {
             page_size: 500,
             is_active: true,
-            branch: branchId || undefined,
+            branch: selectedBranchId || undefined,
           },
         }),
       ),
+    enabled: Boolean(selectedBranchId),
   });
 
   const {
@@ -147,6 +149,11 @@ export default function StockAdjustmentPage() {
   );
 
   React.useEffect(() => {
+    setValue("product", "");
+    setValue("variant", "");
+  }, [selectedBranchId, setValue]);
+
+  React.useEffect(() => {
     setValue("variant", "");
   }, [selectedProductId, setValue]);
 
@@ -181,7 +188,7 @@ export default function StockAdjustmentPage() {
       toast.success("Stock adjusted successfully.");
 
       reset({
-        branch: "",
+        branch: branchId ? String(branchId) : "",
         product: "",
         variant: "",
         adjustment_type: "DEDUCT",
