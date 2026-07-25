@@ -36,17 +36,18 @@ import {
 /**
  * Main application modules.
  *
- * URL rules:
- * - Internal modules use `path`.
- * - External modules use `externalUrl`.
- * - Submodule links use `to`, matching the current Sidebar component.
+ * Internal navigation:
+ * - Module landing route uses `landingPath`.
+ * - Sidebar submodule links use `to`.
  *
- * Access rules:
- * - adminOnly: only Admin users can access the item.
- * - allowedRoles: list of role codes allowed to access the item.
- * - hideForStaff: hides the entire module or item for Staff users.
+ * External navigation:
+ * - Website uses `externalUrl`.
+ *
+ * Access control:
+ * - adminOnly: only Admin users.
+ * - allowedRoles: allowed role codes.
+ * - hideForStaff: hides module for Staff.
  */
-
 export const modules = [
   {
     id: "dashboard",
@@ -218,7 +219,7 @@ export const modules = [
     title: "Sales",
     shortTitle: "Sales",
     description:
-      "Manage quotations, orders, invoices, direct sales, payments, returns, credits, and customers.",
+      "Manage quotations, invoices, direct sales, payments, credit notes, reports, and customers.",
     icon: BarChart3,
     path: "/sales",
     landingPath: "/sales/quotations",
@@ -229,12 +230,6 @@ export const modules = [
         label: "Quotations",
         to: "/sales/quotations",
         icon: FileText,
-      },
-      {
-        id: "sales-orders",
-        label: "Sales Orders",
-        to: "/sales/orders",
-        icon: ClipboardList,
       },
       {
         id: "sales-invoices",
@@ -261,22 +256,11 @@ export const modules = [
         icon: RotateCcw,
       },
       {
-        id: "sales-returns",
-        label: "Sales Returns",
-        to: "/sales/returns",
-        icon: RotateCcw,
-      },
-      {
-        id: "sales-price-lists",
-        label: "Price Lists",
-        to: "/sales/price-lists",
-        icon: Tag,
-      },
-      {
         id: "sales-reports",
         label: "Sales Reports",
-        to: "/sales/reports",
+        to: "/reports/sales",
         icon: BarChart3,
+        allowedRoles: ["ADMIN", "BM"],
       },
       {
         id: "sales-customers",
@@ -479,7 +463,7 @@ export const modules = [
     title: "Settings",
     shortTitle: "Settings",
     description:
-      "Configure branches, users, permissions, audit logs, system preferences, and security.",
+      "Configure branches, audit logs, system preferences, and security.",
     icon: Settings,
     path: "/settings",
     landingPath: "/settings",
@@ -511,15 +495,28 @@ export const modules = [
   },
 ];
 
-/**
- * Safely read a user's role code.
- */
-export const getUserRoleCode = (user) =>
-  user?.role?.code || user?.role_detail?.code || user?.role_code || "";
+export const getUserRoleCode = (user) => {
+  const rawRole =
+    user?.role?.code ||
+    user?.role_detail?.code ||
+    user?.role_code ||
+    user?.role?.name ||
+    user?.role_name ||
+    "";
 
-/**
- * Returns true when the user has Admin-level access.
- */
+  const normalized = String(rawRole).trim().toUpperCase().replace(/\s+/g, "_");
+
+  if (normalized === "SUPER_ADMIN" || normalized === "ADMINISTRATOR") {
+    return "ADMIN";
+  }
+
+  if (normalized === "BRANCH_MANAGER" || normalized === "BRANCHMANAGER") {
+    return "BM";
+  }
+
+  return normalized;
+};
+
 export const isAdministrator = (user) => {
   const roleCode = getUserRoleCode(user);
 
@@ -531,14 +528,8 @@ export const isAdministrator = (user) => {
   );
 };
 
-/**
- * Returns true when the user is a Staff user.
- */
 export const isStaffUser = (user) => getUserRoleCode(user) === "STAFF";
 
-/**
- * Checks whether a user can access a module or submodule.
- */
 export const canAccessNavigationItem = (item, user) => {
   if (!item) {
     return false;
@@ -567,27 +558,28 @@ export const canAccessNavigationItem = (item, user) => {
   return true;
 };
 
-/**
- * Returns modules visible to the current user.
- */
 export const getVisibleModules = (user) =>
   modules
     .filter((module) => canAccessNavigationItem(module, user))
     .map((module) => ({
       ...module,
-      items: (module.items || []).filter((item) =>
-        canAccessNavigationItem(item, user),
-      ),
-    }))
-    .filter(
-      (module) =>
-        module.externalUrl || module.landingPath || module.items.length > 0,
-    )
-    .sort((a, b) => a.order - b.order);
 
-/**
- * Returns the first accessible URL for a module.
- */
+      items: Array.isArray(module.items)
+        ? module.items.filter((item) => canAccessNavigationItem(item, user))
+        : [],
+    }))
+    .filter((module) =>
+      Boolean(
+        module.externalUrl ||
+        module.landingPath ||
+        module.path ||
+        module.items.length,
+      ),
+    )
+    .sort(
+      (first, second) => Number(first.order || 0) - Number(second.order || 0),
+    );
+
 export const getModuleTarget = (module, user) => {
   if (!module) {
     return "/modules";
@@ -597,23 +589,17 @@ export const getModuleTarget = (module, user) => {
     return module.externalUrl;
   }
 
-  const visibleItems = (module.items || []).filter((item) =>
-    canAccessNavigationItem(item, user),
-  );
+  const visibleItems = Array.isArray(module.items)
+    ? module.items.filter((item) => canAccessNavigationItem(item, user))
+    : [];
 
   return module.landingPath || visibleItems[0]?.to || module.path || "/modules";
 };
 
-/**
- * Finds a module using its id or key.
- */
 export const getModuleById = (moduleId) =>
   modules.find((module) => module.id === moduleId || module.key === moduleId) ||
   null;
 
-/**
- * Finds the module that owns the supplied pathname.
- */
 export const getModuleByPath = (pathname = "") => {
   const safePath = typeof pathname === "string" ? pathname : "";
 
@@ -635,10 +621,15 @@ export const getModuleByPath = (pathname = "") => {
     return getModuleById("purchase");
   }
 
+  /*
+   * Sales Reports is mapped to the Sales module before
+   * the general /reports/ condition so the Sales sidebar remains active.
+   */
   if (
     safePath === "/customers" ||
     safePath.startsWith("/customers/") ||
-    safePath.startsWith("/sales/")
+    safePath.startsWith("/sales/") ||
+    safePath === "/reports/sales"
   ) {
     return getModuleById("sales");
   }
@@ -666,7 +657,10 @@ export const getModuleByPath = (pathname = "") => {
 
   return (
     modules.find((module) => {
-      if (module.path && safePath.startsWith(module.path)) {
+      if (
+        module.path &&
+        (safePath === module.path || safePath.startsWith(`${module.path}/`))
+      ) {
         return true;
       }
 
@@ -681,9 +675,6 @@ export const getModuleByPath = (pathname = "") => {
   );
 };
 
-/**
- * Returns visible sidebar items for the current route.
- */
 export const getSidebarItemsForPath = (pathname, user) => {
   const module = getModuleByPath(pathname);
 
@@ -696,13 +687,6 @@ export const getSidebarItemsForPath = (pathname, user) => {
   );
 };
 
-/**
- * Opens a module.
- *
- * Use this from ModuleLandingPage:
- *
- * openModule(module, navigate, user);
- */
 export const openModule = (module, navigate, user) => {
   if (!module) {
     return;
@@ -714,9 +698,7 @@ export const openModule = (module, navigate, user) => {
     return;
   }
 
-  const target = getModuleTarget(module, user);
-
-  navigate(target);
+  navigate(getModuleTarget(module, user));
 };
 
 export default modules;
