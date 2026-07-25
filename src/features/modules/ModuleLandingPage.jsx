@@ -1,65 +1,30 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, ExternalLink, Globe2 } from "lucide-react";
+import {
+  Bell,
+  Building2,
+  ExternalLink,
+  Grid2X2,
+  LogOut,
+  RefreshCcw,
+  Search,
+  Settings,
+} from "lucide-react";
 
 import { useAuth } from "@/lib/auth";
 import { getModuleTarget, getVisibleModules } from "@/config/moduleNavigation";
 
-const colorClasses = {
-  blue: {
-    icon: "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300",
-    border: "hover:border-blue-300 dark:hover:border-blue-500/40",
-    accent: "bg-blue-600",
-  },
-
-  emerald: {
-    icon: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300",
-    border: "hover:border-emerald-300 dark:hover:border-emerald-500/40",
-    accent: "bg-emerald-600",
-  },
-
-  rose: {
-    icon: "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300",
-    border: "hover:border-rose-300 dark:hover:border-rose-500/40",
-    accent: "bg-rose-600",
-  },
-
-  amber: {
-    icon: "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-300",
-    border: "hover:border-amber-300 dark:hover:border-amber-500/40",
-    accent: "bg-amber-500",
-  },
-
-  cyan: {
-    icon: "bg-cyan-50 text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-300",
-    border: "hover:border-cyan-300 dark:hover:border-cyan-500/40",
-    accent: "bg-cyan-600",
-  },
-
-  violet: {
-    icon: "bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-300",
-    border: "hover:border-violet-300 dark:hover:border-violet-500/40",
-    accent: "bg-violet-600",
-  },
-
-  orange: {
-    icon: "bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-300",
-    border: "hover:border-orange-300 dark:hover:border-orange-500/40",
-    accent: "bg-orange-500",
-  },
-
-  teal: {
-    icon: "bg-teal-50 text-teal-600 dark:bg-teal-500/10 dark:text-teal-300",
-    border: "hover:border-teal-300 dark:hover:border-teal-500/40",
-    accent: "bg-teal-600",
-  },
-
-  slate: {
-    icon: "bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-200",
-    border: "hover:border-slate-400 dark:hover:border-slate-500",
-    accent: "bg-slate-700",
-  },
-};
+const moduleStyles = [
+  ["from-orange-500 to-amber-400", "shadow-orange-500/20"],
+  ["from-fuchsia-500 to-pink-500", "shadow-pink-500/20"],
+  ["from-cyan-400 to-blue-500", "shadow-cyan-500/20"],
+  ["from-teal-400 to-emerald-500", "shadow-emerald-500/20"],
+  ["from-violet-500 to-purple-500", "shadow-violet-500/20"],
+  ["from-rose-500 to-red-500", "shadow-rose-500/20"],
+  ["from-blue-500 to-cyan-400", "shadow-blue-500/20"],
+  ["from-amber-400 to-orange-500", "shadow-amber-500/20"],
+  ["from-emerald-400 to-green-500", "shadow-emerald-500/20"],
+];
 
 const getUserName = (user) =>
   user?.full_name ||
@@ -69,224 +34,242 @@ const getUserName = (user) =>
   user?.email ||
   "User";
 
+const getBranchName = (user) =>
+  user?.branch?.branch_name ||
+  user?.branch_detail?.branch_name ||
+  user?.branch_name ||
+  "Main Branch";
+
 export default function ModuleLandingPage() {
   const navigate = useNavigate();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, logout } = useAuth();
+  const [search, setSearch] = React.useState("");
 
   const visibleModules = React.useMemo(() => getVisibleModules(user), [user]);
 
-  const openSelectedModule = (module) => {
+  const filteredModules = React.useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    if (!query) return visibleModules;
+
+    return visibleModules.filter((module) =>
+      [module.title, module.shortTitle, module.description]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [search, visibleModules]);
+
+  const openModule = (module) => {
     if (!module) return;
 
     if (module.externalUrl) {
       window.open(module.externalUrl, "_blank", "noopener,noreferrer");
-
       return;
     }
 
-    const target = getModuleTarget(module, user);
+    navigate(getModuleTarget(module, user));
+  };
 
-    navigate(target);
+  const handleLogout = async () => {
+    try {
+      await logout?.();
+    } finally {
+      navigate("/login", { replace: true });
+    }
   };
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <div className="rounded-xl border bg-background px-6 py-4 text-sm text-muted-foreground shadow-sm">
-          Loading modules...
-        </div>
+      <div className="flex min-h-screen items-center justify-center bg-[#070b1b] text-white">
+        Loading modules...
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-28 top-10 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl" />
-        <div className="absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-cyan-500/10 blur-3xl" />
+    <div className="min-h-screen overflow-hidden bg-[#070b1b] text-white">
+      <div
+        className="pointer-events-none fixed inset-0"
+        style={{
+          background:
+            "radial-gradient(circle at 12% 18%, rgba(12,124,140,.28), transparent 32%), radial-gradient(circle at 88% 14%, rgba(92,45,130,.18), transparent 28%), linear-gradient(140deg,#0b2732 0%,#0a1325 48%,#090a18 100%)",
+        }}
+      />
 
-        <div
-          className="absolute inset-0 opacity-[0.035] dark:opacity-[0.05]"
-          style={{
-            backgroundImage:
-              "linear-gradient(to right, #2563eb 1px, transparent 1px), linear-gradient(to bottom, #2563eb 1px, transparent 1px)",
-            backgroundSize: "40px 40px",
-          }}
-        />
-      </div>
-
-      <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <header className="mb-8 rounded-2xl border border-blue-100 bg-white/90 px-5 py-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-900/85 md:px-7">
-          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-500/20">
-                <span className="text-xl font-bold">GC</span>
+      <div className="relative z-10 min-h-screen">
+        <header className="border-b border-white/10 bg-[#08101f]/90 backdrop-blur-xl">
+          <div className="flex min-h-[64px] items-center justify-between gap-4 px-5 lg:px-8">
+            <button
+              type="button"
+              onClick={() => navigate("/modules")}
+              className="flex items-center gap-3"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] shadow-lg shadow-black/20">
+                <Grid2X2 className="h-5 w-5 text-cyan-300" />
               </div>
 
-              <div>
-                <h1 className="text-xl font-bold tracking-tight text-slate-950 dark:text-white md:text-2xl">
+              <div className="hidden text-left sm:block">
+                <p className="text-sm font-bold tracking-[0.08em]">
                   GHAZA COMPUTER
-                </h1>
-
-                <p className="text-sm text-muted-foreground">
+                </p>
+                <p className="text-[10px] text-slate-400">
                   Sale & Service of Laptop Spare Parts
                 </p>
               </div>
-            </div>
+            </button>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="rounded-xl border bg-slate-50 px-4 py-2 dark:bg-white/[0.03]">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Signed in as
-                </p>
-
-                <p className="text-sm font-semibold">{getUserName(user)}</p>
+            <div className="flex items-center gap-2">
+              <div className="hidden items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2 md:flex">
+                <span className="text-[10px] text-slate-400">
+                  Current Branch:
+                </span>
+                <span className="text-xs font-semibold text-white">
+                  {getBranchName(user)}
+                </span>
               </div>
 
               <button
                 type="button"
-                onClick={() =>
-                  window.open(
-                    "https://www.ghazatech.com/",
-                    "_blank",
-                    "noopener,noreferrer",
-                  )
-                }
-                className="inline-flex h-11 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-medium text-blue-700 transition hover:bg-blue-100 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-300 transition hover:bg-white/10 hover:text-white"
+                title="Refresh"
+                onClick={() => window.location.reload()}
               >
-                <Globe2 className="h-4 w-4" />
-                Website
-                <ExternalLink className="h-3.5 w-3.5" />
+                <RefreshCcw className="h-4 w-4" />
+              </button>
+
+              <button
+                type="button"
+                className="relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-300 transition hover:bg-white/10 hover:text-white"
+                title="Notifications"
+                onClick={() => navigate("/notifications")}
+              >
+                <Bell className="h-4 w-4" />
+                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-[#08101f]" />
+              </button>
+
+              <button
+                type="button"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-300 transition hover:bg-white/10 hover:text-white"
+                title="Settings"
+                onClick={() => navigate("/settings")}
+              >
+                <Settings className="h-4 w-4" />
+              </button>
+
+              <button
+                type="button"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-300 transition hover:bg-red-500/15 hover:text-red-300"
+                title="Logout"
+                onClick={handleLogout}
+              >
+                <LogOut className="h-4 w-4" />
               </button>
             </div>
           </div>
         </header>
 
-        <section className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-blue-600">
-            Main Menu
-          </p>
-
-          <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
-            Select a module
-          </h2>
-
-          <p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground">
-            Choose a module to open its workspace and display its related
-            submodules in the sidebar.
-          </p>
-
-          <div className="mx-auto mt-4 h-1 w-14 rounded-full bg-blue-600" />
-        </section>
-
-        {visibleModules.length > 0 ? (
-          <section className="mt-9 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {visibleModules.map((module, index) => {
-              const Icon = module.icon || Globe2;
-
-              const styles = colorClasses[module.color] || colorClasses.blue;
-
-              const itemCount = Array.isArray(module.items)
-                ? module.items.length
-                : 0;
-
-              return (
-                <button
-                  key={module.id || module.key || module.title || index}
-                  type="button"
-                  onClick={() => openSelectedModule(module)}
-                  className={[
-                    "group relative min-h-[230px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm transition duration-200",
-                    "hover:-translate-y-1 hover:shadow-xl",
-                    "dark:border-white/10 dark:bg-slate-900",
-                    styles.border,
-                  ].join(" ")}
-                >
-                  <div
-                    className={[
-                      "absolute inset-x-0 top-0 h-1 transition-all group-hover:h-1.5",
-                      styles.accent,
-                    ].join(" ")}
-                  />
-
-                  <div className="flex items-start justify-between gap-4">
-                    <div
-                      className={[
-                        "flex h-14 w-14 items-center justify-center rounded-2xl transition group-hover:scale-105",
-                        styles.icon,
-                      ].join(" ")}
-                    >
-                      <Icon className="h-7 w-7" />
-                    </div>
-
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500 dark:bg-white/10 dark:text-slate-300">
-                      {index + 1}
-                    </span>
-                  </div>
-
-                  <h3 className="mt-5 text-lg font-bold text-slate-950 dark:text-white">
-                    {module.title ||
-                      module.shortTitle ||
-                      module.label ||
-                      "Module"}
-                  </h3>
-
-                  <p className="mt-2 line-clamp-3 text-sm leading-6 text-muted-foreground">
-                    {module.description ||
-                      "Open this module to manage its related operations."}
-                  </p>
-
-                  <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4 dark:border-white/10">
-                    <span className="text-xs font-medium text-muted-foreground">
-                      {module.externalUrl
-                        ? "External website"
-                        : `${itemCount} submodule${itemCount === 1 ? "" : "s"}`}
-                    </span>
-
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition group-hover:bg-blue-600 group-hover:text-white dark:bg-white/10 dark:text-slate-300">
-                      {module.externalUrl ? (
-                        <ExternalLink className="h-4 w-4" />
-                      ) : (
-                        <ArrowRight className="h-4 w-4" />
-                      )}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-          </section>
-        ) : (
-          <section className="mx-auto mt-10 max-w-xl rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center dark:border-amber-500/20 dark:bg-amber-500/10">
-            <h3 className="font-semibold text-amber-800 dark:text-amber-300">
-              No accessible modules found
-            </h3>
-
-            <p className="mt-2 text-sm text-amber-700 dark:text-amber-200">
-              Your current role does not have access to any configured module,
-              or the module configuration could not determine your role.
-            </p>
-
-            <div className="mt-4 rounded-lg bg-white/70 p-3 text-left text-xs text-amber-800 dark:bg-black/10 dark:text-amber-200">
-              <p>
-                Role code:{" "}
-                <strong>
-                  {user?.role?.code ||
-                    user?.role_detail?.code ||
-                    user?.role_code ||
-                    "Not available"}
-                </strong>
+        <main className="mx-auto max-w-7xl px-5 pb-16 pt-8 lg:px-8">
+          <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.24em] text-cyan-300/80">
+                Main Menu
               </p>
-
-              <p className="mt-1">
-                User: <strong>{getUserName(user)}</strong>
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight">
+                Welcome, {getUserName(user)}
+              </h1>
+              <p className="mt-1 text-sm text-slate-400">
+                Select a module to open its workspace.
               </p>
             </div>
-          </section>
-        )}
 
-        <footer className="mt-10 border-t border-slate-200 py-5 text-center text-xs text-muted-foreground dark:border-white/10">
-          © {new Date().getFullYear()} GHAZA COMPUTER. All rights reserved.
-        </footer>
+            <div className="relative w-full lg:max-w-sm">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search modules..."
+                className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.05] pl-10 pr-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/40 focus:bg-white/[0.08]"
+              />
+            </div>
+          </div>
+
+          <div className="mb-8 flex items-center justify-between gap-4 rounded-lg border-l-4 border-red-500 bg-red-950/50 px-4 py-3 text-sm shadow-lg shadow-black/10">
+            <div className="flex items-center gap-3">
+              <Bell className="h-4 w-4 shrink-0 text-red-400" />
+              <p className="text-red-100/90">
+                System is ready. Select a module below to continue.
+              </p>
+            </div>
+
+            <span className="hidden text-xs font-medium text-cyan-300 sm:block">
+              {filteredModules.length} module
+              {filteredModules.length === 1 ? "" : "s"}
+            </span>
+          </div>
+
+          {filteredModules.length ? (
+            <section className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+              {filteredModules.map((module, index) => {
+                const Icon = module.icon || Grid2X2;
+                const [tile, glow] = moduleStyles[index % moduleStyles.length];
+
+                return (
+                  <button
+                    key={module.id || module.key || module.title}
+                    type="button"
+                    onClick={() => openModule(module)}
+                    className="group flex flex-col items-center text-center"
+                  >
+                    <div className="relative flex h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.055] shadow-xl shadow-black/20 transition duration-200 group-hover:-translate-y-1 group-hover:border-white/20 group-hover:bg-white/[0.09]">
+                      <div
+                        className={`absolute inset-3 rounded-lg bg-gradient-to-br opacity-25 blur-md ${tile}`}
+                      />
+
+                      <div
+                        className={`relative flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-lg ${tile} ${glow}`}
+                      >
+                        <Icon className="h-6 w-6" />
+                      </div>
+
+                      {module.externalUrl && (
+                        <span className="absolute right-1.5 top-1.5 rounded-md bg-black/30 p-1 text-slate-300">
+                          <ExternalLink className="h-3 w-3" />
+                        </span>
+                      )}
+                    </div>
+
+                    <div
+                      className="relative z-20 mt-3 min-h-[40px] max-w-[120px] text-center text-sm font-semibold leading-5 text-white opacity-100 transition-colors duration-200 group-hover:text-cyan-200"
+                      style={{
+                        color: "#ffffff",
+                        WebkitTextFillColor: "#ffffff",
+                      }}
+                    >
+                      {module.shortTitle ||
+                        module.title ||
+                        module.label ||
+                        "Module"}
+                    </div>
+                  </button>
+                );
+              })}
+            </section>
+          ) : (
+            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-10 text-center">
+              <Building2 className="mx-auto h-8 w-8 text-slate-500" />
+              <h2 className="mt-4 font-semibold">No modules found</h2>
+              <p className="mt-2 text-sm text-slate-400">
+                Try another search or verify the role permissions.
+              </p>
+            </div>
+          )}
+
+          <footer className="mt-16 border-t border-white/10 pt-5 text-center text-xs text-slate-500">
+            © {new Date().getFullYear()} GHAZA COMPUTER. All rights reserved.
+          </footer>
+        </main>
       </div>
     </div>
   );
