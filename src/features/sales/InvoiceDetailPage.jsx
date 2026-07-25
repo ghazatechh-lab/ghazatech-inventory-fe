@@ -1,116 +1,245 @@
 import React from "react";
-import { useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { Link, useParams } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Download, Edit, Mail } from "lucide-react";
+import { toast } from "sonner";
+
 import api, { unwrap } from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
-import { LoadingState } from "@/components/common/States";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/common/StatusBadge";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
-import { formatAED } from "@/lib/utils";
-import { Printer, Truck, Check, X, CreditCard } from "lucide-react";
-import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-function PayDialog({ invoiceId, onDone }) {
-  const [open, setOpen] = React.useState(false);
-  const [amount, setAmount] = React.useState("");
-  const [method, setMethod] = React.useState("Cash");
-  const [ref, setRef] = React.useState("");
-  const submit = async () => {
-    if (!amount) return;
-    await api.post(`/sales/invoices/${invoiceId}/add-payment/`, { amount: Number(amount), method, reference: ref });
-    toast.success("Payment added");
-    setOpen(false); onDone?.();
-  };
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button variant="outline" data-testid="add-payment-btn"><CreditCard className="w-4 h-4 mr-1.5" /> Add payment</Button></DialogTrigger>
-      <DialogContent><DialogHeader><DialogTitle>Record payment</DialogTitle></DialogHeader>
-        <div className="space-y-3">
-          <div><Label>Amount</Label><Input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="mt-1.5 font-numeric" /></div>
-          <div><Label>Method</Label>
-            <Select value={method} onValueChange={setMethod}><SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-              <SelectContent>{["Cash","Bank Transfer","Cheque","Card"].map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div><Label>Reference</Label><Input value={ref} onChange={e => setRef(e.target.value)} className="mt-1.5" /></div>
-        </div>
-        <DialogFooter><Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button><Button className="bg-blue-600 hover:bg-blue-700" onClick={submit}>Record</Button></DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
+import { StatusBadge } from "@/components/common/StatusBadge";
 
 export default function InvoiceDetailPage() {
   const { id } = useParams();
-  const { data, isLoading, refetch } = useQuery({ queryKey: ["invoice", id], queryFn: async () => unwrap(await api.get(`/sales/invoices/${id}/`)) });
-  if (isLoading) return <LoadingState />;
-  const i = data || {};
+  const queryClient = useQueryClient();
 
-  const confirm = async () => { await api.post(`/sales/invoices/${id}/confirm/`); toast.success("Invoice confirmed"); refetch(); };
-  const cancel = async () => { if (!window.confirm("Cancel this invoice?")) return; await api.post(`/sales/invoices/${id}/cancel/`); toast.success("Invoice cancelled"); refetch(); };
+  const { data: invoice, isLoading } = useQuery({
+    queryKey: ["sales-invoice", id],
+    queryFn: async () => unwrap(await api.get(`/sales/invoices/${id}/`)),
+  });
+
+  const sendReminder = useMutation({
+    mutationFn: async () => api.post(`/sales/invoices/${id}/send-reminder/`),
+
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["sales-invoice", id],
+      });
+
+      toast.success("Payment reminder queued.");
+    },
+  });
+
+  if (isLoading) {
+    return <div className="card-surface p-6">Loading invoice...</div>;
+  }
+
+  if (!invoice) {
+    return <div className="card-surface p-6">Invoice not found.</div>;
+  }
 
   return (
-    <div>
+    <div className="mx-auto max-w-6xl space-y-5">
       <PageHeader
-        title={i.invoice_number}
-        subtitle={<span><DateText value={i.date} /> · Due <DateText value={i.due_date} /></span>}
-        actions={<>
-          <StatusBadge status={i.payment_status} />
-          <StatusBadge status={i.delivery_status} />
-          <Button variant="outline" onClick={() => toast.info("Print coming up")}><Printer className="w-4 h-4 mr-1.5" /> Print</Button>
-          {i.status !== "confirmed" && <Button variant="outline" onClick={confirm}><Check className="w-4 h-4 mr-1.5" /> Confirm</Button>}
-          {i.status !== "cancelled" && <Button variant="outline" onClick={cancel}><X className="w-4 h-4 mr-1.5" /> Cancel</Button>}
-          <PayDialog invoiceId={id} onDone={refetch} />
-          <Button variant="outline"><Truck className="w-4 h-4 mr-1.5" /> Ship</Button>
-        </>}
-      />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 card-surface p-5">
-          <div className="grid grid-cols-3 gap-4 mb-5 text-sm">
-            <div><div className="text-[10px] uppercase tracking-widest text-slate-500">Customer</div><div className="text-slate-100 mt-0.5">{i.customer?.name}</div></div>
-            <div><div className="text-[10px] uppercase tracking-widest text-slate-500">Branch</div><div className="text-slate-100 mt-0.5">{i.branch?.name}</div></div>
-            <div><div className="text-[10px] uppercase tracking-widest text-slate-500">Salesperson</div><div className="text-slate-100 mt-0.5">{i.salesperson?.name}</div></div>
+        title={invoice.invoice_number}
+        subtitle="Invoice details, balance, and payment status"
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline">
+              <Download className="mr-2 h-4 w-4" />
+              Export PDF
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => sendReminder.mutate()}
+              disabled={sendReminder.isPending}
+            >
+              <Mail className="mr-2 h-4 w-4" />
+              Send Reminder
+            </Button>
+
+            <Button
+              asChild
+              className="bg-blue-600 text-white hover:bg-blue-700"
+            >
+              <Link to={`/sales/invoices/${id}/edit`}>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
+              </Link>
+            </Button>
           </div>
-          <table className="w-full text-sm">
-            <thead><tr className="text-[10px] uppercase tracking-widest text-slate-500 border-b border-white/5"><th className="text-left py-2">Product</th><th className="text-right">Qty</th><th className="text-right">Unit</th><th className="text-right">Total</th></tr></thead>
-            <tbody>{(i.items || []).map((it, idx) => (
-              <tr key={idx} className="border-b border-white/5">
-                <td className="py-2 text-slate-200">{it.product?.name}<div className="text-[10px] text-slate-500 font-numeric">{it.product?.sku}</div></td>
-                <td className="text-right font-numeric text-slate-200">{it.quantity}</td>
-                <td className="text-right font-numeric text-slate-200">{formatAED(it.unit_price)}</td>
-                <td className="text-right font-numeric text-white">{formatAED(it.line_total)}</td>
+        }
+      />
+
+      <section className="card-surface p-5">
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          <div>
+            <p className="text-xs text-muted-foreground">Customer</p>
+            <p className="mt-1 font-medium">{invoice.customer_name || "—"}</p>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted-foreground">Branch</p>
+            <p className="mt-1 font-medium">{invoice.branch_name || "—"}</p>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted-foreground">Issue Date</p>
+            <div className="mt-1 font-medium">
+              {invoice.invoice_date ? (
+                <DateText value={invoice.invoice_date} />
+              ) : (
+                "—"
+              )}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted-foreground">Due Date</p>
+            <div className="mt-1 font-medium">
+              {invoice.due_date ? <DateText value={invoice.due_date} /> : "—"}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted-foreground">Status</p>
+            <div className="mt-1">
+              <StatusBadge status={invoice.payment_status} />
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted-foreground">Sales Order</p>
+            <p className="mt-1 font-medium">
+              {invoice.sales_order_number || "Standalone invoice"}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted-foreground">Paid Amount</p>
+            <div className="mt-1 font-medium text-emerald-600 dark:text-emerald-400">
+              <CurrencyText
+                value={invoice.paid_amount}
+                currency={invoice.currency || "AED"}
+              />
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted-foreground">Balance Due</p>
+            <div className="mt-1 text-lg font-semibold">
+              <CurrencyText
+                value={invoice.balance_due}
+                currency={invoice.currency || "AED"}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="card-surface overflow-hidden">
+        <div className="border-b border-slate-200 px-5 py-4 dark:border-white/10">
+          <h2 className="font-semibold">Invoice Items</h2>
+        </div>
+
+        <div className="overflow-x-auto p-5">
+          <table className="w-full min-w-[820px] text-sm">
+            <thead>
+              <tr className="border-b text-left text-xs uppercase tracking-wider text-muted-foreground">
+                <th className="py-3">Item</th>
+                <th>Description</th>
+                <th className="text-right">Qty</th>
+                <th className="text-right">Unit Price</th>
+                <th className="text-right">VAT</th>
+                <th className="text-right">Total</th>
               </tr>
-            ))}</tbody>
+            </thead>
+
+            <tbody>
+              {(invoice.items || []).map((item) => (
+                <tr key={item.id} className="border-b last:border-b-0">
+                  <td className="py-3 font-medium">
+                    {item.product_name || "—"}
+                  </td>
+                  <td>{item.description || "—"}</td>
+                  <td className="text-right">{item.quantity}</td>
+                  <td className="text-right">
+                    <CurrencyText
+                      value={item.unit_price}
+                      currency={invoice.currency || "AED"}
+                    />
+                  </td>
+                  <td className="text-right">{item.vat_percentage}%</td>
+                  <td className="text-right font-medium">
+                    <CurrencyText
+                      value={item.line_total}
+                      currency={invoice.currency || "AED"}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
           </table>
 
-          {(i.payments || []).length > 0 && (
-            <div className="mt-6">
-              <div className="text-sm font-semibold text-slate-200 mb-2">Payment history</div>
-              <table className="w-full text-sm">
-                <thead><tr className="text-[10px] uppercase tracking-widest text-slate-500 border-b border-white/5"><th className="text-left py-2">Payment #</th><th className="text-left">Date</th><th className="text-left">Method</th><th className="text-right">Amount</th></tr></thead>
-                <tbody>{(i.payments || []).map(p => (
-                  <tr key={p.id} className="border-b border-white/5"><td className="py-2 font-numeric text-blue-400">{p.payment_number}</td><td><DateText value={p.date} /></td><td className="text-slate-200">{p.method}</td><td className="text-right font-numeric text-emerald-400">{formatAED(p.amount)}</td></tr>
-                ))}</tbody>
-              </table>
+          <div className="ml-auto mt-6 max-w-sm space-y-3 rounded-xl border bg-slate-50 p-5 text-sm dark:border-white/10 dark:bg-white/[0.025]">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Subtotal</span>
+              <CurrencyText
+                value={invoice.subtotal}
+                currency={invoice.currency || "AED"}
+              />
             </div>
-          )}
+
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">VAT</span>
+              <CurrencyText
+                value={invoice.vat_amount}
+                currency={invoice.currency || "AED"}
+              />
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Amount Paid</span>
+              <CurrencyText
+                value={invoice.paid_amount}
+                currency={invoice.currency || "AED"}
+              />
+            </div>
+
+            <div className="flex justify-between border-t pt-3 text-base font-semibold">
+              <span>Amount Due</span>
+              <CurrencyText
+                value={invoice.balance_due}
+                currency={invoice.currency || "AED"}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="card-surface p-5">
+        <h2 className="font-semibold">Payment Instructions</h2>
+
+        <div className="mt-4 rounded-xl border p-4">
+          <p className="font-medium">
+            {invoice.bank_account_name || "No bank account selected"}
+          </p>
+
+          <p className="mt-1 text-xs text-muted-foreground">
+            {invoice.bank_account_iban ||
+              "Bank instructions are not available."}
+          </p>
         </div>
 
-        <div className="card-surface p-5 space-y-2 h-fit">
-          <div className="flex items-center justify-between text-sm"><span className="text-slate-400">Subtotal</span><span className="font-numeric text-slate-100">{formatAED(i.subtotal)}</span></div>
-          <div className="flex items-center justify-between text-sm"><span className="text-slate-400">Discount</span><span className="font-numeric text-slate-100">- {formatAED(i.discount)}</span></div>
-          <div className="flex items-center justify-between text-sm"><span className="text-slate-400">VAT</span><span className="font-numeric text-slate-100">{formatAED(i.vat)}</span></div>
-          <div className="h-px bg-white/10 my-2" />
-          <div className="flex items-center justify-between"><span className="text-slate-300">Grand total</span><CurrencyText value={i.total} className="text-xl font-semibold text-white" /></div>
-          <div className="flex items-center justify-between mt-3 text-sm"><span className="text-emerald-300">Paid</span><CurrencyText value={i.paid} className="text-emerald-400" /></div>
-          <div className="flex items-center justify-between text-sm"><span className="text-red-300">Balance</span><CurrencyText value={i.balance} className="text-red-300" /></div>
-        </div>
-      </div>
+        {invoice.notes && (
+          <p className="mt-4 whitespace-pre-wrap text-sm text-muted-foreground">
+            {invoice.notes}
+          </p>
+        )}
+      </section>
     </div>
   );
 }

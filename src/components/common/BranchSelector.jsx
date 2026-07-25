@@ -1,19 +1,19 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Building2, Check, ChevronDown } from "lucide-react";
+import { Building2, Check, ChevronDown, Loader2 } from "lucide-react";
 
 import api, { unwrap } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const normalizeList = (value) => {
+const normalizeBranches = (value) => {
   if (Array.isArray(value)) {
     return value;
   }
@@ -33,106 +33,129 @@ const normalizeList = (value) => {
   return [];
 };
 
-const getBranchCode = (branch) => {
-  return branch?.branch_code || branch?.code || `BR-${branch?.id ?? ""}`;
-};
-
 export function BranchSelector() {
   const { branchOverride, setBranchOverride } = useAuth();
 
-  const { data: branchResponse, isLoading } = useQuery({
+  const { data, isLoading, isFetching } = useQuery({
+    /*
+     * This key must match the
+     * invalidation used in
+     * BranchFormPage.
+     */
     queryKey: ["branches-select"],
+
     queryFn: async () => {
       const response = await api.get("/branches/", {
         params: {
           page_size: 500,
+          ordering: "branch_code",
+          is_active: true,
         },
       });
 
-      const result = unwrap(response);
-
-      console.log("[Header Branch Selector] Branches:", result);
-
-      return result;
+      return unwrap(response);
     },
-    staleTime: 60_000,
+
+    staleTime: 0,
+
+    refetchOnMount: "always",
+
+    refetchOnWindowFocus: true,
   });
 
-  const branches = React.useMemo(
-    () => normalizeList(branchResponse),
-    [branchResponse],
+  const branches = React.useMemo(() => normalizeBranches(data), [data]);
+
+  const current = React.useMemo(
+    () =>
+      branches.find((branch) => String(branch.id) === String(branchOverride)),
+    [branches, branchOverride],
   );
 
-  const currentBranch = branches.find(
-    (branch) => String(branch.id) === String(branchOverride),
-  );
+  /*
+   * If the selected branch was deleted
+   * or became inactive, automatically
+   * return to All branches.
+   */
+  React.useEffect(() => {
+    if (branchOverride && !isLoading && branches.length > 0 && !current) {
+      setBranchOverride(null);
+    }
+  }, [branchOverride, branches, current, isLoading, setBranchOverride]);
 
-  const selectBranch = (branchId) => {
-    console.log("[Header Branch Selector] Selected:", branchId);
-
-    setBranchOverride(branchId === null ? null : Number(branchId));
-  };
+  const currentLabel =
+    current?.branch_code || current?.branch_name || "All branches";
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex h-9 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.02] px-3 text-xs text-slate-300 transition hover:bg-white/5"
-          data-testid="branch-selector-btn"
-          disabled={isLoading}
+          className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-white/10 dark:bg-white/[0.02] dark:text-slate-300 dark:shadow-none dark:hover:bg-white/5"
+          aria-label="Select branch"
         >
-          <Building2 className="h-3.5 w-3.5 text-slate-500" />
+          {isLoading || isFetching ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" />
+          ) : (
+            <Building2 className="h-3.5 w-3.5 text-slate-500" />
+          )}
 
-          <span className="max-w-[160px] truncate">
-            {isLoading
-              ? "Loading..."
-              : currentBranch
-                ? getBranchCode(currentBranch)
-                : "All branches"}
-          </span>
+          <span className="max-w-[160px] truncate">{currentLabel}</span>
 
           <ChevronDown className="h-3 w-3 text-slate-500" />
         </button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-64">
+      <DropdownMenuContent align="end" className="w-72">
         <DropdownMenuLabel>Filter data by branch</DropdownMenuLabel>
 
         <DropdownMenuSeparator />
 
-        <DropdownMenuItem onClick={() => selectBranch(null)}>
-          <span className="flex-1">All branches</span>
+        <DropdownMenuItem onClick={() => setBranchOverride(null)}>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <Building2 className="h-4 w-4 shrink-0 text-slate-500" />
 
-          {!branchOverride && <Check className="h-4 w-4 text-blue-400" />}
+            <span className="truncate">All branches</span>
+          </div>
+
+          {!branchOverride && (
+            <Check className="ml-2 h-4 w-4 shrink-0 text-blue-500" />
+          )}
         </DropdownMenuItem>
 
         {branches.map((branch) => {
-          const isSelected = String(branchOverride) === String(branch.id);
+          const selected = String(branchOverride) === String(branch.id);
+
+          const branchCode = branch.branch_code || `Branch ${branch.id}`;
+
+          const branchName = branch.branch_name || branch.name || "";
 
           return (
             <DropdownMenuItem
               key={branch.id}
-              onClick={() => selectBranch(branch.id)}
+              onClick={() => setBranchOverride(branch.id)}
             >
-              <div className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate font-medium">
-                  {getBranchCode(branch)}
-                </span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-medium">{branchCode}</div>
 
-                {branch.branch_name && (
-                  <span className="truncate text-[11px] text-slate-500">
-                    {branch.branch_name}
-                  </span>
+                {branchName && (
+                  <div className="truncate text-[11px] text-slate-500">
+                    {branchName}
+                  </div>
                 )}
               </div>
 
-              {isSelected && (
-                <Check className="h-4 w-4 shrink-0 text-blue-400" />
+              {selected && (
+                <Check className="ml-2 h-4 w-4 shrink-0 text-blue-500" />
               )}
             </DropdownMenuItem>
           );
         })}
+
+        {!isLoading && !branches.length && (
+          <div className="px-3 py-5 text-center text-xs text-slate-500">
+            No active branches found.
+          </div>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

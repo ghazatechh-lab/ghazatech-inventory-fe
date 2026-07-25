@@ -463,6 +463,7 @@ export function DataTable({
                     className={cn(
                       "py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500",
                       column.align === "right" && "text-right",
+                      column.headerClassName,
                       column.className,
                     )}
                   >

@@ -2,6 +2,7 @@ import React from "react";
 
 import { useListQuery, DataTable, SearchInput } from "@/hooks/useListQuery";
 import { PageHeader } from "@/components/common/PageHeader";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 
 const normalizePayload = (value) => {
   if (Array.isArray(value)) {
@@ -39,9 +40,11 @@ const normalizePayload = (value) => {
 };
 
 export default function LowStockPage() {
+  const { branchParams } = useActiveBranchFilter();
   const { query, page, setPage, q, setQ } = useListQuery(
     "low-stock",
     "/inventory/low-stock/",
+    branchParams,
   );
 
   const payload = normalizePayload(query.data);
@@ -68,12 +71,6 @@ export default function LowStockPage() {
           </div>
         </div>
       ),
-    },
-    {
-      key: "sku",
-      header: "SKU",
-      sortKey: "product__sku",
-      sortType: "text",
     },
     {
       key: "branch_code",

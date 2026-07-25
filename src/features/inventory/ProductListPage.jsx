@@ -12,6 +12,7 @@ import {
 
 import api, { getApiErrorMessage, unwrap } from "@/lib/api";
 import { useDebouncedValue } from "@/hooks/useDebounce";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { SearchInput } from "@/components/common/SearchInput";
@@ -57,19 +58,6 @@ const getAvailableQuantity = (product) => {
   return Number.isFinite(fallback) && fallback > 0 ? fallback : 0;
 };
 
-const getRetailPrice = (product) => {
-  const variants = Array.isArray(product?.variants) ? product.variants : [];
-  const base = variants.find((variant) => variant.is_base) || variants[0];
-  return Number(base?.retail_price ?? product?.retail_price ?? 0);
-};
-
-const getBranchLabel = (product) =>
-  product?.branch_code ||
-  product?.branch_name ||
-  product?.branch?.branch_code ||
-  product?.branch?.branch_name ||
-  "—";
-
 const getRelatedName = (value, fallback) => {
   if (value && typeof value === "object") {
     return value.name || fallback || "—";
@@ -82,6 +70,7 @@ export default function ProductListPage() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const { branchId } = useActiveBranchFilter();
 
   const page = Number(searchParams.get("page") || 1);
   const search = searchParams.get("search") || "";
@@ -132,7 +121,7 @@ export default function ProductListPage() {
   });
 
   const productsQuery = useQuery({
-    queryKey: ["products", page, debouncedSearch, brand, category],
+    queryKey: ["products", page, debouncedSearch, brand, category, branchId],
     queryFn: async () =>
       unwrap(
         await api.get("/products/", {
@@ -142,6 +131,7 @@ export default function ProductListPage() {
             search: debouncedSearch || undefined,
             brand: brand || undefined,
             category: category || undefined,
+            branch: branchId || undefined,
           },
         }),
       ),
@@ -219,8 +209,6 @@ export default function ProductListPage() {
     {
       key: "sku",
       header: "SKU",
-      sortKey: "sku",
-      sortType: "text",
       cell: (product) => (
         <span className="font-numeric text-slate-300">
           {product.sku || "—"}
@@ -239,34 +227,8 @@ export default function ProductListPage() {
         getRelatedName(product.category, product.category_name),
     },
     {
-      key: "condition",
-      header: "Condition",
-      sortKey: "condition",
-      sortType: "status",
-      statusOrder: ["NEW", "REFURBISHED", "USED"],
-      cell: (product) => product.condition_display || product.condition || "—",
-    },
-    {
-      key: "branch",
-      header: "Branch",
-      cell: getBranchLabel,
-    },
-    {
-      key: "retail_price",
-      header: "Retail Price",
-      sortType: "currency",
-      align: "right",
-      sortValue: getRetailPrice,
-      cell: (product) => (
-        <span className="font-numeric">
-          AED {getRetailPrice(product).toFixed(2)}
-        </span>
-      ),
-    },
-    {
       key: "available_qty",
       header: "Available Qty",
-      sortType: "quantity",
       align: "right",
       cell: (product) => (
         <span className="font-numeric font-medium text-slate-200">
@@ -286,7 +248,6 @@ export default function ProductListPage() {
     {
       key: "is_active",
       header: "Status",
-      sortType: "active",
       cell: (product) => (
         <StatusBadge
           status={product.is_active ? "active" : "closed"}

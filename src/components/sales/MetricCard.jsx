@@ -1,0 +1,1 @@
+import React from "react"; export function MetricCard({label,value}){return <div className="rounded-xl border bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/60"><p className="text-xs text-muted-foreground">{label}</p><div className="mt-1 text-2xl font-semibold">{value}</div></div>}

@@ -1,93 +1,117 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { Info, Plus } from "lucide-react";
+
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { DataTable, useListQuery } from "@/hooks/useListQuery";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
-import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { ListingRowActions } from "@/components/common/ListingRowActions";
+
 export default function ShipmentListPage() {
-  const { query, q, setQ, page, setPage } = useListQuery(
-    "shipments",
-    "/shipments/",
-    { shipment_type: "PURCHASE" },
-  );
-  const payload = query.data || { results: [], count: 0 };
+  const { branchParams } = useActiveBranchFilter();
+
+  const { query, page, setPage } = useListQuery("shipments", "/shipments/", {
+    shipment_type: "PURCHASE",
+    ...branchParams,
+  });
+
+  const payload = query.data || {
+    results: [],
+    count: 0,
+  };
+
   const rows = React.useMemo(() => payload.results || [], [payload.results]);
-  const cols = React.useMemo(
+
+  const columns = React.useMemo(
     () => [
       {
         key: "shipment_number",
-        header: "Shipment #",
+        header: "Shipment",
+        sortKey: "shipment_number",
         sortType: "text",
-        cell: (r) => (
-          <Link
-            to={`/shipments/${r.id}`}
-            className="text-blue-600 hover:underline dark:text-blue-400"
-          >
-            {r.shipment_number}
-          </Link>
+        cell: (row) => (
+          <span className="font-numeric font-semibold text-slate-950 dark:text-white">
+            {row.shipment_number || "—"}
+          </span>
         ),
       },
       {
         key: "po_number",
-        header: "Purchase order",
+        header: "PO Ref",
         sortKey: "purchase_order__po_number",
         sortType: "text",
+        cell: (row) => row.po_number || "—",
       },
       {
         key: "supplier_name",
         header: "Supplier",
         sortKey: "supplier__supplier_name",
         sortType: "text",
+        cell: (row) => row.supplier_name || "—",
       },
-      { key: "courier", header: "Courier", sortType: "text" },
-      { key: "tracking_number", header: "Tracking #", sortType: "text" },
+      {
+        key: "courier",
+        header: "Carrier",
+        sortKey: "courier",
+        sortType: "text",
+        cell: (row) => row.courier || row.shipment_method || "—",
+      },
+      {
+        key: "tracking_number",
+        header: "Tracking No.",
+        sortKey: "tracking_number",
+        sortType: "text",
+        cell: (row) => row.tracking_number || "—",
+      },
       {
         key: "expected_date",
-        header: "Expected",
+        header: "ETA",
+        sortKey: "expected_date",
         sortType: "date",
-        cell: (r) =>
-          r.expected_date ? <DateText value={r.expected_date} /> : "—",
-      },
-      {
-        key: "item_count",
-        header: "Items",
-        sortType: "number",
-        align: "right",
+        cell: (row) =>
+          row.expected_date ? <DateText value={row.expected_date} /> : "—",
       },
       {
         key: "status",
         header: "Status",
+        sortKey: "status",
         sortType: "status",
-        cell: (r) => <StatusBadge status={r.status} />,
+        statusOrder: [
+          "DRAFT",
+          "PENDING",
+          "IN_TRANSIT",
+          "CUSTOMS_HOLD",
+          "DELIVERED",
+          "RECEIVED",
+          "COMPLETED",
+          "CANCELLED",
+        ],
+        cell: (row) => <StatusBadge status={row.status} />,
       },
       {
         key: "actions",
-        header: "Actions",
+        header: "",
         sortable: false,
         align: "right",
-        cell: (r) => (
-          <ListingRowActions
-            viewTo={`/shipments/${r.id}`}
-            editTo={`/shipments/${r.id}/edit`}
-            deleteUrl={`/shipments/${r.id}/`}
-            queryKey="shipments"
-            itemLabel={r.shipment_number}
-          />
+        cell: (row) => (
+          <Button asChild size="sm" variant="outline" className="min-w-20">
+            <Link to={`/shipments/${row.id}`}>Track</Link>
+          </Button>
         ),
       },
     ],
     [],
   );
+
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-7xl space-y-5">
       <PageHeader
-        title="Purchase Shipments"
-        subtitle="Track inbound supplier shipments, couriers, expected dates and receiving status"
+        title="Shipments"
+        subtitle="Inbound freight tracking from supplier to warehouse"
         actions={
-          <Button asChild>
+          <Button asChild className="bg-blue-600 text-white hover:bg-blue-700">
             <Link to="/shipments/new">
               <Plus className="mr-2 h-4 w-4" />
               Log Shipment
@@ -95,21 +119,27 @@ export default function ShipmentListPage() {
           </Button>
         }
       />
-      <SearchInput
-        value={q}
-        onChange={setQ}
-        placeholder="Search shipment, PO, supplier, courier or tracking"
-      />
+
+      <div className="flex items-start gap-2 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
+        <Info className="mt-0.5 h-4 w-4 shrink-0" />
+
+        <p>
+          Tracks carrier, tracking number, linked PO, freight cost, customs
+          status and ETA. Accepted quantities can be recorded against the
+          receiving branch when the shipment arrives.
+        </p>
+      </div>
+
       <DataTable
-        columns={cols}
+        columns={columns}
         data={rows}
         isLoading={query.isLoading}
         page={page}
         pageSize={12}
         total={payload.count || 0}
         onPageChange={setPage}
-        emptyTitle="No purchase shipments"
-        emptyDescription="Log the first inbound shipment."
+        emptyTitle="No shipments"
+        emptyDescription="Log the first inbound supplier shipment."
       />
     </div>
   );

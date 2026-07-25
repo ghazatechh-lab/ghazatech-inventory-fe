@@ -1,8 +1,11 @@
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FileText, Save, Send, UploadCloud, X } from "lucide-react";
 import { toast } from "sonner";
-import api, { unwrap } from "@/lib/api";
+
+import api, { getApiErrorDetails, unwrap } from "@/lib/api";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,273 +18,845 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-const list = (v) =>
-    v?.results || v?.data?.results || (Array.isArray(v) ? v : []),
-  today = () => new Date().toISOString().slice(0, 10);
+import { CurrencyText } from "@/components/common/CurrencyText";
+
+const list = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.results)) return value.results;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.results)) return value.data.results;
+  return [];
+};
+
+const today = () => new Date().toISOString().slice(0, 10);
+const num = (value) => Number(value || 0);
+
+const formatSize = (bytes) => {
+  const value = Number(bytes || 0);
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 ** 2) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / 1024 ** 2).toFixed(1)} MB`;
+};
+
 export default function GRNFormPage() {
-  const { id } = useParams(),
-    edit = Boolean(id),
-    nav = useNavigate(),
-    qc = useQueryClient();
+  const { id } = useParams();
+  const edit = Boolean(id);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { branchId } = useActiveBranchFilter();
+
+  const [files, setFiles] = React.useState([]);
+  const [errors, setErrors] = React.useState({});
   const [form, setForm] = React.useState({
+    grn_number: "",
     purchase_order: "",
     supplier: "",
-    branch: "",
+    branch: branchId ? String(branchId) : "",
     received_date: today(),
+    received_by: "",
     warehouse_location: "",
     notes: "",
     status: "DRAFT",
     items: [],
   });
-  const { data: orders } = useQuery({
-    queryKey: ["po-options"],
+
+  React.useEffect(() => {
+    if (!edit && branchId) {
+      setForm((current) => ({
+        ...current,
+        branch: String(branchId),
+      }));
+    }
+  }, [branchId, edit]);
+
+  const { data: optionsResponse } = useQuery({
+    queryKey: ["grn-form-options", form.branch],
     queryFn: async () =>
       unwrap(
-        await api.get("/purchases/orders/", { params: { page_size: 500 } }),
+        await api.get("/purchases/grn/form-options/", {
+          params: {
+            branch: form.branch || undefined,
+          },
+        }),
       ),
   });
-  const { data: existing } = useQuery({
+
+  const options = optionsResponse || {};
+  const orders = list(options.purchase_orders);
+  const branches = list(options.branches);
+  const receivers = list(options.receivers);
+  const qualityStatuses = list(options.quality_statuses);
+
+  const { data: existing, isLoading } = useQuery({
     queryKey: ["grn", id],
     queryFn: async () => unwrap(await api.get(`/purchases/grn/${id}/`)),
     enabled: edit,
     staleTime: 0,
   });
+
   React.useEffect(() => {
-    if (existing)
-      setForm({
-        ...existing,
-        purchase_order: String(
-          existing.purchase_order?.id || existing.purchase_order,
-        ),
-        supplier: String(existing.supplier?.id || existing.supplier),
-        branch: String(existing.branch?.id || existing.branch),
-        items: (existing.items || []).map((x) => ({
-          ...x,
-          product: String(x.product?.id || x.product),
-          variant: x.variant ? String(x.variant?.id || x.variant) : "",
-        })),
-      });
-  }, [existing]);
-  const selectPO = (v) => {
-    const po = list(orders).find((x) => String(x.id) === v);
-    if (!po) return;
-    setForm((s) => ({
-      ...s,
-      purchase_order: v,
-      supplier: String(po.supplier?.id || po.supplier),
-      branch: String(po.branch?.id || po.branch),
-      items: (po.items || []).map((x) => ({
-        product: String(x.product?.id || x.product),
-        variant: x.variant ? String(x.variant?.id || x.variant) : "",
-        ordered_quantity: Number(x.quantity || 0),
-        received_quantity: Number(x.quantity || 0),
-        damaged_quantity: 0,
-        accepted_quantity: Number(x.quantity || 0),
-        quality_status: "QC_PASSED",
-        rack_location: "",
-        remarks: "",
-        product_name: x.product_name,
-        sku: x.sku,
+    if (!existing) return;
+
+    setForm({
+      grn_number: existing.grn_number || "",
+      purchase_order: String(
+        existing.purchase_order?.id || existing.purchase_order || "",
+      ),
+      supplier: String(existing.supplier?.id || existing.supplier || ""),
+      branch: String(existing.branch?.id || existing.branch || ""),
+      received_date: existing.received_date || today(),
+      received_by: String(
+        existing.received_by?.id || existing.received_by || "",
+      ),
+      warehouse_location: existing.warehouse_location || "",
+      notes: existing.notes || "",
+      status: existing.status || "DRAFT",
+      items: (existing.items || []).map((item) => ({
+        id: item.id,
+        product: String(item.product?.id || item.product),
+        variant: item.variant ? String(item.variant?.id || item.variant) : "",
+        product_name: item.product_name || "",
+        sku: item.sku || "",
+        ordered_quantity: num(item.ordered_quantity),
+        received_quantity: num(item.received_quantity),
+        damaged_quantity: num(item.damaged_quantity),
+        accepted_quantity: num(item.accepted_quantity),
+        is_received: true,
+        quality_status: item.quality_status || "QC_PASSED",
+        remarks: item.remarks || "",
       })),
+    });
+  }, [existing]);
+
+  const selectedOrder = React.useMemo(
+    () =>
+      orders.find((order) => String(order.id) === String(form.purchase_order)),
+    [orders, form.purchase_order],
+  );
+
+  const selectedReceiver = React.useMemo(
+    () =>
+      receivers.find((item) => String(item.id) === String(form.received_by)),
+    [receivers, form.received_by],
+  );
+
+  const updateForm = (field, value) => {
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+    setErrors((current) => ({
+      ...current,
+      [field]: "",
     }));
   };
-  const update = (i, p) =>
-    setForm((s) => ({
-      ...s,
-      items: s.items.map((x, n) => (n === i ? { ...x, ...p } : x)),
+
+  const updateItem = (index, patch) => {
+    setForm((current) => ({
+      ...current,
+      items: current.items.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, ...patch } : item,
+      ),
     }));
+    setErrors((current) => ({
+      ...current,
+      items: "",
+    }));
+  };
+
+  const selectPO = (value) => {
+    const order = orders.find((item) => String(item.id) === String(value));
+    if (!order) return;
+
+    setForm((current) => ({
+      ...current,
+      purchase_order: String(order.id),
+      supplier: String(order.supplier_id),
+      branch: String(order.branch_id),
+      items: (order.items || []).map((item) => {
+        const remaining = Math.max(
+          0,
+          num(item.quantity) - num(item.received_quantity),
+        );
+
+        return {
+          product: String(item.product_id),
+          variant: item.variant_id ? String(item.variant_id) : "",
+          product_name: item.product_name || "",
+          sku: item.sku || "",
+          ordered_quantity: num(item.quantity),
+          previously_received_quantity: num(item.received_quantity),
+          received_quantity: remaining,
+          damaged_quantity: 0,
+          accepted_quantity: remaining,
+          is_received: remaining > 0,
+          quality_status: "QC_PASSED",
+          remarks: "",
+        };
+      }),
+    }));
+  };
+
+  const selectedItems = form.items.filter((item) => item.is_received);
+
+  const totalOrdered = selectedItems.reduce(
+    (sum, item) => sum + num(item.ordered_quantity),
+    0,
+  );
+  const totalReceived = selectedItems.reduce(
+    (sum, item) => sum + num(item.received_quantity),
+    0,
+  );
+  const totalAccepted = selectedItems.reduce(
+    (sum, item) => sum + num(item.accepted_quantity),
+    0,
+  );
+  const totalRejected = selectedItems.reduce(
+    (sum, item) => sum + num(item.damaged_quantity),
+    0,
+  );
+
+  const receiptStatus = !form.items.length
+    ? "DRAFT"
+    : selectedItems.length > 0 &&
+        selectedItems.every(
+          (item) =>
+            num(item.received_quantity) >=
+            Math.max(
+              0,
+              num(item.ordered_quantity) -
+                num(item.previously_received_quantity),
+            ),
+        )
+      ? "FULL_RECEIPT"
+      : "PARTIAL_RECEIPT";
+
+  const validate = () => {
+    const next = {};
+
+    if (!form.purchase_order)
+      next.purchase_order = "Purchase order is required.";
+    if (!form.branch) next.branch = "Receiving branch is required.";
+    if (!form.received_by) next.received_by = "Received by is required.";
+    if (!form.received_date) next.received_date = "Received date is required.";
+    if (!selectedItems.length) {
+      next.items = "Select at least one item as received.";
+    }
+
+    const invalid = selectedItems.some((item) => {
+      const received = num(item.received_quantity);
+      const accepted = num(item.accepted_quantity);
+      const damaged = num(item.damaged_quantity);
+      const remaining = Math.max(
+        0,
+        num(item.ordered_quantity) - num(item.previously_received_quantity),
+      );
+
+      return (
+        received < 0 ||
+        accepted < 0 ||
+        damaged < 0 ||
+        accepted + damaged !== received ||
+        received > remaining
+      );
+    });
+
+    if (invalid) {
+      next.items =
+        "Received quantity cannot exceed the remaining PO quantity, and accepted plus rejected must equal received.";
+    }
+
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
   const save = useMutation({
-    mutationFn: () => {
-      const body = {
+    mutationFn: async ({ confirm }) => {
+      const data = new FormData();
+
+      const payload = {
         ...form,
+        grn_number: form.grn_number || undefined,
         purchase_order: Number(form.purchase_order),
         supplier: Number(form.supplier),
         branch: Number(form.branch),
-        items: form.items.map((x) => ({
-          ...x,
-          product: Number(x.product),
-          variant: x.variant ? Number(x.variant) : null,
-          ordered_quantity: Number(x.ordered_quantity),
-          received_quantity: Number(x.received_quantity),
-          damaged_quantity: Number(x.damaged_quantity),
-          accepted_quantity: Number(x.accepted_quantity),
+        received_by: Number(form.received_by),
+        status: confirm ? "CONFIRMED" : "DRAFT",
+        items: selectedItems.map((item) => ({
+          ...(item.id ? { id: item.id } : {}),
+          product: Number(item.product),
+          variant: item.variant ? Number(item.variant) : null,
+          ordered_quantity: num(item.ordered_quantity),
+          received_quantity: num(item.received_quantity),
+          damaged_quantity: num(item.damaged_quantity),
+          accepted_quantity: num(item.accepted_quantity),
+          quality_status: item.quality_status,
+          remarks: item.remarks || "",
         })),
       };
-      return edit
-        ? api.patch(`/purchases/grn/${id}/`, body)
-        : api.post("/purchases/grn/", body);
+
+      data.append("payload", JSON.stringify(payload));
+      files.forEach((file) => data.append("attachments", file));
+
+      const config = {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        skipGlobalErrorToast: true,
+      };
+
+      if (edit) {
+        await api.patch(`/purchases/grn/${id}/`, data, config);
+        if (confirm) {
+          return api.post(`/purchases/grn/${id}/confirm/`, {}, config);
+        }
+        return api.get(`/purchases/grn/${id}/`);
+      }
+
+      const response = await api.post("/purchases/grn/", data, config);
+      const created = unwrap(response);
+
+      if (confirm) {
+        return api.post(`/purchases/grn/${created.id}/confirm/`, {}, config);
+      }
+
+      return response;
     },
-    onSuccess: async (r) => {
-      await qc.invalidateQueries({ queryKey: ["grns"] });
-      toast.success(edit ? "GRN updated." : "GRN created.");
-      nav(`/purchases/grn/${unwrap(r)?.id || id || ""}`);
+
+    onSuccess: async (response) => {
+      const saved = unwrap(response);
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["grns"] }),
+        queryClient.invalidateQueries({ queryKey: ["purchase-orders"] }),
+        queryClient.invalidateQueries({ queryKey: ["stock-overview"] }),
+      ]);
+
+      toast.success(
+        saved.is_confirmed
+          ? "GRN confirmed and stock updated."
+          : "GRN saved as draft.",
+      );
+
+      navigate(`/purchases/grn/${saved.id || id}`);
+    },
+
+    onError: (error) => {
+      const details = getApiErrorDetails(error);
+      toast.error(details.title || "Unable to save GRN", {
+        description:
+          details.summary ||
+          details.message ||
+          "Please correct the highlighted fields.",
+      });
     },
   });
+
+  const submit = (confirm) => {
+    if (!validate()) return;
+    save.mutate({ confirm });
+  };
+
+  const addFiles = (event) => {
+    const incoming = Array.from(event.target.files || []);
+    const valid = incoming.filter(
+      (file) =>
+        file.size <= 10 * 1024 * 1024 &&
+        [".pdf", ".jpg", ".jpeg", ".png"].some((ext) =>
+          file.name.toLowerCase().endsWith(ext),
+        ),
+    );
+
+    if (valid.length !== incoming.length) {
+      toast.error("Only PDF, JPG and PNG files up to 10 MB are allowed.");
+    }
+
+    setFiles((current) => [...current, ...valid]);
+    event.target.value = "";
+  };
+
+  if (edit && isLoading) {
+    return <div className="card-surface p-6">Loading GRN...</div>;
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-7xl space-y-5 pb-10">
       <PageHeader
         title={edit ? "Edit GRN" : "New GRN"}
-        subtitle="Confirm physical receipt, quality status, damage and accepted quantities"
+        subtitle="Confirm physical receipt of stock against a purchase order"
+        actions={
+          <span className="rounded-md bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-600 dark:bg-violet-500/10 dark:text-violet-300">
+            {form.grn_number || "Auto GRN"} ·{" "}
+            {form.is_confirmed ? "Confirmed" : "Draft"}
+          </span>
+        }
       />
-      <div className="card-surface grid gap-4 p-5 md:grid-cols-2">
-        <div className="md:col-span-2">
-          <Label>Linked purchase order *</Label>
-          <Select value={form.purchase_order} onValueChange={selectPO}>
-            <SelectTrigger className="mt-2">
-              <SelectValue placeholder="Select approved purchase order" />
-            </SelectTrigger>
-            <SelectContent>
-              {list(orders).map((x) => (
-                <SelectItem key={x.id} value={String(x.id)}>
-                  {x.po_number} · {x.supplier_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label>Received date</Label>
-          <Input
-            type="date"
-            className="mt-2"
-            value={form.received_date}
-            onChange={(e) =>
-              setForm((s) => ({ ...s, received_date: e.target.value }))
-            }
-          />
-        </div>
-        <div>
-          <Label>Warehouse / Rack location</Label>
-          <Input
-            className="mt-2"
-            value={form.warehouse_location || ""}
-            onChange={(e) =>
-              setForm((s) => ({ ...s, warehouse_location: e.target.value }))
-            }
-          />
-        </div>
-      </div>
-      <div className="card-surface overflow-hidden">
-        <div className="border-b p-4">
-          <h2 className="font-semibold">Items received</h2>
-          <p className="text-xs text-muted-foreground">
-            Record received, damaged and accepted quantity for every line.
-          </p>
-        </div>
-        <div className="space-y-3 p-4">
-          {form.items.map((x, i) => (
-            <div
-              key={i}
-              className="grid gap-3 rounded-xl border p-3 xl:grid-cols-[2fr_repeat(4,110px)_150px]"
-            >
-              <div>
-                <p className="font-medium">
-                  {x.product_name || x.sku || `Product ${x.product}`}
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_290px]">
+        <div className="space-y-5">
+          <section className="card-surface p-5">
+            <h2 className="font-semibold">Linked purchase order</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Ordered quantities and supplier are pulled from the PO.
+            </p>
+
+            <div className="mt-4">
+              <Label>PO reference *</Label>
+              <Select value={form.purchase_order} onValueChange={selectPO}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Select purchase order" />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {orders.map((order) => (
+                    <SelectItem key={order.id} value={String(order.id)}>
+                      {order.po_number} · {order.supplier_name} ·{" "}
+                      <CurrencyText
+                        value={order.total_amount}
+                        currency={order.currency || "AED"}
+                      />
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {errors.purchase_order && (
+                <p className="mt-1 text-xs text-red-500">
+                  {errors.purchase_order}
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  Ordered: {x.ordered_quantity}
-                </p>
-              </div>
+              )}
+
+              {selectedOrder && (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-xs dark:border-white/10 dark:bg-white/[0.025]">
+                  <span className="font-medium">
+                    {selectedOrder.po_number} · {selectedOrder.supplier_name}
+                  </span>
+                  <span className="text-blue-600 dark:text-blue-400">
+                    Linked shipment:{" "}
+                    {selectedOrder.shipment_number || "Not linked"}
+                  </span>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="card-surface p-5">
+            <h2 className="font-semibold">Receipt details</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Where and when the goods physically arrived.
+            </p>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
               <div>
-                <Label>Received</Label>
+                <Label>Date received *</Label>
                 <Input
-                  type="number"
-                  className="mt-2"
-                  value={x.received_quantity}
-                  onChange={(e) => {
-                    const received = Number(e.target.value || 0),
-                      damaged = Number(x.damaged_quantity || 0);
-                    update(i, {
-                      received_quantity: received,
-                      accepted_quantity: Math.max(0, received - damaged),
-                    });
-                  }}
-                />
-              </div>
-              <div>
-                <Label>Damaged</Label>
-                <Input
-                  type="number"
-                  className="mt-2"
-                  value={x.damaged_quantity}
-                  onChange={(e) => {
-                    const damaged = Number(e.target.value || 0);
-                    update(i, {
-                      damaged_quantity: damaged,
-                      accepted_quantity: Math.max(
-                        0,
-                        Number(x.received_quantity || 0) - damaged,
-                      ),
-                    });
-                  }}
-                />
-              </div>
-              <div>
-                <Label>Accepted</Label>
-                <Input
-                  type="number"
-                  className="mt-2"
-                  value={x.accepted_quantity}
-                  onChange={(e) =>
-                    update(i, { accepted_quantity: e.target.value })
+                  type="date"
+                  value={form.received_date}
+                  onChange={(event) =>
+                    updateForm("received_date", event.target.value)
                   }
-                />
-              </div>
-              <div>
-                <Label>Rack</Label>
-                <Input
                   className="mt-2"
-                  value={x.rack_location || ""}
-                  onChange={(e) => update(i, { rack_location: e.target.value })}
                 />
               </div>
+
               <div>
-                <Label>QC status</Label>
+                <Label>Receiving branch / warehouse *</Label>
                 <Select
-                  value={x.quality_status}
-                  onValueChange={(v) => update(i, { quality_status: v })}
+                  value={form.branch}
+                  onValueChange={(value) => updateForm("branch", value)}
+                  disabled={Boolean(branchId)}
                 >
                   <SelectTrigger className="mt-2">
-                    <SelectValue />
+                    <SelectValue placeholder="Select branch" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="QC_PASSED">QC Passed</SelectItem>
-                    <SelectItem value="PARTIAL_ACCEPT">
-                      Partial Accept
-                    </SelectItem>
-                    <SelectItem value="QC_REJECTED">QC Rejected</SelectItem>
+                    {branches.map((branch) => (
+                      <SelectItem key={branch.id} value={String(branch.id)}>
+                        {branch.branch_code} - {branch.branch_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Input
+                  value={form.warehouse_location}
+                  onChange={(event) =>
+                    updateForm("warehouse_location", event.target.value)
+                  }
+                  placeholder="Warehouse location"
+                  className="mt-2"
+                />
+              </div>
+
+              <div>
+                <Label>Received by *</Label>
+                <Select
+                  value={form.received_by}
+                  onValueChange={(value) => updateForm("received_by", value)}
+                >
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Select employee" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {receivers.map((receiver) => (
+                      <SelectItem key={receiver.id} value={String(receiver.id)}>
+                        {receiver.display_name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
-          ))}
-          {!form.items.length && (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              Select a purchase order to load its products.
+          </section>
+
+          <section className="card-surface overflow-hidden">
+            <div className="border-b border-slate-200 px-5 py-4 dark:border-white/10">
+              <h2 className="font-semibold">Items received</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Enter received quantity and quality-check result per line.
+              </p>
+            </div>
+
+            <div className="overflow-x-auto p-5">
+              <div className="min-w-[900px]">
+                <div className="grid grid-cols-[90px_minmax(260px,1fr)_110px_110px_170px] gap-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <span>Received</span>
+                  <span>Item</span>
+                  <span className="text-right">Ordered</span>
+                  <span className="text-right">Quantity</span>
+                  <span>QC Result</span>
+                </div>
+
+                <div className="space-y-2">
+                  {form.items.map((item, index) => (
+                    <div
+                      key={item.id || index}
+                      className={`grid grid-cols-[90px_minmax(260px,1fr)_110px_110px_170px] items-center gap-3 border-b border-slate-100 py-2 last:border-b-0 dark:border-white/5 ${
+                        item.is_received ? "" : "opacity-55"
+                      }`}
+                    >
+                      <label className="flex cursor-pointer items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(item.is_received)}
+                          onChange={(event) => {
+                            const checked = event.target.checked;
+                            const remaining = Math.max(
+                              0,
+                              num(item.ordered_quantity) -
+                                num(item.previously_received_quantity),
+                            );
+
+                            updateItem(index, {
+                              is_received: checked,
+                              received_quantity: checked ? remaining : 0,
+                              accepted_quantity: checked ? remaining : 0,
+                              damaged_quantity: 0,
+                              quality_status: "QC_PASSED",
+                            });
+                          }}
+                          className="h-4 w-4 rounded border-slate-300"
+                        />
+                        <span>{item.is_received ? "Yes" : "No"}</span>
+                      </label>
+
+                      <div>
+                        <p className="text-sm font-medium">
+                          {item.product_name || item.sku}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.sku || "No SKU"}
+                          {item.previously_received_quantity
+                            ? ` · Previously received ${item.previously_received_quantity}`
+                            : ""}
+                        </p>
+                      </div>
+
+                      <div className="text-right text-sm">
+                        {item.ordered_quantity}
+                      </div>
+
+                      <Input
+                        type="number"
+                        min="0"
+                        max={Math.max(
+                          0,
+                          num(item.ordered_quantity) -
+                            num(item.previously_received_quantity),
+                        )}
+                        value={item.received_quantity}
+                        onChange={(event) => {
+                          const received = num(event.target.value);
+                          updateItem(index, {
+                            received_quantity: received,
+                            accepted_quantity: received,
+                            damaged_quantity: 0,
+                            quality_status:
+                              received <
+                              Math.max(
+                                0,
+                                num(item.ordered_quantity) -
+                                  num(item.previously_received_quantity),
+                              )
+                                ? "PARTIAL_ACCEPT"
+                                : "QC_PASSED",
+                          });
+                        }}
+                        className="text-right"
+                        disabled={!item.is_received}
+                      />
+
+                      <Select
+                        value={item.quality_status}
+                        onValueChange={(value) =>
+                          updateItem(index, {
+                            quality_status: value,
+                            damaged_quantity:
+                              value === "QC_REJECTED"
+                                ? num(item.received_quantity)
+                                : value === "QC_PASSED"
+                                  ? 0
+                                  : num(item.damaged_quantity),
+                            accepted_quantity:
+                              value === "QC_REJECTED"
+                                ? 0
+                                : value === "QC_PASSED"
+                                  ? num(item.received_quantity)
+                                  : num(item.accepted_quantity),
+                          })
+                        }
+                        disabled={!item.is_received}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {qualityStatuses.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))}
+                </div>
+
+                {errors.items && (
+                  <p className="mt-3 text-sm text-red-500">{errors.items}</p>
+                )}
+
+                {receiptStatus === "PARTIAL_RECEIPT" &&
+                  selectedItems.length > 0 && (
+                    <p className="mt-3 text-xs text-amber-600 dark:text-amber-400">
+                      Some lines are below the remaining ordered quantity. This
+                      GRN will be marked as a partial receipt.
+                    </p>
+                  )}
+              </div>
+            </div>
+          </section>
+
+          <section className="card-surface p-5">
+            <Label>Notes</Label>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Damage, shortage or QC remarks for this receipt.
             </p>
-          )}
+            <Textarea
+              rows={4}
+              value={form.notes}
+              onChange={(event) => updateForm("notes", event.target.value)}
+              placeholder="e.g. 2 units arrived scratched and were flagged for supplier credit note"
+              className="mt-3"
+            />
+          </section>
+
+          <section className="card-surface p-5">
+            <Label>Attachments</Label>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Delivery note, photos of goods or damage, signed receipt.
+            </p>
+
+            <label className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-7 text-center transition hover:border-blue-400 dark:border-white/15 dark:bg-white/[0.025]">
+              <UploadCloud className="h-7 w-7 text-blue-500" />
+              <span className="mt-2 text-sm font-medium">
+                Drag files here or browse to upload
+              </span>
+              <span className="mt-1 text-xs text-muted-foreground">
+                PDF, JPG, PNG up to 10 MB
+              </span>
+              <input
+                type="file"
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png"
+                className="sr-only"
+                onChange={addFiles}
+              />
+            </label>
+
+            {files.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {files.map((file, index) => (
+                  <div
+                    key={`${file.name}-${file.size}`}
+                    className="flex items-center gap-3 rounded-lg border p-3"
+                  >
+                    <FileText className="h-5 w-5 text-blue-500" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {file.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatSize(file.size)}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() =>
+                        setFiles((current) =>
+                          current.filter((_, itemIndex) => itemIndex !== index),
+                        )
+                      }
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => navigate("/purchases/grn")}
+              disabled={save.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => submit(false)}
+              disabled={save.isPending}
+            >
+              <Save className="mr-2 h-4 w-4" />
+              Save Draft
+            </Button>
+            <Button
+              type="button"
+              className="bg-blue-600 text-white hover:bg-blue-700"
+              onClick={() => submit(true)}
+              disabled={save.isPending}
+            >
+              <Send className="mr-2 h-4 w-4" />
+              Confirm GRN
+            </Button>
+          </div>
         </div>
-      </div>
-      <div className="card-surface p-5">
-        <Label>Notes</Label>
-        <Textarea
-          className="mt-2"
-          value={form.notes || ""}
-          onChange={(e) => setForm((s) => ({ ...s, notes: e.target.value }))}
-        />
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button variant="ghost" onClick={() => nav("/purchases/grn")}>
-          Cancel
-        </Button>
-        <Button
-          disabled={
-            save.isPending || !form.purchase_order || !form.items.length
-          }
-          onClick={() => save.mutate()}
-        >
-          {save.isPending ? "Saving..." : edit ? "Save changes" : "Create GRN"}
-        </Button>
+
+        <aside className="space-y-5">
+          <section className="card-surface p-5">
+            <h2 className="font-semibold">GRN summary</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {form.grn_number || "Auto GRN"} · Draft
+            </p>
+
+            <div className="mt-5 space-y-3 text-sm">
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">Linked PO</span>
+                <span className="font-medium">
+                  {selectedOrder?.po_number || "—"}
+                </span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">Supplier</span>
+                <span className="text-right font-medium">
+                  {selectedOrder?.supplier_name || "—"}
+                </span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">Branch</span>
+                <span className="font-medium">
+                  {branches.find(
+                    (item) => String(item.id) === String(form.branch),
+                  )?.branch_name || "—"}
+                </span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">Selected items</span>
+                <span className="font-medium">
+                  {selectedItems.length} / {form.items.length}
+                </span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">Received by</span>
+                <span className="font-medium">
+                  {selectedReceiver?.display_name || "—"}
+                </span>
+              </div>
+
+              <div className="border-t pt-3">
+                <div className="flex justify-between text-xs">
+                  <span>
+                    {totalAccepted} / {totalOrdered} units received
+                  </span>
+                  <span>
+                    {totalOrdered
+                      ? Math.round((totalAccepted / totalOrdered) * 100)
+                      : 0}
+                    %
+                  </span>
+                </div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-blue-500"
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        totalOrdered ? (totalAccepted / totalOrdered) * 100 : 0,
+                      )}%`,
+                    }}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {totalRejected} rejected unit(s)
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="card-surface p-5">
+            <h2 className="font-semibold">What happens next</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Triggered automatically on confirmation.
+            </p>
+
+            <div className="mt-4 space-y-3">
+              <div className="rounded-lg border p-3">
+                <p className="text-sm font-medium">Stock IN movement</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Accepted quantities update branch stock using the chosen rack.
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-sm font-medium">PO receipt progress</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  The linked PO becomes partially received or fully received.
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-sm font-medium">Supplier bill readiness</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Confirmed accepted quantities are available for supplier
+                  billing.
+                </p>
+              </div>
+            </div>
+          </section>
+        </aside>
       </div>
     </div>
   );

@@ -1,14 +1,20 @@
 import React from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { MobileSidebar } from "@/components/layout/MobileSidebar";
 
 export function AppLayout() {
-  const [collapsed, setCollapsed] = React.useState(false);
+  const location = useLocation();
+  const isModuleLanding = location.pathname === "/modules";
 
+  const [collapsed, setCollapsed] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
+
+  if (isModuleLanding) {
+    return <Outlet />;
+  }
 
   return (
     <div className="grain flex min-h-screen w-full bg-slate-50 text-slate-900 transition-colors dark:bg-[#0A0E17] dark:text-slate-100">

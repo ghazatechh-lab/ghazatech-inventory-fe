@@ -1,0 +1,3 @@
+import React from "react";
+const steps=["Quotation","Sales Order","Invoice","Payment","Credit Note"];
+export function SalesDocumentFlow(){return <section className="card-surface p-5"><h2 className="font-semibold">Sales document flow</h2><p className="mt-1 text-xs text-muted-foreground">How a sale moves from quote to close.</p><div className="mt-5 grid gap-3 md:grid-cols-5">{steps.map((x,i)=><div key={x} className="rounded-lg border p-3"><div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-50 text-xs font-semibold text-blue-600 dark:bg-blue-500/10 dark:text-blue-300">{i+1}</div><p className="mt-2 text-sm font-medium">{x}</p></div>)}</div></section>}

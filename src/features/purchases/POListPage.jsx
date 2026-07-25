@@ -1,60 +1,122 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import {
-  Plus,
-  FileText,
-  Clock3,
-  PackageCheck,
-  WalletCards,
-} from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Info, Plus } from "lucide-react";
+
+import api, { unwrap } from "@/lib/api";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { DataTable, useListQuery } from "@/hooks/useListQuery";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
-import { useListQuery, DataTable, SearchInput } from "@/hooks/useListQuery";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { ListingRowActions } from "@/components/common/ListingRowActions";
-const Metric = ({ icon: Icon, label, value }) => (
-  <div className="card-surface flex items-center gap-3 p-4">
-    <Icon className="h-5 w-5 text-blue-500" />
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <div className="text-lg font-semibold">{value}</div>
+
+const normalizeList = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.results)) return value.results;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.results)) return value.data.results;
+  return [];
+};
+
+function SummaryCard({ label, children, accent = false }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm dark:border-white/10 dark:bg-slate-950/60 dark:shadow-none">
+      <p className="text-xs text-slate-500">{label}</p>
+      <div
+        className={`mt-1 text-xl font-semibold ${
+          accent
+            ? "text-blue-600 dark:text-blue-400"
+            : "text-slate-950 dark:text-white"
+        }`}
+      >
+        {children}
+      </div>
     </div>
-  </div>
-);
+  );
+}
+
 export default function POListPage() {
-  const { query, q, setQ, page, setPage } = useListQuery(
+  const { branchParams } = useActiveBranchFilter();
+
+  const { query, page, setPage, getFilter, setFilter } = useListQuery(
     "purchase-orders",
     "/purchases/orders/",
+    branchParams,
   );
-  const payload = query.data || { results: [], count: 0 };
-  const rows = React.useMemo(() => payload.results || [], [payload.results]);
-  const summary = React.useMemo(
-    () =>
-      rows.reduce(
-        (a, r) => ({
-          value: a.value + Number(r.total_amount || 0),
-          pending:
-            a.pending + (!["RECEIVED", "CANCELLED"].includes(r.status) ? 1 : 0),
-          received: a.received + (r.status === "RECEIVED" ? 1 : 0),
+
+  const status = getFilter("status");
+  const supplier = getFilter("supplier");
+
+  const { data: supplierResponse } = useQuery({
+    queryKey: ["supplier-options", "purchase-orders"],
+    queryFn: async () =>
+      unwrap(
+        await api.get("/suppliers/", {
+          params: {
+            page_size: 500,
+            is_active: true,
+            ordering: "supplier_name",
+          },
         }),
-        { value: 0, pending: 0, received: 0 },
       ),
-    [rows],
+  });
+
+  const suppliers = React.useMemo(
+    () => normalizeList(supplierResponse),
+    [supplierResponse],
   );
+
+  const summaryParams = React.useMemo(
+    () => ({
+      ...branchParams,
+      supplier: supplier || undefined,
+      status: status || undefined,
+    }),
+    [branchParams, supplier, status],
+  );
+
+  const { data: summaryResponse } = useQuery({
+    queryKey: ["purchase-orders-summary", summaryParams],
+    queryFn: async () =>
+      unwrap(
+        await api.get("/purchases/orders/summary/", {
+          params: summaryParams,
+        }),
+      ),
+  });
+
+  const payload = query.data || {
+    results: [],
+    count: 0,
+  };
+
+  const rows = React.useMemo(() => payload.results || [], [payload.results]);
+
+  const summary = summaryResponse || {
+    open_po_count: 0,
+    open_po_value: 0,
+    completed_this_month: 0,
+  };
+
   const columns = React.useMemo(
     () => [
       {
         key: "po_number",
-        header: "PO #",
+        header: "PO No.",
+        sortKey: "po_number",
         sortType: "text",
-        cell: (r) => (
-          <Link
-            to={`/purchases/orders/${r.id}`}
-            className="text-blue-600 hover:underline dark:text-blue-400"
-          >
-            {r.po_number}
-          </Link>
+        cell: (row) => (
+          <span className="font-numeric font-semibold text-slate-950 dark:text-white">
+            {row.po_number || "—"}
+          </span>
         ),
       },
       {
@@ -62,20 +124,24 @@ export default function POListPage() {
         header: "Supplier",
         sortKey: "supplier__supplier_name",
         sortType: "text",
+        cell: (row) => row.supplier_name || "—",
       },
       {
         key: "order_date",
-        header: "Order date",
+        header: "Order Date",
+        sortKey: "order_date",
         sortType: "date",
-        cell: (r) => <DateText value={r.order_date} />,
+        cell: (row) =>
+          row.order_date ? <DateText value={row.order_date} /> : "—",
       },
       {
         key: "expected_delivery_date",
         header: "Expected",
+        sortKey: "expected_delivery_date",
         sortType: "date",
-        cell: (r) =>
-          r.expected_delivery_date ? (
-            <DateText value={r.expected_delivery_date} />
+        cell: (row) =>
+          row.expected_delivery_date ? (
+            <DateText value={row.expected_delivery_date} />
           ) : (
             "—"
           ),
@@ -83,47 +149,60 @@ export default function POListPage() {
       {
         key: "item_count",
         header: "Items",
-        sortType: "number",
+        sortType: "quantity",
         align: "right",
+        cell: (row) => row.item_count ?? row.items?.length ?? 0,
       },
       {
         key: "total_amount",
-        header: "Total",
+        header: "Amount",
+        sortKey: "total_amount",
         sortType: "currency",
         align: "right",
-        cell: (r) => <CurrencyText value={r.total_amount} />,
+        cell: (row) => (
+          <CurrencyText
+            value={row.total_amount}
+            currency={row.currency || "AED"}
+          />
+        ),
       },
       {
         key: "status",
         header: "Status",
+        sortKey: "status",
         sortType: "status",
-        cell: (r) => <StatusBadge status={r.status} />,
+        statusOrder: [
+          "DRAFT",
+          "PENDING_APPROVAL",
+          "APPROVED",
+          "PARTIALLY_RECEIVED",
+          "RECEIVED",
+          "CANCELLED",
+        ],
+        cell: (row) => <StatusBadge status={row.status} />,
       },
       {
         key: "actions",
-        header: "Actions",
+        header: "",
         sortable: false,
         align: "right",
-        cell: (r) => (
-          <ListingRowActions
-            viewTo={`/purchases/orders/${r.id}`}
-            editTo={`/purchases/orders/${r.id}/edit`}
-            deleteUrl={`/purchases/orders/${r.id}/`}
-            queryKey="purchase-orders"
-            itemLabel={r.po_number}
-          />
+        cell: (row) => (
+          <Button asChild size="sm" variant="outline" className="min-w-20">
+            <Link to={`/purchases/orders/${row.id}`}>Open</Link>
+          </Button>
         ),
       },
     ],
     [],
   );
+
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-7xl space-y-5">
       <PageHeader
         title="Purchase Orders"
-        subtitle="Raise, approve and track supplier purchase orders"
+        subtitle="Orders raised against suppliers, tracked to delivery"
         actions={
-          <Button asChild className="bg-blue-600 hover:bg-blue-700">
+          <Button asChild className="bg-blue-600 text-white hover:bg-blue-700">
             <Link to="/purchases/orders/new">
               <Plus className="mr-2 h-4 w-4" />
               New Purchase Order
@@ -131,29 +210,73 @@ export default function POListPage() {
           </Button>
         }
       />
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric
-          icon={FileText}
-          label="Purchase orders"
-          value={payload.count || 0}
-        />
-        <Metric
-          icon={WalletCards}
-          label="Value on page"
-          value={<CurrencyText value={summary.value} />}
-        />
-        <Metric icon={Clock3} label="Pending on page" value={summary.pending} />
-        <Metric
-          icon={PackageCheck}
-          label="Received on page"
-          value={summary.received}
-        />
+
+      <div className="flex items-start gap-2 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
+        <Info className="mt-0.5 h-4 w-4 shrink-0" />
+        <p>
+          Each PO tracks line items with quantity and unit cost, expected
+          delivery date, approval workflow, linked shipments, and receipt
+          status.
+        </p>
       </div>
-      <SearchInput
-        value={q}
-        onChange={setQ}
-        placeholder="Search PO, supplier or reference"
-      />
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <SummaryCard label="Open POs">{summary.open_po_count || 0}</SummaryCard>
+
+        <SummaryCard label="Value in Open POs" accent>
+          <CurrencyText value={summary.open_po_value || 0} />
+        </SummaryCard>
+
+        <SummaryCard label="Completed This Month">
+          <span className="text-emerald-600 dark:text-emerald-400">
+            {summary.completed_this_month || 0}
+          </span>
+        </SummaryCard>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <Select
+          value={status || "all"}
+          onValueChange={(value) =>
+            setFilter("status", value === "all" ? "" : value)
+          }
+        >
+          <SelectTrigger className="w-44 bg-white dark:bg-slate-950">
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="DRAFT">Draft</SelectItem>
+            <SelectItem value="PENDING_APPROVAL">Pending approval</SelectItem>
+            <SelectItem value="APPROVED">Approved</SelectItem>
+            <SelectItem value="PARTIALLY_RECEIVED">
+              Partially received
+            </SelectItem>
+            <SelectItem value="RECEIVED">Received</SelectItem>
+            <SelectItem value="CANCELLED">Cancelled</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={supplier || "all"}
+          onValueChange={(value) =>
+            setFilter("supplier", value === "all" ? "" : value)
+          }
+        >
+          <SelectTrigger className="w-64 bg-white dark:bg-slate-950">
+            <SelectValue placeholder="All suppliers" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All suppliers</SelectItem>
+            {suppliers.map((item) => (
+              <SelectItem key={item.id} value={String(item.id)}>
+                {item.supplier_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <DataTable
         columns={columns}
         data={rows}
@@ -163,7 +286,7 @@ export default function POListPage() {
         total={payload.count || 0}
         onPageChange={setPage}
         emptyTitle="No purchase orders"
-        emptyDescription="Create the first purchase order."
+        emptyDescription="Create the first purchase order or change the filters."
       />
     </div>
   );

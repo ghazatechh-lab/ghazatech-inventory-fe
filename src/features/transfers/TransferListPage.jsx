@@ -5,13 +5,17 @@ import { ArrowRight, Boxes, CheckCircle2, Clock3, Plus } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { DateText } from "@/components/common/CurrencyText";
 
 export default function TransferListPage() {
+  const { branchParams } = useActiveBranchFilter();
+
   const { query, page, setPage, q, setQ } = useListQuery(
     "transfers",
     "/transfers/",
+    branchParams,
   );
 
   const payload = query.data || {
@@ -24,13 +28,11 @@ export default function TransferListPage() {
   const summary = React.useMemo(
     () => ({
       total: payload.count || 0,
-
       pending: rows.filter((row) =>
         ["DRAFT", "REQUESTED", "APPROVED", "IN_TRANSIT", "DISPATCHED"].includes(
           String(row.status || "").toUpperCase(),
         ),
       ).length,
-
       completed: rows.filter((row) =>
         ["RECEIVED", "COMPLETED"].includes(
           String(row.status || "").toUpperCase(),
@@ -93,6 +95,7 @@ export default function TransferListPage() {
         header: "Items",
         sortable: false,
         align: "right",
+        headerClassName: "normal-case tracking-normal",
         cell: (row) => row.item_count ?? row.items?.length ?? 0,
       },
       {
@@ -100,6 +103,7 @@ export default function TransferListPage() {
         header: "Qty",
         sortable: false,
         align: "right",
+        headerClassName: "normal-case tracking-normal",
         cell: (row) =>
           row.total_quantity ??
           (row.items || []).reduce(
@@ -155,32 +159,26 @@ export default function TransferListPage() {
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="card-surface flex items-center gap-3 p-4">
           <Boxes className="h-5 w-5 text-blue-500" />
-
           <div>
             <p className="text-xs text-muted-foreground">Total transfers</p>
-
             <p className="text-xl font-semibold">{summary.total}</p>
           </div>
         </div>
 
         <div className="card-surface flex items-center gap-3 p-4">
           <Clock3 className="h-5 w-5 text-amber-500" />
-
           <div>
             <p className="text-xs text-muted-foreground">Open on this page</p>
-
             <p className="text-xl font-semibold">{summary.pending}</p>
           </div>
         </div>
 
         <div className="card-surface flex items-center gap-3 p-4">
           <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-
           <div>
             <p className="text-xs text-muted-foreground">
               Completed on this page
             </p>
-
             <p className="text-xl font-semibold">{summary.completed}</p>
           </div>
         </div>

@@ -1,128 +1,1043 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import api, { unwrap } from "@/lib/api";
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Save, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+
+import api, { getApiErrorDetails, unwrap } from "@/lib/api";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Plus } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CurrencyText } from "@/components/common/CurrencyText";
-import { formatAED } from "@/lib/utils";
-import { toast } from "sonner";
+
+const normalizeList = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.results)) return value.results;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.results)) return value.data.results;
+  return [];
+};
+
+const today = () => new Date().toISOString().slice(0, 10);
+
+const addDays = (date, days) => {
+  const value = new Date(date);
+  value.setDate(value.getDate() + days);
+  return value.toISOString().slice(0, 10);
+};
+
+const number = (value) => {
+  const parsed = Number(value || 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const emptyItem = () => ({
+  sales_order_item: "",
+  product: "",
+  variant: "",
+  description: "",
+  quantity: 1,
+  unit_price: 0,
+  vat_percentage: 5,
+});
 
 export default function InvoiceFormPage() {
+  const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const salesOrderId = searchParams.get("sales_order");
+
+  const isEdit = Boolean(id);
   const navigate = useNavigate();
-  const { data: customers } = useQuery({ queryKey: ["customers-sel"], queryFn: async () => unwrap(await api.get("/customers/", { params: { page_size: 100 } })) });
-  const { data: products } = useQuery({ queryKey: ["products-full"], queryFn: async () => unwrap(await api.get("/products/", { params: { page_size: 100 } })) });
-  const { data: branches } = useQuery({ queryKey: ["branches-sel"], queryFn: async () => unwrap(await api.get("/branches/")) });
+  const queryClient = useQueryClient();
 
-  const [customerId, setCustomerId] = React.useState("");
-  const [branchId, setBranchId] = React.useState("");
-  const [items, setItems] = React.useState([]);
-  const [discount, setDiscount] = React.useState(0);
-  const [notes, setNotes] = React.useState("");
-  const [saving, setSaving] = React.useState(false);
+  const { branchId } = useActiveBranchFilter();
 
-  const addItem = () => setItems(v => [...v, { product_id: "", quantity: 1, unit_price: 0 }]);
-  const removeItem = (i) => setItems(v => v.filter((_, idx) => idx !== i));
-  const updateItem = (i, patch) => setItems(v => v.map((it, idx) => idx === i ? { ...it, ...patch } : it));
-  const setProduct = (i, pid) => {
-    const p = products?.results?.find(pp => pp.id === pid);
-    if (p) updateItem(i, { product_id: pid, product_name: p.product_name, sku: p.sku, unit_price: p.retail_price });
+  const [errors, setErrors] = React.useState({});
+
+  const [form, setForm] = React.useState({
+    sales_order: salesOrderId || "",
+    branch: branchId ? String(branchId) : "",
+    customer: "",
+    salesperson: "",
+    invoice_number: "",
+    invoice_date: today(),
+    due_date: addDays(today(), 30),
+    customer_po_number: "",
+    payment_terms: "NET_30",
+    currency: "AED",
+    bank_account: "",
+    send_payment_reminders: false,
+    discount_amount: 0,
+    shipping_amount: 0,
+    paid_amount: 0,
+    notes: "",
+    sale_type: salesOrderId ? "ORDER" : "STANDALONE",
+    items: [emptyItem()],
+  });
+
+  const { data: existing, isLoading: existingLoading } = useQuery({
+    queryKey: ["sales-invoice", id],
+    queryFn: async () => unwrap(await api.get(`/sales/invoices/${id}/`)),
+    enabled: isEdit,
+    staleTime: 0,
+  });
+
+  const { data: sourceOrder } = useQuery({
+    queryKey: ["invoice-source-order", salesOrderId],
+    queryFn: async () =>
+      unwrap(await api.get(`/sales/orders/${salesOrderId}/`)),
+    enabled: !isEdit && Boolean(salesOrderId),
+    staleTime: 0,
+  });
+
+  const { data: optionsResponse } = useQuery({
+    queryKey: ["sales-invoice-form-options", form.branch],
+    queryFn: async () =>
+      unwrap(
+        await api.get("/sales/invoices/form-options/", {
+          params: {
+            branch: form.branch || undefined,
+          },
+        }),
+      ),
+  });
+
+  const options = optionsResponse || {};
+
+  const branches = normalizeList(options.branches);
+
+  const customers = normalizeList(options.customers);
+
+  const salespeople = normalizeList(options.salespeople);
+
+  const products = normalizeList(options.products);
+
+  const salesOrders = normalizeList(options.sales_orders);
+
+  const bankAccounts = normalizeList(options.bank_accounts);
+
+  React.useEffect(() => {
+    const source = existing || sourceOrder;
+
+    if (!source) return;
+
+    const fromOrder = !existing && Boolean(sourceOrder);
+
+    setForm({
+      sales_order: fromOrder
+        ? String(source.id)
+        : source.sales_order
+          ? String(source.sales_order?.id || source.sales_order)
+          : "",
+
+      branch: String(source.branch?.id || source.branch || ""),
+
+      customer: String(source.customer?.id || source.customer || ""),
+
+      salesperson: source.salesperson
+        ? String(source.salesperson?.id || source.salesperson)
+        : "",
+
+      invoice_number: existing?.invoice_number || "",
+
+      invoice_date: existing?.invoice_date || today(),
+
+      due_date: existing?.due_date || addDays(today(), 30),
+
+      customer_po_number: existing?.customer_po_number || "",
+
+      payment_terms: existing?.payment_terms || "NET_30",
+
+      currency: source.currency || "AED",
+
+      bank_account: existing?.bank_account
+        ? String(existing.bank_account?.id || existing.bank_account)
+        : "",
+
+      send_payment_reminders: Boolean(existing?.send_payment_reminders),
+
+      discount_amount: number(source.discount_amount),
+
+      shipping_amount: number(source.shipping_amount),
+
+      paid_amount: number(existing?.paid_amount),
+
+      notes: existing?.notes || "",
+
+      sale_type: fromOrder ? "ORDER" : existing?.sale_type || "STANDALONE",
+
+      items: source.items?.length
+        ? source.items.map((item) => ({
+            id: existing ? item.id : undefined,
+
+            sales_order_item: fromOrder
+              ? String(item.id)
+              : item.sales_order_item
+                ? String(item.sales_order_item?.id || item.sales_order_item)
+                : "",
+
+            product: item.product
+              ? String(item.product?.id || item.product)
+              : "",
+
+            variant: item.variant
+              ? String(item.variant?.id || item.variant)
+              : "",
+
+            description: item.description || "",
+
+            quantity: number(item.quantity),
+
+            unit_price: number(item.unit_price),
+
+            vat_percentage: number(item.vat_percentage),
+          }))
+        : [emptyItem()],
+    });
+  }, [existing, sourceOrder]);
+
+  React.useEffect(() => {
+    const termDays = {
+      DUE_ON_RECEIPT: 0,
+      NET_7: 7,
+      NET_15: 15,
+      NET_30: 30,
+      NET_45: 45,
+      NET_60: 60,
+    };
+
+    if (form.invoice_date && termDays[form.payment_terms] !== undefined) {
+      setForm((current) => ({
+        ...current,
+        due_date: addDays(
+          current.invoice_date,
+          termDays[current.payment_terms],
+        ),
+      }));
+    }
+  }, [form.invoice_date, form.payment_terms]);
+
+  const calculatedItems = form.items.map((item) => {
+    const subtotal = number(item.quantity) * number(item.unit_price);
+
+    const vatAmount = (subtotal * number(item.vat_percentage)) / 100;
+
+    return {
+      ...item,
+      subtotal,
+      vat_amount: vatAmount,
+      line_total: subtotal + vatAmount,
+    };
+  });
+
+  const subtotal = calculatedItems.reduce(
+    (sum, item) => sum + item.subtotal,
+    0,
+  );
+
+  const vatAmount = calculatedItems.reduce(
+    (sum, item) => sum + item.vat_amount,
+    0,
+  );
+
+  const total =
+    subtotal +
+    vatAmount +
+    number(form.shipping_amount) -
+    number(form.discount_amount);
+
+  const amountDue = Math.max(0, total - number(form.paid_amount));
+
+  const updateForm = (field, value) => {
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+
+    setErrors((current) => ({
+      ...current,
+      [field]: "",
+    }));
   };
 
-  const subtotal = items.reduce((s, it) => s + (it.quantity || 0) * (it.unit_price || 0), 0);
-  const vat = Math.max(subtotal - discount, 0) * 0.05;
-  const total = Math.max(subtotal - discount, 0) + vat;
+  const updateItem = (index, patch) => {
+    setForm((current) => ({
+      ...current,
+      items: current.items.map((item, itemIndex) =>
+        itemIndex === index
+          ? {
+              ...item,
+              ...patch,
+            }
+          : item,
+      ),
+    }));
 
-  const submit = async () => {
-    if (!customerId || items.length === 0) { toast.error("Select customer and add items"); return; }
-    setSaving(true);
-    try {
-      const body = {
-        customer_id: customerId,
-        branch_id: branchId || undefined,
-        items: items.map(it => ({ product: { id: it.product_id, name: it.product_name, sku: it.sku }, quantity: it.quantity, unit_price: it.unit_price, discount_pct: 0, vat_pct: 5, line_total: it.quantity * it.unit_price * 1.05 })),
-        discount, notes,
+    setErrors((current) => ({
+      ...current,
+      items: "",
+    }));
+  };
+
+  const selectProduct = (index, productId) => {
+    const product = products.find(
+      (item) => String(item.id) === String(productId),
+    );
+
+    updateItem(index, {
+      product: productId,
+      variant: "",
+      description: product?.description || product?.product_name || "",
+      unit_price: number(
+        product?.selling_price ||
+          product?.sale_price ||
+          product?.unit_price ||
+          0,
+      ),
+    });
+  };
+
+  const selectSalesOrder = (value) => {
+    const order = salesOrders.find((item) => String(item.id) === String(value));
+
+    if (!order) {
+      updateForm("sales_order", "");
+      return;
+    }
+
+    navigate(`/sales/invoices/new?sales_order=${order.id}`);
+  };
+
+  const validate = () => {
+    const next = {};
+
+    if (!form.branch) {
+      next.branch = "Branch is required.";
+    }
+
+    if (!form.customer) {
+      next.customer = "Customer is required.";
+    }
+
+    if (!form.invoice_date) {
+      next.invoice_date = "Issue date is required.";
+    }
+
+    if (!form.due_date) {
+      next.due_date = "Due date is required.";
+    }
+
+    if (
+      form.invoice_date &&
+      form.due_date &&
+      form.due_date < form.invoice_date
+    ) {
+      next.due_date = "Due date cannot be before the issue date.";
+    }
+
+    if (!form.items.length) {
+      next.items = "Add at least one invoice item.";
+    }
+
+    if (
+      form.items.some(
+        (item) =>
+          !item.product ||
+          number(item.quantity) <= 0 ||
+          number(item.unit_price) < 0,
+      )
+    ) {
+      next.items =
+        "Every line requires a product, positive quantity, and valid unit price.";
+    }
+
+    if (number(form.paid_amount) > total) {
+      next.paid_amount = "Amount already paid cannot exceed the invoice total.";
+    }
+
+    setErrors(next);
+
+    return Object.keys(next).length === 0;
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        ...form,
+
+        invoice_number: form.invoice_number || undefined,
+
+        sales_order: form.sales_order ? Number(form.sales_order) : null,
+
+        branch: Number(form.branch),
+
+        customer: Number(form.customer),
+
+        salesperson: form.salesperson ? Number(form.salesperson) : null,
+
+        bank_account: form.bank_account ? Number(form.bank_account) : null,
+
+        discount_amount: number(form.discount_amount),
+
+        shipping_amount: number(form.shipping_amount),
+
+        paid_amount: number(form.paid_amount),
+
+        subtotal,
+        vat_amount: vatAmount,
+        total_amount: total,
+        balance_due: amountDue,
+
+        items: calculatedItems.map((item) => ({
+          ...(item.id
+            ? {
+                id: item.id,
+              }
+            : {}),
+
+          sales_order_item: item.sales_order_item
+            ? Number(item.sales_order_item)
+            : null,
+
+          product: Number(item.product),
+
+          variant: item.variant ? Number(item.variant) : null,
+
+          description: item.description,
+
+          quantity: number(item.quantity),
+
+          unit_price: number(item.unit_price),
+
+          vat_percentage: number(item.vat_percentage),
+        })),
       };
-      const r = await api.post("/sales/invoices/", body);
-      toast.success("Invoice created");
-      navigate(`/sales/invoices/${r.data.data.id}`);
-    } catch { setSaving(false); }
+
+      return isEdit
+        ? api.patch(`/sales/invoices/${id}/`, payload, {
+            skipGlobalErrorToast: true,
+          })
+        : api.post("/sales/invoices/", payload, {
+            skipGlobalErrorToast: true,
+          });
+    },
+
+    onSuccess: async (response) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["sales-invoices"],
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: ["sales-invoices-summary"],
+        }),
+      ]);
+
+      toast.success("Invoice saved.");
+
+      const saved = unwrap(response);
+
+      navigate(saved?.id ? `/sales/invoices/${saved.id}` : "/sales/invoices");
+    },
+
+    onError: (error) => {
+      const details = getApiErrorDetails(error);
+
+      toast.error(details.title || "Unable to save invoice", {
+        description:
+          details.summary ||
+          details.message ||
+          "Please review the invoice details.",
+      });
+    },
+  });
+
+  const submit = () => {
+    if (!validate()) return;
+    saveMutation.mutate();
   };
+
+  if (isEdit && existingLoading) {
+    return <div className="card-surface p-6">Loading invoice...</div>;
+  }
+
+  const sourceOrderNumber =
+    sourceOrder?.order_number || existing?.sales_order_number || "";
 
   return (
-    <div>
-      <PageHeader title="New invoice" subtitle="Confirm sale and issue tax invoice" />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 card-surface p-5 space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Customer</div>
-              <Select value={customerId} onValueChange={setCustomerId}>
-                <SelectTrigger data-testid="invoice-customer-select"><SelectValue placeholder="Select customer" /></SelectTrigger>
-                <SelectContent className="max-h-72">{(customers?.results || []).map(c => <SelectItem key={c.id} value={c.id}>{c.customer_name}</SelectItem>)}</SelectContent>
-              </Select>
+    <div className="mx-auto max-w-7xl space-y-5 pb-10">
+      <PageHeader
+        title={isEdit ? "Edit Invoice" : "New Invoice"}
+        subtitle="Bill against a confirmed Sales Order or raise a standalone invoice"
+        actions={
+          <div className="flex gap-2">
+            <Button asChild variant="outline">
+              <Link to="/sales/invoices">Cancel</Link>
+            </Button>
+
+            <Button
+              type="button"
+              onClick={submit}
+              disabled={saveMutation.isPending}
+              className="bg-blue-600 text-white hover:bg-blue-700"
+            >
+              <Save className="mr-2 h-4 w-4" />
+              Save Invoice
+            </Button>
+          </div>
+        }
+      />
+
+      <section className="card-surface p-5">
+        <h2 className="font-semibold">Source</h2>
+
+        <p className="mt-1 text-xs text-muted-foreground">
+          Bill against a confirmed Sales Order, or raise a standalone invoice.
+        </p>
+
+        {sourceOrderNumber ? (
+          <div className="mt-4 flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-500/20 dark:bg-blue-500/10 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-wrap items-center gap-5 text-sm">
+              <span className="text-muted-foreground">Billing from</span>
+
+              <Link
+                to={`/sales/orders/${form.sales_order}`}
+                className="font-semibold text-blue-600 hover:underline dark:text-blue-300"
+              >
+                {sourceOrderNumber}
+                {sourceOrder?.customer_name
+                  ? ` — ${sourceOrder.customer_name}`
+                  : ""}
+              </Link>
+
+              <CurrencyText
+                value={sourceOrder?.total_amount || total}
+                currency={form.currency}
+              />
+
+              {sourceOrder?.delivery_date && (
+                <span className="text-xs text-muted-foreground">
+                  delivered {sourceOrder.delivery_date}
+                </span>
+              )}
             </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Branch</div>
-              <Select value={branchId} onValueChange={setBranchId}>
-                <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
-                <SelectContent>{(branches?.results || []).map(b => <SelectItem key={b.id} value={b.id}>{b.branch_name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Discount (AED)</div>
-              <Input type="number" step="0.01" value={discount} onChange={e => setDiscount(Number(e.target.value) || 0)} className="font-numeric" />
-            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                navigate("/sales/invoices/new");
+
+                setForm((current) => ({
+                  ...current,
+                  sales_order: "",
+                  customer: "",
+                  sale_type: "STANDALONE",
+                  items: [emptyItem()],
+                }));
+              }}
+              className="text-xs text-blue-600 hover:underline dark:text-blue-300"
+            >
+              Start blank instead
+            </button>
+          </div>
+        ) : (
+          <div className="mt-4">
+            <Label>Confirmed Sales Order</Label>
+
+            <Select
+              value={form.sales_order || "__blank__"}
+              onValueChange={(value) =>
+                value === "__blank__"
+                  ? updateForm("sales_order", "")
+                  : selectSalesOrder(value)
+              }
+            >
+              <SelectTrigger className="mt-2">
+                <SelectValue placeholder="Start blank or select Sales Order" />
+              </SelectTrigger>
+
+              <SelectContent className="max-h-72">
+                <SelectItem value="__blank__">
+                  Start standalone invoice
+                </SelectItem>
+
+                {salesOrders.map((order) => (
+                  <SelectItem key={order.id} value={String(order.id)}>
+                    {order.order_number}
+                    {" · "}
+                    {order.customer_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </section>
+
+      <section className="card-surface p-5">
+        <h2 className="font-semibold">Branch</h2>
+
+        <p className="mt-1 text-xs text-muted-foreground">
+          Sets the invoice number series and trade licence/TRN printed on the
+          invoice.
+        </p>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          {branches.map((branch) => {
+            const selected = String(form.branch) === String(branch.id);
+
+            return (
+              <button
+                key={branch.id}
+                type="button"
+                onClick={() => updateForm("branch", String(branch.id))}
+                className={
+                  selected
+                    ? "rounded-xl border border-blue-500 bg-blue-50 p-4 text-left ring-1 ring-blue-500 dark:bg-blue-500/10"
+                    : "rounded-xl border border-slate-200 p-4 text-left transition hover:border-blue-300 dark:border-white/10"
+                }
+              >
+                <p className="font-medium">{branch.branch_name}</p>
+
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {branch.trn
+                    ? `TRN ${branch.trn}`
+                    : branch.location || "Branch invoice series"}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+
+        {errors.branch && (
+          <p className="mt-2 text-xs text-red-500">{errors.branch}</p>
+        )}
+      </section>
+
+      <section className="card-surface p-5">
+        <h2 className="font-semibold">Invoice Details</h2>
+
+        <p className="mt-1 text-xs text-muted-foreground">
+          Who is being billed and when payment is due.
+        </p>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div>
+            <Label>Customer *</Label>
+
+            <Select
+              value={form.customer}
+              onValueChange={(value) => updateForm("customer", value)}
+            >
+              <SelectTrigger className="mt-2">
+                <SelectValue placeholder="Select customer" />
+              </SelectTrigger>
+
+              <SelectContent className="max-h-72">
+                {customers.map((customer) => (
+                  <SelectItem key={customer.id} value={String(customer.id)}>
+                    {customer.customer_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-sm font-semibold text-slate-200">Line items</div>
-              <Button size="sm" variant="outline" onClick={addItem} data-testid="invoice-add-item-btn"><Plus className="w-3.5 h-3.5 mr-1" /> Add item</Button>
+            <Label>Invoice #</Label>
+
+            <Input
+              value={form.invoice_number}
+              onChange={(event) =>
+                updateForm("invoice_number", event.target.value)
+              }
+              placeholder="Auto-generated"
+              className="mt-2"
+            />
+          </div>
+
+          <div>
+            <Label>Customer PO # (Optional)</Label>
+
+            <Input
+              value={form.customer_po_number}
+              onChange={(event) =>
+                updateForm("customer_po_number", event.target.value)
+              }
+              placeholder="Customer purchase order reference"
+              className="mt-2"
+            />
+          </div>
+
+          <div>
+            <Label>Issue Date *</Label>
+
+            <Input
+              type="date"
+              value={form.invoice_date}
+              onChange={(event) =>
+                updateForm("invoice_date", event.target.value)
+              }
+              className="mt-2"
+            />
+          </div>
+
+          <div>
+            <Label>Due Date *</Label>
+
+            <Input
+              type="date"
+              value={form.due_date}
+              onChange={(event) => updateForm("due_date", event.target.value)}
+              className="mt-2"
+            />
+
+            {errors.due_date && (
+              <p className="mt-1 text-xs text-red-500">{errors.due_date}</p>
+            )}
+          </div>
+
+          <div>
+            <Label>Payment Terms</Label>
+
+            <Select
+              value={form.payment_terms}
+              onValueChange={(value) => updateForm("payment_terms", value)}
+            >
+              <SelectTrigger className="mt-2">
+                <SelectValue />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="DUE_ON_RECEIPT">Due on receipt</SelectItem>
+                <SelectItem value="NET_7">Net 7</SelectItem>
+                <SelectItem value="NET_15">Net 15</SelectItem>
+                <SelectItem value="NET_30">Net 30</SelectItem>
+                <SelectItem value="NET_45">Net 45</SelectItem>
+                <SelectItem value="NET_60">Net 60</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </section>
+
+      <section className="card-surface overflow-hidden">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-white/10">
+          <div>
+            <h2 className="font-semibold">Items</h2>
+
+            <p className="mt-1 text-xs text-muted-foreground">
+              Carried over from the linked Sales Order — adjust quantities for
+              partial billing.
+            </p>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              setForm((current) => ({
+                ...current,
+                items: [...current.items, emptyItem()],
+              }))
+            }
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Line Item
+          </Button>
+        </div>
+
+        <div className="overflow-x-auto p-5">
+          <div className="min-w-[980px]">
+            <div className="grid grid-cols-[minmax(200px,1fr)_minmax(220px,1fr)_85px_120px_90px_140px_40px] gap-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <span>Item</span>
+              <span>Description</span>
+              <span className="text-right">Qty</span>
+              <span className="text-right">Unit Price</span>
+              <span>VAT</span>
+              <span className="text-right">Line Total</span>
+              <span />
             </div>
-            <div className="rounded-lg border border-white/5 divide-y divide-white/5">
-              <div className="grid grid-cols-12 gap-2 px-3 py-2 text-[10px] uppercase tracking-widest text-slate-500">
-                <div className="col-span-5">Product</div><div className="col-span-2 text-right">Qty</div><div className="col-span-2 text-right">Unit</div><div className="col-span-2 text-right">Total</div><div className="col-span-1" />
-              </div>
-              {items.length === 0 && <div className="px-3 py-6 text-center text-xs text-slate-500">No line items — click "Add item".</div>}
-              {items.map((it, i) => (
-                <div key={i} className="grid grid-cols-12 gap-2 px-3 py-2 items-center">
-                  <div className="col-span-5">
-                    <Select value={it.product_id} onValueChange={(v) => setProduct(i, v)}>
-                      <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select product" /></SelectTrigger>
-                      <SelectContent className="max-h-72">{(products?.results || []).map(p => <SelectItem key={p.id} value={p.id}>{p.product_name}</SelectItem>)}</SelectContent>
-                    </Select>
+
+            <div className="space-y-2">
+              {calculatedItems.map((item, index) => (
+                <div
+                  key={item.id || index}
+                  className="grid grid-cols-[minmax(200px,1fr)_minmax(220px,1fr)_85px_120px_90px_140px_40px] items-center gap-3 border-b border-slate-100 py-2 last:border-b-0 dark:border-white/5"
+                >
+                  <Select
+                    value={item.product || "__none__"}
+                    onValueChange={(value) =>
+                      selectProduct(index, value === "__none__" ? "" : value)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select product" />
+                    </SelectTrigger>
+
+                    <SelectContent className="max-h-72">
+                      <SelectItem value="__none__">Select product</SelectItem>
+
+                      {products.map((product) => (
+                        <SelectItem key={product.id} value={String(product.id)}>
+                          {product.product_name}
+                          {product.sku ? ` · ${product.sku}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Input
+                    value={item.description}
+                    onChange={(event) =>
+                      updateItem(index, {
+                        description: event.target.value,
+                      })
+                    }
+                  />
+
+                  <Input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={item.quantity}
+                    onChange={(event) =>
+                      updateItem(index, {
+                        quantity: event.target.value,
+                      })
+                    }
+                    className="text-right"
+                  />
+
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={item.unit_price}
+                    onChange={(event) =>
+                      updateItem(index, {
+                        unit_price: event.target.value,
+                      })
+                    }
+                    className="text-right"
+                  />
+
+                  <Select
+                    value={String(item.vat_percentage)}
+                    onValueChange={(value) =>
+                      updateItem(index, {
+                        vat_percentage: value,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      <SelectItem value="0">0%</SelectItem>
+                      <SelectItem value="5">5%</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <div className="text-right font-semibold">
+                    <CurrencyText
+                      value={item.line_total}
+                      currency={form.currency}
+                    />
                   </div>
-                  <div className="col-span-2"><Input type="number" value={it.quantity} onChange={e => updateItem(i, { quantity: Number(e.target.value) || 0 })} className="text-right font-numeric h-9" /></div>
-                  <div className="col-span-2"><Input type="number" step="0.01" value={it.unit_price} onChange={e => updateItem(i, { unit_price: Number(e.target.value) || 0 })} className="text-right font-numeric h-9" /></div>
-                  <div className="col-span-2 text-right font-numeric text-slate-100">{formatAED(it.quantity * it.unit_price * 1.05)}</div>
-                  <div className="col-span-1 flex justify-end"><Button size="icon" variant="ghost" onClick={() => removeItem(i)}><Trash2 className="w-4 h-4 text-red-400" /></Button></div>
+
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    onClick={() =>
+                      setForm((current) => ({
+                        ...current,
+                        items: current.items.filter(
+                          (_, itemIndex) => itemIndex !== index,
+                        ),
+                      }))
+                    }
+                  >
+                    <Trash2 className="h-4 w-4 text-red-400" />
+                  </Button>
                 </div>
               ))}
             </div>
-          </div>
 
-          <div>
-            <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Notes</div>
-            <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} />
+            {errors.items && (
+              <p className="mt-3 text-sm text-red-500">{errors.items}</p>
+            )}
+
+            <div className="ml-auto mt-7 max-w-sm space-y-3 rounded-xl border bg-slate-50 p-5 text-sm dark:border-white/10 dark:bg-white/[0.025]">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal</span>
+
+                <CurrencyText value={subtotal} currency={form.currency} />
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">VAT</span>
+
+                <CurrencyText value={vatAmount} currency={form.currency} />
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <Label className="text-muted-foreground">
+                  Amount Already Paid
+                </Label>
+
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.paid_amount}
+                  onChange={(event) =>
+                    updateForm("paid_amount", event.target.value)
+                  }
+                  className="h-8 w-32 text-right"
+                />
+              </div>
+
+              {errors.paid_amount && (
+                <p className="text-xs text-red-500">{errors.paid_amount}</p>
+              )}
+
+              <div className="flex justify-between border-t pt-3 text-base font-semibold">
+                <span>Amount Due</span>
+
+                <CurrencyText value={amountDue} currency={form.currency} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="card-surface p-5">
+        <h2 className="font-semibold">Payment Instructions</h2>
+
+        <p className="mt-1 text-xs text-muted-foreground">
+          Bank details printed on the invoice for the customer to pay against.
+        </p>
+
+        <div className="mt-4 rounded-xl border p-4">
+          <div className="grid gap-4 md:grid-cols-[1fr_260px] md:items-center">
+            <div>
+              <p className="font-medium">
+                {bankAccounts.find(
+                  (account) => String(account.id) === String(form.bank_account),
+                )?.bank_name || "Select Bank Account"}
+              </p>
+
+              <p className="mt-1 text-xs text-muted-foreground">
+                {bankAccounts.find(
+                  (account) => String(account.id) === String(form.bank_account),
+                )?.iban || "Bank and IBAN details will appear here"}
+              </p>
+            </div>
+
+            <Select
+              value={form.bank_account || "__none__"}
+              onValueChange={(value) =>
+                updateForm("bank_account", value === "__none__" ? "" : value)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select bank account" />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="__none__">No bank account</SelectItem>
+
+                {bankAccounts.map((account) => (
+                  <SelectItem key={account.id} value={String(account.id)}>
+                    {account.account_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
-        <div className="card-surface p-5 space-y-3 h-fit sticky top-20">
-          <div className="text-sm font-semibold text-slate-200">Summary</div>
-          <Row label="Subtotal" value={formatAED(subtotal)} />
-          <Row label="Discount" value={`- ${formatAED(discount)}`} />
-          <Row label="VAT (5%)" value={formatAED(vat)} />
-          <div className="h-px bg-white/10" />
-          <div className="flex items-center justify-between"><span className="text-slate-300">Grand total</span><CurrencyText value={total} className="text-xl font-semibold text-white" /></div>
-          <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={submit} disabled={saving} data-testid="invoice-save-btn">Create invoice</Button>
+        <label className="mt-4 flex cursor-pointer items-center gap-3">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={form.send_payment_reminders}
+            onClick={() =>
+              updateForm("send_payment_reminders", !form.send_payment_reminders)
+            }
+            className={
+              form.send_payment_reminders
+                ? "relative h-6 w-11 rounded-full bg-blue-600"
+                : "relative h-6 w-11 rounded-full bg-slate-300 dark:bg-white/20"
+            }
+          >
+            <span
+              className={
+                form.send_payment_reminders
+                  ? "absolute left-6 top-1 h-4 w-4 rounded-full bg-white transition"
+                  : "absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition"
+              }
+            />
+          </button>
+
+          <span>
+            <span className="block text-sm font-medium">
+              Send payment reminders automatically
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              Reminder email at 3 days before, on, and 3 days after the due
+              date.
+            </span>
+          </span>
+        </label>
+
+        <div className="mt-4">
+          <Label>Notes to Customer</Label>
+
+          <Textarea
+            rows={4}
+            value={form.notes}
+            onChange={(event) => updateForm("notes", event.target.value)}
+            placeholder="e.g. Thank you for your business. Late payments subject to agreed terms."
+            className="mt-2"
+          />
         </div>
+      </section>
+
+      <div className="flex justify-end gap-2">
+        <Button asChild variant="ghost">
+          <Link to="/sales/invoices">Cancel</Link>
+        </Button>
+
+        <Button
+          type="button"
+          onClick={submit}
+          disabled={saveMutation.isPending}
+          className="bg-blue-600 text-white hover:bg-blue-700"
+        >
+          <Save className="mr-2 h-4 w-4" />
+          Save Invoice
+        </Button>
       </div>
     </div>
   );
 }
-const Row = ({ label, value }) => (<div className="flex items-center justify-between text-sm"><span className="text-slate-400">{label}</span><span className="font-numeric text-slate-100">{value}</span></div>);

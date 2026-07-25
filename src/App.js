@@ -14,6 +14,7 @@ import NotFoundPage from "@/pages/NotFoundPage";
 import UnauthorizedPage from "@/pages/UnauthorizedPage";
 
 import DashboardPage from "@/features/dashboard/DashboardPage";
+import ModuleLandingPage from "@/features/modules/ModuleLandingPage";
 
 import BranchListPage from "@/features/branches/BranchListPage";
 import BranchFormPage from "@/features/branches/BranchFormPage";
@@ -75,6 +76,7 @@ import EmployeeDetailPage from "@/features/hrms/EmployeeDetailPage";
 import AttendancePage from "@/features/hrms/AttendancePage";
 import LeavesPage from "@/features/hrms/LeavesPage";
 import PayrollPage from "@/features/hrms/PayrollPage";
+import SalaryHistoryPage from "@/features/hrms/SalaryHistoryPage";
 import DocumentExpiryPage from "@/features/hrms/DocumentExpiryPage";
 
 import ExpensesPage from "@/features/finance/ExpensesPage";
@@ -138,7 +140,6 @@ export default function App() {
           <Toaster theme="dark" position="top-right" richColors closeButton />
 
           <Routes>
-            {/* Public routes */}
             <Route path="/login" element={<LoginPage />} />
 
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -147,7 +148,6 @@ export default function App() {
 
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
-            {/* Authenticated routes */}
             <Route
               element={
                 <ProtectedRoute>
@@ -155,7 +155,9 @@ export default function App() {
                 </ProtectedRoute>
               }
             >
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/" element={<Navigate to="/modules" replace />} />
+
+              <Route path="/modules" element={<ModuleLandingPage />} />
 
               <Route path="/dashboard" element={<DashboardPage />} />
 
@@ -410,6 +412,15 @@ export default function App() {
               />
 
               <Route
+                path="/hrms/salary-history"
+                element={
+                  <ProtectedRoute allow={["ADMIN"]}>
+                    <SalaryHistoryPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
                 path="/hrms/document-expiry"
                 element={<DocumentExpiryPage />}
               />
@@ -524,7 +535,7 @@ export default function App() {
                 }
               />
 
-              {/* Notifications and administration */}
+              {/* Other */}
               <Route path="/notifications" element={<NotificationsPage />} />
 
               <Route

@@ -1,427 +1,338 @@
 import React from "react";
-import { NavLink } from "react-router-dom";
-import {
-  LayoutDashboard,
-  FileText,
-  ReceiptText,
-  ShoppingCart,
-  RotateCcw,
-  Wallet,
-  WalletCards,
-  Users,
-  Boxes,
-  Tag,
-  Layers,
-  TrendingDown,
-  GitBranch,
-  ClipboardList,
-  Truck,
-  PackageCheck,
-  PackagePlus,
-  Building2,
-  ArrowLeftRight,
-  UserSquare2,
-  CalendarCheck,
-  CalendarDays,
-  Banknote,
-  ShieldAlert,
-  BadgeDollarSign,
-  Landmark,
-  HandCoins,
-  BookOpenText,
-  PieChart,
-  ScrollText,
-  Cog,
-  ChevronLeft,
-  ChevronRight,
-  Cpu,
-  Rows3,
-} from "lucide-react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { ChevronLeft, ChevronRight, Cpu, Grid2X2, LogOut } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
-import { isAdmin, isStaff } from "@/lib/permissions";
 import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
+import {
+  canAccessNavigationItem,
+  getModuleByPath,
+  getModuleTarget,
+} from "@/config/moduleNavigation";
 
-const groups = [
-  {
-    label: "Overview",
-    items: [
-      {
-        to: "/dashboard",
-        label: "Dashboard",
-        icon: LayoutDashboard,
-      },
-      {
-        to: "/branches",
-        label: "Branches",
-        icon: Building2,
-        adminOnly: true,
-      },
-      {
-        to: "/audit-logs",
-        label: "Audit Logs",
-        icon: ScrollText,
-        adminOnly: true,
-      },
-      {
-        to: "/settings",
-        label: "Settings",
-        icon: Cog,
-        adminOnly: true,
-      },
-    ],
-  },
-  {
-    label: "Inventory",
-    items: [
-      {
-        to: "/inventory/categories",
-        label: "Categories",
-        icon: Layers,
-      },
-      {
-        to: "/inventory/brands",
-        label: "Brands",
-        icon: Tag,
-      },
-      {
-        to: "/inventory/racks",
-        label: "Racks",
-        icon: Rows3,
-      },
-      {
-        to: "/inventory/products",
-        label: "Products",
-        icon: Boxes,
-      },
-      {
-        to: "/inventory/stock",
-        label: "Stock Overview",
-        icon: PackageCheck,
-      },
-      {
-        to: "/inventory/movements",
-        label: "Stock Movements",
-        icon: ArrowLeftRight,
-      },
-      {
-        to: "/inventory/adjustments",
-        label: "Stock Adjustments",
-        icon: ClipboardList,
-      },
-      {
-        to: "/inventory/low-stock",
-        label: "Low Stock Items",
-        icon: TrendingDown,
-        badge: "!",
-      },
-      {
-        to: "/transfers",
-        label: "Stock Transfers",
-        icon: GitBranch,
-      },
-    ],
-  },
-  {
-    label: "Purchases",
-    items: [
-      {
-        to: "/suppliers",
-        label: "Suppliers",
-        icon: Users,
-      },
-      {
-        to: "/purchases/orders",
-        label: "Purchase Orders",
-        icon: FileText,
-      },
-      {
-        to: "/shipments",
-        label: "Shipments",
-        icon: Truck,
-      },
-      {
-        to: "/purchases/grn",
-        label: "Goods Received Notes",
-        icon: PackageCheck,
-      },
-      {
-        to: "/purchases/supplier-bills",
-        label: "Supplier Bills",
-        icon: ReceiptText,
-      },
-      {
-        to: "/purchases/supplier-payments",
-        label: "Supplier Payments",
-        icon: HandCoins,
-      },
-      {
-        to: "/purchases/supplier-returns",
-        label: "Supplier Returns",
-        icon: RotateCcw,
-      },
-      {
-        to: "/purchases/vendor-credits",
-        label: "Vendor Credits",
-        icon: BadgeDollarSign,
-      },
-      {
-        to: "/purchases/expenses",
-        label: "Purchase Expenses",
-        icon: WalletCards,
-      },
-    ],
-  },
-  {
-    label: "Sales",
-    items: [
-      {
-        to: "/sales/quotations",
-        label: "Quotations",
-        icon: FileText,
-      },
-      {
-        to: "/sales/invoices",
-        label: "Invoices",
-        icon: ReceiptText,
-      },
-      {
-        to: "/sales/pos",
-        label: "Direct Sale / POS",
-        icon: ShoppingCart,
-      },
-      {
-        to: "/sales/credit-notes",
-        label: "Credit Notes",
-        icon: RotateCcw,
-      },
-      {
-        to: "/sales/payments",
-        label: "Sales Payments",
-        icon: Wallet,
-      },
-      {
-        to: "/customers",
-        label: "Customers",
-        icon: Users,
-      },
-    ],
-  },
-  {
-    label: "HRMS",
-    items: [
-      {
-        to: "/hrms/employees",
-        label: "Employees",
-        icon: UserSquare2,
-      },
-      {
-        to: "/hrms/attendance",
-        label: "Attendance",
-        icon: CalendarCheck,
-      },
-      {
-        to: "/hrms/leaves",
-        label: "Leave Requests",
-        icon: CalendarDays,
-      },
-      {
-        to: "/hrms/payroll",
-        label: "Payroll",
-        icon: Banknote,
-        adminOnly: true,
-      },
-      {
-        to: "/hrms/document-expiry",
-        label: "Document Expiry",
-        icon: ShieldAlert,
-      },
-    ],
-  },
-  {
-    label: "Reports",
-    items: [
-      {
-        to: "/reports/dashboard",
-        label: "Dashboard Reports",
-        icon: PieChart,
-      },
-      {
-        to: "/reports/sales",
-        label: "Sales Reports",
-        icon: FileText,
-      },
-      {
-        to: "/reports/purchases",
-        label: "Purchase Reports",
-        icon: PackagePlus,
-      },
-      {
-        to: "/reports/inventory",
-        label: "Inventory Reports",
-        icon: Boxes,
-      },
-      {
-        to: "/reports/hrms",
-        label: "HRMS Reports",
-        icon: UserSquare2,
-      },
-      {
-        to: "/reports/finance",
-        label: "Finance Reports",
-        icon: BadgeDollarSign,
-      },
-    ],
-    hideForStaff: true,
-  },
-  {
-    label: "Finance",
-    items: [
-      {
-        to: "/finance/expenses",
-        label: "Expenses",
-        icon: BadgeDollarSign,
-      },
-      {
-        to: "/finance/receivables",
-        label: "Customer Receivables",
-        icon: HandCoins,
-      },
-      {
-        to: "/finance/payables",
-        label: "Supplier Payables",
-        icon: Wallet,
-      },
-      {
-        to: "/finance/cash-register",
-        label: "Cash Register",
-        icon: Banknote,
-      },
-      {
-        to: "/finance/bank-accounts",
-        label: "Bank Accounts",
-        icon: Landmark,
-      },
-      {
-        to: "/finance/ledger",
-        label: "Ledger",
-        icon: BookOpenText,
-      },
-    ],
-    hideForStaff: true,
-  },
-];
+const safePath = (item) => {
+  if (typeof item?.to === "string") {
+    return item.to;
+  }
+
+  if (typeof item?.path === "string") {
+    return item.path;
+  }
+
+  if (typeof item?.href === "string") {
+    return item.href;
+  }
+
+  return "";
+};
+
+const createTestId = (item) => {
+  const target = safePath(item);
+
+  const source = target || item?.label || "unknown";
+
+  return `nav-${String(source)
+    .toLowerCase()
+    .replace(/\//g, "-")
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")}`;
+};
+
+const normalizePath = (value) => {
+  const path = typeof value === "string" ? value : "";
+
+  if (path.length > 1 && path.endsWith("/")) {
+    return path.slice(0, -1);
+  }
+
+  return path;
+};
+
+const isSubmoduleActive = (itemPath, currentPath) => {
+  const target = normalizePath(itemPath);
+
+  const pathname = normalizePath(currentPath);
+
+  if (!target) {
+    return false;
+  }
+
+  return pathname === target || pathname.startsWith(`${target}/`);
+};
 
 export function Sidebar({ collapsed, onToggle }) {
-  const { user } = useAuth();
+  const location = useLocation();
+
+  const navigate = useNavigate();
+
+  const { user, logout } = useAuth();
+
+  const activeModule = React.useMemo(
+    () => getModuleByPath(location.pathname),
+    [location.pathname],
+  );
+
+  const submodules = React.useMemo(() => {
+    if (!activeModule || !Array.isArray(activeModule.items)) {
+      return [];
+    }
+
+    return activeModule.items.filter(
+      (item) => safePath(item) && canAccessNavigationItem(item, user),
+    );
+  }, [activeModule, user]);
+
+  const ModuleIcon = activeModule?.icon || Grid2X2;
+
+  const goToMainMenu = () => {
+    navigate("/modules");
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout?.();
+    } finally {
+      navigate("/login", {
+        replace: true,
+      });
+    }
+  };
 
   return (
     <aside
       className={cn(
-        "sidebar-surface sidebar-always-blue sticky top-0 flex h-screen flex-col text-white transition-[width] duration-200",
-        collapsed ? "w-[68px]" : "w-[264px]",
+        "sticky top-0 flex h-screen shrink-0 flex-col overflow-hidden",
+        "border-r border-blue-400/20",
+        "bg-gradient-to-b from-[#123b78] via-[#0d3269] to-[#082554]",
+        "text-white shadow-xl shadow-blue-950/20",
+        "transition-[width] duration-200",
+        collapsed ? "w-[72px]" : "w-[270px]",
       )}
       data-testid="app-sidebar"
     >
+      {/* Application logo */}
       <div
         className={cn(
-          "flex items-center gap-2.5 border-b border-blue-400/20 px-4 py-4",
-          collapsed && "px-3",
+          "flex min-h-[72px] items-center gap-3 border-b border-white/10 px-4",
+          collapsed && "justify-center px-2",
         )}
       >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 shadow-lg shadow-blue-900/40">
+        <button
+          type="button"
+          onClick={goToMainMenu}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-400 to-blue-700 shadow-lg shadow-blue-950/40 transition hover:scale-105"
+          title="Open Main Menu"
+        >
           <Cpu className="h-5 w-5 text-white" strokeWidth={2.2} />
-        </div>
+        </button>
 
         {!collapsed && (
           <div className="min-w-0">
-            <div className="text-[13px] font-semibold leading-tight tracking-wide text-white">
+            <p className="truncate text-sm font-bold tracking-wide text-white">
               {APP_NAME}
-            </div>
+            </p>
 
-            <div className="text-[11px] leading-tight text-blue-100/65">
+            <p className="truncate text-[10px] text-blue-100/65">
               {APP_TAGLINE}
-            </div>
+            </p>
           </div>
         )}
       </div>
 
-      <nav className="flex-1 space-y-4 overflow-y-auto px-2 py-3">
-        {groups.map((group) => {
-          if (group.hideForStaff && isStaff(user)) {
-            return null;
-          }
+      {/* Main Menu redirect */}
+      <div className={cn("px-3 pt-4", collapsed && "px-2")}>
+        <button
+          type="button"
+          onClick={goToMainMenu}
+          className={cn(
+            "group flex w-full items-center rounded-xl border border-white/15",
+            "bg-white/[0.07] text-blue-50 transition",
+            "hover:border-white/25 hover:bg-white/[0.13]",
+            collapsed ? "h-11 justify-center px-2" : "gap-3 px-3 py-3",
+          )}
+          title={collapsed ? "Back to Main Menu" : undefined}
+        >
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10">
+            <Grid2X2 className="h-4 w-4" />
+          </div>
 
-          const visibleItems = group.items.filter(
-            (item) => !(item.adminOnly && !isAdmin(user)),
-          );
+          {!collapsed && (
+            <div className="min-w-0 text-left">
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-100/60">
+                Navigation
+              </p>
 
-          if (!visibleItems.length) {
-            return null;
-          }
-
-          return (
-            <div key={group.label}>
-              {!collapsed && (
-                <div className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-blue-100/55">
-                  {group.label}
-                </div>
-              )}
-
-              <div className="space-y-0.5">
-                {visibleItems.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    data-testid={`nav-${item.to
-                      .replace(/\//g, "-")
-                      .replace(/^-/, "")}`}
-                    className={({ isActive }) =>
-                      cn(
-                        "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all",
-                        isActive
-                          ? "border border-white/20 bg-white/15 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
-                          : "text-blue-100/75 hover:bg-white/10 hover:text-white",
-                      )
-                    }
-                    end
-                  >
-                    <item.icon
-                      className="h-4 w-4 shrink-0"
-                      strokeWidth={1.75}
-                    />
-
-                    {!collapsed && (
-                      <span className="truncate">{item.label}</span>
-                    )}
-
-                    {!collapsed && item.badge && (
-                      <span className="ml-auto rounded-full bg-red-500/15 px-1.5 py-0.5 text-[10px] font-medium text-red-400">
-                        {item.badge}
-                      </span>
-                    )}
-                  </NavLink>
-                ))}
-              </div>
+              <p className="truncate text-sm font-semibold text-white">
+                Back to Main Menu
+              </p>
             </div>
-          );
-        })}
+          )}
+        </button>
+      </div>
+
+      {/* Selected module */}
+      {activeModule && (
+        <div className={cn("px-3 pt-4", collapsed && "px-2")}>
+          {!collapsed && (
+            <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-100/45">
+              Selected Module
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              const target = getModuleTarget(activeModule, user);
+
+              if (target && !activeModule.externalUrl) {
+                navigate(target);
+              }
+            }}
+            className={cn(
+              "flex w-full items-center rounded-xl",
+              "border border-cyan-300/20 bg-gradient-to-r from-cyan-400/15 to-blue-400/10",
+              "shadow-inner shadow-white/[0.03]",
+              collapsed ? "h-11 justify-center px-2" : "gap-3 px-3 py-3",
+            )}
+            title={
+              collapsed
+                ? activeModule.shortTitle || activeModule.title
+                : undefined
+            }
+          >
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-300/15 text-cyan-100">
+              <ModuleIcon className="h-4 w-4" />
+            </div>
+
+            {!collapsed && (
+              <div className="min-w-0 text-left">
+                <p className="text-[10px] uppercase tracking-wide text-cyan-100/55">
+                  Module
+                </p>
+
+                <p className="truncate text-sm font-semibold text-white">
+                  {activeModule.shortTitle || activeModule.title}
+                </p>
+              </div>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Only selected module submodules */}
+      <nav className="mt-5 flex-1 overflow-y-auto px-3 pb-4">
+        {!collapsed && (
+          <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-100/45">
+            Submodules
+          </p>
+        )}
+
+        <div className="space-y-1">
+          {submodules.map((item) => {
+            const target = safePath(item);
+
+            const Icon = item.icon || Grid2X2;
+
+            const active = isSubmoduleActive(target, location.pathname);
+
+            return (
+              <NavLink
+                key={item.id || target}
+                to={target}
+                end={target === location.pathname}
+                title={collapsed ? item.label : undefined}
+                data-testid={createTestId(item)}
+                className={cn(
+                  "group relative flex items-center rounded-xl text-sm transition-all duration-150",
+                  collapsed ? "h-11 justify-center px-2" : "gap-3 px-3 py-2.5",
+                  active
+                    ? "bg-white text-blue-800 shadow-lg shadow-blue-950/20"
+                    : "text-blue-100/75 hover:bg-white/10 hover:text-white",
+                )}
+              >
+                {active && (
+                  <span className="absolute -left-3 h-6 w-1 rounded-r-full bg-cyan-300" />
+                )}
+
+                <Icon
+                  className={cn(
+                    "h-[18px] w-[18px] shrink-0",
+                    active
+                      ? "text-blue-600"
+                      : "text-blue-100/70 group-hover:text-white",
+                  )}
+                  strokeWidth={1.8}
+                />
+
+                {!collapsed && (
+                  <span className="min-w-0 flex-1 truncate font-medium">
+                    {item.label}
+                  </span>
+                )}
+
+                {!collapsed && item.badge && (
+                  <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                    {item.badge}
+                  </span>
+                )}
+              </NavLink>
+            );
+          })}
+
+          {!submodules.length && !collapsed && (
+            <div className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-5 text-center">
+              <p className="text-sm text-blue-100/70">
+                No submodules are available.
+              </p>
+
+              <button
+                type="button"
+                onClick={goToMainMenu}
+                className="mt-3 text-xs font-semibold text-cyan-200 hover:text-cyan-100"
+              >
+                Return to Main Menu
+              </button>
+            </div>
+          )}
+        </div>
       </nav>
 
-      <button
-        type="button"
-        onClick={onToggle}
-        data-testid="sidebar-toggle-btn"
-        className="mx-3 mb-3 flex h-8 items-center justify-center rounded-lg border border-white/20 text-blue-100/75 transition hover:bg-white/10 hover:text-white"
-        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-      >
-        {collapsed ? (
-          <ChevronRight className="h-4 w-4" />
-        ) : (
-          <ChevronLeft className="h-4 w-4" />
-        )}
-      </button>
+      {/* Bottom controls */}
+      <div className="border-t border-white/10 p-3">
+        <button
+          type="button"
+          onClick={handleLogout}
+          className={cn(
+            "mb-2 flex w-full items-center rounded-xl text-blue-100/70 transition",
+            "hover:bg-red-500/15 hover:text-red-100",
+            collapsed ? "h-10 justify-center" : "gap-3 px-3 py-2.5",
+          )}
+          title={collapsed ? "Logout" : undefined}
+        >
+          <LogOut className="h-4 w-4" />
+
+          {!collapsed && <span className="text-sm font-medium">Logout</span>}
+        </button>
+
+        <button
+          type="button"
+          onClick={onToggle}
+          data-testid="sidebar-toggle-btn"
+          className={cn(
+            "flex h-9 w-full items-center justify-center rounded-xl",
+            "border border-white/15 text-blue-100/70 transition",
+            "hover:bg-white/10 hover:text-white",
+          )}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+        </button>
+      </div>
     </aside>
   );
 }

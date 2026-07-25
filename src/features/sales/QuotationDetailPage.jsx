@@ -1,66 +1,258 @@
 import React from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowRight, Download, Edit, Send } from "lucide-react";
+import { toast } from "sonner";
+
 import api, { unwrap } from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
-import { LoadingState } from "@/components/common/States";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/common/StatusBadge";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
-import { formatAED } from "@/lib/utils";
-import { toast } from "sonner";
-import { Send, FileText, Printer } from "lucide-react";
+import { StatusBadge } from "@/components/common/StatusBadge";
 
 export default function QuotationDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { data, isLoading, refetch } = useQuery({ queryKey: ["quotation", id], queryFn: async () => unwrap(await api.get(`/sales/quotations/${id}/`)) });
-  if (isLoading) return <LoadingState />;
-  const q = data || {};
+  const queryClient = useQueryClient();
 
-  const send = async () => { await api.post(`/sales/quotations/${id}/send/`); toast.success("Quotation sent"); refetch(); };
-  const convert = async () => {
-    const r = await api.post(`/sales/quotations/${id}/convert-to-invoice/`);
-    toast.success("Converted to invoice");
-    navigate(`/sales/invoices/${r.data.data.id}`);
-  };
+  const { data: quotation, isLoading } = useQuery({
+    queryKey: ["quotation", id],
+
+    queryFn: async () => unwrap(await api.get(`/sales/quotations/${id}/`)),
+  });
+
+  const convert = useMutation({
+    mutationFn: async () =>
+      api.post(`/sales/quotations/${id}/convert-to-order/`),
+
+    onSuccess: async (response) => {
+      await queryClient.invalidateQueries({
+        queryKey: ["quotations"],
+      });
+
+      toast.success("Quotation converted to sales order.");
+
+      const order = unwrap(response);
+
+      navigate(`/sales/orders/${order.id}`);
+    },
+  });
+
+  if (isLoading) {
+    return <div className="card-surface p-6">Loading quotation...</div>;
+  }
+
+  if (!quotation) {
+    return <div className="card-surface p-6">Quotation not found.</div>;
+  }
 
   return (
-    <div>
+    <div className="mx-auto max-w-6xl space-y-5">
       <PageHeader
-        title={q.quotation_number}
-        subtitle={<span>Issued <DateText value={q.date} /> · Valid until <DateText value={q.valid_until} /></span>}
-        actions={<>
-          <StatusBadge status={q.status} className="mr-2" />
-          <Button variant="outline" onClick={() => toast.info("Print coming up")}><Printer className="w-4 h-4 mr-1.5" /> Print</Button>
-          <Button variant="outline" onClick={send} data-testid="quote-send-btn"><Send className="w-4 h-4 mr-1.5" /> Send</Button>
-          <Button className="bg-blue-600 hover:bg-blue-700" onClick={convert} data-testid="quote-convert-btn"><FileText className="w-4 h-4 mr-1.5" /> Convert to invoice</Button>
-        </>}
-      />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 card-surface p-5">
-          <div className="grid grid-cols-3 gap-4 mb-5 text-sm">
-            <div><div className="text-[10px] uppercase tracking-widest text-slate-500">Customer</div><div className="text-slate-100 mt-0.5">{q.customer?.name}</div></div>
-            <div><div className="text-[10px] uppercase tracking-widest text-slate-500">Branch</div><div className="text-slate-100 mt-0.5">{q.branch?.name}</div></div>
-            <div><div className="text-[10px] uppercase tracking-widest text-slate-500">Salesperson</div><div className="text-slate-100 mt-0.5">{q.salesperson?.name}</div></div>
+        title={quotation.quote_number}
+        subtitle="Quotation details and customer pricing"
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline">
+              <Download className="mr-2 h-4 w-4" />
+              Export PDF
+            </Button>
+
+            <Button asChild variant="outline">
+              <Link to={`/sales/quotations/${id}/edit`}>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
+              </Link>
+            </Button>
+
+            {!["CONVERTED", "REJECTED", "EXPIRED"].includes(
+              quotation.status,
+            ) && (
+              <Button
+                type="button"
+                onClick={() => convert.mutate()}
+                disabled={convert.isPending}
+                className="bg-blue-600 text-white hover:bg-blue-700"
+              >
+                <ArrowRight className="mr-2 h-4 w-4" />
+                Convert to Sales Order
+              </Button>
+            )}
           </div>
-          <table className="w-full text-sm">
-            <thead><tr className="text-[10px] uppercase tracking-widest text-slate-500 border-b border-white/5"><th className="text-left py-2">Product</th><th className="text-right">Qty</th><th className="text-right">Unit</th><th className="text-right">Total</th></tr></thead>
+        }
+      />
+
+      <section className="card-surface p-5">
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          <div>
+            <p className="text-xs text-muted-foreground">Customer</p>
+
+            <p className="mt-1 font-medium">{quotation.customer_name || "—"}</p>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted-foreground">Branch</p>
+
+            <p className="mt-1 font-medium">{quotation.branch_name || "—"}</p>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted-foreground">Quote Date</p>
+
+            <div className="mt-1 font-medium">
+              {quotation.quote_date ? (
+                <DateText value={quotation.quote_date} />
+              ) : (
+                "—"
+              )}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted-foreground">Valid Until</p>
+
+            <div className="mt-1 font-medium">
+              {quotation.valid_until ? (
+                <DateText value={quotation.valid_until} />
+              ) : (
+                "—"
+              )}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted-foreground">Status</p>
+
+            <div className="mt-1">
+              <StatusBadge status={quotation.status} />
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted-foreground">Payment Terms</p>
+
+            <p className="mt-1 font-medium">{quotation.payment_terms || "—"}</p>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted-foreground">Delivery Terms</p>
+
+            <p className="mt-1 font-medium">
+              {quotation.delivery_terms || "—"}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted-foreground">Total</p>
+
+            <div className="mt-1 text-lg font-semibold">
+              <CurrencyText
+                value={quotation.total_amount}
+                currency={quotation.currency || "AED"}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="card-surface overflow-hidden">
+        <div className="border-b border-slate-200 px-5 py-4 dark:border-white/10">
+          <h2 className="font-semibold">Quotation Items</h2>
+        </div>
+
+        <div className="overflow-x-auto p-5">
+          <table className="w-full min-w-[760px] text-sm">
+            <thead>
+              <tr className="border-b text-left text-xs uppercase tracking-wider text-muted-foreground">
+                <th className="py-3">Item</th>
+                <th>Description</th>
+                <th className="text-right">Qty</th>
+                <th className="text-right">Unit Price</th>
+                <th className="text-right">VAT</th>
+                <th className="text-right">Total</th>
+              </tr>
+            </thead>
+
             <tbody>
-              {(q.items || []).map((it, i) => (
-                <tr key={i} className="border-b border-white/5"><td className="py-2 text-slate-200">{it.product?.name}<div className="text-[10px] text-slate-500 font-numeric">{it.product?.sku}</div></td><td className="text-right font-numeric text-slate-200">{it.quantity}</td><td className="text-right font-numeric text-slate-200">{formatAED(it.unit_price)}</td><td className="text-right font-numeric text-white">{formatAED(it.line_total)}</td></tr>
+              {(quotation.items || []).map((item) => (
+                <tr key={item.id} className="border-b last:border-b-0">
+                  <td className="py-3 font-medium">
+                    {item.product_name || "—"}
+                  </td>
+
+                  <td>{item.description || "—"}</td>
+
+                  <td className="text-right">{item.quantity}</td>
+
+                  <td className="text-right">
+                    <CurrencyText
+                      value={item.unit_price}
+                      currency={quotation.currency || "AED"}
+                    />
+                  </td>
+
+                  <td className="text-right">{item.vat_percentage}%</td>
+
+                  <td className="text-right font-medium">
+                    <CurrencyText
+                      value={item.line_total}
+                      currency={quotation.currency || "AED"}
+                    />
+                  </td>
+                </tr>
               ))}
             </tbody>
           </table>
+
+          <div className="ml-auto mt-6 max-w-sm space-y-3 rounded-xl border bg-slate-50 p-5 text-sm dark:border-white/10 dark:bg-white/[0.025]">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Subtotal</span>
+
+              <CurrencyText
+                value={quotation.subtotal}
+                currency={quotation.currency || "AED"}
+              />
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">VAT</span>
+
+              <CurrencyText
+                value={quotation.vat_amount}
+                currency={quotation.currency || "AED"}
+              />
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Discount</span>
+
+              <CurrencyText
+                value={quotation.discount_amount}
+                currency={quotation.currency || "AED"}
+              />
+            </div>
+
+            <div className="flex justify-between border-t pt-3 text-base font-semibold">
+              <span>Total</span>
+
+              <CurrencyText
+                value={quotation.total_amount}
+                currency={quotation.currency || "AED"}
+              />
+            </div>
+          </div>
         </div>
-        <div className="card-surface p-5 space-y-2 h-fit">
-          <div className="flex items-center justify-between text-sm"><span className="text-slate-400">Subtotal</span><span className="font-numeric text-slate-100">{formatAED(q.subtotal)}</span></div>
-          <div className="flex items-center justify-between text-sm"><span className="text-slate-400">Discount</span><span className="font-numeric text-slate-100">- {formatAED(q.discount)}</span></div>
-          <div className="flex items-center justify-between text-sm"><span className="text-slate-400">VAT</span><span className="font-numeric text-slate-100">{formatAED(q.vat)}</span></div>
-          <div className="h-px bg-white/10 my-2" />
-          <div className="flex items-center justify-between"><span className="text-slate-300">Grand total</span><CurrencyText value={q.total} className="text-xl font-semibold text-white" /></div>
-        </div>
-      </div>
+      </section>
+
+      {quotation.notes && (
+        <section className="card-surface p-5">
+          <h2 className="font-semibold">Notes</h2>
+
+          <p className="mt-3 whitespace-pre-wrap text-sm text-muted-foreground">
+            {quotation.notes}
+          </p>
+        </section>
+      )}
     </div>
   );
 }
