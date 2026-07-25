@@ -247,7 +247,7 @@ export default function ProductListPage() {
       key: "rack_location",
       header: "Rack",
       cell: (product) => (
-        <span className="font-numeric text-xs text-slate-400">
+        <span className="font-numeric text-xs font-bold text-slate-200">
           {product.rack_code || product.rack_name || "—"}
         </span>
       ),

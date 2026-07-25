@@ -210,7 +210,7 @@ export default function ModuleLandingPage() {
           </div>
 
           {filteredModules.length ? (
-            <section className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            <section className="mx-auto grid max-w-5xl grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
               {filteredModules.map((module, index) => {
                 const Icon = module.icon || Grid2X2;
                 const [tile, glow] = moduleStyles[index % moduleStyles.length];
@@ -220,17 +220,17 @@ export default function ModuleLandingPage() {
                     key={module.id || module.key || module.title}
                     type="button"
                     onClick={() => openModule(module)}
-                    className="group flex flex-col items-center text-center"
+                    className="group flex min-h-[190px] flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/[0.035] p-6 text-center transition duration-200 hover:-translate-y-1 hover:border-white/20 hover:bg-white/[0.07]"
                   >
-                    <div className="relative flex h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.055] shadow-xl shadow-black/20 transition duration-200 group-hover:-translate-y-1 group-hover:border-white/20 group-hover:bg-white/[0.09]">
+                    <div className="relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[0.065] shadow-2xl shadow-black/25 transition duration-200 group-hover:scale-105 group-hover:border-white/20 group-hover:bg-white/[0.1]">
                       <div
                         className={`absolute inset-3 rounded-lg bg-gradient-to-br opacity-25 blur-md ${tile}`}
                       />
 
                       <div
-                        className={`relative flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-lg ${tile} ${glow}`}
+                        className={`relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-xl ${tile} ${glow}`}
                       >
-                        <Icon className="h-6 w-6" />
+                        <Icon className="h-9 w-9" />
                       </div>
 
                       {module.externalUrl && (
@@ -241,7 +241,7 @@ export default function ModuleLandingPage() {
                     </div>
 
                     <div
-                      className="relative z-20 mt-3 min-h-[40px] max-w-[120px] text-center text-sm font-semibold leading-5 text-white opacity-100 transition-colors duration-200 group-hover:text-cyan-200"
+                      className="relative z-20 mt-5 min-h-[48px] max-w-[220px] text-center text-lg font-bold leading-6 text-white opacity-100 transition-colors duration-200 group-hover:text-cyan-200"
                       style={{
                         color: "#ffffff",
                         WebkitTextFillColor: "#ffffff",

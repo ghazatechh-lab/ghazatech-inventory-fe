@@ -76,6 +76,7 @@ import EmployeeDetailPage from "@/features/hrms/EmployeeDetailPage";
 import AttendancePage from "@/features/hrms/AttendancePage";
 import LeavesPage from "@/features/hrms/LeavesPage";
 import PayrollPage from "@/features/hrms/PayrollPage";
+import PayslipPage from "@/features/hrms/PayslipPage";
 import SalaryHistoryPage from "@/features/hrms/SalaryHistoryPage";
 import DocumentExpiryPage from "@/features/hrms/DocumentExpiryPage";
 
@@ -140,6 +141,7 @@ export default function App() {
           <Toaster theme="dark" position="top-right" richColors closeButton />
 
           <Routes>
+            {/* Public routes */}
             <Route path="/login" element={<LoginPage />} />
 
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -148,6 +150,7 @@ export default function App() {
 
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
+            {/* Authenticated routes */}
             <Route
               element={
                 <ProtectedRoute>
@@ -407,6 +410,15 @@ export default function App() {
                 element={
                   <ProtectedRoute allow={["ADMIN"]}>
                     <PayrollPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/hrms/payroll/:id/payslip"
+                element={
+                  <ProtectedRoute allow={["ADMIN"]}>
+                    <PayslipPage />
                   </ProtectedRoute>
                 }
               />
