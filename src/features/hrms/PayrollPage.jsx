@@ -113,6 +113,11 @@ export default function PayrollPage() {
         { skipGlobalErrorToast: true },
       ),
     onSuccess: async () => {
+      // Newly generated entries are PENDING. Clear filters and return to the
+      // first page so the generated payroll is visible immediately.
+      setStatusFilter("");
+      setPage(1);
+
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["payroll-entries"] }),
         queryClient.invalidateQueries({ queryKey: ["payroll-summary"] }),
@@ -120,6 +125,20 @@ export default function PayrollPage() {
           queryKey: ["eligible-payroll-employees"],
         }),
       ]);
+
+      // Force the currently mounted payroll list and totals to reload now,
+      // rather than waiting for the next navigation or window focus.
+      await Promise.all([
+        queryClient.refetchQueries({
+          queryKey: ["payroll-entries"],
+          type: "active",
+        }),
+        queryClient.refetchQueries({
+          queryKey: ["payroll-summary"],
+          type: "active",
+        }),
+      ]);
+
       toast.success("Payroll generated successfully.");
       setStep(3);
     },

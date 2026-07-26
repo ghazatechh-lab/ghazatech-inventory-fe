@@ -268,6 +268,12 @@ export default function ProductFormPage() {
   });
 
   const selectedRackId = watch("rack");
+  const [showRackForm, setShowRackForm] = React.useState(false);
+  const [rackForm, setRackForm] = React.useState({
+    rack_code: "",
+    rack_name: "",
+  });
+  const [rackSaving, setRackSaving] = React.useState(false);
 
   const racks = React.useMemo(() => {
     const branchRacks = rackResponse.filter((rack) => {
@@ -312,6 +318,79 @@ export default function ProductFormPage() {
 
     return branchRacks;
   }, [rackResponse, selectedBranch, isEdit, product, selectedRackId]);
+
+  const refreshRacks = async () => {
+    await queryClient.invalidateQueries({
+      queryKey: ["racks", "product-options", selectedBranch],
+    });
+  };
+
+  const addRack = async () => {
+    if (!selectedBranch) {
+      toast.error("Select a branch before adding a rack.");
+      return;
+    }
+
+    if (!rackForm.rack_code.trim())
+      return toast.error("Rack code is required.");
+    setRackSaving(true);
+    try {
+      const response = await api.post(
+        "/racks/",
+        {
+          branch: Number(selectedBranch),
+          rack_code: rackForm.rack_code.trim(),
+          rack_name: rackForm.rack_name.trim(),
+          is_active: true,
+        },
+        { skipGlobalErrorToast: true },
+      );
+      const created = unwrap(response);
+      await refreshRacks();
+      setValue("rack", String(created.id), {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setRackForm({ rack_code: "", rack_name: "" });
+      setShowRackForm(false);
+      toast.success("Rack added.");
+    } catch (error) {
+      const message =
+        error?.response?.data?.rack_code?.[0] ||
+        error?.response?.data?.detail ||
+        "Unable to add rack.";
+      toast.error(message);
+    } finally {
+      setRackSaving(false);
+    }
+  };
+
+  const deleteRack = async () => {
+    if (!selectedRackId) {
+      toast.error("Select a rack first.");
+      return;
+    }
+
+    const item = racks.find(
+      (rack) => String(rack.id) === String(selectedRackId),
+    );
+    const label = item?.rack_code || item?.rack_name || "selected rack";
+    if (!window.confirm(`Delete rack "${label}"?`)) return;
+
+    try {
+      await api.delete(`/racks/${selectedRackId}/`, {
+        skipGlobalErrorToast: true,
+      });
+      setValue("rack", "", { shouldDirty: true, shouldValidate: true });
+      await refreshRacks();
+      toast.success("Rack deleted.");
+    } catch (error) {
+      const message =
+        error?.response?.data?.detail ||
+        "This rack cannot be deleted because it is already used by a product.";
+      toast.error(message);
+    }
+  };
 
   React.useEffect(() => {
     if (
@@ -855,41 +934,127 @@ export default function ProductFormPage() {
                 <div>
                   <Label>Rack</Label>
 
-                  <select
-                    {...register("rack")}
-                    disabled={!selectedBranch || racksLoading}
-                    className="mt-2 h-11 w-full rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                    onChange={(event) => {
-                      console.log(
-                        "[Product Form] Rack selected:",
-                        event.target.value,
-                      );
-
-                      setValue("rack", event.target.value, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                    }}
-                  >
-                    <option value="">
-                      {!selectedBranch
-                        ? "Select branch first"
-                        : racksLoading
-                          ? "Loading racks..."
-                          : racks.length
-                            ? "Select rack"
-                            : "No racks available"}
-                    </option>
-
-                    {racks.map((item) => (
-                      <option key={item.id} value={String(item.id)}>
-                        {item.rack_code || item.rack_name || `Rack #${item.id}`}
-                        {item.rack_name && item.rack_code
-                          ? ` - ${item.rack_name}`
-                          : ""}
+                  <div className="mt-2 flex gap-2">
+                    <select
+                      {...register("rack")}
+                      disabled={!selectedBranch || racksLoading}
+                      className="h-11 min-w-0 flex-1 rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                      onChange={(event) => {
+                        setValue("rack", event.target.value, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                      }}
+                    >
+                      <option value="">
+                        {!selectedBranch
+                          ? "Select branch first"
+                          : racksLoading
+                            ? "Loading racks..."
+                            : racks.length
+                              ? "Select rack"
+                              : "No racks available"}
                       </option>
-                    ))}
-                  </select>
+
+                      {racks.map((item) => (
+                        <option key={item.id} value={String(item.id)}>
+                          {item.rack_code ||
+                            item.rack_name ||
+                            `Rack #${item.id}`}
+                          {item.rack_name && item.rack_code
+                            ? ` - ${item.rack_name}`
+                            : ""}
+                        </option>
+                      ))}
+                    </select>
+
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      title="Add rack"
+                      disabled={!selectedBranch}
+                      onClick={() => setShowRackForm((current) => !current)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      title="Delete selected rack"
+                      disabled={!selectedRackId}
+                      onClick={deleteRack}
+                    >
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
+
+                  {showRackForm && (
+                    <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50/70 p-4 shadow-sm dark:border-blue-500/20 dark:bg-blue-500/5">
+                      <div className="mb-3">
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                          Add New Rack
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                          The rack will be created for the selected branch.
+                        </p>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div>
+                          <Label className="text-xs">Rack Code</Label>
+                          <Input
+                            className="mt-1.5"
+                            value={rackForm.rack_code}
+                            onChange={(e) =>
+                              setRackForm((c) => ({
+                                ...c,
+                                rack_code: e.target.value,
+                              }))
+                            }
+                            placeholder="e.g. RACK-A01"
+                            autoFocus
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Rack Name</Label>
+                          <Input
+                            className="mt-1.5"
+                            value={rackForm.rack_name}
+                            onChange={(e) =>
+                              setRackForm((c) => ({
+                                ...c,
+                                rack_name: e.target.value,
+                              }))
+                            }
+                            placeholder="Optional rack name"
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-3 flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setShowRackForm(false);
+                            setRackForm({ rack_code: "", rack_name: "" });
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="bg-blue-600 text-white hover:bg-blue-700"
+                          disabled={rackSaving}
+                          onClick={addRack}
+                        >
+                          {rackSaving ? "Saving..." : "Add Rack"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
                   {racksError && (
                     <p className="mt-1.5 text-sm text-red-400">

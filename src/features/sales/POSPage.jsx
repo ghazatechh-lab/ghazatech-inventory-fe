@@ -1,5 +1,13 @@
 import React from "react";
-import { Download, Plus, Save, Search, Trash2, X } from "lucide-react";
+import {
+  Download,
+  Plus,
+  Save,
+  Search,
+  Trash2,
+  X,
+  UserPlus,
+} from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -19,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CurrencyText } from "@/components/common/CurrencyText";
+import InlineCustomerDialog from "./InlineCustomerDialog";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { SalesDocumentFlow } from "@/components/sales/SalesDocumentFlow";
 import { MetricCard } from "@/components/sales/MetricCard";
@@ -35,6 +44,17 @@ const number = (value) => {
   const parsed = Number(value || 0);
   return Number.isFinite(parsed) ? parsed : 0;
 };
+
+const getProductPrice = (product) =>
+  number(
+    product?.retail_price ??
+      product?.selling_price ??
+      product?.sale_price ??
+      product?.unit_price ??
+      product?.price ??
+      product?.variant?.retail_price ??
+      0,
+  );
 
 const emptyItem = () => ({
   product: "",
@@ -70,6 +90,8 @@ export default function POSPage() {
   const [errors, setErrors] = React.useState({});
 
   const [form, setForm] = React.useState(() => createForm(branchId));
+
+  const [openProductIndex, setOpenProductIndex] = React.useState(null);
 
   const { query, q, setQ, page, setPage } = useListQuery(
     "pos-sales",
@@ -115,15 +137,15 @@ export default function POSPage() {
   const stockMap = React.useMemo(() => {
     const map = new Map();
 
-    stock.forEach((row) => {
+    [...stock, ...products].forEach((row) => {
       map.set(
-        `${row.product_id}:${row.variant_id || ""}`,
+        `${row.product_id || row.id}:${row.variant_id || ""}`,
         number(row.available_stock),
       );
     });
 
     return map;
-  }, [stock]);
+  }, [stock, products]);
 
   const calculatedItems = form.items.map((item) => {
     const availableStock =
@@ -209,22 +231,25 @@ export default function POSPage() {
     }));
   };
 
-  const selectProduct = (index, productId) => {
+  const selectProduct = (index, optionValue) => {
+    const [productId, variantId = ""] = String(optionValue || "").split(":");
     const product = products.find(
-      (item) => String(item.id) === String(productId),
+      (item) =>
+        String(item.product_id || item.id) === String(productId) &&
+        String(item.variant_id || "") === String(variantId),
     );
 
     updateItem(index, {
       product: productId,
-      variant: "",
-      query: product?.product_name || "",
-      unit_price: number(
-        product?.selling_price ||
-          product?.sale_price ||
-          product?.unit_price ||
-          0,
-      ),
+      variant: variantId,
+      query: [product?.product_name, product?.variant_name]
+        .filter(Boolean)
+        .join(" — "),
+      unit_price: getProductPrice(product),
+      available_stock: number(product?.available_stock),
     });
+
+    setOpenProductIndex(null);
   };
 
   const searchProduct = (index, queryValue) => {
@@ -243,18 +268,23 @@ export default function POSPage() {
     );
 
     if (match) {
-      selectProduct(index, String(match.id));
+      selectProduct(
+        index,
+        `${match.product_id || match.id}:${match.variant_id || ""}`,
+      );
     }
   };
 
   const openNew = () => {
     setErrors({});
+    setOpenProductIndex(null);
     setForm(createForm(branchId));
     setOpen(true);
   };
 
   const close = () => {
     setOpen(false);
+    setOpenProductIndex(null);
     setErrors({});
     setForm(createForm(branchId));
   };
@@ -310,8 +340,6 @@ export default function POSPage() {
         customer: form.customer ? Number(form.customer) : null,
 
         cashier: Number(form.cashier),
-
-        receipt_number: form.receipt_number || undefined,
 
         payment_method: form.payment_method,
 
@@ -556,7 +584,7 @@ export default function POSPage() {
 
       {open && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/50">
-          <div className="flex h-full w-full max-w-2xl flex-col bg-background shadow-2xl">
+          <div className="flex h-full w-full max-w-4xl flex-col bg-background shadow-2xl">
             <div className="flex items-start justify-between border-b px-5 py-4">
               <div>
                 <h2 className="text-xl font-semibold">New Sale</h2>
@@ -604,6 +632,14 @@ export default function POSPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <InlineCustomerDialog
+                    onCreated={(customer) => {
+                      queryClient.invalidateQueries({
+                        queryKey: ["pos-form-options"],
+                      });
+                      updateForm("customer", String(customer.id));
+                    }}
+                  />
                 </div>
 
                 <div>
@@ -637,8 +673,8 @@ export default function POSPage() {
               <div>
                 <Label>Items</Label>
 
-                <div className="mt-2 overflow-hidden rounded-xl border">
-                  <div className="grid grid-cols-[minmax(220px,1fr)_70px_100px_110px_40px] gap-3 border-b bg-slate-50 px-3 py-3 text-[10px] uppercase tracking-wider text-muted-foreground dark:bg-white/[0.025]">
+                <div className="relative mt-2 overflow-visible rounded-xl border">
+                  <div className="grid grid-cols-[minmax(300px,1fr)_80px_120px_120px_44px] gap-3 border-b bg-slate-50 px-3 py-3 text-[10px] uppercase tracking-wider text-muted-foreground dark:bg-white/[0.025]">
                     <span>Product</span>
                     <span className="text-right">Qty</span>
                     <span className="text-right">Unit Price</span>
@@ -649,71 +685,161 @@ export default function POSPage() {
                   {calculatedItems.map((item, index) => (
                     <div
                       key={index}
-                      className="grid grid-cols-[minmax(220px,1fr)_70px_100px_110px_40px] items-center gap-3 border-b px-3 py-3 last:border-b-0"
+                      className="relative grid grid-cols-[minmax(300px,1fr)_80px_120px_120px_44px] items-center gap-3 border-b px-3 py-3 last:border-b-0"
                     >
-                      <div className="space-y-1">
+                      <div className="min-w-0 space-y-1.5">
                         <div className="relative">
-                          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                          <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 
                           <Input
                             value={item.query}
-                            onChange={(event) =>
-                              searchProduct(index, event.target.value)
-                            }
-                            placeholder="Search product or scan barcode"
-                            className="pl-9"
-                            list={`pos-products-${index}`}
+                            onFocus={() => setOpenProductIndex(index)}
+                            onChange={(event) => {
+                              searchProduct(index, event.target.value);
+                              setOpenProductIndex(index);
+                            }}
+                            placeholder="Search by product, SKU, or barcode"
+                            className="h-11 rounded-xl border-slate-200 bg-background pl-9 pr-9 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-white/10"
                           />
 
-                          <datalist id={`pos-products-${index}`}>
-                            {products.map((product) => (
-                              <option
-                                key={product.id}
-                                value={product.product_name}
-                              >
-                                {product.sku || product.barcode || ""}
-                              </option>
-                            ))}
-                          </datalist>
+                          {item.query && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                updateItem(index, {
+                                  product: "",
+                                  variant: "",
+                                  query: "",
+                                  unit_price: 0,
+                                  available_stock: 0,
+                                });
+                                setOpenProductIndex(index);
+                              }}
+                              className="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full p-0.5 text-muted-foreground hover:bg-slate-100 hover:text-foreground dark:hover:bg-white/10"
+                              aria-label="Clear selected product"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+
+                          {openProductIndex === index && (
+                            <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[100] max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-background p-1.5 shadow-2xl dark:border-white/10">
+                              {products
+                                .filter((product) => {
+                                  const term = String(item.query || "")
+                                    .trim()
+                                    .toLowerCase();
+
+                                  if (!term || item.product) return true;
+
+                                  return [
+                                    product.product_name,
+                                    product.variant_name,
+                                    product.sku,
+                                    product.barcode,
+                                  ].some((value) =>
+                                    String(value || "")
+                                      .toLowerCase()
+                                      .includes(term),
+                                  );
+                                })
+                                .map((product) => {
+                                  const optionValue = `${
+                                    product.product_id || product.id
+                                  }:${product.variant_id || ""}`;
+                                  const isSelected =
+                                    optionValue ===
+                                    `${item.product}:${item.variant || ""}`;
+
+                                  return (
+                                    <button
+                                      key={optionValue}
+                                      type="button"
+                                      onMouseDown={(event) =>
+                                        event.preventDefault()
+                                      }
+                                      onClick={() =>
+                                        selectProduct(index, optionValue)
+                                      }
+                                      className={`flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${
+                                        isSelected
+                                          ? "bg-blue-50 ring-1 ring-blue-200 dark:bg-blue-500/10 dark:ring-blue-500/30"
+                                          : "hover:bg-slate-50 dark:hover:bg-white/[0.05]"
+                                      }`}
+                                    >
+                                      <div className="min-w-0">
+                                        <p className="truncate text-sm font-semibold text-foreground">
+                                          {product.product_name}
+                                          {product.variant_name
+                                            ? ` — ${product.variant_name}`
+                                            : ""}
+                                        </p>
+                                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                          {product.sku ||
+                                            product.barcode ||
+                                            "No SKU"}
+                                          {product.barcode && product.sku
+                                            ? ` · ${product.barcode}`
+                                            : ""}
+                                          {` · ${product.available_stock ?? 0} available`}
+                                        </p>
+                                      </div>
+
+                                      <div className="shrink-0 text-right">
+                                        <p className="text-sm font-bold text-blue-600 dark:text-blue-300">
+                                          AED{" "}
+                                          {getProductPrice(product).toFixed(2)}
+                                        </p>
+                                        <p className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                                          Select
+                                        </p>
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+
+                              {products.filter((product) => {
+                                const term = String(item.query || "")
+                                  .trim()
+                                  .toLowerCase();
+                                if (!term || item.product) return true;
+                                return [
+                                  product.product_name,
+                                  product.variant_name,
+                                  product.sku,
+                                  product.barcode,
+                                ].some((value) =>
+                                  String(value || "")
+                                    .toLowerCase()
+                                    .includes(term),
+                                );
+                              }).length === 0 && (
+                                <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                                  No available product matches your search.
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         {item.product && (
-                          <Select
-                            value={String(item.product)}
-                            onValueChange={(value) =>
-                              selectProduct(index, value)
-                            }
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-
-                            <SelectContent className="max-h-72">
-                              {products.map((product) => (
-                                <SelectItem
-                                  key={product.id}
-                                  value={String(product.id)}
-                                >
-                                  {product.product_name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-xs dark:bg-white/[0.035]">
+                            <span
+                              className={
+                                item.has_enough_stock
+                                  ? "font-medium text-emerald-600"
+                                  : "font-medium text-red-500"
+                              }
+                            >
+                              {item.has_enough_stock
+                                ? `${item.available_stock} available in selected branch`
+                                : `Only ${item.available_stock} available`}
+                            </span>
+                            <span className="font-semibold text-blue-600 dark:text-blue-300">
+                              AED {number(item.unit_price).toFixed(2)}
+                            </span>
+                          </div>
                         )}
-
-                        <p
-                          className={
-                            item.has_enough_stock
-                              ? "text-xs text-emerald-600"
-                              : "text-xs text-red-500"
-                          }
-                        >
-                          {item.product
-                            ? item.has_enough_stock
-                              ? `${item.available_stock} in stock`
-                              : `Only ${item.available_stock} available`
-                            : ""}
-                        </p>
                       </div>
 
                       <Input

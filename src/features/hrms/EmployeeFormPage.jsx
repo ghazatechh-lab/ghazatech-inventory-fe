@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Save } from "lucide-react";
+import { Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
@@ -63,6 +63,9 @@ export default function EmployeeFormPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [form, setForm] = React.useState(initial);
+  const [inlineForm, setInlineForm] = React.useState(null);
+  const [inlineName, setInlineName] = React.useState("");
+  const [inlineSaving, setInlineSaving] = React.useState(false);
 
   const { data: options = {} } = useQuery({
     queryKey: ["employee-form-options"],
@@ -88,6 +91,126 @@ export default function EmployeeFormPage() {
 
   const update = (key, value) =>
     setForm((current) => ({ ...current, [key]: value }));
+
+  const refreshOptions = async () => {
+    await queryClient.invalidateQueries({
+      queryKey: ["employee-form-options"],
+    });
+  };
+
+  const createDepartment = async () => {
+    if (!inlineName.trim()) return toast.error("Department name is required.");
+    setInlineSaving(true);
+    try {
+      const response = await api.post(
+        "/hrms/departments/",
+        {
+          name: inlineName.trim(),
+          is_active: true,
+        },
+        { skipGlobalErrorToast: true },
+      );
+      const created = unwrap(response);
+      await refreshOptions();
+      update("department", String(created.id));
+      setInlineName("");
+      setInlineForm(null);
+      toast.success("Department added.");
+    } catch (error) {
+      const details = getApiErrorDetails(error);
+      toast.error(details.title || "Unable to add department", {
+        description: details.summary || details.message,
+      });
+    } finally {
+      setInlineSaving(false);
+    }
+  };
+
+  const deleteDepartment = async () => {
+    if (!form.department) return toast.error("Select a department first.");
+    const item = normalizeList(options.departments).find(
+      (row) => String(row.id) === String(form.department),
+    );
+    if (
+      !window.confirm(
+        `Delete department "${item?.name || "selected department"}"?`,
+      )
+    )
+      return;
+
+    try {
+      await api.delete(`/hrms/departments/${form.department}/`, {
+        skipGlobalErrorToast: true,
+      });
+      update("department", "");
+      update("designation", "");
+      await refreshOptions();
+      toast.success("Department deleted.");
+    } catch (error) {
+      const details = getApiErrorDetails(error);
+      toast.error(details.title || "Unable to delete department", {
+        description: details.summary || details.message,
+      });
+    }
+  };
+
+  const createDesignation = async () => {
+    if (!form.department) return toast.error("Select a department first.");
+    if (!inlineName.trim()) return toast.error("Designation name is required.");
+    setInlineSaving(true);
+    try {
+      const response = await api.post(
+        "/hrms/designations/",
+        {
+          name: inlineName.trim(),
+          designation_name: inlineName.trim(),
+          department: Number(form.department),
+          is_active: true,
+        },
+        { skipGlobalErrorToast: true },
+      );
+      const created = unwrap(response);
+      await refreshOptions();
+      update("designation", String(created.id));
+      setInlineName("");
+      setInlineForm(null);
+      toast.success("Designation added.");
+    } catch (error) {
+      const details = getApiErrorDetails(error);
+      toast.error(details.title || "Unable to add designation", {
+        description: details.summary || details.message,
+      });
+    } finally {
+      setInlineSaving(false);
+    }
+  };
+
+  const deleteDesignation = async () => {
+    if (!form.designation) return toast.error("Select a designation first.");
+    const item = normalizeList(options.designations).find(
+      (row) => String(row.id) === String(form.designation),
+    );
+    if (
+      !window.confirm(
+        `Delete designation "${item?.name || "selected designation"}"?`,
+      )
+    )
+      return;
+
+    try {
+      await api.delete(`/hrms/designations/${form.designation}/`, {
+        skipGlobalErrorToast: true,
+      });
+      update("designation", "");
+      await refreshOptions();
+      toast.success("Designation deleted.");
+    } catch (error) {
+      const details = getApiErrorDetails(error);
+      toast.error(details.title || "Unable to delete designation", {
+        description: details.summary || details.message,
+      });
+    }
+  };
 
   const mutation = useMutation({
     mutationFn: () => {
@@ -191,39 +314,181 @@ export default function EmployeeFormPage() {
           </div>
           <div>
             <Label>Department</Label>
-            <Select
-              value={form.department}
-              onValueChange={(value) => update("department", value)}
-            >
-              <SelectTrigger className="mt-2">
-                <SelectValue placeholder="Select department" />
-              </SelectTrigger>
-              <SelectContent>
-                {normalizeList(options.departments).map((item) => (
-                  <SelectItem key={item.id} value={String(item.id)}>
-                    {item.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="mt-2 flex gap-2">
+              <Select
+                value={form.department}
+                onValueChange={(value) => {
+                  update("department", value);
+                  update("designation", "");
+                }}
+              >
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  {normalizeList(options.departments).map((item) => (
+                    <SelectItem key={item.id} value={String(item.id)}>
+                      {item.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                title="Add department"
+                onClick={() => {
+                  setInlineForm(
+                    inlineForm === "department" ? null : "department",
+                  );
+                  setInlineName("");
+                }}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                title="Delete selected department"
+                disabled={!form.department}
+                onClick={deleteDepartment}
+              >
+                <Trash2 className="h-4 w-4 text-red-500" />
+              </Button>
+            </div>
+            {inlineForm === "department" && (
+              <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50/70 p-4 shadow-sm dark:border-blue-500/20 dark:bg-blue-500/5">
+                <div className="mb-3">
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                    Add New Department
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    The new department will be selected automatically.
+                  </p>
+                </div>
+                <Input
+                  value={inlineName}
+                  onChange={(e) => setInlineName(e.target.value)}
+                  placeholder="Enter department name"
+                  autoFocus
+                />
+                <div className="mt-3 flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setInlineForm(null);
+                      setInlineName("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="bg-blue-600 text-white hover:bg-blue-700"
+                    disabled={inlineSaving}
+                    onClick={createDepartment}
+                  >
+                    {inlineSaving ? "Saving..." : "Add Department"}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
           <div>
             <Label>Designation</Label>
-            <Select
-              value={form.designation}
-              onValueChange={(value) => update("designation", value)}
-            >
-              <SelectTrigger className="mt-2">
-                <SelectValue placeholder="Select designation" />
-              </SelectTrigger>
-              <SelectContent>
-                {normalizeList(options.designations).map((item) => (
-                  <SelectItem key={item.id} value={String(item.id)}>
-                    {item.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="mt-2 flex gap-2">
+              <Select
+                value={form.designation}
+                onValueChange={(value) => update("designation", value)}
+              >
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Select designation" />
+                </SelectTrigger>
+                <SelectContent>
+                  {normalizeList(options.designations)
+                    .filter(
+                      (item) =>
+                        !form.department ||
+                        String(item.department) === String(form.department),
+                    )
+                    .map((item) => (
+                      <SelectItem key={item.id} value={String(item.id)}>
+                        {item.name || item.designation_name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                title="Add designation"
+                disabled={!form.department}
+                onClick={() => {
+                  setInlineForm(
+                    inlineForm === "designation" ? null : "designation",
+                  );
+                  setInlineName("");
+                }}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                title="Delete selected designation"
+                disabled={!form.designation}
+                onClick={deleteDesignation}
+              >
+                <Trash2 className="h-4 w-4 text-red-500" />
+              </Button>
+            </div>
+            {inlineForm === "designation" && (
+              <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50/70 p-4 shadow-sm dark:border-blue-500/20 dark:bg-blue-500/5">
+                <div className="mb-3">
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                    Add New Designation
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    It will be added under the selected department.
+                  </p>
+                </div>
+                <Input
+                  value={inlineName}
+                  onChange={(e) => setInlineName(e.target.value)}
+                  placeholder="Enter designation name"
+                  autoFocus
+                />
+                <div className="mt-3 flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setInlineForm(null);
+                      setInlineName("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="bg-blue-600 text-white hover:bg-blue-700"
+                    disabled={inlineSaving}
+                    onClick={createDesignation}
+                  >
+                    {inlineSaving ? "Saving..." : "Add Designation"}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </>,
       )}

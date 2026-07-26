@@ -24,8 +24,13 @@ import { normalizeList } from "./hrmsUtils";
 const emptyRevision = {
   reason: "ANNUAL_INCREMENT",
   effective_from: "",
+  effective_to: "",
   basic_salary: "",
   allowances: "",
+  deductions: "",
+  payroll_status: "PAID",
+  payment_date: "",
+  payment_reference: "",
   approved_by_name: "",
   notes: "",
 };
@@ -91,21 +96,42 @@ export default function SalaryHistoryPage() {
     enabled: Boolean(employeeId),
   });
 
-  const history = normalizeList(historyResponse).sort(
-    (a, b) => new Date(b.effective_from) - new Date(a.effective_from),
-  );
+  const history = normalizeList(historyResponse)
+    .filter((item) => item?.effective_from)
+    .sort((a, b) => {
+      const dateDifference =
+        new Date(b.effective_from).getTime() -
+        new Date(a.effective_from).getTime();
 
-  const currentRevision = history[0];
+      return dateDifference || Number(b.id || 0) - Number(a.id || 0);
+    });
+
+  const currentRevision =
+    history.find((item) => !item.effective_to) || history[0] || null;
+
+  const chronologicalHistory = [...history].reverse();
 
   const joiningRevision =
-    [...history].reverse().find((item) => item.reason === "JOINING") ||
-    history[history.length - 1];
+    chronologicalHistory.find((item) => item.reason === "JOINING") ||
+    chronologicalHistory[0] ||
+    null;
 
-  const joiningSalary = toNumber(
-    joiningRevision?.total_salary || employee?.total_salary || 0,
+  const firstPositiveSalary = chronologicalHistory.find(
+    (item) => toNumber(item.total_salary) > 0,
   );
 
-  const currentSalary = toNumber(employee?.total_salary || 0);
+  const currentSalary = toNumber(
+    employee?.total_salary || currentRevision?.total_salary || 0,
+  );
+
+  // Legacy joining records may contain zero when salary was entered after the
+  // employee was created. Prefer the earliest valid salary rather than showing
+  // an incorrect AED 0.00 and a misleading growth percentage.
+  const joiningSalary = toNumber(
+    joiningRevision?.total_salary ||
+      firstPositiveSalary?.total_salary ||
+      currentSalary,
+  );
 
   const growth = calculateGrowth(joiningSalary, currentSalary);
 
@@ -148,18 +174,17 @@ export default function SalaryHistoryPage() {
       next.effective_from = "Effective date is required.";
     }
 
-    const latestEffectiveDate = currentRevision?.effective_from;
-
     if (
       revision.effective_from &&
-      latestEffectiveDate &&
-      revision.effective_from <= latestEffectiveDate
+      revision.effective_to &&
+      revision.effective_to < revision.effective_from
     ) {
-      next.effective_from = `Effective date must be after ${latestEffectiveDate}.`;
+      next.effective_to = "To date must be on or after the From date.";
     }
 
     const basicSalary = toNumber(revision.basic_salary);
     const allowances = toNumber(revision.allowances);
+    const deductions = toNumber(revision.deductions);
 
     if (basicSalary < 0) {
       next.basic_salary = "Basic salary cannot be negative.";
@@ -171,6 +196,14 @@ export default function SalaryHistoryPage() {
 
     if (basicSalary + allowances <= 0) {
       next.basic_salary = "Total salary must be greater than zero.";
+    }
+
+    if (deductions < 0) {
+      next.deductions = "Deductions cannot be negative.";
+    }
+
+    if (deductions > basicSalary + allowances) {
+      next.deductions = "Deductions cannot exceed gross salary.";
     }
 
     if (!revision.approved_by_name.trim()) {
@@ -190,6 +223,9 @@ export default function SalaryHistoryPage() {
           ...revision,
           basic_salary: toNumber(revision.basic_salary),
           allowances: toNumber(revision.allowances),
+          deductions: toNumber(revision.deductions),
+          effective_to: revision.effective_to || null,
+          payment_date: revision.payment_date || null,
         },
         {
           skipGlobalErrorToast: true,
@@ -352,13 +388,21 @@ export default function SalaryHistoryPage() {
                           <p className="font-medium">{item.reason_display}</p>
 
                           <p className="mt-1 text-xs text-muted-foreground">
-                            Effective <DateText value={item.effective_from} />
+                            <DateText value={item.effective_from} />
+                            {item.effective_to ? (
+                              <>
+                                {" "}
+                                to <DateText value={item.effective_to} />
+                              </>
+                            ) : (
+                              <> onward</>
+                            )}
                           </p>
                         </div>
 
                         <StatusBadge
                           status={
-                            index === 0
+                            currentRevision && item.id === currentRevision.id
                               ? "CURRENT"
                               : item.reason === "JOINING"
                                 ? "JOINING"
@@ -367,7 +411,7 @@ export default function SalaryHistoryPage() {
                         />
                       </div>
 
-                      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                      <div className="mt-4 grid gap-4 sm:grid-cols-4">
                         {info(
                           "Basic",
                           <CurrencyText value={item.basic_salary} />,
@@ -379,15 +423,42 @@ export default function SalaryHistoryPage() {
                         )}
 
                         {info(
-                          "Total",
+                          "Gross",
                           <CurrencyText value={item.total_salary} />,
                         )}
+
+                        {info("Net", <CurrencyText value={item.net_salary} />)}
                       </div>
 
                       {previous && increase !== 0 && (
                         <p className="mt-3 text-xs font-medium text-emerald-600">
                           +<CurrencyText value={increase} /> from previous
                         </p>
+                      )}
+
+                      {(item.payroll_status_display ||
+                        item.payment_date ||
+                        item.payment_reference) && (
+                        <div className="mt-3 rounded-lg border bg-muted/30 p-3 text-xs">
+                          <span className="font-medium">Payroll:</span>{" "}
+                          {item.payroll_status_display || "—"}
+                          {item.payment_date ? (
+                            <>
+                              {" "}
+                              · Paid <DateText value={item.payment_date} />
+                            </>
+                          ) : null}
+                          {item.payment_reference ? (
+                            <> · Ref: {item.payment_reference}</>
+                          ) : null}
+                          {toNumber(item.deductions) > 0 ? (
+                            <>
+                              {" "}
+                              · Deductions{" "}
+                              <CurrencyText value={item.deductions} />
+                            </>
+                          ) : null}
+                        </div>
                       )}
 
                       {item.approved_by_name && (
@@ -512,8 +583,9 @@ export default function SalaryHistoryPage() {
 
             <div className="space-y-4 px-6 py-5">
               <div className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
-                This closes the current salary entry and opens a new
-                effective-dated record. Past payroll runs are unaffected.
+                Add an open-ended current revision, or provide a To Date to save
+                previous salary and payroll details without changing the
+                employee’s current salary.
               </div>
 
               <div>
@@ -543,23 +615,42 @@ export default function SalaryHistoryPage() {
                 </Select>
               </div>
 
-              <div>
-                <Label>Effective From</Label>
-
-                <Input
-                  type="date"
-                  className="mt-2"
-                  value={revision.effective_from}
-                  onChange={(event) =>
-                    updateRevision("effective_from", event.target.value)
-                  }
-                />
-
-                {errors.effective_from && (
-                  <p className="mt-1 text-xs text-red-500">
-                    {errors.effective_from}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <Label>From Date</Label>
+                  <Input
+                    type="date"
+                    className="mt-2"
+                    value={revision.effective_from}
+                    onChange={(event) =>
+                      updateRevision("effective_from", event.target.value)
+                    }
+                  />
+                  {errors.effective_from && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.effective_from}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label>To Date</Label>
+                  <Input
+                    type="date"
+                    className="mt-2"
+                    value={revision.effective_to}
+                    onChange={(event) =>
+                      updateRevision("effective_to", event.target.value)
+                    }
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Leave blank for current salary.
                   </p>
-                )}
+                  {errors.effective_to && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.effective_to}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -605,6 +696,72 @@ export default function SalaryHistoryPage() {
                       {errors.allowances}
                     </p>
                   )}
+                </div>
+              </div>
+
+              <div className="rounded-xl border bg-muted/20 p-4">
+                <h3 className="font-medium">Payroll Details</h3>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div>
+                    <Label>Deductions</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="mt-2"
+                      value={revision.deductions}
+                      onChange={(event) =>
+                        updateRevision("deductions", event.target.value)
+                      }
+                    />
+                    {errors.deductions && (
+                      <p className="mt-1 text-xs text-red-500">
+                        {errors.deductions}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <Label>Payroll Status</Label>
+                    <Select
+                      value={revision.payroll_status}
+                      onValueChange={(value) =>
+                        updateRevision("payroll_status", value)
+                      }
+                    >
+                      <SelectTrigger className="mt-2">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PENDING">Pending</SelectItem>
+                        <SelectItem value="PROCESSING">Processing</SelectItem>
+                        <SelectItem value="PAID">Paid</SelectItem>
+                        <SelectItem value="FAILED">Failed</SelectItem>
+                        <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Payment Date</Label>
+                    <Input
+                      type="date"
+                      className="mt-2"
+                      value={revision.payment_date}
+                      onChange={(event) =>
+                        updateRevision("payment_date", event.target.value)
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>Payment Reference</Label>
+                    <Input
+                      className="mt-2"
+                      placeholder="Bank or voucher reference"
+                      value={revision.payment_reference}
+                      onChange={(event) =>
+                        updateRevision("payment_reference", event.target.value)
+                      }
+                    />
+                  </div>
                 </div>
               </div>
 

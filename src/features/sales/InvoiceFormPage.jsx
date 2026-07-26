@@ -6,7 +6,7 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Save, Trash2 } from "lucide-react";
+import { Plus, Save, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CurrencyText } from "@/components/common/CurrencyText";
+import InlineCustomerDialog from "./InlineCustomerDialog";
 
 const normalizeList = (value) => {
   if (Array.isArray(value)) return value;
@@ -45,6 +46,17 @@ const number = (value) => {
   const parsed = Number(value || 0);
   return Number.isFinite(parsed) ? parsed : 0;
 };
+
+const getProductPrice = (product) =>
+  number(
+    product?.retail_price ??
+      product?.selling_price ??
+      product?.sale_price ??
+      product?.unit_price ??
+      product?.price ??
+      product?.variant?.retail_price ??
+      0,
+  );
 
 const emptyItem = () => ({
   sales_order_item: "",
@@ -294,21 +306,19 @@ export default function InvoiceFormPage() {
     }));
   };
 
-  const selectProduct = (index, productId) => {
+  const selectProduct = (index, optionValue) => {
+    const [productId, variantId = ""] = String(optionValue || "").split(":");
     const product = products.find(
-      (item) => String(item.id) === String(productId),
+      (item) =>
+        String(item.product_id || item.id) === String(productId) &&
+        String(item.variant_id || "") === String(variantId),
     );
 
     updateItem(index, {
       product: productId,
-      variant: "",
+      variant: variantId,
       description: product?.description || product?.product_name || "",
-      unit_price: number(
-        product?.selling_price ||
-          product?.sale_price ||
-          product?.unit_price ||
-          0,
-      ),
+      unit_price: getProductPrice(product),
     });
   };
 
@@ -379,8 +389,6 @@ export default function InvoiceFormPage() {
     mutationFn: async () => {
       const payload = {
         ...form,
-
-        invoice_number: form.invoice_number || undefined,
 
         sales_order: form.sales_order ? Number(form.sales_order) : null,
 
@@ -656,16 +664,22 @@ export default function InvoiceFormPage() {
                 ))}
               </SelectContent>
             </Select>
+            <InlineCustomerDialog
+              onCreated={(customer) => {
+                queryClient.invalidateQueries({
+                  queryKey: ["sales-invoice-form-options"],
+                });
+                updateForm("customer", String(customer.id));
+              }}
+            />
           </div>
 
           <div>
             <Label>Invoice #</Label>
 
             <Input
-              value={form.invoice_number}
-              onChange={(event) =>
-                updateForm("invoice_number", event.target.value)
-              }
+              value={form.invoice_number || "Auto-generated"}
+              readOnly
               placeholder="Auto-generated"
               className="mt-2"
             />
@@ -782,7 +796,11 @@ export default function InvoiceFormPage() {
                   className="grid grid-cols-[minmax(200px,1fr)_minmax(220px,1fr)_85px_120px_90px_140px_40px] items-center gap-3 border-b border-slate-100 py-2 last:border-b-0 dark:border-white/5"
                 >
                   <Select
-                    value={item.product || "__none__"}
+                    value={
+                      item.product
+                        ? `${item.product}:${item.variant || ""}`
+                        : "__none__"
+                    }
                     onValueChange={(value) =>
                       selectProduct(index, value === "__none__" ? "" : value)
                     }
@@ -791,13 +809,32 @@ export default function InvoiceFormPage() {
                       <SelectValue placeholder="Select product" />
                     </SelectTrigger>
 
-                    <SelectContent className="max-h-72">
+                    <SelectContent className="max-h-80 min-w-[360px] rounded-xl p-1">
                       <SelectItem value="__none__">Select product</SelectItem>
 
                       {products.map((product) => (
-                        <SelectItem key={product.id} value={String(product.id)}>
-                          {product.product_name}
-                          {product.sku ? ` · ${product.sku}` : ""}
+                        <SelectItem
+                          key={`${product.product_id || product.id}:${product.variant_id || ""}`}
+                          value={`${product.product_id || product.id}:${product.variant_id || ""}`}
+                          className="my-1 cursor-pointer rounded-lg py-2.5"
+                        >
+                          <div className="flex w-full min-w-0 items-center justify-between gap-4">
+                            <div className="min-w-0 text-left">
+                              <p className="truncate text-sm font-semibold">
+                                {product.product_name}
+                                {product.variant_name
+                                  ? ` — ${product.variant_name}`
+                                  : ""}
+                              </p>
+                              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                {product.sku || "No SKU"} ·{" "}
+                                {product.available_stock ?? 0} available
+                              </p>
+                            </div>
+                            <span className="shrink-0 text-sm font-semibold text-blue-600 dark:text-blue-300">
+                              AED {getProductPrice(product).toFixed(2)}
+                            </span>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>

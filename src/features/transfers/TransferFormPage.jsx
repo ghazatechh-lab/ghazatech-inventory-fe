@@ -1,9 +1,9 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import api, { unwrap } from "@/lib/api";
+import api, { getApiErrorMessage, unwrap } from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,35 +17,82 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 const list = (value) => (Array.isArray(value) ? value : value?.results || []);
+const today = () => new Date().toISOString().slice(0, 10);
 export default function TransferFormPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [from, setFrom] = React.useState("");
+  const [to, setTo] = React.useState("");
+  const [items, setItems] = React.useState([
+    { stock_key: "", product: "", variant: null, requested_quantity: 1 },
+  ]);
+  const [transferDate, setTransferDate] = React.useState(today());
+  const [notes, setNotes] = React.useState("");
   const { data: branchData } = useQuery({
     queryKey: ["branches-sel"],
     queryFn: async () =>
       unwrap(await api.get("/branches/", { params: { page_size: 500 } })),
   });
-  const { data: productData } = useQuery({
-    queryKey: ["products-sel"],
+  const { data: stockData, isFetching: isLoadingProducts } = useQuery({
+    queryKey: ["transfer-source-stock", from],
+    enabled: Boolean(from),
     queryFn: async () =>
       unwrap(
-        await api.get("/products/", {
-          params: { page_size: 500, is_active: true },
+        await api.get("/inventory/stock/", {
+          params: { branch: from, page_size: 500 },
         }),
       ),
   });
   const branches = list(branchData);
-  const products = list(productData);
-  const [from, setFrom] = React.useState("");
-  const [to, setTo] = React.useState("");
-  const [items, setItems] = React.useState([
-    { product: "", requested_quantity: 1 },
-  ]);
-  const [notes, setNotes] = React.useState("");
+  const stockRows = list(stockData);
+  const products = React.useMemo(
+    () =>
+      stockRows
+        .map((row) => {
+          // The stock overview endpoint returns grouped product/variant rows.
+          // When a branch filter is supplied, branch_stocks contains only that
+          // branch's stock record. Keep a fallback for older flat API responses.
+          const branchStock = Array.isArray(row.branch_stocks)
+            ? row.branch_stocks.find(
+                (stock) => String(stock.branch_id) === String(from),
+              ) || row.branch_stocks[0]
+            : null;
+
+          const productId = Number(row.product_id ?? row.product);
+          const variantId = row.variant_id ?? row.variant ?? null;
+          const availableStock = Number(
+            branchStock?.available_stock ??
+              row.total_available ??
+              row.available_stock ??
+              0,
+          );
+
+          return {
+            stock_key: `${productId}:${variantId || "base"}`,
+            product: productId,
+            variant: variantId ? Number(variantId) : null,
+            sku: row.sku,
+            product_name: row.product_name,
+            variant_label: row.variant_label || "Base stock",
+            available_stock: availableStock,
+          };
+        })
+        .filter((product) => product.product && product.available_stock > 0),
+    [stockRows, from],
+  );
   const mutation = useMutation({
     mutationFn: (payload) => api.post("/transfers/", payload),
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["transfers"] });
+      await queryClient.refetchQueries({
+        queryKey: ["transfers"],
+        type: "active",
+      });
       toast.success("Transfer request created.");
       navigate("/transfers");
+    },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error, "Unable to create the transfer."));
     },
   });
   const updateItem = (index, patch) =>
@@ -61,15 +108,18 @@ export default function TransferFormPage() {
     );
     if (!from || !to)
       return toast.error("Select source and destination branches.");
+    if (!transferDate) return toast.error("Select the transfer date.");
     if (from === to)
       return toast.error("Source and destination must be different.");
     if (!validItems.length) return toast.error("Add at least one product.");
     mutation.mutate({
       from_branch: Number(from),
       to_branch: Number(to),
+      transfer_date: transferDate,
       notes: notes.trim(),
       items: validItems.map((item) => ({
         product: Number(item.product),
+        variant: item.variant ? Number(item.variant) : null,
         requested_quantity: Number(item.requested_quantity),
         remarks: item.remarks || "",
       })),
@@ -84,10 +134,23 @@ export default function TransferFormPage() {
       <form onSubmit={submit} className="space-y-6">
         <section className="card-surface p-5">
           <h2 className="font-semibold">Transfer from/to branches</h2>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
             <div>
               <Label>From Branch *</Label>
-              <Select value={from} onValueChange={setFrom}>
+              <Select
+                value={from}
+                onValueChange={(value) => {
+                  setFrom(value);
+                  setItems([
+                    {
+                      stock_key: "",
+                      product: "",
+                      variant: null,
+                      requested_quantity: 1,
+                    },
+                  ]);
+                }}
+              >
                 <SelectTrigger className="mt-2">
                   <SelectValue placeholder="Select source branch" />
                 </SelectTrigger>
@@ -117,6 +180,16 @@ export default function TransferFormPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label>Transfer Date *</Label>
+              <Input
+                type="date"
+                className="mt-2"
+                value={transferDate}
+                onChange={(event) => setTransferDate(event.target.value)}
+                required
+              />
+            </div>
           </div>
         </section>
         <section className="card-surface overflow-hidden">
@@ -124,14 +197,23 @@ export default function TransferFormPage() {
             <div>
               <h2 className="font-semibold">Transfer items</h2>
               <p className="text-sm text-muted-foreground">
-                Select the item and requested quantity.
+                Only products with available stock in the source branch are
+                shown.
               </p>
             </div>
             <Button
               type="button"
               variant="outline"
               onClick={() =>
-                setItems((v) => [...v, { product: "", requested_quantity: 1 }])
+                setItems((v) => [
+                  ...v,
+                  {
+                    stock_key: "",
+                    product: "",
+                    variant: null,
+                    requested_quantity: 1,
+                  },
+                ])
               }
             >
               <Plus className="mr-2 h-4 w-4" />
@@ -145,25 +227,53 @@ export default function TransferFormPage() {
                 className="grid gap-3 p-4 md:grid-cols-[1fr_160px_44px]"
               >
                 <Select
-                  value={item.product}
-                  onValueChange={(value) =>
-                    updateItem(index, { product: value })
-                  }
+                  value={item.stock_key}
+                  onValueChange={(value) => {
+                    const selected = products.find(
+                      (product) => product.stock_key === value,
+                    );
+                    updateItem(index, {
+                      stock_key: value,
+                      product: selected ? String(selected.product) : "",
+                      variant: selected?.variant || null,
+                      requested_quantity: 1,
+                    });
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select product" />
                   </SelectTrigger>
                   <SelectContent className="max-h-72">
-                    {products.map((p) => (
-                      <SelectItem key={p.id} value={String(p.id)}>
-                        {p.sku} · {p.product_name}
+                    {!from ? (
+                      <SelectItem value="select-branch-first" disabled>
+                        Select a source branch first
                       </SelectItem>
-                    ))}
+                    ) : isLoadingProducts ? (
+                      <SelectItem value="loading-products" disabled>
+                        Loading available products...
+                      </SelectItem>
+                    ) : products.length ? (
+                      products.map((p) => (
+                        <SelectItem key={p.stock_key} value={p.stock_key}>
+                          {p.sku} · {p.product_name} · {p.variant_label} ·{" "}
+                          {p.available_stock} available
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-products" disabled>
+                        No products available in this branch
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
                 <Input
                   type="number"
                   min="1"
+                  max={
+                    products.find(
+                      (product) => product.stock_key === item.stock_key,
+                    )?.available_stock || undefined
+                  }
                   value={item.requested_quantity}
                   onChange={(e) =>
                     updateItem(index, { requested_quantity: e.target.value })

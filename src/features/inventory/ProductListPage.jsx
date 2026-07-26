@@ -42,20 +42,27 @@ const getProductImage = (product) =>
   product?.product_image_url || product?.product_image || null;
 
 const getAvailableQuantity = (product) => {
+  // The backend calculates this value from ProductStock rows belonging to
+  // the currently selected branch. It is the authoritative branch quantity.
+  const branchTotal = Number(product?.total_available_qty);
+
+  if (Number.isFinite(branchTotal)) {
+    return Math.max(0, branchTotal);
+  }
+
+  // Compatibility fallback for older API responses that do not yet include
+  // total_available_qty.
   const variants = Array.isArray(product?.variants) ? product.variants : [];
 
   if (variants.length) {
     return variants.reduce((total, variant) => {
       const quantity = Number(variant?.available_qty ?? 0);
-      return total + (Number.isFinite(quantity) && quantity > 0 ? quantity : 0);
+      return total + (Number.isFinite(quantity) ? Math.max(0, quantity) : 0);
     }, 0);
   }
 
-  const fallback = Number(
-    product?.total_available_qty ?? product?.available_qty ?? 0,
-  );
-
-  return Number.isFinite(fallback) && fallback > 0 ? fallback : 0;
+  const fallback = Number(product?.available_qty ?? 0);
+  return Number.isFinite(fallback) ? Math.max(0, fallback) : 0;
 };
 
 const getRelatedName = (value, fallback) => {

@@ -102,13 +102,7 @@ export default function LowStockPage() {
       sortKey: "available_stock",
       align: "right",
       cell: (row) => (
-        <strong
-          className={
-            Number(row.available_stock) <= 0 ? "text-red-400" : "text-amber-400"
-          }
-        >
-          {row.available_stock}
-        </strong>
+        <strong className="text-red-400">{row.available_stock}</strong>
       ),
     },
     {
@@ -116,11 +110,7 @@ export default function LowStockPage() {
       header: "Status",
       sortable: false,
       cell: (row) => (
-        <span
-          className={
-            Number(row.available_stock) <= 0 ? "text-red-400" : "text-amber-400"
-          }
-        >
+        <span className="text-red-400">
           {Number(row.available_stock) <= 0 ? "Out of stock" : "Low stock"}
         </span>
       ),
