@@ -158,7 +158,8 @@ export default function App() {
                 </ProtectedRoute>
               }
             >
-              <Route path="/" element={<Navigate to="/modules" replace />} />
+              {/* Open dashboard after login/root navigation */}
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
               <Route path="/modules" element={<ModuleLandingPage />} />
 
