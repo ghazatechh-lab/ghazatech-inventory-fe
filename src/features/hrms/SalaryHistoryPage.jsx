@@ -27,10 +27,6 @@ const emptyRevision = {
   effective_to: "",
   basic_salary: "",
   allowances: "",
-  deductions: "",
-  payroll_status: "PAID",
-  payment_date: "",
-  payment_reference: "",
   approved_by_name: "",
   notes: "",
 };
@@ -56,6 +52,7 @@ export default function SalaryHistoryPage() {
 
   const [employeeId, setEmployeeId] = React.useState("");
   const [revisionOpen, setRevisionOpen] = React.useState(false);
+  const [revisionMode, setRevisionMode] = React.useState("CURRENT");
   const [revision, setRevision] = React.useState(emptyRevision);
   const [errors, setErrors] = React.useState({});
 
@@ -157,6 +154,7 @@ export default function SalaryHistoryPage() {
   const openRevision = () => {
     if (!employee) return;
 
+    setRevisionMode("CURRENT");
     setRevision({
       ...emptyRevision,
       basic_salary: employee.basic_salary || "",
@@ -167,14 +165,49 @@ export default function SalaryHistoryPage() {
     setRevisionOpen(true);
   };
 
+  const openPreviousSalary = () => {
+    if (!employee) return;
+
+    setRevisionMode("PREVIOUS");
+    setRevision({
+      ...emptyRevision,
+      reason: "OTHER",
+      basic_salary: "",
+      allowances: "",
+      notes: "Previous salary record",
+    });
+
+    setErrors({});
+    setRevisionOpen(true);
+  };
+
   const validateRevision = () => {
     const next = {};
 
     if (!revision.effective_from) {
-      next.effective_from = "Effective date is required.";
+      next.effective_from =
+        revisionMode === "PREVIOUS"
+          ? "From date is required."
+          : "Effective date is required.";
+    }
+
+    if (revisionMode === "PREVIOUS" && !revision.effective_to) {
+      next.effective_to = "To date is required.";
+    }
+
+    const joiningDate = String(employee?.joining_date || "");
+    const today = new Date().toISOString().slice(0, 10);
+
+    if (
+      revision.effective_from &&
+      joiningDate &&
+      revision.effective_from < joiningDate
+    ) {
+      next.effective_from = `From date cannot be before joining date (${joiningDate}).`;
     }
 
     if (
+      revisionMode === "PREVIOUS" &&
       revision.effective_from &&
       revision.effective_to &&
       revision.effective_to < revision.effective_from
@@ -182,9 +215,16 @@ export default function SalaryHistoryPage() {
       next.effective_to = "To date must be on or after the From date.";
     }
 
+    if (
+      revisionMode === "PREVIOUS" &&
+      revision.effective_to &&
+      revision.effective_to > today
+    ) {
+      next.effective_to = "Previous salary To date cannot be in the future.";
+    }
+
     const basicSalary = toNumber(revision.basic_salary);
     const allowances = toNumber(revision.allowances);
-    const deductions = toNumber(revision.deductions);
 
     if (basicSalary < 0) {
       next.basic_salary = "Basic salary cannot be negative.";
@@ -198,20 +238,11 @@ export default function SalaryHistoryPage() {
       next.basic_salary = "Total salary must be greater than zero.";
     }
 
-    if (deductions < 0) {
-      next.deductions = "Deductions cannot be negative.";
-    }
-
-    if (deductions > basicSalary + allowances) {
-      next.deductions = "Deductions cannot exceed gross salary.";
-    }
-
     if (!revision.approved_by_name.trim()) {
       next.approved_by_name = "Approved by is required.";
     }
 
     setErrors(next);
-
     return Object.keys(next).length === 0;
   };
 
@@ -220,12 +251,16 @@ export default function SalaryHistoryPage() {
       api.post(
         `/hrms/employees/${employeeId}/salary-revisions/`,
         {
-          ...revision,
+          reason: revision.reason,
+          effective_from: revision.effective_from,
+          effective_to:
+            revisionMode === "PREVIOUS" ? revision.effective_to : null,
           basic_salary: toNumber(revision.basic_salary),
           allowances: toNumber(revision.allowances),
-          deductions: toNumber(revision.deductions),
-          effective_to: revision.effective_to || null,
-          payment_date: revision.payment_date || null,
+          approved_by_name: revision.approved_by_name.trim(),
+          notes:
+            revision.notes?.trim() ||
+            (revisionMode === "PREVIOUS" ? "Previous salary record" : ""),
         },
         {
           skipGlobalErrorToast: true,
@@ -245,7 +280,11 @@ export default function SalaryHistoryPage() {
         }),
       ]);
 
-      toast.success("Salary revision added.");
+      toast.success(
+        revisionMode === "PREVIOUS"
+          ? "Previous salary record added."
+          : "Salary revision added.",
+      );
 
       setRevision(emptyRevision);
       setErrors({});
@@ -282,15 +321,27 @@ export default function SalaryHistoryPage() {
         title="Salary History"
         subtitle="Effective-dated salary ledger, from joining to today"
         actions={
-          <Button
-            type="button"
-            onClick={openRevision}
-            disabled={!employeeId}
-            className="bg-blue-600 text-white hover:bg-blue-700"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Revision
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={openPreviousSalary}
+              disabled={!employeeId}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Previous Salary
+            </Button>
+
+            <Button
+              type="button"
+              onClick={openRevision}
+              disabled={!employeeId}
+              className="bg-blue-600 text-white hover:bg-blue-700"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Revision
+            </Button>
+          </div>
         }
       />
 
@@ -564,15 +615,18 @@ export default function SalaryHistoryPage() {
           <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-background shadow-2xl">
             <div className="flex items-start justify-between border-b px-6 py-5">
               <div>
-                <h2 className="text-xl font-semibold">Add Salary Revision</h2>
-
+                <h2 className="text-xl font-semibold">
+                  {revisionMode === "PREVIOUS"
+                    ? "Add Previous Salary"
+                    : "Add Salary Revision"}
+                </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  New ledger entry for {employee?.full_name}
+                  {revisionMode === "PREVIOUS"
+                    ? `Historical salary period for ${employee?.full_name}`
+                    : `New ledger entry for ${employee?.full_name}`}
                 </p>
               </div>
-
               <Button
-                type="button"
                 size="icon"
                 variant="ghost"
                 onClick={() => setRevisionOpen(false)}
@@ -582,15 +636,14 @@ export default function SalaryHistoryPage() {
             </div>
 
             <div className="space-y-4 px-6 py-5">
-              <div className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
-                Add an open-ended current revision, or provide a To Date to save
-                previous salary and payroll details without changing the
-                employee’s current salary.
+              <div className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                {revisionMode === "PREVIOUS"
+                  ? "From Date and To Date are mandatory. The period must start on or after the employee joining date and cannot extend into the future."
+                  : "This closes the current salary entry and opens a new effective-dated record. Past payroll runs are unaffected."}
               </div>
 
               <div>
                 <Label>Reason</Label>
-
                 <Select
                   value={revision.reason}
                   onValueChange={(value) => updateRevision("reason", value)}
@@ -598,223 +651,160 @@ export default function SalaryHistoryPage() {
                   <SelectTrigger className="mt-2">
                     <SelectValue />
                   </SelectTrigger>
-
                   <SelectContent>
                     <SelectItem value="ANNUAL_INCREMENT">
                       Annual Increment
                     </SelectItem>
-
                     <SelectItem value="PROMOTION">Promotion</SelectItem>
-
                     <SelectItem value="CORRECTION">
                       Salary Correction
                     </SelectItem>
-
                     <SelectItem value="OTHER">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div
+                className={
+                  revisionMode === "PREVIOUS" ? "grid gap-4 md:grid-cols-2" : ""
+                }
+              >
                 <div>
-                  <Label>From Date</Label>
+                  <Label>
+                    {revisionMode === "PREVIOUS"
+                      ? "From Date *"
+                      : "Effective From *"}
+                  </Label>
                   <Input
                     type="date"
                     className="mt-2"
+                    min={employee?.joining_date || undefined}
+                    max={new Date().toISOString().slice(0, 10)}
                     value={revision.effective_from}
                     onChange={(event) =>
                       updateRevision("effective_from", event.target.value)
                     }
                   />
                   {errors.effective_from && (
-                    <p className="mt-1 text-xs text-red-500">
+                    <p className="mt-1 text-sm text-red-500">
                       {errors.effective_from}
                     </p>
                   )}
                 </div>
-                <div>
-                  <Label>To Date</Label>
-                  <Input
-                    type="date"
-                    className="mt-2"
-                    value={revision.effective_to}
-                    onChange={(event) =>
-                      updateRevision("effective_to", event.target.value)
-                    }
-                  />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Leave blank for current salary.
-                  </p>
-                  {errors.effective_to && (
-                    <p className="mt-1 text-xs text-red-500">
-                      {errors.effective_to}
-                    </p>
-                  )}
-                </div>
+
+                {revisionMode === "PREVIOUS" && (
+                  <div>
+                    <Label>To Date *</Label>
+                    <Input
+                      type="date"
+                      className="mt-2"
+                      min={
+                        revision.effective_from ||
+                        employee?.joining_date ||
+                        undefined
+                      }
+                      max={new Date().toISOString().slice(0, 10)}
+                      value={revision.effective_to}
+                      onChange={(event) =>
+                        updateRevision("effective_to", event.target.value)
+                      }
+                    />
+                    {errors.effective_to && (
+                      <p className="mt-1 text-sm text-red-500">
+                        {errors.effective_to}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <Label>New Basic Salary</Label>
-
+                  <Label>New Basic Salary *</Label>
                   <Input
                     type="number"
                     min="0"
                     step="0.01"
                     className="mt-2"
-                    placeholder="e.g. 6500"
                     value={revision.basic_salary}
                     onChange={(event) =>
                       updateRevision("basic_salary", event.target.value)
                     }
+                    placeholder="e.g. 6500"
                   />
-
                   {errors.basic_salary && (
-                    <p className="mt-1 text-xs text-red-500">
+                    <p className="mt-1 text-sm text-red-500">
                       {errors.basic_salary}
                     </p>
                   )}
                 </div>
-
                 <div>
                   <Label>New Allowances</Label>
-
                   <Input
                     type="number"
                     min="0"
                     step="0.01"
                     className="mt-2"
-                    placeholder="e.g. 900"
                     value={revision.allowances}
                     onChange={(event) =>
                       updateRevision("allowances", event.target.value)
                     }
+                    placeholder="e.g. 900"
                   />
-
                   {errors.allowances && (
-                    <p className="mt-1 text-xs text-red-500">
+                    <p className="mt-1 text-sm text-red-500">
                       {errors.allowances}
                     </p>
                   )}
                 </div>
               </div>
 
-              <div className="rounded-xl border bg-muted/20 p-4">
-                <h3 className="font-medium">Payroll Details</h3>
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <div>
-                    <Label>Deductions</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className="mt-2"
-                      value={revision.deductions}
-                      onChange={(event) =>
-                        updateRevision("deductions", event.target.value)
-                      }
-                    />
-                    {errors.deductions && (
-                      <p className="mt-1 text-xs text-red-500">
-                        {errors.deductions}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <Label>Payroll Status</Label>
-                    <Select
-                      value={revision.payroll_status}
-                      onValueChange={(value) =>
-                        updateRevision("payroll_status", value)
-                      }
-                    >
-                      <SelectTrigger className="mt-2">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="PENDING">Pending</SelectItem>
-                        <SelectItem value="PROCESSING">Processing</SelectItem>
-                        <SelectItem value="PAID">Paid</SelectItem>
-                        <SelectItem value="FAILED">Failed</SelectItem>
-                        <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Payment Date</Label>
-                    <Input
-                      type="date"
-                      className="mt-2"
-                      value={revision.payment_date}
-                      onChange={(event) =>
-                        updateRevision("payment_date", event.target.value)
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Label>Payment Reference</Label>
-                    <Input
-                      className="mt-2"
-                      placeholder="Bank or voucher reference"
-                      value={revision.payment_reference}
-                      onChange={(event) =>
-                        updateRevision("payment_reference", event.target.value)
-                      }
-                    />
-                  </div>
+              {revisionMode === "PREVIOUS" && (
+                <div>
+                  <Label>Notes</Label>
+                  <Textarea
+                    className="mt-2"
+                    value={revision.notes}
+                    onChange={(event) =>
+                      updateRevision("notes", event.target.value)
+                    }
+                    placeholder="Optional details about this historical salary period"
+                  />
                 </div>
-              </div>
+              )}
 
               <div>
-                <Label>Approved By</Label>
-
+                <Label>Approved By *</Label>
                 <Input
                   className="mt-2"
-                  placeholder="e.g. Super Admin"
                   value={revision.approved_by_name}
                   onChange={(event) =>
                     updateRevision("approved_by_name", event.target.value)
                   }
+                  placeholder="e.g. Super Admin"
                 />
-
                 {errors.approved_by_name && (
-                  <p className="mt-1 text-xs text-red-500">
+                  <p className="mt-1 text-sm text-red-500">
                     {errors.approved_by_name}
                   </p>
                 )}
               </div>
-
-              <div>
-                <Label>Notes</Label>
-
-                <Textarea
-                  className="mt-2"
-                  rows={3}
-                  placeholder="Optional remarks"
-                  value={revision.notes}
-                  onChange={(event) =>
-                    updateRevision("notes", event.target.value)
-                  }
-                />
-              </div>
             </div>
 
             <div className="flex justify-end gap-2 border-t px-6 py-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setRevisionOpen(false)}
-              >
+              <Button variant="outline" onClick={() => setRevisionOpen(false)}>
                 Cancel
               </Button>
-
               <Button
-                type="button"
                 disabled={revisionMutation.isPending}
                 onClick={submitRevision}
-                className="bg-blue-600 text-white hover:bg-blue-700"
+                className="bg-blue-600 text-white"
               >
-                Save Revision
+                {revisionMutation.isPending
+                  ? "Saving..."
+                  : revisionMode === "PREVIOUS"
+                    ? "Save Previous Salary"
+                    : "Save Revision"}
               </Button>
             </div>
           </div>

@@ -18,6 +18,7 @@ import api, {
 const AuthContext = createContext(null);
 
 const USER_STORAGE_KEY = "user";
+
 const BRANCH_OVERRIDE_KEY = "branch_override";
 
 const readStoredUser = () => {
@@ -31,6 +32,7 @@ const readStoredUser = () => {
     return JSON.parse(value);
   } catch (error) {
     localStorage.removeItem(USER_STORAGE_KEY);
+
     return null;
   }
 };
@@ -38,6 +40,7 @@ const readStoredUser = () => {
 const saveStoredUser = (user) => {
   if (!user) {
     localStorage.removeItem(USER_STORAGE_KEY);
+
     return;
   }
 
@@ -82,6 +85,35 @@ const extractAuthData = (response) => {
   return body?.data || body || {};
 };
 
+const normalizeRoleCode = (user) =>
+  String(user?.role_code || user?.role?.code || user?.role_detail?.code || "")
+    .trim()
+    .toUpperCase();
+
+const getUserPermissions = (user) => {
+  if (!user) {
+    return [];
+  }
+
+  if (user.is_superuser || normalizeRoleCode(user) === "ADMIN") {
+    return ["*"];
+  }
+
+  if (Array.isArray(user.permissions)) {
+    return user.permissions;
+  }
+
+  if (Array.isArray(user.role_detail?.permissions)) {
+    return user.role_detail.permissions;
+  }
+
+  if (Array.isArray(user.role?.permissions)) {
+    return user.role.permissions;
+  }
+
+  return [];
+};
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => readStoredUser());
 
@@ -98,23 +130,17 @@ export function AuthProvider({ children }) {
 
   const updateUser = useCallback((nextUser) => {
     setUser(nextUser);
+
     saveStoredUser(nextUser);
   }, []);
 
   const setBranchOverride = useCallback((branch) => {
     let normalizedBranch = branch;
 
-    /*
-     * Support selectors that pass a DOM event.
-     */
     if (branch && typeof branch === "object" && branch.target) {
       normalizedBranch = branch.target.value;
     }
 
-    /*
-     * Support a branch object, branch ID,
-     * numeric string, or null.
-     */
     if (
       normalizedBranch === "" ||
       normalizedBranch === "all" ||
@@ -149,9 +175,12 @@ export function AuthProvider({ children }) {
   const clearAuth = useCallback(() => {
     clearStoredAuth();
 
+    localStorage.removeItem(USER_STORAGE_KEY);
+
     localStorage.removeItem(BRANCH_OVERRIDE_KEY);
 
     setUser(null);
+
     setBranchOverrideState(null);
   }, []);
 
@@ -162,6 +191,7 @@ export function AuthProvider({ children }) {
 
     if (!currentAccessToken && !currentRefreshToken) {
       setUser(null);
+
       return null;
     }
 
@@ -260,10 +290,6 @@ export function AuthProvider({ children }) {
             authenticatedUser?.branch_id ??
             null;
 
-          /*
-           * Select the user's own branch only
-           * when no override is already saved.
-           */
           if (userBranchId && readStoredBranchOverride() === null) {
             setBranchOverride(userBranchId);
           }
@@ -319,6 +345,53 @@ export function AuthProvider({ children }) {
     return fetchCurrentUser();
   }, [fetchCurrentUser]);
 
+  const hasPermission = useCallback(
+    (permissionCode) => {
+      if (!user || !permissionCode) {
+        return false;
+      }
+
+      const permissions = getUserPermissions(user);
+
+      return permissions.includes("*") || permissions.includes(permissionCode);
+    },
+    [user],
+  );
+
+  const hasAnyPermission = useCallback(
+    (permissionCodes = []) => {
+      if (!Array.isArray(permissionCodes)) {
+        return false;
+      }
+
+      return permissionCodes.some((permissionCode) =>
+        hasPermission(permissionCode),
+      );
+    },
+    [hasPermission],
+  );
+
+  const canAccessModule = useCallback(
+    (moduleName) => {
+      if (!user || !moduleName) {
+        return false;
+      }
+
+      const permissions = getUserPermissions(user);
+
+      if (permissions.includes("*")) {
+        return true;
+      }
+
+      const prefix = `${moduleName}.`;
+
+      return permissions.some((permissionCode) =>
+        permissionCode.startsWith(prefix),
+      );
+    },
+    [user],
+  );
+
   const hasRole = useCallback(
     (...allowedRoles) => {
       if (!user) {
@@ -328,16 +401,9 @@ export function AuthProvider({ children }) {
       const normalizedRoles = allowedRoles
         .flat()
         .filter(Boolean)
-        .map((role) => String(role).toUpperCase());
+        .map((role) => String(role).trim().toUpperCase());
 
-      const currentRole =
-        user?.role_code ||
-        user?.role?.code ||
-        user?.role ||
-        user?.user_role ||
-        "";
-
-      return normalizedRoles.includes(String(currentRole).toUpperCase());
+      return normalizedRoles.includes(normalizeRoleCode(user));
     },
     [user],
   );
@@ -352,7 +418,11 @@ export function AuthProvider({ children }) {
       logout,
       refreshUser,
       updateUser,
+
       hasRole,
+      hasPermission,
+      hasAnyPermission,
+      canAccessModule,
 
       branchOverride,
       setBranchOverride,
@@ -366,6 +436,9 @@ export function AuthProvider({ children }) {
       refreshUser,
       updateUser,
       hasRole,
+      hasPermission,
+      hasAnyPermission,
+      canAccessModule,
       branchOverride,
       setBranchOverride,
     ],

@@ -40,7 +40,11 @@ const createTestId = (item) => {
 };
 
 const normalizePath = (value) => {
-  const path = typeof value === "string" ? value : "";
+  const path = typeof value === "string" ? value.trim() : "";
+
+  if (!path) {
+    return "";
+  }
 
   if (path.length > 1 && path.endsWith("/")) {
     return path.slice(0, -1);
@@ -49,16 +53,35 @@ const normalizePath = (value) => {
   return path;
 };
 
-const isSubmoduleActive = (itemPath, currentPath) => {
-  const target = normalizePath(itemPath);
-
+/**
+ * Returns the single, most-specific matching sidebar path.
+ *
+ * Example:
+ * Current path: /settings/users-roles
+ *
+ * Matching items:
+ * - /settings
+ * - /settings/users-roles
+ *
+ * Result:
+ * - /settings/users-roles
+ */
+const getActiveSubmodulePath = (items, currentPath) => {
   const pathname = normalizePath(currentPath);
 
-  if (!target) {
-    return false;
+  if (!pathname || !Array.isArray(items)) {
+    return "";
   }
 
-  return pathname === target || pathname.startsWith(`${target}/`);
+  const matchingPaths = items
+    .map((item) => normalizePath(safePath(item)))
+    .filter(Boolean)
+    .filter(
+      (target) => pathname === target || pathname.startsWith(`${target}/`),
+    )
+    .sort((first, second) => second.length - first.length);
+
+  return matchingPaths[0] || "";
 };
 
 export function Sidebar({ collapsed, onToggle }) {
@@ -82,6 +105,11 @@ export function Sidebar({ collapsed, onToggle }) {
       (item) => safePath(item) && canAccessNavigationItem(item, user),
     );
   }, [activeModule, user]);
+
+  const activeSubmodulePath = React.useMemo(
+    () => getActiveSubmodulePath(submodules, location.pathname),
+    [submodules, location.pathname],
+  );
 
   const ModuleIcon = activeModule?.icon || Grid2X2;
 
@@ -121,7 +149,12 @@ export function Sidebar({ collapsed, onToggle }) {
         <button
           type="button"
           onClick={goToMainMenu}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-400 to-blue-700 shadow-lg shadow-blue-950/40 transition hover:scale-105"
+          className={cn(
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+            "bg-gradient-to-br from-blue-400 to-blue-700",
+            "shadow-lg shadow-blue-950/40",
+            "transition hover:scale-105",
+          )}
           title="Open Main Menu"
         >
           <Cpu className="h-5 w-5 text-white" strokeWidth={2.2} />
@@ -140,33 +173,33 @@ export function Sidebar({ collapsed, onToggle }) {
         )}
       </div>
 
-      {/* Main Menu redirect */}
+      {/* Main Menu */}
       <div className={cn("px-3 pt-4", collapsed && "px-2")}>
         <button
           type="button"
           onClick={goToMainMenu}
           className={cn(
-            "group flex w-full items-center rounded-xl border border-white/15",
-            "bg-white/[0.07] text-blue-50 transition",
+            "group flex w-full items-center rounded-xl",
+            "border border-white/15 bg-white/[0.07]",
+            "text-blue-50 transition",
             "hover:border-white/25 hover:bg-white/[0.13]",
             collapsed ? "h-11 justify-center px-2" : "gap-3 px-3 py-3",
           )}
-          title={collapsed ? "Back to Main Menu" : undefined}
+          title={collapsed ? "Main Menu" : undefined}
         >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10">
+          <div
+            className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center",
+              "rounded-lg bg-white/10",
+            )}
+          >
             <Grid2X2 className="h-4 w-4" />
           </div>
 
           {!collapsed && (
-            <div className="min-w-0 text-left">
-              <p className="text-xs font-semibold uppercase tracking-wide text-blue-100/60">
-                Navigation
-              </p>
-
-              <p className="truncate text-sm font-semibold text-white">
-                Back to Main Menu
-              </p>
-            </div>
+            <span className="truncate text-sm font-semibold text-white">
+              Main Menu
+            </span>
           )}
         </button>
       </div>
@@ -175,7 +208,12 @@ export function Sidebar({ collapsed, onToggle }) {
       {activeModule && (
         <div className={cn("px-3 pt-4", collapsed && "px-2")}>
           {!collapsed && (
-            <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-100/45">
+            <p
+              className={cn(
+                "mb-2 px-2 text-[10px] font-semibold uppercase",
+                "tracking-[0.14em] text-blue-100/45",
+              )}
+            >
               Selected Module
             </p>
           )}
@@ -191,7 +229,8 @@ export function Sidebar({ collapsed, onToggle }) {
             }}
             className={cn(
               "flex w-full items-center rounded-xl",
-              "border border-cyan-300/20 bg-gradient-to-r from-cyan-400/15 to-blue-400/10",
+              "border border-cyan-300/20",
+              "bg-gradient-to-r from-cyan-400/15 to-blue-400/10",
               "shadow-inner shadow-white/[0.03]",
               collapsed ? "h-11 justify-center px-2" : "gap-3 px-3 py-3",
             )}
@@ -201,7 +240,12 @@ export function Sidebar({ collapsed, onToggle }) {
                 : undefined
             }
           >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-300/15 text-cyan-100">
+            <div
+              className={cn(
+                "flex h-8 w-8 shrink-0 items-center justify-center",
+                "rounded-lg bg-cyan-300/15 text-cyan-100",
+              )}
+            >
               <ModuleIcon className="h-4 w-4" />
             </div>
 
@@ -220,31 +264,36 @@ export function Sidebar({ collapsed, onToggle }) {
         </div>
       )}
 
-      {/* Only selected module submodules */}
+      {/* Submodules */}
       <nav className="mt-5 flex-1 overflow-y-auto px-3 pb-4">
         {!collapsed && (
-          <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-100/45">
+          <p
+            className={cn(
+              "mb-2 px-2 text-[10px] font-semibold uppercase",
+              "tracking-[0.14em] text-blue-100/45",
+            )}
+          >
             Submodules
           </p>
         )}
 
         <div className="space-y-1">
           {submodules.map((item) => {
-            const target = safePath(item);
+            const target = normalizePath(safePath(item));
 
             const Icon = item.icon || Grid2X2;
 
-            const active = isSubmoduleActive(target, location.pathname);
+            const active = target === activeSubmodulePath;
 
             return (
               <NavLink
                 key={item.id || target}
                 to={target}
-                end={target === location.pathname}
                 title={collapsed ? item.label : undefined}
                 data-testid={createTestId(item)}
                 className={cn(
-                  "group relative flex items-center rounded-xl text-sm transition-all duration-150",
+                  "group relative flex items-center rounded-xl",
+                  "text-sm transition-all duration-150",
                   collapsed ? "h-11 justify-center px-2" : "gap-3 px-3 py-2.5",
                   active
                     ? "bg-white text-blue-800 shadow-lg shadow-blue-950/20"
@@ -252,7 +301,12 @@ export function Sidebar({ collapsed, onToggle }) {
                 )}
               >
                 {active && (
-                  <span className="absolute -left-3 h-6 w-1 rounded-r-full bg-cyan-300" />
+                  <span
+                    className={cn(
+                      "absolute -left-3 h-6 w-1",
+                      "rounded-r-full bg-cyan-300",
+                    )}
+                  />
                 )}
 
                 <Icon
@@ -272,7 +326,13 @@ export function Sidebar({ collapsed, onToggle }) {
                 )}
 
                 {!collapsed && item.badge && (
-                  <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                  <span
+                    className={cn(
+                      "rounded-full bg-red-500",
+                      "px-2 py-0.5 text-[10px]",
+                      "font-bold text-white",
+                    )}
+                  >
                     {item.badge}
                   </span>
                 )}
@@ -281,7 +341,12 @@ export function Sidebar({ collapsed, onToggle }) {
           })}
 
           {!submodules.length && !collapsed && (
-            <div className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-5 text-center">
+            <div
+              className={cn(
+                "rounded-xl border border-white/10",
+                "bg-white/[0.05] px-3 py-5 text-center",
+              )}
+            >
               <p className="text-sm text-blue-100/70">
                 No submodules are available.
               </p>
@@ -291,7 +356,7 @@ export function Sidebar({ collapsed, onToggle }) {
                 onClick={goToMainMenu}
                 className="mt-3 text-xs font-semibold text-cyan-200 hover:text-cyan-100"
               >
-                Return to Main Menu
+                Main Menu
               </button>
             </div>
           )}
@@ -304,7 +369,8 @@ export function Sidebar({ collapsed, onToggle }) {
           type="button"
           onClick={handleLogout}
           className={cn(
-            "mb-2 flex w-full items-center rounded-xl text-blue-100/70 transition",
+            "mb-2 flex w-full items-center rounded-xl",
+            "text-blue-100/70 transition",
             "hover:bg-red-500/15 hover:text-red-100",
             collapsed ? "h-10 justify-center" : "gap-3 px-3 py-2.5",
           )}

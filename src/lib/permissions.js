@@ -1,114 +1,96 @@
-/* Permissions helpers */
+export const getRoleCode = (user) =>
+  String(user?.role_code || user?.role?.code || user?.role_detail?.code || "")
+    .trim()
+    .toUpperCase();
 
 export const isAdmin = (user) =>
-  Boolean(
-    user?.is_superuser ||
-    user?.role_code === "ADMIN" ||
-    user?.role?.code === "ADMIN" ||
-    user?.role_detail?.code === "ADMIN",
-  );
+  Boolean(user?.is_superuser || getRoleCode(user) === "ADMIN");
 
-export const isBranchManager = (user) =>
-  user?.role_code === "BM" ||
-  user?.role?.code === "BM" ||
-  user?.role_detail?.code === "BM";
+export const isBranchManager = (user) => getRoleCode(user) === "BM";
 
-export const isStaff = (user) =>
-  user?.role_code === "STAFF" ||
-  user?.role?.code === "STAFF" ||
-  user?.role_detail?.code === "STAFF";
+export const isStaff = (user) => getRoleCode(user) === "STAFF";
 
-/*
- * Module-level access map.
- *
- * The frontend uses this to hide restricted pages and actions.
- * The backend must still enforce the final permission.
- */
-export const MODULE_ACCESS = {
-  branches: ["ADMIN"],
-  users: ["ADMIN"],
-  auditLogs: ["ADMIN"],
-  settings: ["ADMIN"],
-  payroll: ["ADMIN"],
-  reports: ["ADMIN", "BM"],
+export const getPermissionCodes = (user) => {
+  if (isAdmin(user)) {
+    return ["*"];
+  }
+
+  if (Array.isArray(user?.permissions)) {
+    return user.permissions;
+  }
+
+  if (Array.isArray(user?.role_detail?.permissions)) {
+    return user.role_detail.permissions;
+  }
+
+  if (Array.isArray(user?.role?.permissions)) {
+    return user.role.permissions;
+  }
+
+  return [];
 };
 
-const getRoleCode = (user) =>
-  user?.role_code || user?.role?.code || user?.role_detail?.code || "";
+export const hasPermission = (user, permissionCode) => {
+  if (!user || !permissionCode) {
+    return false;
+  }
 
-export function canAccessModule(user, moduleName) {
-  const allowedRoles = MODULE_ACCESS[moduleName];
-
-  if (!allowedRoles) {
+  if (isAdmin(user)) {
     return true;
   }
 
-  if (user?.is_superuser) {
+  const permissions = getPermissionCodes(user);
+
+  return permissions.includes("*") || permissions.includes(permissionCode);
+};
+
+export const hasAnyPermission = (user, permissionCodes = []) =>
+  Array.isArray(permissionCodes) &&
+  permissionCodes.some((code) => hasPermission(user, code));
+
+export const hasAllPermissions = (user, permissionCodes = []) =>
+  Array.isArray(permissionCodes) &&
+  permissionCodes.every((code) => hasPermission(user, code));
+
+export const canView = (user, resource) =>
+  hasPermission(user, `${resource}.view`);
+
+export const canCreate = (user, resource) =>
+  hasPermission(user, `${resource}.create`);
+
+export const canEdit = (user, resource) =>
+  hasPermission(user, `${resource}.edit`);
+
+export const canDelete = (user, resource) =>
+  hasPermission(user, `${resource}.delete`);
+
+export const canApprove = (user, resource) =>
+  hasPermission(user, `${resource}.approve`);
+
+export const canReject = (user, resource) =>
+  hasPermission(user, `${resource}.reject`);
+
+export const canCancel = (user, resource) =>
+  hasPermission(user, `${resource}.cancel`);
+
+export const canExport = (user, resource) =>
+  hasPermission(user, `${resource}.export`);
+
+export const canPrint = (user, resource) =>
+  hasPermission(user, `${resource}.print`);
+
+export const canAccessModule = (user, moduleName) => {
+  if (!user || !moduleName) {
+    return false;
+  }
+
+  if (isAdmin(user)) {
     return true;
   }
 
-  return allowedRoles.includes(getRoleCode(user));
-}
+  const prefix = `${moduleName}.`;
 
-export function canCreate(user, moduleName) {
-  /*
-   * Categories, brands and racks:
-   * every authenticated user can add records.
-   */
-  if (["categories", "brands", "racks"].includes(moduleName)) {
-    return Boolean(user);
-  }
-
-  if (isStaff(user)) {
-    return [
-      "quotations",
-      "customers",
-      "invoices",
-      "pos",
-      "leaves",
-      "attendance",
-    ].includes(moduleName);
-  }
-
-  return true;
-}
-
-export function canEdit(user, moduleName) {
-  /*
-   * Only Admin or Django superuser can edit
-   * categories, brands and racks.
-   */
-  if (["categories", "brands", "racks"].includes(moduleName)) {
-    return isAdmin(user);
-  }
-
-  if (isStaff(user)) {
-    return ["quotations", "customers", "pos"].includes(moduleName);
-  }
-
-  return true;
-}
-
-export function canDelete(user, moduleName) {
-  /*
-   * Categories, brands and racks can only
-   * be deleted by Admin or superuser.
-   */
-  if (["categories", "brands", "racks"].includes(moduleName)) {
-    return isAdmin(user);
-  }
-
-  return isAdmin(user);
-}
-
-export function canApprove(user, moduleName) {
-  if (moduleName === "leaves") {
-    return isAdmin(user) || isBranchManager(user);
-  }
-
-  if (moduleName === "payroll") {
-    return isAdmin(user);
-  }
-
-  return isAdmin(user) || isBranchManager(user);
-}
+  return getPermissionCodes(user).some((permission) =>
+    permission.startsWith(prefix),
+  );
+};

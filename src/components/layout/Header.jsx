@@ -56,7 +56,15 @@ const routeLabels = {
   edit: "Edit",
 };
 
-const nonClickableSegments = new Set(["inventory"]);
+const nonClickableSegments = new Set([
+  "inventory",
+  "sales",
+  "purchases",
+  "hrms",
+  "finance",
+  "reports",
+  "settings",
+]);
 
 function formatDynamicLabel(part) {
   if (/^\d+$/.test(part)) {

@@ -97,6 +97,7 @@ import HRMSReportPage from "@/features/reports/HRMSReportPage";
 import NotificationsPage from "@/features/notifications/NotificationsPage";
 import AuditLogsPage from "@/features/auditLogs/AuditLogsPage";
 import SettingsPage from "@/features/settings/SettingsPage";
+import UserRoleManagementPage from "@/features/settings/UserRoleManagementPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -108,8 +109,8 @@ const queryClient = new QueryClient({
   },
 });
 
-function ProtectedRoute({ children, allow }) {
-  const { user, isLoading } = useAuth();
+function ProtectedRoute({ children, allow, permission }) {
+  const { user, isLoading, hasPermission } = useAuth();
 
   if (isLoading) {
     return null;
@@ -127,6 +128,10 @@ function ProtectedRoute({ children, allow }) {
     user.role_name === "Super Admin";
 
   if (allow && !isSuperUser && !allow.includes(roleCode)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  if (permission && !isSuperUser && !hasPermission(permission)) {
     return <Navigate to="/unauthorized" replace />;
   }
 
@@ -158,8 +163,7 @@ export default function App() {
                 </ProtectedRoute>
               }
             >
-              {/* Open dashboard after login/root navigation */}
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/" element={<Navigate to="/modules" replace />} />
 
               <Route path="/modules" element={<ModuleLandingPage />} />
 
@@ -169,7 +173,10 @@ export default function App() {
               <Route
                 path="/branches"
                 element={
-                  <ProtectedRoute allow={["ADMIN"]}>
+                  <ProtectedRoute
+                    allow={["ADMIN"]}
+                    permission="settings.branches.view"
+                  >
                     <BranchListPage />
                   </ProtectedRoute>
                 }
@@ -178,7 +185,10 @@ export default function App() {
               <Route
                 path="/branches/new"
                 element={
-                  <ProtectedRoute allow={["ADMIN"]}>
+                  <ProtectedRoute
+                    allow={["ADMIN"]}
+                    permission="settings.branches.create"
+                  >
                     <BranchFormPage />
                   </ProtectedRoute>
                 }
@@ -187,7 +197,10 @@ export default function App() {
               <Route
                 path="/branches/:id"
                 element={
-                  <ProtectedRoute allow={["ADMIN"]}>
+                  <ProtectedRoute
+                    allow={["ADMIN"]}
+                    permission="settings.branches.view"
+                  >
                     <BranchDetailPage />
                   </ProtectedRoute>
                 }
@@ -196,7 +209,10 @@ export default function App() {
               <Route
                 path="/branches/:id/edit"
                 element={
-                  <ProtectedRoute allow={["ADMIN"]}>
+                  <ProtectedRoute
+                    allow={["ADMIN"]}
+                    permission="settings.branches.edit"
+                  >
                     <BranchFormPage />
                   </ProtectedRoute>
                 }
@@ -205,184 +221,492 @@ export default function App() {
               {/* Inventory */}
               <Route
                 path="/inventory/categories"
-                element={<CategoryListPage />}
+                element={
+                  <ProtectedRoute permission="inventory.categories.view">
+                    <CategoryListPage />
+                  </ProtectedRoute>
+                }
               />
 
-              <Route path="/inventory/brands" element={<BrandListPage />} />
+              <Route
+                path="/inventory/brands"
+                element={
+                  <ProtectedRoute permission="inventory.brands.view">
+                    <BrandListPage />
+                  </ProtectedRoute>
+                }
+              />
 
-              <Route path="/inventory/products" element={<ProductListPage />} />
+              <Route
+                path="/inventory/products"
+                element={
+                  <ProtectedRoute permission="inventory.products.view">
+                    <ProductListPage />
+                  </ProtectedRoute>
+                }
+              />
 
               <Route
                 path="/inventory/products/new"
-                element={<ProductFormPage />}
+                element={
+                  <ProtectedRoute permission="inventory.products.create">
+                    <ProductFormPage />
+                  </ProtectedRoute>
+                }
               />
 
               <Route
                 path="/inventory/products/:id"
-                element={<ProductDetailPage />}
+                element={
+                  <ProtectedRoute permission="inventory.products.view">
+                    <ProductDetailPage />
+                  </ProtectedRoute>
+                }
               />
 
               <Route
                 path="/inventory/products/:id/edit"
-                element={<ProductFormPage />}
+                element={
+                  <ProtectedRoute permission="inventory.products.edit">
+                    <ProductFormPage />
+                  </ProtectedRoute>
+                }
               />
 
-              <Route path="/inventory/racks" element={<RackListPage />} />
+              <Route
+                path="/inventory/racks"
+                element={
+                  <ProtectedRoute permission="inventory.racks.view">
+                    <RackListPage />
+                  </ProtectedRoute>
+                }
+              />
 
-              <Route path="/inventory/racks/new" element={<RackFormPage />} />
+              <Route
+                path="/inventory/racks/new"
+                element={
+                  <ProtectedRoute permission="inventory.racks.create">
+                    <RackFormPage />
+                  </ProtectedRoute>
+                }
+              />
 
               <Route
                 path="/inventory/racks/:id/edit"
-                element={<RackFormPage />}
+                element={
+                  <ProtectedRoute permission="inventory.racks.edit">
+                    <RackFormPage />
+                  </ProtectedRoute>
+                }
               />
 
-              <Route path="/inventory/stock" element={<StockPage />} />
+              <Route
+                path="/inventory/stock"
+                element={
+                  <ProtectedRoute permission="inventory.stock.view">
+                    <StockPage />
+                  </ProtectedRoute>
+                }
+              />
 
-              <Route path="/inventory/low-stock" element={<LowStockPage />} />
+              <Route
+                path="/inventory/low-stock"
+                element={
+                  <ProtectedRoute permission="inventory.low_stock.view">
+                    <LowStockPage />
+                  </ProtectedRoute>
+                }
+              />
 
               <Route
                 path="/inventory/movements"
-                element={<StockMovementsPage />}
+                element={
+                  <ProtectedRoute permission="inventory.movements.view">
+                    <StockMovementsPage />
+                  </ProtectedRoute>
+                }
               />
 
               <Route
                 path="/inventory/adjustments"
-                element={<StockAdjustmentPage />}
+                element={
+                  <ProtectedRoute permission="inventory.adjustments.view">
+                    <StockAdjustmentPage />
+                  </ProtectedRoute>
+                }
               />
 
               {/* Customers */}
-              <Route path="/customers" element={<CustomerListPage />} />
+              <Route
+                path="/customers"
+                element={
+                  <ProtectedRoute permission="sales.customers.view">
+                    <CustomerListPage />
+                  </ProtectedRoute>
+                }
+              />
 
-              <Route path="/customers/new" element={<CustomerFormPage />} />
+              <Route
+                path="/customers/new"
+                element={
+                  <ProtectedRoute permission="sales.customers.create">
+                    <CustomerFormPage />
+                  </ProtectedRoute>
+                }
+              />
 
-              <Route path="/customers/:id" element={<CustomerDetailPage />} />
+              <Route
+                path="/customers/:id"
+                element={
+                  <ProtectedRoute permission="sales.customers.view">
+                    <CustomerDetailPage />
+                  </ProtectedRoute>
+                }
+              />
 
               <Route
                 path="/customers/:id/edit"
-                element={<CustomerFormPage />}
+                element={
+                  <ProtectedRoute permission="sales.customers.edit">
+                    <CustomerFormPage />
+                  </ProtectedRoute>
+                }
               />
 
               {/* Sales */}
-              <Route path="/sales/quotations" element={<QuotationListPage />} />
+              <Route
+                path="/sales/quotations"
+                element={
+                  <ProtectedRoute permission="sales.quotations.view">
+                    <QuotationListPage />
+                  </ProtectedRoute>
+                }
+              />
 
               <Route
                 path="/sales/quotations/new"
-                element={<QuotationFormPage />}
+                element={
+                  <ProtectedRoute permission="sales.quotations.create">
+                    <QuotationFormPage />
+                  </ProtectedRoute>
+                }
               />
 
               <Route
                 path="/sales/quotations/:id"
-                element={<QuotationDetailPage />}
+                element={
+                  <ProtectedRoute permission="sales.quotations.view">
+                    <QuotationDetailPage />
+                  </ProtectedRoute>
+                }
               />
 
               <Route
                 path="/sales/quotations/:id/edit"
-                element={<QuotationFormPage />}
+                element={
+                  <ProtectedRoute permission="sales.quotations.edit">
+                    <QuotationFormPage />
+                  </ProtectedRoute>
+                }
               />
 
-              <Route path="/sales/invoices" element={<InvoiceListPage />} />
+              <Route
+                path="/sales/invoices"
+                element={
+                  <ProtectedRoute permission="sales.invoices.view">
+                    <InvoiceListPage />
+                  </ProtectedRoute>
+                }
+              />
 
-              <Route path="/sales/invoices/new" element={<InvoiceFormPage />} />
+              <Route
+                path="/sales/invoices/new"
+                element={
+                  <ProtectedRoute permission="sales.invoices.create">
+                    <InvoiceFormPage />
+                  </ProtectedRoute>
+                }
+              />
 
               <Route
                 path="/sales/invoices/:id"
-                element={<InvoiceDetailPage />}
+                element={
+                  <ProtectedRoute permission="sales.invoices.view">
+                    <InvoiceDetailPage />
+                  </ProtectedRoute>
+                }
               />
 
-              <Route path="/sales/pos" element={<POSPage />} />
+              <Route
+                path="/sales/pos"
+                element={
+                  <ProtectedRoute permission="sales.pos.view">
+                    <POSPage />
+                  </ProtectedRoute>
+                }
+              />
 
-              <Route path="/sales/credit-notes" element={<CreditNotesPage />} />
+              <Route
+                path="/sales/credit-notes"
+                element={
+                  <ProtectedRoute permission="sales.credit_notes.view">
+                    <CreditNotesPage />
+                  </ProtectedRoute>
+                }
+              />
 
-              <Route path="/sales/payments" element={<SalesPaymentsPage />} />
+              <Route
+                path="/sales/payments"
+                element={
+                  <ProtectedRoute permission="sales.payments.view">
+                    <SalesPaymentsPage />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Suppliers */}
-              <Route path="/suppliers" element={<SupplierListPage />} />
+              <Route
+                path="/suppliers"
+                element={
+                  <ProtectedRoute permission="purchases.suppliers.view">
+                    <SupplierListPage />
+                  </ProtectedRoute>
+                }
+              />
 
-              <Route path="/suppliers/new" element={<SupplierFormPage />} />
+              <Route
+                path="/suppliers/new"
+                element={
+                  <ProtectedRoute permission="purchases.suppliers.create">
+                    <SupplierFormPage />
+                  </ProtectedRoute>
+                }
+              />
 
-              <Route path="/suppliers/:id" element={<SupplierDetailPage />} />
+              <Route
+                path="/suppliers/:id"
+                element={
+                  <ProtectedRoute permission="purchases.suppliers.view">
+                    <SupplierDetailPage />
+                  </ProtectedRoute>
+                }
+              />
 
               <Route
                 path="/suppliers/:id/edit"
-                element={<SupplierFormPage />}
+                element={
+                  <ProtectedRoute permission="purchases.suppliers.edit">
+                    <SupplierFormPage />
+                  </ProtectedRoute>
+                }
               />
 
               {/* Purchases */}
-              <Route path="/purchases/orders" element={<POListPage />} />
+              <Route
+                path="/purchases/orders"
+                element={
+                  <ProtectedRoute permission="purchases.orders.view">
+                    <POListPage />
+                  </ProtectedRoute>
+                }
+              />
 
-              <Route path="/purchases/orders/new" element={<POFormPage />} />
+              <Route
+                path="/purchases/orders/new"
+                element={
+                  <ProtectedRoute permission="purchases.orders.create">
+                    <POFormPage />
+                  </ProtectedRoute>
+                }
+              />
 
-              <Route path="/purchases/orders/:id" element={<PODetailPage />} />
+              <Route
+                path="/purchases/orders/:id"
+                element={
+                  <ProtectedRoute permission="purchases.orders.view">
+                    <PODetailPage />
+                  </ProtectedRoute>
+                }
+              />
 
               <Route
                 path="/purchases/orders/:id/edit"
-                element={<POFormPage />}
+                element={
+                  <ProtectedRoute permission="purchases.orders.edit">
+                    <POFormPage />
+                  </ProtectedRoute>
+                }
               />
 
-              <Route path="/purchases/grn" element={<GRNListPage />} />
+              <Route
+                path="/purchases/grn"
+                element={
+                  <ProtectedRoute permission="purchases.grn.view">
+                    <GRNListPage />
+                  </ProtectedRoute>
+                }
+              />
 
-              <Route path="/purchases/grn/new" element={<GRNFormPage />} />
+              <Route
+                path="/purchases/grn/new"
+                element={
+                  <ProtectedRoute permission="purchases.grn.create">
+                    <GRNFormPage />
+                  </ProtectedRoute>
+                }
+              />
 
-              <Route path="/purchases/grn/:id" element={<GRNDetailPage />} />
+              <Route
+                path="/purchases/grn/:id"
+                element={
+                  <ProtectedRoute permission="purchases.grn.view">
+                    <GRNDetailPage />
+                  </ProtectedRoute>
+                }
+              />
 
-              <Route path="/purchases/grn/:id/edit" element={<GRNFormPage />} />
+              <Route
+                path="/purchases/grn/:id/edit"
+                element={
+                  <ProtectedRoute permission="purchases.grn.edit">
+                    <GRNFormPage />
+                  </ProtectedRoute>
+                }
+              />
 
               <Route
                 path="/purchases/supplier-bills"
-                element={<SupplierBillsPage />}
+                element={
+                  <ProtectedRoute permission="purchases.bills.view">
+                    <SupplierBillsPage />
+                  </ProtectedRoute>
+                }
               />
 
               <Route
                 path="/purchases/supplier-payments"
-                element={<SupplierPaymentsPage />}
+                element={
+                  <ProtectedRoute permission="purchases.payments.view">
+                    <SupplierPaymentsPage />
+                  </ProtectedRoute>
+                }
               />
 
               <Route
                 path="/purchases/supplier-returns"
-                element={<SupplierReturnsPage />}
+                element={
+                  <ProtectedRoute permission="purchases.returns.view">
+                    <SupplierReturnsPage />
+                  </ProtectedRoute>
+                }
               />
 
               <Route
                 path="/purchases/vendor-credits"
-                element={<VendorCreditsPage />}
+                element={
+                  <ProtectedRoute permission="purchases.vendor_credits.view">
+                    <VendorCreditsPage />
+                  </ProtectedRoute>
+                }
               />
 
               <Route
                 path="/purchases/expenses"
-                element={<PurchaseExpensesPage />}
+                element={
+                  <ProtectedRoute permission="purchases.expenses.view">
+                    <PurchaseExpensesPage />
+                  </ProtectedRoute>
+                }
               />
 
               {/* Transfers */}
-              <Route path="/transfers" element={<TransferListPage />} />
+              <Route
+                path="/transfers"
+                element={
+                  <ProtectedRoute permission="inventory.transfers.view">
+                    <TransferListPage />
+                  </ProtectedRoute>
+                }
+              />
 
-              <Route path="/transfers/new" element={<TransferFormPage />} />
+              <Route
+                path="/transfers/new"
+                element={
+                  <ProtectedRoute permission="inventory.transfers.create">
+                    <TransferFormPage />
+                  </ProtectedRoute>
+                }
+              />
 
-              <Route path="/transfers/:id" element={<TransferDetailPage />} />
+              <Route
+                path="/transfers/:id"
+                element={
+                  <ProtectedRoute permission="inventory.transfers.view">
+                    <TransferDetailPage />
+                  </ProtectedRoute>
+                }
+              />
 
               <Route
                 path="/transfers/:id/edit"
-                element={<TransferFormPage />}
+                element={
+                  <ProtectedRoute permission="inventory.transfers.edit">
+                    <TransferFormPage />
+                  </ProtectedRoute>
+                }
               />
 
               {/* Shipments */}
-              <Route path="/shipments" element={<ShipmentListPage />} />
+              <Route
+                path="/shipments"
+                element={
+                  <ProtectedRoute permission="purchases.shipments.view">
+                    <ShipmentListPage />
+                  </ProtectedRoute>
+                }
+              />
 
-              <Route path="/shipments/new" element={<ShipmentFormPage />} />
+              <Route
+                path="/shipments/new"
+                element={
+                  <ProtectedRoute permission="purchases.shipments.create">
+                    <ShipmentFormPage />
+                  </ProtectedRoute>
+                }
+              />
 
-              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+              <Route
+                path="/shipments/:id"
+                element={
+                  <ProtectedRoute permission="purchases.shipments.view">
+                    <ShipmentDetailPage />
+                  </ProtectedRoute>
+                }
+              />
 
               <Route
                 path="/shipments/:id/edit"
-                element={<ShipmentFormPage />}
+                element={
+                  <ProtectedRoute permission="purchases.shipments.edit">
+                    <ShipmentFormPage />
+                  </ProtectedRoute>
+                }
               />
 
               {/* HRMS */}
-              <Route path="/hrms/employees" element={<EmployeeListPage />} />
+              <Route
+                path="/hrms/employees"
+                element={
+                  <ProtectedRoute permission="hrms.employees.view">
+                    <EmployeeListPage />
+                  </ProtectedRoute>
+                }
+              />
 
               <Route
                 path="/hrms/employees/new"
                 element={
-                  <ProtectedRoute allow={["ADMIN", "BM"]}>
+                  <ProtectedRoute permission="hrms.employees.create">
                     <EmployeeFormPage />
                   </ProtectedRoute>
                 }
@@ -390,26 +714,44 @@ export default function App() {
 
               <Route
                 path="/hrms/employees/:id"
-                element={<EmployeeDetailPage />}
+                element={
+                  <ProtectedRoute permission="hrms.employees.view">
+                    <EmployeeDetailPage />
+                  </ProtectedRoute>
+                }
               />
 
               <Route
                 path="/hrms/employees/:id/edit"
                 element={
-                  <ProtectedRoute allow={["ADMIN", "BM"]}>
+                  <ProtectedRoute permission="hrms.employees.edit">
                     <EmployeeFormPage />
                   </ProtectedRoute>
                 }
               />
 
-              <Route path="/hrms/attendance" element={<AttendancePage />} />
+              <Route
+                path="/hrms/attendance"
+                element={
+                  <ProtectedRoute permission="hrms.attendance.view">
+                    <AttendancePage />
+                  </ProtectedRoute>
+                }
+              />
 
-              <Route path="/hrms/leaves" element={<LeavesPage />} />
+              <Route
+                path="/hrms/leaves"
+                element={
+                  <ProtectedRoute permission="hrms.leaves.view">
+                    <LeavesPage />
+                  </ProtectedRoute>
+                }
+              />
 
               <Route
                 path="/hrms/payroll"
                 element={
-                  <ProtectedRoute allow={["ADMIN"]}>
+                  <ProtectedRoute permission="hrms.payroll.view">
                     <PayrollPage />
                   </ProtectedRoute>
                 }
@@ -418,7 +760,7 @@ export default function App() {
               <Route
                 path="/hrms/payroll/:id/payslip"
                 element={
-                  <ProtectedRoute allow={["ADMIN"]}>
+                  <ProtectedRoute permission="hrms.payroll.view">
                     <PayslipPage />
                   </ProtectedRoute>
                 }
@@ -427,7 +769,7 @@ export default function App() {
               <Route
                 path="/hrms/salary-history"
                 element={
-                  <ProtectedRoute allow={["ADMIN"]}>
+                  <ProtectedRoute permission="hrms.salary_history.view">
                     <SalaryHistoryPage />
                   </ProtectedRoute>
                 }
@@ -435,14 +777,18 @@ export default function App() {
 
               <Route
                 path="/hrms/document-expiry"
-                element={<DocumentExpiryPage />}
+                element={
+                  <ProtectedRoute permission="hrms.documents.view">
+                    <DocumentExpiryPage />
+                  </ProtectedRoute>
+                }
               />
 
               {/* Finance */}
               <Route
                 path="/finance/expenses"
                 element={
-                  <ProtectedRoute allow={["ADMIN", "BM"]}>
+                  <ProtectedRoute permission="finance.expenses.view">
                     <ExpensesPage />
                   </ProtectedRoute>
                 }
@@ -451,7 +797,7 @@ export default function App() {
               <Route
                 path="/finance/receivables"
                 element={
-                  <ProtectedRoute allow={["ADMIN", "BM"]}>
+                  <ProtectedRoute permission="finance.receivables.view">
                     <ReceivablesPage />
                   </ProtectedRoute>
                 }
@@ -460,7 +806,7 @@ export default function App() {
               <Route
                 path="/finance/payables"
                 element={
-                  <ProtectedRoute allow={["ADMIN", "BM"]}>
+                  <ProtectedRoute permission="finance.payables.view">
                     <PayablesPage />
                   </ProtectedRoute>
                 }
@@ -469,7 +815,7 @@ export default function App() {
               <Route
                 path="/finance/cash-register"
                 element={
-                  <ProtectedRoute allow={["ADMIN", "BM"]}>
+                  <ProtectedRoute permission="finance.cash_register.view">
                     <CashRegisterPage />
                   </ProtectedRoute>
                 }
@@ -478,7 +824,7 @@ export default function App() {
               <Route
                 path="/finance/bank-accounts"
                 element={
-                  <ProtectedRoute allow={["ADMIN"]}>
+                  <ProtectedRoute permission="finance.bank_accounts.view">
                     <BankAccountsPage />
                   </ProtectedRoute>
                 }
@@ -487,7 +833,7 @@ export default function App() {
               <Route
                 path="/finance/ledger"
                 element={
-                  <ProtectedRoute allow={["ADMIN", "BM"]}>
+                  <ProtectedRoute permission="finance.ledger.view">
                     <LedgerPage />
                   </ProtectedRoute>
                 }
@@ -497,7 +843,7 @@ export default function App() {
               <Route
                 path="/reports/dashboard"
                 element={
-                  <ProtectedRoute allow={["ADMIN", "BM"]}>
+                  <ProtectedRoute permission="reports.dashboard.view">
                     <ReportsDashboardPage />
                   </ProtectedRoute>
                 }
@@ -506,7 +852,7 @@ export default function App() {
               <Route
                 path="/reports/sales"
                 element={
-                  <ProtectedRoute allow={["ADMIN", "BM"]}>
+                  <ProtectedRoute permission="reports.sales.view">
                     <SalesReportPage />
                   </ProtectedRoute>
                 }
@@ -515,7 +861,7 @@ export default function App() {
               <Route
                 path="/reports/purchases"
                 element={
-                  <ProtectedRoute allow={["ADMIN", "BM"]}>
+                  <ProtectedRoute permission="reports.purchases.view">
                     <PurchaseReportPage />
                   </ProtectedRoute>
                 }
@@ -524,7 +870,7 @@ export default function App() {
               <Route
                 path="/reports/inventory"
                 element={
-                  <ProtectedRoute allow={["ADMIN", "BM"]}>
+                  <ProtectedRoute permission="reports.inventory.view">
                     <InventoryReportPage />
                   </ProtectedRoute>
                 }
@@ -533,7 +879,7 @@ export default function App() {
               <Route
                 path="/reports/finance"
                 element={
-                  <ProtectedRoute allow={["ADMIN", "BM"]}>
+                  <ProtectedRoute permission="reports.finance.view">
                     <FinanceReportPage />
                   </ProtectedRoute>
                 }
@@ -542,7 +888,7 @@ export default function App() {
               <Route
                 path="/reports/hrms"
                 element={
-                  <ProtectedRoute allow={["ADMIN", "BM"]}>
+                  <ProtectedRoute permission="reports.hrms.view">
                     <HRMSReportPage />
                   </ProtectedRoute>
                 }
@@ -554,8 +900,20 @@ export default function App() {
               <Route
                 path="/audit-logs"
                 element={
-                  <ProtectedRoute allow={["ADMIN"]}>
+                  <ProtectedRoute
+                    allow={["ADMIN"]}
+                    permission="settings.audit_logs.view"
+                  >
                     <AuditLogsPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/settings/users-roles"
+                element={
+                  <ProtectedRoute allow={["ADMIN"]}>
+                    <UserRoleManagementPage />
                   </ProtectedRoute>
                 }
               />

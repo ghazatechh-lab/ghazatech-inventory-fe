@@ -1,26 +1,182 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useListQuery, DataTable, SearchInput } from "@/hooks/useListQuery";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { CurrencyText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { ListingRowActions } from "@/components/common/ListingRowActions";
 
+const normalizePayload = (value) => {
+  if (Array.isArray(value)) {
+    return {
+      results: value,
+      count: value.length,
+    };
+  }
+
+  if (Array.isArray(value?.results)) {
+    return {
+      results: value.results,
+      count: Number(value.count || value.results.length),
+    };
+  }
+
+  if (Array.isArray(value?.data)) {
+    return {
+      results: value.data,
+      count: Number(value.count || value.data.length),
+    };
+  }
+
+  if (Array.isArray(value?.data?.results)) {
+    return {
+      results: value.data.results,
+      count: Number(
+        value.data.count || value.count || value.data.results.length,
+      ),
+    };
+  }
+
+  return {
+    results: [],
+    count: 0,
+  };
+};
+
 export default function EmployeeListPage() {
+  const { branchId, branchParams, isAllBranches } = useActiveBranchFilter();
+
   const { query, q, setQ, page, setPage } = useListQuery(
     "employees",
     "/hrms/employees/",
+    branchParams,
   );
-  const data = query.data || { results: [], count: 0 };
+
+  const data = React.useMemo(() => normalizePayload(query.data), [query.data]);
+
+  /*
+   * Reset the employee list to the first page when the top-bar branch changes.
+   * This avoids requesting an invalid page number for a smaller branch result.
+   */
+  React.useEffect(() => {
+    setPage(1);
+  }, [branchId, setPage]);
+
+  const columns = React.useMemo(
+    () => [
+      {
+        key: "employee_code",
+        header: "Code",
+        cell: (row) => (
+          <span className="font-mono text-xs font-semibold text-slate-200">
+            {row.employee_code || "—"}
+          </span>
+        ),
+      },
+      {
+        key: "employee",
+        header: "Employee",
+        cell: (row) => (
+          <Link
+            to={`/hrms/employees/${row.id}`}
+            className="flex min-w-0 items-center gap-3"
+          >
+            {row.profile_image_url || row.profile_image ? (
+              <img
+                src={row.profile_image_url || row.profile_image}
+                alt={row.full_name || "Employee"}
+                className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-white/10"
+              />
+            ) : (
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-300 ring-1 ring-blue-400/20">
+                <Users className="h-4 w-4" />
+              </div>
+            )}
+
+            <div className="min-w-0">
+              <p className="truncate font-medium text-blue-500 hover:underline dark:text-blue-300">
+                {row.full_name || "Unnamed employee"}
+              </p>
+
+              <p className="truncate text-xs text-muted-foreground">
+                {row.designation_name || "No designation"}
+              </p>
+            </div>
+          </Link>
+        ),
+      },
+      {
+        key: "department_name",
+        header: "Department",
+        cell: (row) => row.department_name || "—",
+      },
+      {
+        key: "branch_name",
+        header: "Branch",
+        cell: (row) => (
+          <div>
+            <p className="font-medium">{row.branch_name || "Unassigned"}</p>
+
+            {row.branch_code && (
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {row.branch_code}
+              </p>
+            )}
+          </div>
+        ),
+      },
+      {
+        key: "passport_number",
+        header: "Passport",
+        cell: (row) => row.passport_number || "—",
+      },
+      {
+        key: "emirates_id_number",
+        header: "Emirates ID",
+        cell: (row) => row.emirates_id_number || "—",
+      },
+      {
+        key: "total_salary",
+        header: "Package",
+        align: "right",
+        cell: (row) => <CurrencyText value={row.total_salary} />,
+      },
+      {
+        key: "employment_status",
+        header: "Status",
+        cell: (row) => <StatusBadge status={row.employment_status} />,
+      },
+      {
+        key: "actions",
+        header: "Actions",
+        align: "right",
+        cell: (row) => (
+          <ListingRowActions
+            viewTo={`/hrms/employees/${row.id}`}
+            editTo={`/hrms/employees/${row.id}/edit`}
+            deleteUrl={`/hrms/employees/${row.id}/`}
+            queryKey="employees"
+            itemLabel={row.full_name}
+          />
+        ),
+      },
+    ],
+    [],
+  );
 
   return (
     <div className="space-y-5">
       <PageHeader
         title="Employees"
-        subtitle="Full HR directory across branches"
+        subtitle={
+          isAllBranches
+            ? "Full employee directory across all branches"
+            : "Employees assigned to the selected branch"
+        }
         actions={
           <Button asChild className="bg-blue-600 text-white hover:bg-blue-700">
             <Link to="/hrms/employees/new">
@@ -31,6 +187,12 @@ export default function EmployeeListPage() {
         }
       />
 
+      {!isAllBranches && (
+        <div className="rounded-xl border border-blue-400/20 bg-blue-500/10 px-4 py-3 text-sm text-blue-700 dark:text-blue-200">
+          Showing employees for the selected branch only.
+        </div>
+      )}
+
       <SearchInput
         value={q}
         onChange={setQ}
@@ -38,55 +200,22 @@ export default function EmployeeListPage() {
       />
 
       <DataTable
-        columns={[
-          { key: "employee_code", header: "Code" },
-          {
-            key: "employee",
-            header: "Employee",
-            cell: (row) => (
-              <Link
-                to={`/hrms/employees/${row.id}`}
-                className="font-medium text-blue-600 hover:underline"
-              >
-                {row.full_name}
-              </Link>
-            ),
-          },
-          { key: "department_name", header: "Department" },
-          { key: "branch_name", header: "Branch" },
-          { key: "passport_number", header: "Passport" },
-          { key: "emirates_id_number", header: "Emirates ID" },
-          {
-            key: "total_salary",
-            header: "Package",
-            align: "right",
-            cell: (row) => <CurrencyText value={row.total_salary} />,
-          },
-          {
-            key: "employment_status",
-            header: "Status",
-            cell: (row) => <StatusBadge status={row.employment_status} />,
-          },
-          {
-            key: "actions",
-            header: "Actions",
-            align: "right",
-            cell: (row) => (
-              <ListingRowActions
-                viewTo={`/hrms/employees/${row.id}`}
-                editTo={`/hrms/employees/${row.id}/edit`}
-                deleteUrl={`/hrms/employees/${row.id}/`}
-                queryKey="employees"
-                itemLabel={row.full_name}
-              />
-            ),
-          },
-        ]}
-        data={data.results || []}
-        isLoading={query.isLoading}
+        columns={columns}
+        data={data.results}
+        isLoading={query.isLoading || query.isFetching}
         page={page}
-        total={data.count || 0}
+        total={data.count}
         onPageChange={setPage}
+        emptyTitle={
+          isAllBranches
+            ? "No employees found"
+            : "No employees found in this branch"
+        }
+        emptyDescription={
+          isAllBranches
+            ? "Add employees to build the HR directory."
+            : "Switch branches or add an employee to this branch."
+        }
       />
     </div>
   );

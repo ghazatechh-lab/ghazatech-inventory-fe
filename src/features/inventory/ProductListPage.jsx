@@ -77,7 +77,7 @@ export default function ProductListPage() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const { branchId } = useActiveBranchFilter();
+  const { branchId, isAllBranches } = useActiveBranchFilter();
 
   const page = Number(searchParams.get("page") || 1);
   const search = searchParams.get("search") || "";
@@ -128,13 +128,20 @@ export default function ProductListPage() {
   });
 
   const productsQuery = useQuery({
-    queryKey: ["products", page, debouncedSearch, brand, category, branchId],
+    queryKey: [
+      "products",
+      isAllBranches ? "all-branches" : branchId,
+      page,
+      debouncedSearch,
+      brand,
+      category,
+    ],
     queryFn: async () =>
       unwrap(
         await api.get("/products/", {
           params: {
-            page,
-            page_size: 12,
+            page: isAllBranches ? undefined : page,
+            page_size: isAllBranches ? 1000 : 12,
             search: debouncedSearch || undefined,
             brand: brand || undefined,
             category: category || undefined,
@@ -145,21 +152,153 @@ export default function ProductListPage() {
     keepPreviousData: true,
   });
 
+  const allBranchStockQuery = useQuery({
+    queryKey: [
+      "product-list-all-branch-stock",
+      debouncedSearch,
+      brand,
+      category,
+    ],
+    enabled: isAllBranches,
+    queryFn: async () =>
+      unwrap(
+        await api.get("/inventory/stock/", {
+          params: {
+            page_size: 5000,
+            search: debouncedSearch || undefined,
+            brand: brand || undefined,
+            category: category || undefined,
+          },
+        }),
+      ),
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+
   const productData = useMemo(() => {
     const data = productsQuery.data;
+    const products = Array.isArray(data) ? data : data?.results || [];
 
-    if (Array.isArray(data)) {
+    if (!isAllBranches) {
       return {
-        results: data,
-        count: data.length,
+        results: products,
+        count: data?.count || products.length,
       };
     }
 
+    const stockData = allBranchStockQuery.data;
+    const stockGroups = Array.isArray(stockData)
+      ? stockData
+      : stockData?.results || [];
+
+    const productById = new Map(
+      products.map((product) => [String(product.id), product]),
+    );
+
+    const productBySku = new Map(
+      products
+        .filter((product) => product.sku)
+        .map((product) => [String(product.sku), product]),
+    );
+
+    const rows = [];
+    const seen = new Set();
+
+    stockGroups.forEach((group) => {
+      const productId = group.product_id ?? group.product?.id ?? group.id;
+      const product = productById.get(String(productId)) ||
+        productBySku.get(String(group.sku || group.product_sku || "")) || {
+          id: productId,
+          product_name: group.product_name,
+          sku: group.sku || group.product_sku,
+          barcode: group.barcode,
+          brand_name: group.brand_name,
+          category_name: group.category_name,
+          retail_price: group.retail_price,
+          is_active: group.is_active !== false,
+        };
+
+      const branchStocks = Array.isArray(group.branch_stocks)
+        ? group.branch_stocks
+        : [];
+
+      branchStocks.forEach((stock) => {
+        const branchIdValue =
+          stock.branch_id ?? stock.branch?.id ?? stock.branch;
+        const variantId = stock.variant_id ?? group.variant_id ?? "";
+        const rowKey = `${product.id}-${branchIdValue}-${variantId}`;
+
+        if (seen.has(rowKey)) {
+          return;
+        }
+
+        seen.add(rowKey);
+
+        rows.push({
+          ...product,
+          row_key: rowKey,
+          branch_id: branchIdValue,
+          branch_code:
+            stock.branch_code ||
+            stock.branch?.branch_code ||
+            stock.branch?.code ||
+            "",
+          branch_name:
+            stock.branch_name ||
+            stock.branch?.branch_name ||
+            stock.branch?.name ||
+            "",
+          rack_code:
+            stock.rack_code || stock.rack?.rack_code || stock.rack?.code || "",
+          rack_name:
+            stock.rack_name || stock.rack?.rack_name || stock.rack?.name || "",
+          total_available_qty: Number(
+            stock.available_stock ??
+              stock.available_qty ??
+              stock.current_stock ??
+              stock.quantity ??
+              0,
+          ),
+          variant_id: variantId || null,
+          variant_label: stock.variant_label || group.variant_label || "",
+        });
+      });
+    });
+
+    products.forEach((product) => {
+      const alreadyIncluded = rows.some(
+        (row) => String(row.id) === String(product.id),
+      );
+
+      if (!alreadyIncluded) {
+        rows.push({
+          ...product,
+          row_key: `${product.id}-${product.branch_id || product.branch || "unassigned"}`,
+        });
+      }
+    });
+
+    rows.sort((first, second) => {
+      const nameCompare = String(first.product_name || "").localeCompare(
+        String(second.product_name || ""),
+      );
+
+      if (nameCompare !== 0) {
+        return nameCompare;
+      }
+
+      return String(first.branch_code || first.branch_name || "").localeCompare(
+        String(second.branch_code || second.branch_name || ""),
+      );
+    });
+
+    const start = (page - 1) * 12;
+
     return {
-      results: data?.results || [],
-      count: data?.count || 0,
+      results: rows.slice(start, start + 12),
+      count: rows.length,
     };
-  }, [productsQuery.data]);
+  }, [productsQuery.data, allBranchStockQuery.data, isAllBranches, page]);
 
   const deleteMutation = useMutation({
     mutationFn: async (productId) => api.delete(`/products/${productId}/`),
@@ -334,6 +473,13 @@ export default function ProductListPage() {
         }
       />
 
+      {isAllBranches && (
+        <div className="mb-4 rounded-xl border border-blue-400/20 bg-blue-500/10 px-4 py-3 text-sm text-blue-100">
+          All Branches is selected. The same product is shown as a separate row
+          for every branch where it has stock.
+        </div>
+      )}
+
       <div className="mb-4 flex flex-wrap gap-3">
         <div className="min-w-[240px] flex-1">
           <SearchInput
@@ -400,7 +546,10 @@ export default function ProductListPage() {
       <DataTable
         columns={columns}
         data={productData.results}
-        isLoading={productsQuery.isLoading}
+        isLoading={
+          productsQuery.isLoading ||
+          (isAllBranches && allBranchStockQuery.isLoading)
+        }
         page={page}
         total={productData.count}
         onPageChange={(nextPage) => updateParam("page", nextPage)}

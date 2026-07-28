@@ -1,7 +1,16 @@
 import React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Save, Trash2 } from "lucide-react";
+import {
+  Download,
+  FileText,
+  ImagePlus,
+  Plus,
+  Save,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
@@ -57,51 +66,6 @@ const initial = {
   is_active: true,
 };
 
-const REQUIRED_FIELDS = {
-  first_name: "First name",
-  last_name: "Last name",
-  phone: "Phone",
-  nationality: "Nationality",
-  date_of_birth: "Date of birth",
-  joining_date: "Joining date",
-  branch: "Branch",
-  department: "Department",
-  designation: "Designation",
-  emirates_id_number: "Emirates ID number",
-  emirates_id_issue_date: "Emirates ID issue date",
-  emirates_id_expiry_date: "Emirates ID expiry date",
-  basic_salary: "Basic salary",
-};
-
-const DATE_FIELDS = [
-  "date_of_birth",
-  "joining_date",
-  "passport_issue_date",
-  "passport_expiry_date",
-  "emirates_id_issue_date",
-  "emirates_id_expiry_date",
-  "visa_issue_date",
-  "visa_expiry_date",
-  "labor_contract_start_date",
-  "labor_contract_end_date",
-];
-
-const normalizeDateValue = (value) => {
-  if (!value) return "";
-  const text = String(value).trim();
-  const match = text.match(/^(\d{4}-\d{2}-\d{2})/);
-  return match ? match[1] : "";
-};
-
-const requiredLabel = (label, key) => (
-  <>
-    {label}
-    {Object.prototype.hasOwnProperty.call(REQUIRED_FIELDS, key) && (
-      <span className="ml-1 text-red-500">*</span>
-    )}
-  </>
-);
-
 export default function EmployeeFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
@@ -111,7 +75,13 @@ export default function EmployeeFormPage() {
   const [inlineForm, setInlineForm] = React.useState(null);
   const [inlineName, setInlineName] = React.useState("");
   const [inlineSaving, setInlineSaving] = React.useState(false);
-  const [formErrors, setFormErrors] = React.useState({});
+  const [profileImage, setProfileImage] = React.useState(null);
+  const [profilePreview, setProfilePreview] = React.useState("");
+  const [documents, setDocuments] = React.useState({
+    passport: null,
+    visa: null,
+    labor_contract: null,
+  });
 
   const { data: options = {} } = useQuery({
     queryKey: ["employee-form-options"],
@@ -126,25 +96,18 @@ export default function EmployeeFormPage() {
 
   React.useEffect(() => {
     if (!employee) return;
-    const normalized = {
+    setProfilePreview(employee.profile_image || "");
+    setForm({
       ...initial,
       ...employee,
       branch: employee.branch ? String(employee.branch) : "",
       department: employee.department ? String(employee.department) : "",
       designation: employee.designation ? String(employee.designation) : "",
-    };
-
-    DATE_FIELDS.forEach((fieldName) => {
-      normalized[fieldName] = normalizeDateValue(employee[fieldName]);
     });
-
-    setForm(normalized);
   }, [employee]);
 
-  const update = (key, value) => {
+  const update = (key, value) =>
     setForm((current) => ({ ...current, [key]: value }));
-    setFormErrors((current) => ({ ...current, [key]: "" }));
-  };
 
   const refreshOptions = async () => {
     await queryClient.invalidateQueries({
@@ -266,100 +229,140 @@ export default function EmployeeFormPage() {
     }
   };
 
-  const validateForm = () => {
-    const nextErrors = {};
+  const uploadOptionalDocuments = async (employeeId) => {
+    const documentDefinitions = [
+      {
+        key: "passport",
+        type: "PASSPORT",
+        title: "Passport",
+        number: form.passport_number,
+        issueDate: form.passport_issue_date,
+        expiryDate: form.passport_expiry_date,
+      },
+      {
+        key: "visa",
+        type: "VISA",
+        title: "Visa",
+        number: form.visa_number,
+        issueDate: form.visa_issue_date,
+        expiryDate: form.visa_expiry_date,
+      },
+      {
+        key: "labor_contract",
+        type: "LABOR_CONTRACT",
+        title: "Labor Contract",
+        number: form.labor_contract_number,
+        issueDate: form.labor_contract_start_date,
+        expiryDate: form.labor_contract_end_date,
+      },
+    ];
 
-    Object.entries(REQUIRED_FIELDS).forEach(([key, label]) => {
-      const value = form[key];
-      if (
-        value === null ||
-        value === undefined ||
-        String(value).trim() === ""
-      ) {
-        nextErrors[key] = `${label} is required.`;
-      }
-    });
+    const uploads = documentDefinitions
+      .filter((item) => documents[item.key])
+      .map(async (item) => {
+        const body = new FormData();
+        body.append("document_type", item.type);
+        body.append("title", item.title);
+        body.append("file", documents[item.key]);
 
-    if (
-      form.date_of_birth &&
-      form.date_of_birth >= new Date().toISOString().slice(0, 10)
-    ) {
-      nextErrors.date_of_birth = "Date of birth must be before today.";
-    }
+        if (item.number) body.append("document_number", item.number);
+        if (item.issueDate) body.append("issue_date", item.issueDate);
+        if (item.expiryDate) body.append("expiry_date", item.expiryDate);
 
-    if (
-      form.emirates_id_issue_date &&
-      form.emirates_id_expiry_date &&
-      form.emirates_id_expiry_date <= form.emirates_id_issue_date
-    ) {
-      nextErrors.emirates_id_expiry_date =
-        "Emirates ID expiry date must be after its issue date.";
-    }
+        return api.post(`/hrms/employees/${employeeId}/documents/`, body, {
+          skipGlobalErrorToast: true,
+        });
+      });
 
-    if (Number(form.basic_salary) < 0) {
-      nextErrors.basic_salary = "Basic salary cannot be negative.";
-    }
-
-    setFormErrors(nextErrors);
-
-    if (Object.keys(nextErrors).length) {
-      toast.error("Complete the required employee fields.");
-      return false;
-    }
-
-    return true;
+    await Promise.all(uploads);
   };
 
-  const buildPayload = () => {
-    const payload = {
-      ...form,
-      branch: form.branch ? Number(form.branch) : null,
-      department: form.department ? Number(form.department) : null,
-      designation: form.designation ? Number(form.designation) : null,
-      basic_salary: Number(form.basic_salary || 0),
-      allowances: Number(form.allowances || 0),
-    };
-
-    // Employee code is generated by the backend and must not be submitted.
-    delete payload.employee_code;
-
-    DATE_FIELDS.forEach((fieldName) => {
-      payload[fieldName] = form[fieldName]
-        ? normalizeDateValue(form[fieldName])
-        : null;
-    });
-
-    return payload;
-  };
+  const removeExistingDocument = useMutation({
+    mutationFn: (documentId) =>
+      api.delete(`/hrms/documents/${documentId}/`, {
+        skipGlobalErrorToast: true,
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["employee", id],
+      });
+      toast.success("Document deleted.");
+    },
+    onError: (error) => {
+      const details = getApiErrorDetails(error);
+      toast.error(details.title || "Unable to delete document", {
+        description: details.summary || details.message,
+      });
+    },
+  });
 
   const mutation = useMutation({
-    mutationFn: () => {
-      const payload = buildPayload();
+    mutationFn: async () => {
+      const body = new FormData();
+      const payload = {
+        ...form,
+        branch: form.branch ? Number(form.branch) : "",
+        department: form.department ? Number(form.department) : "",
+        designation: form.designation ? Number(form.designation) : "",
+        basic_salary: Number(form.basic_salary || 0),
+        allowances: Number(form.allowances || 0),
+      };
 
-      return isEdit
-        ? api.patch(`/hrms/employees/${id}/`, payload, {
+      Object.entries(payload).forEach(([key, value]) => {
+        if (key === "profile_image") return;
+
+        if (value === null || value === undefined) return;
+
+        if (
+          value === "" &&
+          [
+            "date_of_birth",
+            "joining_date",
+            "passport_issue_date",
+            "passport_expiry_date",
+            "emirates_id_issue_date",
+            "emirates_id_expiry_date",
+            "visa_issue_date",
+            "visa_expiry_date",
+            "labor_contract_start_date",
+            "labor_contract_end_date",
+          ].includes(key)
+        ) {
+          return;
+        }
+
+        body.append(key, typeof value === "boolean" ? String(value) : value);
+      });
+
+      if (profileImage) {
+        body.append("profile_image", profileImage);
+      }
+
+      const response = isEdit
+        ? await api.patch(`/hrms/employees/${id}/`, body, {
             skipGlobalErrorToast: true,
           })
-        : api.post("/hrms/employees/", payload, {
+        : await api.post("/hrms/employees/", body, {
             skipGlobalErrorToast: true,
           });
-    },
-    onSuccess: async (response) => {
-      await queryClient.invalidateQueries({ queryKey: ["employees"] });
-      toast.success(isEdit ? "Employee updated." : "Employee created.");
+
       const saved = unwrap(response);
+      const employeeId = saved.id || id;
+      await uploadOptionalDocuments(employeeId);
+
+      return saved;
+    },
+    onSuccess: async (saved) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["employees"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["employee", saved.id || id],
+        }),
+      ]);
+      toast.success(isEdit ? "Employee updated." : "Employee created.");
       navigate(`/hrms/employees/${saved.id || id}`);
     },
     onError: (error) => {
-      const responseErrors = error?.response?.data;
-      if (responseErrors && typeof responseErrors === "object") {
-        const nextErrors = {};
-        Object.entries(responseErrors).forEach(([key, value]) => {
-          nextErrors[key] = Array.isArray(value) ? value[0] : String(value);
-        });
-        setFormErrors(nextErrors);
-      }
-
       const details = getApiErrorDetails(error);
       toast.error(details.title || "Unable to save employee", {
         description: details.summary || details.message,
@@ -367,21 +370,15 @@ export default function EmployeeFormPage() {
     },
   });
 
-  const field = (label, key, type = "text", options = {}) => (
+  const field = (label, key, type = "text") => (
     <div>
-      <Label>{requiredLabel(label, key)}</Label>
+      <Label>{label}</Label>
       <Input
         type={type}
         className="mt-2"
-        value={form[key] ?? ""}
-        min={type === "number" ? (options.min ?? "0") : undefined}
-        step={type === "number" ? (options.step ?? "0.01") : undefined}
+        value={form[key] || ""}
         onChange={(event) => update(key, event.target.value)}
-        aria-invalid={Boolean(formErrors[key])}
       />
-      {formErrors[key] && (
-        <p className="mt-1 text-xs text-red-500">{formErrors[key]}</p>
-      )}
     </div>
   );
 
@@ -405,33 +402,81 @@ export default function EmployeeFormPage() {
               <Link to="/hrms/employees">Cancel</Link>
             </Button>
             <Button
-              onClick={() => {
-                if (validateForm()) mutation.mutate();
-              }}
+              onClick={() => mutation.mutate()}
               className="bg-blue-600 text-white"
+              disabled={mutation.isPending}
             >
-              <Save className="mr-2 h-4 w-4" /> Save Employee
+              <Save className="mr-2 h-4 w-4" />{" "}
+              {mutation.isPending ? "Saving..." : "Save Employee"}
             </Button>
           </div>
         }
       />
 
+      <section className="card-surface p-5">
+        <div className="flex flex-col gap-5 md:flex-row md:items-center">
+          <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-blue-300 bg-blue-50 dark:border-blue-500/30 dark:bg-blue-500/10">
+            {profilePreview ? (
+              <img
+                src={profilePreview}
+                alt="Employee preview"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <ImagePlus className="h-9 w-9 text-blue-500" />
+            )}
+          </div>
+
+          <div className="flex-1">
+            <h2 className="font-semibold">Employee Photo</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Optional. Upload a JPG, JPEG, PNG, or WebP image.
+            </p>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <label className="inline-flex cursor-pointer items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                <Upload className="mr-2 h-4 w-4" />
+                Choose Image
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] || null;
+                    if (file && file.size > 5 * 1024 * 1024) {
+                      toast.error("Employee image must be 5 MB or smaller.");
+                      event.target.value = "";
+                      return;
+                    }
+                    setProfileImage(file);
+                    if (file) {
+                      setProfilePreview(URL.createObjectURL(file));
+                    }
+                  }}
+                />
+              </label>
+
+              {profileImage && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setProfileImage(null);
+                    setProfilePreview(employee?.profile_image || "");
+                  }}
+                >
+                  <X className="mr-2 h-4 w-4" /> Remove
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {section(
         "Basic Details",
         <>
-          <div>
-            <Label>Employee Code</Label>
-            <Input
-              className="mt-2 bg-muted"
-              value={
-                isEdit ? form.employee_code || "" : "Auto-generated on save"
-              }
-              readOnly
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              Generated automatically in the format EMP00001.
-            </p>
-          </div>
+          {field("Employee Code", "employee_code")}
           {field("First Name", "first_name")}
           {field("Last Name", "last_name")}
           {field("Email", "email", "email")}
@@ -440,7 +485,7 @@ export default function EmployeeFormPage() {
           {field("Date of Birth", "date_of_birth", "date")}
           {field("Joining Date", "joining_date", "date")}
           <div>
-            <Label>{requiredLabel("Branch", "branch")}</Label>
+            <Label>Branch</Label>
             <Select
               value={form.branch}
               onValueChange={(value) => update("branch", value)}
@@ -456,12 +501,9 @@ export default function EmployeeFormPage() {
                 ))}
               </SelectContent>
             </Select>
-            {formErrors.branch && (
-              <p className="mt-1 text-xs text-red-500">{formErrors.branch}</p>
-            )}
           </div>
           <div>
-            <Label>{requiredLabel("Department", "department")}</Label>
+            <Label>Department</Label>
             <div className="mt-2 flex gap-2">
               <Select
                 value={form.department}
@@ -506,11 +548,6 @@ export default function EmployeeFormPage() {
                 <Trash2 className="h-4 w-4 text-red-500" />
               </Button>
             </div>
-            {formErrors.department && (
-              <p className="mt-1 text-xs text-red-500">
-                {formErrors.department}
-              </p>
-            )}
             {inlineForm === "department" && (
               <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50/70 p-4 shadow-sm dark:border-blue-500/20 dark:bg-blue-500/5">
                 <div className="mb-3">
@@ -553,7 +590,7 @@ export default function EmployeeFormPage() {
             )}
           </div>
           <div>
-            <Label>{requiredLabel("Designation", "designation")}</Label>
+            <Label>Designation</Label>
             <div className="mt-2 flex gap-2">
               <Select
                 value={form.designation}
@@ -602,11 +639,6 @@ export default function EmployeeFormPage() {
                 <Trash2 className="h-4 w-4 text-red-500" />
               </Button>
             </div>
-            {formErrors.designation && (
-              <p className="mt-1 text-xs text-red-500">
-                {formErrors.designation}
-              </p>
-            )}
             {inlineForm === "designation" && (
               <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50/70 p-4 shadow-sm dark:border-blue-500/20 dark:bg-blue-500/5">
                 <div className="mb-3">
@@ -685,6 +717,131 @@ export default function EmployeeFormPage() {
           {field("Contract Status", "labor_contract_status")}
         </>,
       )}
+
+      <section className="card-surface p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300">
+            <FileText className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="font-semibold">Employee Documents</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              All document uploads are optional. Maximum file size: 10 MB.
+              Supported: PDF, JPG, PNG, DOC, and DOCX.
+            </p>
+          </div>
+        </div>
+
+        {isEdit && (employee?.documents || []).length > 0 && (
+          <div className="mt-5 overflow-hidden rounded-xl border">
+            <div className="border-b bg-muted/40 px-4 py-3">
+              <h3 className="text-sm font-semibold">Existing Documents</h3>
+            </div>
+            <div className="divide-y">
+              {(employee.documents || []).map((item) => (
+                <div
+                  key={item.id}
+                  className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">
+                      {item.title || item.document_type_display || "Document"}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {item.document_type_display || item.document_type}
+                      {item.document_number ? ` · ${item.document_number}` : ""}
+                      {item.expiry_date ? ` · Expires ${item.expiry_date}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    {(item.file_url || item.file) && (
+                      <Button type="button" size="sm" variant="outline" asChild>
+                        <a
+                          href={item.file_url || item.file}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          Open
+                        </a>
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={removeExistingDocument.isPending}
+                      onClick={() => {
+                        if (window.confirm("Delete this employee document?")) {
+                          removeExistingDocument.mutate(item.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4 text-red-500" />
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-5 grid gap-4 md:grid-cols-3">
+          {[
+            [
+              "passport",
+              isEdit ? "Replace / Add Passport" : "Passport Document",
+            ],
+            ["visa", isEdit ? "Replace / Add Visa" : "Visa Document"],
+            [
+              "labor_contract",
+              isEdit
+                ? "Replace / Add Labor Contract"
+                : "Labor Contract Document",
+            ],
+          ].map(([key, label]) => (
+            <div key={key} className="rounded-xl border p-4">
+              <Label>{label}</Label>
+              <Input
+                type="file"
+                className="mt-2"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                onChange={(event) => {
+                  const file = event.target.files?.[0] || null;
+                  if (file && file.size > 10 * 1024 * 1024) {
+                    toast.error("Document must be 10 MB or smaller.");
+                    event.target.value = "";
+                    return;
+                  }
+                  setDocuments((current) => ({
+                    ...current,
+                    [key]: file,
+                  }));
+                }}
+              />
+
+              {documents[key] && (
+                <div className="mt-3 flex items-center justify-between gap-2 rounded-lg bg-muted px-3 py-2 text-xs">
+                  <span className="truncate">{documents[key].name}</span>
+                  <button
+                    type="button"
+                    className="text-red-500"
+                    onClick={() =>
+                      setDocuments((current) => ({
+                        ...current,
+                        [key]: null,
+                      }))
+                    }
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
 
       {section(
         "Salary",

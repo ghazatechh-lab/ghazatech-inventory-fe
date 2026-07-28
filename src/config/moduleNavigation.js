@@ -29,25 +29,13 @@ import {
   Truck,
   UserSquare2,
   Users,
+  UserCog,
   Wallet,
   WalletCards,
 } from "lucide-react";
 
-/**
- * Main application modules.
- *
- * Internal navigation:
- * - Module landing route uses `landingPath`.
- * - Sidebar submodule links use `to`.
- *
- * External navigation:
- * - Website uses `externalUrl`.
- *
- * Access control:
- * - adminOnly: only Admin users.
- * - allowedRoles: allowed role codes.
- * - hideForStaff: hides module for Staff.
- */
+import { canAccessModule, hasPermission, isAdmin } from "@/lib/permissions";
+
 export const modules = [
   {
     id: "dashboard",
@@ -56,7 +44,7 @@ export const modules = [
     title: "Dashboard",
     shortTitle: "Dashboard",
     description:
-      "View business performance, alerts, activities, and important operational summaries.",
+      "View business performance, alerts, activities, and operational summaries.",
     icon: LayoutDashboard,
     path: "/dashboard",
     landingPath: "/dashboard",
@@ -83,54 +71,63 @@ export const modules = [
     path: "/inventory",
     landingPath: "/inventory/products",
     color: "emerald",
+    permissionModule: "inventory",
     items: [
       {
         id: "inventory-categories",
         label: "Categories",
         to: "/inventory/categories",
         icon: Layers,
+        permission: "inventory.categories.view",
       },
       {
         id: "inventory-brands",
         label: "Brands",
         to: "/inventory/brands",
         icon: Tag,
+        permission: "inventory.brands.view",
       },
       {
         id: "inventory-racks",
         label: "Racks",
         to: "/inventory/racks",
         icon: Rows3,
+        permission: "inventory.racks.view",
       },
       {
         id: "inventory-products",
         label: "Products",
         to: "/inventory/products",
         icon: Boxes,
+        permission: "inventory.products.view",
       },
       {
         id: "inventory-stock",
         label: "Stock Overview",
         to: "/inventory/stock",
         icon: PackageCheck,
+        permission: "inventory.stock.view",
       },
       {
         id: "inventory-movements",
         label: "Stock Movements",
         to: "/inventory/movements",
         icon: GitBranch,
+        permission: "inventory.movements.view",
       },
       {
         id: "inventory-adjustments",
         label: "Stock Adjustments",
         to: "/inventory/adjustments",
         icon: ClipboardList,
+        permission: "inventory.adjustments.view",
       },
       {
         id: "inventory-low-stock",
         label: "Low Stock Items",
         to: "/inventory/low-stock",
         icon: TrendingDown,
+        permission: "inventory.low_stock.view",
         badge: "!",
       },
       {
@@ -138,6 +135,7 @@ export const modules = [
         label: "Stock Transfers",
         to: "/transfers",
         icon: GitBranch,
+        permission: "inventory.transfers.view",
       },
     ],
   },
@@ -154,60 +152,70 @@ export const modules = [
     path: "/purchases",
     landingPath: "/purchases/orders",
     color: "rose",
+    permissionModule: "purchases",
     items: [
       {
         id: "purchase-suppliers",
         label: "Suppliers",
         to: "/suppliers",
         icon: Users,
+        permission: "purchases.suppliers.view",
       },
       {
         id: "purchase-orders",
         label: "Purchase Orders",
         to: "/purchases/orders",
         icon: FileText,
+        permission: "purchases.orders.view",
       },
       {
         id: "purchase-shipments",
         label: "Shipments",
         to: "/shipments",
         icon: Truck,
+        permission: "purchases.shipments.view",
       },
       {
         id: "purchase-grn",
         label: "Goods Received Notes",
         to: "/purchases/grn",
         icon: PackageCheck,
+        permission: "purchases.grn.view",
       },
       {
         id: "purchase-supplier-bills",
         label: "Supplier Bills",
         to: "/purchases/supplier-bills",
         icon: ReceiptText,
+        permission: "purchases.bills.view",
       },
       {
         id: "purchase-supplier-payments",
         label: "Supplier Payments",
         to: "/purchases/supplier-payments",
         icon: HandCoins,
+        permission: "purchases.payments.view",
       },
       {
         id: "purchase-supplier-returns",
         label: "Supplier Returns",
         to: "/purchases/supplier-returns",
         icon: RotateCcw,
+        permission: "purchases.returns.view",
       },
       {
         id: "purchase-vendor-credits",
         label: "Vendor Credits",
         to: "/purchases/vendor-credits",
         icon: BadgeDollarSign,
+        permission: "purchases.vendor_credits.view",
       },
       {
         id: "purchase-expenses",
         label: "Purchase Expenses",
         to: "/purchases/expenses",
         icon: WalletCards,
+        permission: "purchases.expenses.view",
       },
     ],
   },
@@ -224,49 +232,56 @@ export const modules = [
     path: "/sales",
     landingPath: "/sales/quotations",
     color: "amber",
+    permissionModule: "sales",
     items: [
       {
         id: "sales-quotations",
         label: "Quotations",
         to: "/sales/quotations",
         icon: FileText,
+        permission: "sales.quotations.view",
       },
       {
         id: "sales-invoices",
         label: "Invoices",
         to: "/sales/invoices",
         icon: ReceiptText,
+        permission: "sales.invoices.view",
       },
       {
         id: "sales-pos",
         label: "Direct Sale / POS",
         to: "/sales/pos",
         icon: ShoppingCart,
+        permission: "sales.pos.view",
       },
       {
         id: "sales-payments",
         label: "Sales Payments",
         to: "/sales/payments",
         icon: Wallet,
+        permission: "sales.payments.view",
       },
       {
         id: "sales-credit-notes",
         label: "Credit Notes",
         to: "/sales/credit-notes",
         icon: RotateCcw,
+        permission: "sales.credit_notes.view",
       },
       {
         id: "sales-reports",
         label: "Sales Reports",
         to: "/reports/sales",
         icon: BarChart3,
-        allowedRoles: ["ADMIN", "BM"],
+        permission: "reports.sales.view",
       },
       {
         id: "sales-customers",
         label: "Customers",
         to: "/customers",
         icon: Users,
+        permission: "sales.customers.view",
       },
     ],
   },
@@ -283,49 +298,49 @@ export const modules = [
     path: "/finance",
     landingPath: "/finance/expenses",
     color: "cyan",
-    hideForStaff: true,
+    permissionModule: "finance",
     items: [
       {
         id: "accounting-expenses",
         label: "Expenses",
         to: "/finance/expenses",
         icon: BadgeDollarSign,
-        allowedRoles: ["ADMIN", "BM"],
+        permission: "finance.expenses.view",
       },
       {
         id: "accounting-receivables",
         label: "Customer Receivables",
         to: "/finance/receivables",
         icon: HandCoins,
-        allowedRoles: ["ADMIN", "BM"],
+        permission: "finance.receivables.view",
       },
       {
         id: "accounting-payables",
         label: "Supplier Payables",
         to: "/finance/payables",
         icon: Wallet,
-        allowedRoles: ["ADMIN", "BM"],
+        permission: "finance.payables.view",
       },
       {
         id: "accounting-cash-register",
         label: "Cash Register",
         to: "/finance/cash-register",
         icon: Banknote,
-        allowedRoles: ["ADMIN", "BM"],
+        permission: "finance.cash_register.view",
       },
       {
         id: "accounting-bank-accounts",
         label: "Bank Accounts",
         to: "/finance/bank-accounts",
         icon: Landmark,
-        adminOnly: true,
+        permission: "finance.bank_accounts.view",
       },
       {
         id: "accounting-ledger",
         label: "Ledger",
         to: "/finance/ledger",
         icon: BookOpenText,
-        allowedRoles: ["ADMIN", "BM"],
+        permission: "finance.ledger.view",
       },
     ],
   },
@@ -342,44 +357,49 @@ export const modules = [
     path: "/hrms",
     landingPath: "/hrms/employees",
     color: "violet",
+    permissionModule: "hrms",
     items: [
       {
         id: "hrms-employees",
         label: "Employees",
         to: "/hrms/employees",
         icon: UserSquare2,
+        permission: "hrms.employees.view",
       },
       {
         id: "hrms-attendance",
         label: "Attendance",
         to: "/hrms/attendance",
         icon: CalendarCheck,
+        permission: "hrms.attendance.view",
       },
       {
         id: "hrms-leaves",
         label: "Leave Requests",
         to: "/hrms/leaves",
         icon: CalendarDays,
+        permission: "hrms.leaves.view",
       },
       {
         id: "hrms-payroll",
         label: "Payroll",
         to: "/hrms/payroll",
         icon: Banknote,
-        adminOnly: true,
+        permission: "hrms.payroll.view",
       },
       {
         id: "hrms-salary-history",
         label: "Salary History",
         to: "/hrms/salary-history",
         icon: History,
-        adminOnly: true,
+        permission: "hrms.salary_history.view",
       },
       {
         id: "hrms-document-expiry",
         label: "Document Expiry",
         to: "/hrms/document-expiry",
         icon: ShieldAlert,
+        permission: "hrms.documents.view",
       },
     ],
   },
@@ -396,49 +416,49 @@ export const modules = [
     path: "/reports",
     landingPath: "/reports/dashboard",
     color: "orange",
-    hideForStaff: true,
+    permissionModule: "reports",
     items: [
       {
         id: "reports-dashboard",
         label: "Dashboard Reports",
         to: "/reports/dashboard",
         icon: BarChart3,
-        allowedRoles: ["ADMIN", "BM"],
+        permission: "reports.dashboard.view",
       },
       {
         id: "reports-sales",
         label: "Sales Reports",
         to: "/reports/sales",
         icon: FileText,
-        allowedRoles: ["ADMIN", "BM"],
+        permission: "reports.sales.view",
       },
       {
         id: "reports-purchases",
         label: "Purchase Reports",
         to: "/reports/purchases",
         icon: PackagePlus,
-        allowedRoles: ["ADMIN", "BM"],
+        permission: "reports.purchases.view",
       },
       {
         id: "reports-inventory",
         label: "Inventory Reports",
         to: "/reports/inventory",
         icon: Boxes,
-        allowedRoles: ["ADMIN", "BM"],
+        permission: "reports.inventory.view",
       },
       {
         id: "reports-hrms",
         label: "HRMS Reports",
         to: "/reports/hrms",
         icon: UserSquare2,
-        allowedRoles: ["ADMIN", "BM"],
+        permission: "reports.hrms.view",
       },
       {
         id: "reports-finance",
         label: "Finance Reports",
         to: "/reports/finance",
         icon: BadgeDollarSign,
-        allowedRoles: ["ADMIN", "BM"],
+        permission: "reports.finance.view",
       },
     ],
   },
@@ -463,10 +483,10 @@ export const modules = [
     title: "Settings",
     shortTitle: "Settings",
     description:
-      "Configure branches, audit logs, system preferences, and security.",
+      "Configure branches, users, roles, permissions, audit logs, and system preferences.",
     icon: Settings,
     path: "/settings",
-    landingPath: "/settings",
+    landingPath: "/settings/users-roles",
     color: "slate",
     adminOnly: true,
     items: [
@@ -475,6 +495,13 @@ export const modules = [
         label: "Branches",
         to: "/branches",
         icon: Building2,
+        adminOnly: true,
+      },
+      {
+        id: "settings-users-roles",
+        label: "Users, Roles & Permissions",
+        to: "/settings/users-roles",
+        icon: UserCog,
         adminOnly: true,
       },
       {
@@ -517,42 +544,29 @@ export const getUserRoleCode = (user) => {
   return normalized;
 };
 
-export const isAdministrator = (user) => {
-  const roleCode = getUserRoleCode(user);
-
-  return (
-    user?.is_superuser === true ||
-    roleCode === "ADMIN" ||
-    user?.role_name === "Super Admin" ||
-    user?.role_name === "Admin"
-  );
-};
+export const isAdministrator = (user) => isAdmin(user);
 
 export const isStaffUser = (user) => getUserRoleCode(user) === "STAFF";
 
 export const canAccessNavigationItem = (item, user) => {
-  if (!item) {
+  if (!item || !user) {
     return false;
   }
 
-  if (item.adminOnly && !isAdministrator(user)) {
+  if (isAdministrator(user)) {
+    return true;
+  }
+
+  if (item.adminOnly) {
     return false;
   }
 
-  if (item.hideForStaff && isStaffUser(user)) {
+  if (item.allowedRoles && !item.allowedRoles.includes(getUserRoleCode(user))) {
     return false;
   }
 
-  if (
-    Array.isArray(item.allowedRoles) &&
-    item.allowedRoles.length > 0 &&
-    !isAdministrator(user)
-  ) {
-    const roleCode = getUserRoleCode(user);
-
-    if (!item.allowedRoles.includes(roleCode)) {
-      return false;
-    }
+  if (item.permission && !hasPermission(user, item.permission)) {
+    return false;
   }
 
   return true;
@@ -560,20 +574,33 @@ export const canAccessNavigationItem = (item, user) => {
 
 export const getVisibleModules = (user) =>
   modules
-    .filter((module) => canAccessNavigationItem(module, user))
+    .filter((module) => {
+      if (isAdministrator(user)) {
+        return true;
+      }
+
+      if (module.adminOnly) {
+        return false;
+      }
+
+      if (
+        module.permissionModule &&
+        !canAccessModule(user, module.permissionModule)
+      ) {
+        return false;
+      }
+
+      return true;
+    })
     .map((module) => ({
       ...module,
-
       items: Array.isArray(module.items)
         ? module.items.filter((item) => canAccessNavigationItem(item, user))
         : [],
     }))
     .filter((module) =>
       Boolean(
-        module.externalUrl ||
-        module.landingPath ||
-        module.path ||
-        module.items.length,
+        module.externalUrl || module.items.length || module.id === "dashboard",
       ),
     )
     .sort(
@@ -593,7 +620,7 @@ export const getModuleTarget = (module, user) => {
     ? module.items.filter((item) => canAccessNavigationItem(item, user))
     : [];
 
-  return module.landingPath || visibleItems[0]?.to || module.path || "/modules";
+  return visibleItems[0]?.to || module.landingPath || module.path || "/modules";
 };
 
 export const getModuleById = (moduleId) =>
@@ -621,10 +648,6 @@ export const getModuleByPath = (pathname = "") => {
     return getModuleById("purchase");
   }
 
-  /*
-   * Sales Reports is mapped to the Sales module before
-   * the general /reports/ condition so the Sales sidebar remains active.
-   */
   if (
     safePath === "/customers" ||
     safePath.startsWith("/customers/") ||
@@ -650,7 +673,7 @@ export const getModuleByPath = (pathname = "") => {
     safePath === "/branches" ||
     safePath.startsWith("/branches/") ||
     safePath === "/audit-logs" ||
-    safePath === "/settings"
+    safePath.startsWith("/settings")
   ) {
     return getModuleById("settings");
   }

@@ -3,10 +3,11 @@ import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Download,
-  FileUp,
+  ExternalLink,
+  FileText,
+  ImageIcon,
   Pencil,
   Plus,
-  Trash2,
   TrendingUp,
   X,
 } from "lucide-react";
@@ -15,8 +16,11 @@ import { toast } from "sonner";
 import api, { unwrap } from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { CurrencyText, DateText } from "@/components/common/CurrencyText";
+import { StatusBadge } from "@/components/common/StatusBadge";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+
 import {
   Select,
   SelectContent,
@@ -24,20 +28,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CurrencyText, DateText } from "@/components/common/CurrencyText";
-import { StatusBadge } from "@/components/common/StatusBadge";
-
 export default function EmployeeDetailPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
-  const [document, setDocument] = React.useState({
-    document_type: "PASSPORT",
-    title: "",
-    document_number: "",
-    issue_date: "",
-    expiry_date: "",
-    file: null,
-  });
   const [revisionOpen, setRevisionOpen] = React.useState(false);
   const [revision, setRevision] = React.useState({
     reason: "ANNUAL_INCREMENT",
@@ -58,20 +51,6 @@ export default function EmployeeDetailPage() {
       unwrap(await api.get(`/hrms/employees/${id}/salary-history/`)),
   });
 
-  const upload = useMutation({
-    mutationFn: async () => {
-      const body = new FormData();
-      Object.entries(document).forEach(([key, value]) => {
-        if (value !== null && value !== "") body.append(key, value);
-      });
-      return api.post(`/hrms/employees/${id}/documents/`, body);
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["employee", id] });
-      toast.success("Document uploaded.");
-    },
-  });
-
   const addRevision = useMutation({
     mutationFn: () =>
       api.post(`/hrms/employees/${id}/salary-revisions/`, {
@@ -89,16 +68,16 @@ export default function EmployeeDetailPage() {
     },
   });
 
-  const removeDocument = useMutation({
-    mutationFn: (documentId) => api.delete(`/hrms/documents/${documentId}/`),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["employee", id] });
-      toast.success("Document deleted.");
-    },
-  });
-
   if (!employee)
     return <div className="card-surface p-6">Loading employee...</div>;
+
+  const employeeDocuments = Array.isArray(employee.documents)
+    ? employee.documents
+    : Array.isArray(employee.employee_documents)
+      ? employee.employee_documents
+      : Array.isArray(employee.document_files)
+        ? employee.document_files
+        : [];
 
   const sortedHistory = [...history].sort(
     (a, b) => new Date(b.effective_from) - new Date(a.effective_from),
@@ -152,20 +131,36 @@ export default function EmployeeDetailPage() {
       />
 
       <section className="card-surface p-5">
-        <div className="grid gap-5 md:grid-cols-3 xl:grid-cols-5">
-          {info("Branch", employee.branch_name)}
-          {info("Department", employee.department_name)}
-          {info("Designation", employee.designation_name)}
-          {info(
-            "Joining Date",
-            employee.joining_date ? (
-              <DateText value={employee.joining_date} />
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
+          <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-2xl border bg-muted">
+            {employee.profile_image ? (
+              <img
+                src={employee.profile_image}
+                alt={employee.full_name}
+                className="h-full w-full object-cover"
+              />
             ) : (
-              "—"
-            ),
-          )}
-          <div>
-            <StatusBadge status={employee.employment_status} />
+              <ImageIcon className="h-10 w-10 text-muted-foreground" />
+            )}
+          </div>
+          <div className="grid flex-1 gap-5 sm:grid-cols-2 xl:grid-cols-5">
+            {info("Branch", employee.branch_name)}
+            {info("Department", employee.department_name)}
+            {info("Designation", employee.designation_name)}
+            {info(
+              "Joining Date",
+              employee.joining_date ? (
+                <DateText value={employee.joining_date} />
+              ) : (
+                "—"
+              ),
+            )}
+            <div>
+              <p className="text-xs text-muted-foreground">Status</p>
+              <div className="mt-2">
+                <StatusBadge status={employee.employment_status} />
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -232,119 +227,166 @@ export default function EmployeeDetailPage() {
       </div>
 
       <section className="card-surface p-5">
-        <h2 className="font-semibold">Upload Employee Document</h2>
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
-          <Select
-            value={document.document_type}
-            onValueChange={(value) =>
-              setDocument((c) => ({ ...c, document_type: value }))
-            }
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="PASSPORT">Passport</SelectItem>
-              <SelectItem value="EMIRATES_ID">Emirates ID</SelectItem>
-              <SelectItem value="VISA">Visa</SelectItem>
-              <SelectItem value="LABOR_CONTRACT">Labor Contract</SelectItem>
-              <SelectItem value="OTHER">Other</SelectItem>
-            </SelectContent>
-          </Select>
-          <Input
-            placeholder="Document title"
-            value={document.title}
-            onChange={(e) =>
-              setDocument((c) => ({ ...c, title: e.target.value }))
-            }
-          />
-          <Input
-            type="file"
-            onChange={(e) =>
-              setDocument((c) => ({ ...c, file: e.target.files?.[0] || null }))
-            }
-          />
-          <Input
-            placeholder="Document number"
-            value={document.document_number}
-            onChange={(e) =>
-              setDocument((c) => ({ ...c, document_number: e.target.value }))
-            }
-          />
-          <Input
-            type="date"
-            value={document.issue_date}
-            onChange={(e) =>
-              setDocument((c) => ({ ...c, issue_date: e.target.value }))
-            }
-          />
-          <Input
-            type="date"
-            value={document.expiry_date}
-            onChange={(e) =>
-              setDocument((c) => ({ ...c, expiry_date: e.target.value }))
-            }
-          />
-        </div>
-        <Button
-          className="mt-4 bg-blue-600 text-white"
-          onClick={() => upload.mutate()}
-        >
-          <FileUp className="mr-2 h-4 w-4" /> Upload Document
-        </Button>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300">
+              <FileText className="h-5 w-5" />
+            </div>
 
-        <div className="mt-6 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left">
-                <th className="py-3">Document</th>
-                <th>Number</th>
-                <th>Expiry</th>
-                <th className="text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(employee.documents || []).map((item) => (
-                <tr key={item.id} className="border-b last:border-0">
-                  <td className="py-3">
-                    <div className="font-medium">{item.title}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {item.document_type_display}
-                    </div>
-                  </td>
-                  <td>{item.document_number || "—"}</td>
-                  <td>
-                    {item.expiry_date ? (
-                      <DateText value={item.expiry_date} />
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td>
-                    <div className="flex justify-end gap-2">
-                      <Button size="icon" variant="ghost" asChild>
-                        <a
-                          href={item.file_url}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          <Download className="h-4 w-4" />
-                        </a>
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => removeDocument.mutate(item.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            <div>
+              <h2 className="font-semibold">Employee Documents</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Uploaded Passport, Visa, Labor Contract, Emirates ID, and other
+                employee documents.
+              </p>
+            </div>
+          </div>
+
+          <Button asChild variant="outline">
+            <Link to={`/hrms/employees/${id}/edit`}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Manage Documents
+            </Link>
+          </Button>
         </div>
+
+        {employeeDocuments.length ? (
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {employeeDocuments.map((item) => {
+              const fileUrl = item.file_url || item.file || item.document_url;
+
+              return (
+                <article
+                  key={item.id || `${item.document_type}-${item.title}`}
+                  className="rounded-xl border bg-background p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300">
+                        <FileText className="h-5 w-5" />
+                      </div>
+
+                      <div className="min-w-0">
+                        <h3 className="truncate font-semibold">
+                          {item.title ||
+                            item.document_type_display ||
+                            "Employee Document"}
+                        </h3>
+
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {item.document_type_display ||
+                            String(item.document_type || "OTHER").replace(
+                              /_/g,
+                              " ",
+                            )}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Number</p>
+                      <p className="mt-1 truncate font-medium">
+                        {item.document_number || "—"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        Issue Date
+                      </p>
+                      <p className="mt-1 font-medium">
+                        {item.issue_date ? (
+                          <DateText value={item.issue_date} />
+                        ) : (
+                          "—"
+                        )}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        Expiry Date
+                      </p>
+                      <p className="mt-1 font-medium">
+                        {item.expiry_date ? (
+                          <DateText value={item.expiry_date} />
+                        ) : (
+                          "—"
+                        )}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-muted-foreground">Uploaded</p>
+                      <p className="mt-1 font-medium">
+                        {item.uploaded_at || item.created_at ? (
+                          <DateText
+                            value={item.uploaded_at || item.created_at}
+                          />
+                        ) : (
+                          "—"
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex gap-2 border-t pt-4">
+                    {fileUrl ? (
+                      <>
+                        <Button
+                          asChild
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                        >
+                          <a href={fileUrl} target="_blank" rel="noreferrer">
+                            <ExternalLink className="mr-2 h-4 w-4" />
+                            View
+                          </a>
+                        </Button>
+
+                        <Button
+                          asChild
+                          size="sm"
+                          className="flex-1 bg-blue-600 text-white hover:bg-blue-700"
+                        >
+                          <a href={fileUrl} download>
+                            <Download className="mr-2 h-4 w-4" />
+                            Download
+                          </a>
+                        </Button>
+                      </>
+                    ) : (
+                      <p className="w-full text-center text-sm text-muted-foreground">
+                        Document file is unavailable.
+                      </p>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-6 rounded-xl border border-dashed p-10 text-center">
+            <FileText className="mx-auto h-9 w-9 text-muted-foreground" />
+            <h3 className="mt-3 font-semibold">No documents uploaded</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Add Passport, Visa, or Labor Contract files from the employee edit
+              page.
+            </p>
+            <Button
+              asChild
+              className="mt-4 bg-blue-600 text-white hover:bg-blue-700"
+            >
+              <Link to={`/hrms/employees/${id}/edit`}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit Employee
+              </Link>
+            </Button>
+          </div>
+        )}
       </section>
 
       <section className="space-y-4">
