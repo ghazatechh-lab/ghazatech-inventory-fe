@@ -21,14 +21,14 @@ const normalizePayload = (value) => {
   if (Array.isArray(value?.results)) {
     return {
       results: value.results,
-      count: Number(value.count || value.results.length),
+      count: Number(value.count ?? value.results.length),
     };
   }
 
   if (Array.isArray(value?.data)) {
     return {
       results: value.data,
-      count: Number(value.count || value.data.length),
+      count: Number(value.count ?? value.data.length),
     };
   }
 
@@ -36,7 +36,20 @@ const normalizePayload = (value) => {
     return {
       results: value.data.results,
       count: Number(
-        value.data.count || value.count || value.data.results.length,
+        value.data.count ?? value.count ?? value.data.results.length,
+      ),
+    };
+  }
+
+  if (Array.isArray(value?.data?.data?.results)) {
+    return {
+      results: value.data.data.results,
+
+      count: Number(
+        value.data.data.count ??
+          value.data.count ??
+          value.count ??
+          value.data.data.results.length,
       ),
     };
   }
@@ -56,15 +69,24 @@ export default function EmployeeListPage() {
     branchParams,
   );
 
+  const previousBranchId = React.useRef(branchId);
+
   const data = React.useMemo(() => normalizePayload(query.data), [query.data]);
 
   /*
-   * Reset the employee list to the first page when the top-bar branch changes.
-   * This avoids requesting an invalid page number for a smaller branch result.
+   * Reset to page 1 only when the selected branch actually changes.
+   *
+   * Do not include setPage in an effect dependency array because some
+   * custom hooks return a new setter wrapper during each render. That
+   * would continuously reset pagination to page 1.
    */
   React.useEffect(() => {
-    setPage(1);
-  }, [branchId, setPage]);
+    if (previousBranchId.current !== branchId) {
+      previousBranchId.current = branchId;
+
+      setPage(1);
+    }
+  }, [branchId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const columns = React.useMemo(
     () => [
@@ -77,6 +99,7 @@ export default function EmployeeListPage() {
           </span>
         ),
       },
+
       {
         key: "employee",
         header: "Employee",
@@ -109,11 +132,13 @@ export default function EmployeeListPage() {
           </Link>
         ),
       },
+
       {
         key: "department_name",
         header: "Department",
         cell: (row) => row.department_name || "—",
       },
+
       {
         key: "branch_name",
         header: "Branch",
@@ -129,27 +154,32 @@ export default function EmployeeListPage() {
           </div>
         ),
       },
+
       {
         key: "passport_number",
         header: "Passport",
         cell: (row) => row.passport_number || "—",
       },
+
       {
         key: "emirates_id_number",
         header: "Emirates ID",
         cell: (row) => row.emirates_id_number || "—",
       },
+
       {
         key: "total_salary",
         header: "Package",
         align: "right",
         cell: (row) => <CurrencyText value={row.total_salary} />,
       },
+
       {
         key: "employment_status",
         header: "Status",
         cell: (row) => <StatusBadge status={row.employment_status} />,
       },
+
       {
         key: "actions",
         header: "Actions",
@@ -166,6 +196,21 @@ export default function EmployeeListPage() {
       },
     ],
     [],
+  );
+
+  const handlePageChange = React.useCallback(
+    (nextPage) => {
+      const parsedPage = Number(nextPage);
+
+      if (
+        Number.isFinite(parsedPage) &&
+        parsedPage >= 1 &&
+        parsedPage !== page
+      ) {
+        setPage(parsedPage);
+      }
+    },
+    [page, setPage],
   );
 
   return (
@@ -205,7 +250,7 @@ export default function EmployeeListPage() {
         isLoading={query.isLoading || query.isFetching}
         page={page}
         total={data.count}
-        onPageChange={setPage}
+        onPageChange={handlePageChange}
         emptyTitle={
           isAllBranches
             ? "No employees found"
