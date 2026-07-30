@@ -191,6 +191,30 @@ export default function PurchaseExpensesPage() {
     },
   });
 
+  const addCategory = useMutation({
+    mutationFn: async () => {
+      const name = window.prompt("Enter the new expense category name");
+      if (!name?.trim()) return null;
+      return unwrap(
+        await api.post("/purchases/expenses/categories/", {
+          name: name.trim(),
+        }),
+      );
+    },
+    onSuccess: async (category) => {
+      if (!category) return;
+      await qc.invalidateQueries({ queryKey: ["purchase-expense-options"] });
+      update("category", category.value || category.code);
+      toast.success("Expense category created.");
+    },
+    onError: (error) => {
+      const details = getApiErrorDetails(error);
+      toast.error(details.title || "Unable to create category", {
+        description: details.summary || details.message,
+      });
+    },
+  });
+
   const columns = React.useMemo(
     () => [
       {
@@ -367,7 +391,19 @@ export default function PurchaseExpensesPage() {
           />
         </div>
         <div>
-          <Label>Category *</Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label>Category *</Label>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => addCategory.mutate()}
+              disabled={addCategory.isPending}
+            >
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              New Category
+            </Button>
+          </div>
           <Select
             value={form.category}
             onValueChange={(v) => update("category", v)}

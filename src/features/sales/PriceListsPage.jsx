@@ -1,5 +1,5 @@
 import React from "react";
-import { Download, Plus, Save, X } from "lucide-react";
+import { Download, Plus, Save, Trash2, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -10,7 +10,6 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -18,10 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CurrencyText, DateText } from "@/components/common/CurrencyText";
+import { DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { SalesDocumentFlow } from "@/components/sales/SalesDocumentFlow";
-import { MetricCard } from "@/components/sales/MetricCard";
 
 const normalizeList = (value) => {
   if (Array.isArray(value)) return value;
@@ -32,27 +29,54 @@ const normalizeList = (value) => {
 };
 
 const today = () => new Date().toISOString().slice(0, 10);
-
-const number = (value) => {
+const toNumber = (value) => {
   const parsed = Number(value || 0);
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const emptyRule = () => ({
+  product: "",
+  variant: null,
+  custom_price: "",
+  discount_percentage: 0,
+  minimum_quantity: 1,
+});
+
 const createForm = (branchId) => ({
   branch: branchId ? String(branchId) : "",
   name: "",
+  currency: "AED",
+  price_list_type: "CUSTOMER_TIER",
   status: "DRAFT",
   applies_to: "ALL_CUSTOMERS",
   customer_category: "",
-  discount_type: "PERCENTAGE",
-  discount_percentage: 10,
+  discount_type: "CUSTOM_PRICE",
+  discount_percentage: 0,
   fixed_discount: 0,
-  apply_scope: "ALL_ITEMS",
   valid_from: today(),
   valid_until: "",
+  auto_apply: true,
+  stackable: false,
+  usage_limit_per_customer: "",
   customer_ids: [],
-  items: [],
+  items: [emptyRule()],
 });
+
+const Toggle = ({ checked, onChange }) => (
+  <button
+    type="button"
+    onClick={() => onChange(!checked)}
+    className={`relative h-6 w-11 rounded-full transition ${
+      checked ? "bg-blue-600" : "bg-slate-600"
+    }`}
+  >
+    <span
+      className={`absolute top-1 h-4 w-4 rounded-full bg-white transition ${
+        checked ? "left-6" : "left-1"
+      }`}
+    />
+  </button>
+);
 
 export default function PriceListsPage() {
   const queryClient = useQueryClient();
@@ -60,20 +84,14 @@ export default function PriceListsPage() {
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState(() => createForm(branchId));
   const [errors, setErrors] = React.useState({});
+  const [typeFilter, setTypeFilter] = React.useState("ALL");
+  const [statusFilter, setStatusFilter] = React.useState("ALL");
 
   const { query, q, setQ, page, setPage } = useListQuery(
     "price-lists",
     "/sales/price-lists/",
     branchParams,
   );
-
-  const { data: summaryResponse } = useQuery({
-    queryKey: ["price-lists-summary", branchParams],
-    queryFn: async () =>
-      unwrap(
-        await api.get("/sales/price-lists/summary/", { params: branchParams }),
-      ),
-  });
 
   const { data: optionsResponse } = useQuery({
     queryKey: ["price-list-form-options", form.branch],
@@ -86,12 +104,49 @@ export default function PriceListsPage() {
     enabled: open,
   });
 
-  const summary = summaryResponse || {};
-  const payload = query.data || { results: [], count: 0 };
+  const options = optionsResponse || {};
+  const products = normalizeList(options.products);
+  const customers = normalizeList(options.customers);
+  const branches = normalizeList(options.branches);
+  const customerCategories = normalizeList(options.customer_categories);
+  const rawPayload = query.data || { results: [], count: 0 };
+  const rawRows = normalizeList(rawPayload);
+
+  const filteredRows = rawRows.filter((row) => {
+    const typeMatches =
+      typeFilter === "ALL" || row.price_list_type === typeFilter;
+    const statusMatches = statusFilter === "ALL" || row.status === statusFilter;
+    return typeMatches && statusMatches;
+  });
 
   const updateForm = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: "" }));
+  };
+
+  const updateRule = (index, field, value) => {
+    setForm((current) => ({
+      ...current,
+      items: current.items.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item,
+      ),
+    }));
+  };
+
+  const productById = React.useMemo(
+    () => new Map(products.map((product) => [String(product.id), product])),
+    [products],
+  );
+
+  const getBasePrice = (rule) =>
+    toNumber(productById.get(String(rule.product))?.selling_price);
+
+  const getFinalPrice = (rule) => {
+    const base = getBasePrice(rule);
+    if (rule.custom_price !== "" && rule.custom_price !== null) {
+      return toNumber(rule.custom_price);
+    }
+    return base - (base * toNumber(rule.discount_percentage)) / 100;
   };
 
   const validate = () => {
@@ -101,47 +156,84 @@ export default function PriceListsPage() {
     if (form.valid_until && form.valid_until < form.valid_from) {
       next.valid_until = "Valid-until date cannot be before valid-from date.";
     }
+    if (form.price_list_type === "BRANCH_SPECIFIC" && !form.branch) {
+      next.branch = "Branch is required for a branch-specific price list.";
+    }
+    if (!form.items.some((item) => item.product)) {
+      next.items = "Add at least one product pricing rule.";
+    }
     setErrors(next);
     return Object.keys(next).length === 0;
   };
 
-  const mutation = useMutation({
-    mutationFn: async () =>
-      api.post(
-        "/sales/price-lists/",
-        {
-          branch: form.branch ? Number(form.branch) : null,
-          name: form.name,
-          status: form.status,
-          applies_to: form.applies_to,
-          customer_category: form.customer_category || null,
-          discount_type: form.discount_type,
-          discount_percentage:
-            form.discount_type === "PERCENTAGE"
-              ? number(form.discount_percentage)
-              : 0,
-          fixed_discount:
-            form.discount_type === "FIXED" ? number(form.fixed_discount) : 0,
-          valid_from: form.valid_from,
-          valid_until: form.valid_until || null,
-          customer_ids: form.customer_ids,
-          items: form.items,
-        },
-        { skipGlobalErrorToast: true },
-      ),
-
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["price-lists"] }),
-        queryClient.invalidateQueries({ queryKey: ["price-lists-summary"] }),
-      ]);
-      toast.success("Price list saved.");
+  const saveMutation = useMutation({
+    mutationFn: async (status) => {
+      const payload = {
+        branch: form.branch ? Number(form.branch) : null,
+        name: form.name.trim(),
+        currency: form.currency,
+        price_list_type: form.price_list_type,
+        status,
+        applies_to:
+          form.price_list_type === "CUSTOMER_TIER"
+            ? form.applies_to
+            : "ALL_CUSTOMERS",
+        customer_category:
+          form.price_list_type === "CUSTOMER_TIER" && form.customer_category
+            ? form.customer_category
+            : null,
+        discount_type: form.discount_type,
+        discount_percentage: toNumber(form.discount_percentage),
+        fixed_discount: toNumber(form.fixed_discount),
+        valid_from: form.valid_from,
+        valid_until: form.valid_until || null,
+        auto_apply: form.auto_apply,
+        stackable: form.stackable,
+        usage_limit_per_customer: form.usage_limit_per_customer
+          ? Number(form.usage_limit_per_customer)
+          : null,
+        customer_ids: form.customer_ids.map(Number),
+        items: form.items
+          .filter((item) => item.product)
+          .map((item) => ({
+            product: Number(item.product),
+            variant: item.variant ? Number(item.variant) : null,
+            custom_price:
+              item.custom_price === "" ? null : toNumber(item.custom_price),
+            discount_percentage: toNumber(item.discount_percentage),
+            minimum_quantity: Math.max(1, Number(item.minimum_quantity || 1)),
+          })),
+      };
+      return api.post("/sales/price-lists/", payload, {
+        skipGlobalErrorToast: true,
+      });
+    },
+    onSuccess: async (_, status) => {
+      await queryClient.invalidateQueries({ queryKey: ["price-lists"] });
+      toast.success(
+        status === "ACTIVE"
+          ? "Price list activated."
+          : "Price list saved as draft.",
+      );
       setOpen(false);
     },
-
     onError: (error) => {
       const details = getApiErrorDetails(error);
       toast.error(details.title || "Unable to save price list", {
+        description: details.summary || details.message,
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/sales/price-lists/${id}/`),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["price-lists"] });
+      toast.success("Price list deleted.");
+    },
+    onError: (error) => {
+      const details = getApiErrorDetails(error);
+      toast.error(details.title || "Unable to delete price list", {
         description: details.summary || details.message,
       });
     },
@@ -161,9 +253,16 @@ export default function PriceListsPage() {
   };
 
   const columns = [
-    { key: "name", header: "Price List" },
-    { key: "applies_to_display", header: "Applies To" },
-    { key: "item_count", header: "Items" },
+    { key: "name", header: "List Name" },
+    { key: "type_display", header: "Type" },
+    {
+      key: "applies_to_display",
+      header: "Applies To",
+      cell: (row) =>
+        row.price_list_type === "BRANCH_SPECIFIC"
+          ? row.branch_name || "—"
+          : row.customer_category || row.applies_to_display || "All Customers",
+    },
     { key: "discount_display", header: "Discount" },
     {
       key: "valid_until",
@@ -176,90 +275,104 @@ export default function PriceListsPage() {
       header: "Status",
       cell: (row) => <StatusBadge status={row.status} />,
     },
+    {
+      key: "actions",
+      header: "Actions",
+      cell: (row) => (
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={() => {
+            if (window.confirm(`Delete price list ${row.name}?`)) {
+              deleteMutation.mutate(row.id);
+            }
+          }}
+        >
+          <Trash2 className="h-4 w-4 text-red-500" />
+        </Button>
+      ),
+    },
   ];
 
   return (
     <div className="mx-auto max-w-7xl space-y-5">
       <PageHeader
-        title="Price Lists"
-        subtitle="Customer-specific and seasonal pricing rules"
+        title="Price Lists & Discounts"
+        subtitle="Branch-specific or customer-tier pricing, bulk discount rules, and promotional periods."
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={exportRows}>
-              <Download className="mr-2 h-4 w-4" />
-              Export
+              <Download className="mr-2 h-4 w-4" /> Export
             </Button>
             <Button
               onClick={() => {
                 setForm(createForm(branchId));
+                setErrors({});
                 setOpen(true);
               }}
               className="bg-blue-600 text-white hover:bg-blue-700"
             >
-              <Plus className="mr-2 h-4 w-4" />
-              New Price List
+              <Plus className="mr-2 h-4 w-4" /> New Price List
             </Button>
           </div>
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          label="Active Price Lists"
-          value={summary.active_price_lists || 0}
-        />
-        <MetricCard
-          label="Items with Overrides"
-          value={summary.items_with_overrides || 0}
-        />
-        <MetricCard
-          label="Active Promotions"
-          value={summary.active_promotions || 0}
-        />
-        <MetricCard
-          label="Expiring This Week"
-          value={summary.expiring_this_week || 0}
-        />
-      </div>
-
-      <SalesDocumentFlow />
-
       <section className="card-surface overflow-hidden">
-        <div className="flex flex-col gap-3 border-b px-5 py-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="font-semibold">Price Lists</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Customer-specific and seasonal pricing rules
-            </p>
-          </div>
-          <div className="w-full md:max-w-sm">
+        <div className="flex flex-col gap-3 border-b px-5 py-4 lg:flex-row lg:items-center">
+          <div className="flex-1">
             <SearchInput
               value={q}
               onChange={setQ}
-              placeholder="Search price list"
+              placeholder="Search by list name..."
             />
           </div>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-full lg:w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Types</SelectItem>
+              <SelectItem value="CUSTOMER_TIER">Customer-Tier</SelectItem>
+              <SelectItem value="BRANCH_SPECIFIC">Branch-Specific</SelectItem>
+              <SelectItem value="PROMOTIONAL">Promotional</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full lg:w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Statuses</SelectItem>
+              <SelectItem value="DRAFT">Draft</SelectItem>
+              <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+              <SelectItem value="ACTIVE">Active</SelectItem>
+              <SelectItem value="EXPIRED">Expired</SelectItem>
+              <SelectItem value="INACTIVE">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-
         <DataTable
           columns={columns}
-          data={payload.results || []}
+          data={filteredRows}
           isLoading={query.isLoading}
           page={page}
           pageSize={12}
-          total={payload.count || 0}
+          total={filteredRows.length}
           onPageChange={setPage}
         />
       </section>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/50">
-          <div className="flex h-full w-full max-w-2xl flex-col bg-background shadow-2xl">
-            <div className="flex items-start justify-between border-b px-5 py-4">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-4">
+          <div className="mx-auto max-w-5xl rounded-xl bg-background shadow-2xl">
+            <div className="flex items-start justify-between border-b px-6 py-5">
               <div>
-                <h2 className="text-xl font-semibold">New Price List</h2>
+                <h2 className="text-2xl font-bold">New Price List</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Set up a customer or seasonal pricing rule
+                  {form.status === "DRAFT"
+                    ? "Draft — not yet active"
+                    : "Configure pricing and promotion rules"}
                 </p>
               </div>
               <Button
@@ -267,193 +380,381 @@ export default function PriceListsPage() {
                 variant="ghost"
                 onClick={() => setOpen(false)}
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </Button>
             </div>
 
-            <div className="flex-1 space-y-6 overflow-y-auto p-5">
-              <div>
-                <p className="text-xs font-semibold uppercase text-muted-foreground">
-                  Basic Details
-                </p>
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <div>
+            <div className="space-y-5 p-6">
+              <section className="card-surface p-5">
+                <h3 className="font-semibold">1 · Price List Details</h3>
+                <div className="mt-4 grid gap-4 md:grid-cols-3">
+                  <div className="md:col-span-2">
                     <Label>Price List Name *</Label>
                     <Input
-                      value={form.name}
-                      onChange={(event) =>
-                        updateForm("name", event.target.value)
-                      }
                       className="mt-2"
-                      placeholder="e.g. Wholesale Tier 1"
+                      value={form.name}
+                      onChange={(e) => updateForm("name", e.target.value)}
+                      placeholder="e.g. Wholesale Tier"
                     />
                     {errors.name && (
                       <p className="mt-1 text-xs text-red-500">{errors.name}</p>
                     )}
                   </div>
-
                   <div>
-                    <Label>Status</Label>
+                    <Label>Currency</Label>
                     <Select
-                      value={form.status}
-                      onValueChange={(value) => updateForm("status", value)}
+                      value={form.currency}
+                      onValueChange={(v) => updateForm("currency", v)}
                     >
                       <SelectTrigger className="mt-2">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="DRAFT">Draft</SelectItem>
-                        <SelectItem value="ACTIVE">Active</SelectItem>
-                        <SelectItem value="INACTIVE">Inactive</SelectItem>
+                        <SelectItem value="AED">AED</SelectItem>
+                        <SelectItem value="SAR">SAR</SelectItem>
+                        <SelectItem value="USD">USD</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-              </div>
-
-              <div className="border-t pt-5">
-                <p className="text-xs font-semibold uppercase text-muted-foreground">
-                  Applies To
-                </p>
-                <div className="mt-4 grid grid-cols-3 gap-2">
-                  {[
-                    ["ALL_CUSTOMERS", "All Customers"],
-                    ["CUSTOMER_CATEGORY", "Customer Category"],
-                    ["SELECTED_ACCOUNTS", "Selected Accounts"],
-                  ].map(([value, label]) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => updateForm("applies_to", value)}
-                      className={
-                        form.applies_to === value
-                          ? "rounded-lg border border-blue-500 bg-blue-50 px-3 py-3 text-sm text-blue-600"
-                          : "rounded-lg border px-3 py-3 text-sm"
-                      }
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t pt-5">
-                <p className="text-xs font-semibold uppercase text-muted-foreground">
-                  Discount
-                </p>
-                <div className="mt-4 grid grid-cols-3 gap-2">
-                  {[
-                    ["PERCENTAGE", "Percentage Off"],
-                    ["FIXED", "Fixed Amount Off"],
-                    ["CUSTOM_PRICE", "Custom Item Prices"],
-                  ].map(([value, label]) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => updateForm("discount_type", value)}
-                      className={
-                        form.discount_type === value
-                          ? "rounded-lg border border-blue-500 bg-blue-50 px-3 py-3 text-sm text-blue-600"
-                          : "rounded-lg border px-3 py-3 text-sm"
-                      }
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <div>
-                    <Label>
-                      {form.discount_type === "PERCENTAGE"
-                        ? "Discount Percentage"
-                        : "Fixed Discount"}
-                    </Label>
-                    <Input
-                      type="number"
-                      value={
-                        form.discount_type === "PERCENTAGE"
-                          ? form.discount_percentage
-                          : form.fixed_discount
-                      }
-                      onChange={(event) =>
-                        updateForm(
-                          form.discount_type === "PERCENTAGE"
-                            ? "discount_percentage"
-                            : "fixed_discount",
-                          event.target.value,
-                        )
-                      }
-                      className="mt-2"
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Applies To</Label>
-                    <Select
-                      value={form.apply_scope}
-                      onValueChange={(value) =>
-                        updateForm("apply_scope", value)
-                      }
-                    >
-                      <SelectTrigger className="mt-2">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ALL_ITEMS">All Items</SelectItem>
-                        <SelectItem value="SELECTED_ITEMS">
-                          Selected Items
-                        </SelectItem>
-                        <SelectItem value="CATEGORIES">Categories</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t pt-5">
-                <p className="text-xs font-semibold uppercase text-muted-foreground">
-                  Validity
-                </p>
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <div>
                     <Label>Valid From *</Label>
                     <Input
+                      className="mt-2"
                       type="date"
                       value={form.valid_from}
-                      onChange={(event) =>
-                        updateForm("valid_from", event.target.value)
-                      }
-                      className="mt-2"
+                      onChange={(e) => updateForm("valid_from", e.target.value)}
                     />
                   </div>
                   <div>
-                    <Label>Valid Until</Label>
+                    <Label>Valid Until (blank = no expiry)</Label>
                     <Input
+                      className="mt-2"
                       type="date"
                       value={form.valid_until}
-                      onChange={(event) =>
-                        updateForm("valid_until", event.target.value)
+                      onChange={(e) =>
+                        updateForm("valid_until", e.target.value)
                       }
-                      className="mt-2"
                     />
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Leave blank for no expiry
-                    </p>
+                    {errors.valid_until && (
+                      <p className="mt-1 text-xs text-red-500">
+                        {errors.valid_until}
+                      </p>
+                    )}
                   </div>
                 </div>
-              </div>
+              </section>
+
+              <section className="card-surface p-5">
+                <h3 className="font-semibold">2 · Type</h3>
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  {[
+                    [
+                      "CUSTOMER_TIER",
+                      "👤",
+                      "Customer-Tier",
+                      "Applies to a customer or customer group",
+                    ],
+                    [
+                      "BRANCH_SPECIFIC",
+                      "🏢",
+                      "Branch-Specific",
+                      "Applies to one branch",
+                    ],
+                    [
+                      "PROMOTIONAL",
+                      "🎉",
+                      "Promotional",
+                      "Time-based, applies to selected customers",
+                    ],
+                  ].map(([value, icon, title, description]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => updateForm("price_list_type", value)}
+                      className={`rounded-xl border p-5 text-center ${form.price_list_type === value ? "border-blue-500 bg-blue-500/10" : "border-border"}`}
+                    >
+                      <div className="text-2xl">{icon}</div>
+                      <div className="mt-2 font-semibold">{title}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {description}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  {form.price_list_type === "BRANCH_SPECIFIC" ? (
+                    <div>
+                      <Label>Applicable Branch *</Label>
+                      <Select
+                        value={form.branch}
+                        onValueChange={(v) => updateForm("branch", v)}
+                      >
+                        <SelectTrigger className="mt-2">
+                          <SelectValue placeholder="Select branch" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {branches.map((branch) => (
+                            <SelectItem
+                              key={branch.id}
+                              value={String(branch.id)}
+                            >
+                              {branch.branch_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {errors.branch && (
+                        <p className="mt-1 text-xs text-red-500">
+                          {errors.branch}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <Label>Applicable Customer / Group</Label>
+                      <Select
+                        value={form.customer_category || "ALL"}
+                        onValueChange={(v) => {
+                          updateForm("customer_category", v === "ALL" ? "" : v);
+                          updateForm(
+                            "applies_to",
+                            v === "ALL" ? "ALL_CUSTOMERS" : "CUSTOMER_CATEGORY",
+                          );
+                        }}
+                      >
+                        <SelectTrigger className="mt-2">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ALL">All Customers</SelectItem>
+                          {customerCategories.map((category) => (
+                            <SelectItem key={category} value={String(category)}>
+                              {category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <section className="card-surface p-5">
+                <h3 className="font-semibold">3 · Item Pricing Rules</h3>
+                <div className="mt-4 overflow-x-auto">
+                  <table className="w-full min-w-[820px] text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-xs uppercase text-muted-foreground">
+                        <th className="p-2">Product</th>
+                        <th className="p-2">Base Price</th>
+                        <th className="p-2">Override Price</th>
+                        <th className="p-2">Discount %</th>
+                        <th className="p-2">Min Qty</th>
+                        <th className="p-2">Final Price</th>
+                        <th className="p-2" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {form.items.map((rule, index) => {
+                        const base = getBasePrice(rule);
+                        const finalPrice = getFinalPrice(rule);
+                        return (
+                          <tr key={index} className="border-b">
+                            <td className="p-2">
+                              <Select
+                                value={String(rule.product || "")}
+                                onValueChange={(v) =>
+                                  updateRule(index, "product", v)
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select product" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {products.map((product) => (
+                                    <SelectItem
+                                      key={product.id}
+                                      value={String(product.id)}
+                                    >
+                                      {product.product_name ||
+                                        product.name ||
+                                        product.sku}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </td>
+                            <td className="p-2">
+                              <Input value={base.toFixed(2)} readOnly />
+                            </td>
+                            <td className="p-2">
+                              <Input
+                                type="number"
+                                min="0"
+                                value={rule.custom_price}
+                                onChange={(e) =>
+                                  updateRule(
+                                    index,
+                                    "custom_price",
+                                    e.target.value,
+                                  )
+                                }
+                                placeholder="Optional"
+                              />
+                            </td>
+                            <td className="p-2">
+                              <Input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={rule.discount_percentage}
+                                onChange={(e) =>
+                                  updateRule(
+                                    index,
+                                    "discount_percentage",
+                                    e.target.value,
+                                  )
+                                }
+                              />
+                            </td>
+                            <td className="p-2">
+                              <Input
+                                type="number"
+                                min="1"
+                                value={rule.minimum_quantity}
+                                onChange={(e) =>
+                                  updateRule(
+                                    index,
+                                    "minimum_quantity",
+                                    e.target.value,
+                                  )
+                                }
+                              />
+                            </td>
+                            <td className="p-2 font-semibold text-green-500">
+                              {form.currency} {finalPrice.toFixed(2)}
+                            </td>
+                            <td className="p-2">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() =>
+                                  setForm((current) => ({
+                                    ...current,
+                                    items: current.items.filter(
+                                      (_, i) => i !== index,
+                                    ),
+                                  }))
+                                }
+                              >
+                                <X className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {errors.items && (
+                  <p className="mt-2 text-xs text-red-500">{errors.items}</p>
+                )}
+                <Button
+                  variant="outline"
+                  className="mt-3"
+                  onClick={() =>
+                    setForm((current) => ({
+                      ...current,
+                      items: [...current.items, emptyRule()],
+                    }))
+                  }
+                >
+                  <Plus className="mr-2 h-4 w-4" /> Add Product Rule
+                </Button>
+              </section>
+
+              <section className="card-surface p-5">
+                <h3 className="font-semibold">4 · Promotion Controls</h3>
+                <div className="mt-4 divide-y">
+                  <div className="flex items-center justify-between py-4">
+                    <div>
+                      <p className="font-medium">Auto-Apply</p>
+                      <p className="text-xs text-muted-foreground">
+                        Applies automatically at checkout, no code needed
+                      </p>
+                    </div>
+                    <Toggle
+                      checked={form.auto_apply}
+                      onChange={(v) => updateForm("auto_apply", v)}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between py-4">
+                    <div>
+                      <p className="font-medium">Stackable</p>
+                      <p className="text-xs text-muted-foreground">
+                        Can be combined with other active discounts
+                      </p>
+                    </div>
+                    <Toggle
+                      checked={form.stackable}
+                      onChange={(v) => updateForm("stackable", v)}
+                    />
+                  </div>
+                  <div className="max-w-sm py-4">
+                    <Label>Usage Limit per Customer (optional)</Label>
+                    <Input
+                      className="mt-2"
+                      type="number"
+                      min="1"
+                      value={form.usage_limit_per_customer}
+                      onChange={(e) =>
+                        updateForm("usage_limit_per_customer", e.target.value)
+                      }
+                      placeholder="e.g. 1"
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <section className="card-surface p-5">
+                <h3 className="font-semibold">5 · Status</h3>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {["DRAFT", "SCHEDULED", "ACTIVE", "EXPIRED"].map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => updateForm("status", status)}
+                      className={`rounded-lg border px-4 py-2 text-sm ${form.status === status ? "border-blue-500 bg-blue-600 text-white" : "border-border"}`}
+                    >
+                      {status.charAt(0) + status.slice(1).toLowerCase()}
+                    </button>
+                  ))}
+                </div>
+              </section>
             </div>
 
-            <div className="flex justify-end gap-2 border-t px-5 py-4">
+            <div className="sticky bottom-0 flex justify-end gap-2 border-t bg-background px-6 py-4">
               <Button variant="outline" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
               <Button
-                onClick={() => validate() && mutation.mutate()}
-                className="bg-blue-600 text-white hover:bg-blue-700"
+                variant="outline"
+                disabled={saveMutation.isPending}
+                onClick={() => validate() && saveMutation.mutate("DRAFT")}
               >
-                Save Price List
+                <Save className="mr-2 h-4 w-4" /> Save as Draft
+              </Button>
+              <Button
+                className="bg-blue-600 text-white hover:bg-blue-700"
+                disabled={saveMutation.isPending}
+                onClick={() =>
+                  validate() &&
+                  saveMutation.mutate(
+                    form.status === "DRAFT" ? "ACTIVE" : form.status,
+                  )
+                }
+              >
+                Activate Price List
               </Button>
             </div>
           </div>

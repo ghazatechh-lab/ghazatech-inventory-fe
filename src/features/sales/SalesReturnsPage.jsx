@@ -55,6 +55,10 @@ const createForm = (branchId) => ({
   reason: "DAMAGED",
   resolution: "CREDIT_NOTE",
   status: "DRAFT",
+  disposition: "RESTOCK",
+  restock_branch: branchId ? String(branchId) : "",
+  refund_method: "CREDIT_NOTE",
+  approver_name: "",
   notes: "",
   items: [],
 });
@@ -127,6 +131,8 @@ export default function SalesReturnsPage() {
         returned_quantity: number(item.available_quantity),
         unit_price: number(item.unit_price),
         condition: "SELLABLE",
+        serial_imei: "",
+        inspected_by_name: "",
         selected: number(item.available_quantity) > 0,
       })),
     }));
@@ -189,6 +195,12 @@ export default function SalesReturnsPage() {
           reason: form.reason,
           resolution: form.resolution,
           status,
+          disposition: form.disposition,
+          restock_branch: form.restock_branch
+            ? Number(form.restock_branch)
+            : null,
+          refund_method: form.refund_method || null,
+          approver_name: form.approver_name || null,
           notes: form.notes,
           subtotal,
           vat_amount: vatAmount,
@@ -200,6 +212,8 @@ export default function SalesReturnsPage() {
             ordered_quantity: item.ordered_quantity,
             returned_quantity: number(item.returned_quantity),
             condition: item.condition,
+            serial_imei: item.serial_imei || null,
+            inspected_by_name: item.inspected_by_name || null,
             unit_price: item.unit_price,
           })),
         },
@@ -444,19 +458,20 @@ export default function SalesReturnsPage() {
               <div>
                 <Label>Items to Return</Label>
                 <div className="mt-2 overflow-hidden rounded-xl border">
-                  <div className="grid grid-cols-[42px_minmax(210px,1fr)_100px_100px_120px_120px] gap-3 border-b bg-slate-50 px-3 py-3 text-[10px] uppercase text-muted-foreground">
+                  <div className="grid grid-cols-[42px_minmax(180px,1fr)_90px_100px_150px_180px_110px] gap-3 border-b bg-slate-50 px-3 py-3 text-[10px] uppercase text-muted-foreground">
                     <span />
                     <span>Item</span>
                     <span className="text-right">Ordered Qty</span>
                     <span className="text-right">Qty Returned</span>
                     <span>Condition</span>
+                    <span>Serial / Inspection</span>
                     <span className="text-right">Line Total</span>
                   </div>
 
                   {form.items.map((item, index) => (
                     <div
                       key={item.sales_order_item || index}
-                      className="grid grid-cols-[42px_minmax(210px,1fr)_100px_100px_120px_120px] items-center gap-3 border-b px-3 py-3 last:border-b-0"
+                      className="grid grid-cols-[42px_minmax(180px,1fr)_90px_100px_150px_180px_110px] items-center gap-3 border-b px-3 py-3 last:border-b-0"
                     >
                       <input
                         type="checkbox"
@@ -501,6 +516,26 @@ export default function SalesReturnsPage() {
                           <SelectItem value="SCRAP">Scrap</SelectItem>
                         </SelectContent>
                       </Select>
+                      <div className="space-y-1">
+                        <Input
+                          value={item.serial_imei || ""}
+                          onChange={(e) =>
+                            updateItem(index, { serial_imei: e.target.value })
+                          }
+                          placeholder="Serial / IMEI"
+                          disabled={!item.selected}
+                        />
+                        <Input
+                          value={item.inspected_by_name || ""}
+                          onChange={(e) =>
+                            updateItem(index, {
+                              inspected_by_name: e.target.value,
+                            })
+                          }
+                          placeholder="Inspected by"
+                          disabled={!item.selected}
+                        />
+                      </div>
                       <div className="text-right font-semibold">
                         <CurrencyText
                           value={
@@ -515,6 +550,72 @@ export default function SalesReturnsPage() {
                 {errors.items && (
                   <p className="mt-2 text-xs text-red-500">{errors.items}</p>
                 )}
+              </div>
+
+              <div className="space-y-4 rounded-xl border p-4">
+                <Label>Disposition — what happens to the returned item</Label>
+                <div className="grid gap-3 md:grid-cols-3">
+                  {[
+                    ["RESTOCK", "Restock"],
+                    ["SCRAP", "Scrap"],
+                    ["RETURN_TO_SUPPLIER", "Return to Supplier"],
+                  ].map(([value, label]) => (
+                    <Button
+                      key={value}
+                      type="button"
+                      variant={
+                        form.disposition === value ? "default" : "outline"
+                      }
+                      onClick={() => updateForm("disposition", value)}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div>
+                    <Label>Restock Branch</Label>
+                    <Input
+                      value={form.restock_branch}
+                      onChange={(e) =>
+                        updateForm("restock_branch", e.target.value)
+                      }
+                      placeholder="Branch ID"
+                    />
+                  </div>
+                  <div>
+                    <Label>Refund Method</Label>
+                    <Select
+                      value={form.refund_method}
+                      onValueChange={(v) => updateForm("refund_method", v)}
+                    >
+                      <SelectTrigger className="mt-2">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="CREDIT_NOTE">Credit Note</SelectItem>
+                        <SelectItem value="CASH">Cash</SelectItem>
+                        <SelectItem value="BANK_TRANSFER">
+                          Bank Transfer
+                        </SelectItem>
+                        <SelectItem value="ORIGINAL_METHOD">
+                          Original Method
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Approved By (optional)</Label>
+                    <Input
+                      className="mt-2"
+                      value={form.approver_name}
+                      onChange={(e) =>
+                        updateForm("approver_name", e.target.value)
+                      }
+                      placeholder="Manager name"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">

@@ -758,6 +758,23 @@ export default function POFormPage() {
                     currency={form.currency}
                   />
                 </div>
+
+                <div className="flex items-center justify-between gap-4">
+                  <Label htmlFor="order-discount" className="text-slate-500">
+                    Order Discount
+                  </Label>
+                  <Input
+                    id="order-discount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.discount_amount}
+                    onChange={(event) =>
+                      updateForm("discount_amount", event.target.value)
+                    }
+                    className="h-8 w-32 text-right"
+                  />
+                </div>
                 <div className="flex justify-between border-t border-slate-200 pt-3 font-semibold dark:border-white/10">
                   <span>Total</span>
                   <CurrencyText value={total} currency={form.currency} />

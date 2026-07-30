@@ -72,6 +72,12 @@ import InvoiceDetailPage from "@/features/sales/InvoiceDetailPage";
 import POSPage from "@/features/sales/POSPage";
 import CreditNotesPage from "@/features/sales/CreditNotesPage";
 import SalesPaymentsPage from "@/features/sales/SalesPaymentsPage";
+import SalesOrderListPage from "@/features/sales/SalesOrderListPage";
+import SalesOrderFormPage from "@/features/sales/SalesOrderFormPage";
+import SalesOrderDetailPage from "@/features/sales/SalesOrderDetailPage";
+import SalesReturnsPage from "@/features/sales/SalesReturnsPage";
+import PriceListsPage from "@/features/sales/PriceListsPage";
+import DeliveryNotesPage from "@/features/sales/DeliveryNotesPage";
 
 /* -------------------------------------------------------------------------- */
 /* Suppliers                                                                  */
@@ -406,6 +412,26 @@ export default function App() {
                 path="/sales/quotations/:id/edit"
                 element={<QuotationFormPage />}
               />
+
+              <Route path="/sales/orders" element={<SalesOrderListPage />} />
+              <Route
+                path="/sales/orders/new"
+                element={<SalesOrderFormPage />}
+              />
+              <Route
+                path="/sales/orders/:id"
+                element={<SalesOrderDetailPage />}
+              />
+              <Route
+                path="/sales/orders/:id/edit"
+                element={<SalesOrderFormPage />}
+              />
+              <Route
+                path="/sales/delivery-notes"
+                element={<DeliveryNotesPage />}
+              />
+              <Route path="/sales/returns" element={<SalesReturnsPage />} />
+              <Route path="/sales/price-lists" element={<PriceListsPage />} />
 
               <Route path="/sales/invoices" element={<InvoiceListPage />} />
 

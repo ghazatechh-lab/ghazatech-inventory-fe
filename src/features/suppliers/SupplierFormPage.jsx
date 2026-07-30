@@ -22,6 +22,16 @@ import {
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
+const PAYMENT_TERMS = [
+  { value: "0", label: "Due on Receipt" },
+  { value: "7", label: "7 Days" },
+  { value: "15", label: "15 Days" },
+  { value: "30", label: "30 Days" },
+  { value: "45", label: "45 Days" },
+  { value: "60", label: "60 Days" },
+  { value: "90", label: "90 Days" },
+];
+
 const ACCEPTED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx"];
 
 const defaults = {
@@ -427,11 +437,27 @@ export default function SupplierFormPage() {
           description="Payment behavior, credit exposure and preferred currency."
         >
           <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Payment terms (days)">
-              <Input
-                type="number"
-                min="0"
-                {...register("payment_terms_days")}
+            <Field label="Payment Terms">
+              <Controller
+                name="payment_terms_days"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={String(field.value ?? 15)}
+                    onValueChange={(value) => field.onChange(Number(value))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select payment terms" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_TERMS.map((term) => (
+                        <SelectItem key={term.value} value={term.value}>
+                          {term.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               />
             </Field>
 

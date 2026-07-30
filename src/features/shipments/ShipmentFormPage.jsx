@@ -137,7 +137,12 @@ export default function ShipmentFormPage() {
 
   const allBranches = normalizeList(options.branches);
 
-  const warehouses = normalizeList(options.warehouses);
+  const warehouses = normalizeList(options.warehouses).filter(
+    (warehouse) =>
+      !form.branch ||
+      !warehouse.branch_id ||
+      String(warehouse.branch_id) === String(form.branch),
+  );
 
   const receivers = normalizeList(options.receivers);
 
@@ -659,11 +664,10 @@ export default function ShipmentFormPage() {
 
             <Input
               value={form.shipment_number}
-              onChange={(event) =>
-                updateForm("shipment_number", event.target.value)
-              }
-              placeholder="Auto generated"
+              placeholder="Generated automatically on save"
               className="mt-2"
+              readOnly
+              disabled={!edit}
             />
           </div>
 
@@ -867,12 +871,12 @@ export default function ShipmentFormPage() {
           </div>
 
           <div>
-            <Label>Carrier</Label>
+            <Label>Courier</Label>
 
             <Input
               value={form.courier}
               onChange={(event) => updateForm("courier", event.target.value)}
-              placeholder="Carrier or courier name"
+              placeholder="Courier name"
               className="mt-2"
             />
           </div>
@@ -998,7 +1002,7 @@ export default function ShipmentFormPage() {
 
         <div className="overflow-x-auto p-3">
           <div className="min-w-[1750px]">
-            <div className="grid grid-cols-[220px_180px_115px_100px_repeat(4,88px)_110px_82px_120px_140px_140px_130px_38px] gap-2 px-1 pb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            <div className="grid grid-cols-[220px_180px_115px_100px_repeat(4,88px)_110px_82px_120px_130px_38px] gap-2 px-1 pb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
               <span>Product</span>
               <span>Variant / SKU</span>
               <span>Brand</span>
@@ -1010,8 +1014,6 @@ export default function ShipmentFormPage() {
               <span className="text-right">Unit Cost</span>
               <span className="text-right">VAT %</span>
               <span>Rack</span>
-              <span>Serial No.</span>
-              <span>Batch No.</span>
               <span className="text-right">Total</span>
               <span />
             </div>
@@ -1027,7 +1029,7 @@ export default function ShipmentFormPage() {
                 return (
                   <div
                     key={item.id || index}
-                    className="grid grid-cols-[220px_180px_115px_100px_repeat(4,88px)_110px_82px_120px_140px_140px_130px_38px] items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-white/10 dark:bg-white/[0.025]"
+                    className="grid grid-cols-[220px_180px_115px_100px_repeat(4,88px)_110px_82px_120px_130px_38px] items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-white/10 dark:bg-white/[0.025]"
                   >
                     <Select
                       value={item.product}
@@ -1206,26 +1208,6 @@ export default function ShipmentFormPage() {
                         ))}
                       </SelectContent>
                     </Select>
-
-                    <Input
-                      value={item.serial_number}
-                      onChange={(event) =>
-                        updateItem(index, {
-                          serial_number: event.target.value,
-                        })
-                      }
-                      placeholder="Serial number"
-                    />
-
-                    <Input
-                      value={item.batch_number}
-                      onChange={(event) =>
-                        updateItem(index, {
-                          batch_number: event.target.value,
-                        })
-                      }
-                      placeholder="Batch number"
-                    />
 
                     <div className="text-right text-sm font-semibold">
                       <CurrencyText value={itemTotals[index] || 0} />
