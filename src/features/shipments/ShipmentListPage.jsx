@@ -486,28 +486,6 @@ export default function ShipmentListPage() {
           </div>
         </div>
       </div>
-
-      <details className="rounded-2xl border bg-card p-4">
-        <summary className="cursor-pointer font-medium">
-          Shipment API debug data
-        </summary>
-
-        <pre className="mt-4 max-h-[500px] overflow-auto rounded-xl bg-muted p-4 text-xs">
-          {JSON.stringify(
-            {
-              endpoint: "/shipments/",
-              params,
-              queryStatus: query.status,
-              fetchStatus: query.fetchStatus,
-              total,
-              rows,
-              rawNormalizedPayload: payload,
-            },
-            null,
-            2,
-          )}
-        </pre>
-      </details>
     </div>
   );
 }
