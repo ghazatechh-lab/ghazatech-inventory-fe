@@ -31,6 +31,32 @@ const list = (value) => {
 const today = () => new Date().toISOString().slice(0, 10);
 const num = (value) => Number(value || 0);
 
+const getPk = (...values) => {
+  for (const value of values) {
+    const candidate = value && typeof value === "object" ? value.id : value;
+
+    if (candidate !== undefined && candidate !== null && candidate !== "") {
+      const parsed = Number(candidate);
+
+      if (Number.isInteger(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+  }
+
+  return null;
+};
+
+const getText = (...values) => {
+  for (const value of values) {
+    if (value !== undefined && value !== null && String(value).trim()) {
+      return String(value);
+    }
+  }
+
+  return "";
+};
+
 const formatSize = (bytes) => {
   const value = Number(bytes || 0);
   if (value < 1024) return `${value} B`;
@@ -85,6 +111,7 @@ export default function GRNFormPage() {
   const orders = list(options.purchase_orders);
   const branches = list(options.branches);
   const receivers = list(options.receivers);
+  const racks = list(options.racks);
   const qualityStatuses = list(options.quality_statuses);
 
   const { data: existing, isLoading } = useQuery({
@@ -111,20 +138,41 @@ export default function GRNFormPage() {
       warehouse_location: existing.warehouse_location || "",
       notes: existing.notes || "",
       status: existing.status || "DRAFT",
-      items: (existing.items || []).map((item) => ({
-        id: item.id,
-        product: String(item.product?.id || item.product),
-        variant: item.variant ? String(item.variant?.id || item.variant) : "",
-        product_name: item.product_name || "",
-        sku: item.sku || "",
-        ordered_quantity: num(item.ordered_quantity),
-        received_quantity: num(item.received_quantity),
-        damaged_quantity: num(item.damaged_quantity),
-        accepted_quantity: num(item.accepted_quantity),
-        is_received: true,
-        quality_status: item.quality_status || "QC_PASSED",
-        remarks: item.remarks || "",
-      })),
+      items: (existing.items || []).map((item) => {
+        const productId = getPk(
+          item.product_id,
+          item.product,
+          item.product?.id,
+        );
+
+        const variantId = getPk(
+          item.variant_id,
+          item.variant,
+          item.variant?.id,
+        );
+
+        return {
+          id: item.id,
+          product: productId ? String(productId) : "",
+          variant: variantId ? String(variantId) : "",
+          product_name: getText(
+            item.product_name,
+            item.product?.product_name,
+            item.product?.name,
+          ),
+          sku: getText(item.sku, item.variant?.sku, item.product?.sku),
+          ordered_quantity: num(item.ordered_quantity ?? item.quantity),
+          previously_received_quantity: num(item.previously_received_quantity),
+          received_quantity: num(item.received_quantity),
+          damaged_quantity: num(item.damaged_quantity),
+          accepted_quantity: num(item.accepted_quantity),
+          quality_status: item.quality_status || "QC_PASSED",
+          rack: item.rack
+            ? String(getPk(item.rack_id, item.rack, item.rack?.id) || "")
+            : "",
+          remarks: item.remarks || "",
+        };
+      }),
     });
   }, [existing]);
 
@@ -166,60 +214,110 @@ export default function GRNFormPage() {
 
   const selectPO = (value) => {
     const order = orders.find((item) => String(item.id) === String(value));
-    if (!order) return;
+
+    if (!order) {
+      toast.error("Selected purchase order could not be loaded.");
+      return;
+    }
+
+    const supplierId = getPk(
+      order.supplier_id,
+      order.supplier,
+      order.supplier?.id,
+    );
+
+    const branchValue = getPk(order.branch_id, order.branch, order.branch?.id);
+
+    const normalizedItems = (order.items || [])
+      .map((item) => {
+        const productId = getPk(
+          item.product_id,
+          item.product,
+          item.product?.id,
+        );
+
+        const variantId = getPk(
+          item.variant_id,
+          item.variant,
+          item.variant?.id,
+        );
+
+        const orderedQuantity = num(item.ordered_quantity ?? item.quantity);
+
+        const previouslyReceived = num(
+          item.previously_received_quantity ?? item.received_quantity,
+        );
+
+        const remaining = Math.max(
+          0,
+          num(item.remaining_quantity ?? orderedQuantity - previouslyReceived),
+        );
+
+        return {
+          po_item_id: getPk(item.po_item_id, item.id),
+          product: productId ? String(productId) : "",
+          variant: variantId ? String(variantId) : "",
+          product_name: getText(
+            item.product_name,
+            item.product?.product_name,
+            item.product?.name,
+          ),
+          sku: getText(item.sku, item.variant?.sku, item.product?.sku),
+          ordered_quantity: orderedQuantity,
+          previously_received_quantity: previouslyReceived,
+          received_quantity: remaining,
+          damaged_quantity: 0,
+          accepted_quantity: remaining,
+          quality_status: "QC_PASSED",
+          rack: "",
+          remarks: "",
+        };
+      })
+      .filter((item) => num(item.received_quantity) > 0);
+
+    const invalidProducts = normalizedItems.filter(
+      (item) => !getPk(item.product),
+    );
+
+    if (invalidProducts.length) {
+      toast.error("Purchase-order product data is incomplete.", {
+        description:
+          "Refresh the page after updating the GRN form-options endpoint.",
+      });
+      return;
+    }
 
     setForm((current) => ({
       ...current,
       purchase_order: String(order.id),
-      supplier: String(order.supplier_id),
-      branch: String(order.branch_id),
-      items: (order.items || []).map((item) => {
-        const remaining = Math.max(
-          0,
-          num(item.quantity) - num(item.received_quantity),
-        );
-
-        return {
-          product: String(item.product_id),
-          variant: item.variant_id ? String(item.variant_id) : "",
-          product_name: item.product_name || "",
-          sku: item.sku || "",
-          ordered_quantity: num(item.quantity),
-          previously_received_quantity: num(item.received_quantity),
-          received_quantity: remaining,
-          damaged_quantity: 0,
-          accepted_quantity: remaining,
-          is_received: remaining > 0,
-          quality_status: "QC_PASSED",
-          remarks: "",
-        };
-      }),
+      supplier: supplierId ? String(supplierId) : "",
+      branch: branchValue ? String(branchValue) : "",
+      items: normalizedItems,
     }));
+
+    setErrors({});
   };
 
-  const selectedItems = form.items.filter((item) => item.is_received);
-
-  const totalOrdered = selectedItems.reduce(
+  const totalOrdered = form.items.reduce(
     (sum, item) => sum + num(item.ordered_quantity),
     0,
   );
-  const totalReceived = selectedItems.reduce(
+  const totalReceived = form.items.reduce(
     (sum, item) => sum + num(item.received_quantity),
     0,
   );
-  const totalAccepted = selectedItems.reduce(
+  const totalAccepted = form.items.reduce(
     (sum, item) => sum + num(item.accepted_quantity),
     0,
   );
-  const totalRejected = selectedItems.reduce(
+  const totalRejected = form.items.reduce(
     (sum, item) => sum + num(item.damaged_quantity),
     0,
   );
 
   const receiptStatus = !form.items.length
     ? "DRAFT"
-    : selectedItems.length > 0 &&
-        selectedItems.every(
+    : form.items.every(
           (item) =>
             num(item.received_quantity) >=
             Math.max(
@@ -239,11 +337,17 @@ export default function GRNFormPage() {
     if (!form.branch) next.branch = "Receiving branch is required.";
     if (!form.received_by) next.received_by = "Received by is required.";
     if (!form.received_date) next.received_date = "Received date is required.";
-    if (!selectedItems.length) {
-      next.items = "Select at least one item as received.";
+    if (!form.items.length)
+      next.items = "No purchase-order items are available.";
+
+    const invalidProduct = form.items.some((item) => !getPk(item.product));
+
+    if (invalidProduct) {
+      next.items =
+        "One or more purchase-order lines do not contain a valid product ID.";
     }
 
-    const invalid = selectedItems.some((item) => {
+    const invalid = form.items.some((item) => {
       const received = num(item.received_quantity);
       const accepted = num(item.accepted_quantity);
       const damaged = num(item.damaged_quantity);
@@ -282,17 +386,29 @@ export default function GRNFormPage() {
         branch: Number(form.branch),
         received_by: Number(form.received_by),
         status: confirm ? "CONFIRMED" : "DRAFT",
-        items: selectedItems.map((item) => ({
-          ...(item.id ? { id: item.id } : {}),
-          product: Number(item.product),
-          variant: item.variant ? Number(item.variant) : null,
-          ordered_quantity: num(item.ordered_quantity),
-          received_quantity: num(item.received_quantity),
-          damaged_quantity: num(item.damaged_quantity),
-          accepted_quantity: num(item.accepted_quantity),
-          quality_status: item.quality_status,
-          remarks: item.remarks || "",
-        })),
+        items: form.items.map((item) => {
+          const productId = getPk(item.product);
+          const variantId = getPk(item.variant);
+          const rackId = getPk(item.rack);
+
+          return {
+            ...(item.id ? { id: item.id } : {}),
+            ...(item.po_item_id
+              ? {
+                  po_item_id: Number(item.po_item_id),
+                }
+              : {}),
+            product: productId,
+            variant: variantId,
+            ordered_quantity: num(item.ordered_quantity),
+            received_quantity: num(item.received_quantity),
+            damaged_quantity: num(item.damaged_quantity),
+            accepted_quantity: num(item.accepted_quantity),
+            quality_status: item.quality_status,
+            rack: rackId,
+            remarks: item.remarks || "",
+          };
+        }),
       };
 
       data.append("payload", JSON.stringify(payload));
@@ -518,47 +634,20 @@ export default function GRNFormPage() {
 
             <div className="overflow-x-auto p-5">
               <div className="min-w-[900px]">
-                <div className="grid grid-cols-[90px_minmax(260px,1fr)_110px_110px_170px] gap-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  <span>Received</span>
+                <div className="grid grid-cols-[minmax(260px,1fr)_110px_110px_150px_150px] gap-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   <span>Item</span>
                   <span className="text-right">Ordered</span>
-                  <span className="text-right">Quantity</span>
+                  <span className="text-right">Received</span>
                   <span>QC Result</span>
+                  <span>Rack</span>
                 </div>
 
                 <div className="space-y-2">
                   {form.items.map((item, index) => (
                     <div
                       key={item.id || index}
-                      className={`grid grid-cols-[90px_minmax(260px,1fr)_110px_110px_170px] items-center gap-3 border-b border-slate-100 py-2 last:border-b-0 dark:border-white/5 ${
-                        item.is_received ? "" : "opacity-55"
-                      }`}
+                      className="grid grid-cols-[minmax(260px,1fr)_110px_110px_150px_150px] items-center gap-3 border-b border-slate-100 py-2 last:border-b-0 dark:border-white/5"
                     >
-                      <label className="flex cursor-pointer items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(item.is_received)}
-                          onChange={(event) => {
-                            const checked = event.target.checked;
-                            const remaining = Math.max(
-                              0,
-                              num(item.ordered_quantity) -
-                                num(item.previously_received_quantity),
-                            );
-
-                            updateItem(index, {
-                              is_received: checked,
-                              received_quantity: checked ? remaining : 0,
-                              accepted_quantity: checked ? remaining : 0,
-                              damaged_quantity: 0,
-                              quality_status: "QC_PASSED",
-                            });
-                          }}
-                          className="h-4 w-4 rounded border-slate-300"
-                        />
-                        <span>{item.is_received ? "Yes" : "No"}</span>
-                      </label>
-
                       <div>
                         <p className="text-sm font-medium">
                           {item.product_name || item.sku}
@@ -602,7 +691,6 @@ export default function GRNFormPage() {
                           });
                         }}
                         className="text-right"
-                        disabled={!item.is_received}
                       />
 
                       <Select
@@ -624,7 +712,6 @@ export default function GRNFormPage() {
                                   : num(item.accepted_quantity),
                           })
                         }
-                        disabled={!item.is_received}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -633,6 +720,27 @@ export default function GRNFormPage() {
                           {qualityStatuses.map((option) => (
                             <SelectItem key={option.value} value={option.value}>
                               {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <Select
+                        value={item.rack || "__none__"}
+                        onValueChange={(value) =>
+                          updateItem(index, {
+                            rack: value === "__none__" ? "" : value,
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select rack" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">No rack</SelectItem>
+                          {racks.map((rack) => (
+                            <SelectItem key={rack.id} value={String(rack.id)}>
+                              {rack.rack_code}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -646,7 +754,7 @@ export default function GRNFormPage() {
                 )}
 
                 {receiptStatus === "PARTIAL_RECEIPT" &&
-                  selectedItems.length > 0 && (
+                  form.items.length > 0 && (
                     <p className="mt-3 text-xs text-amber-600 dark:text-amber-400">
                       Some lines are below the remaining ordered quantity. This
                       GRN will be marked as a partial receipt.
@@ -783,12 +891,6 @@ export default function GRNFormPage() {
                   {branches.find(
                     (item) => String(item.id) === String(form.branch),
                   )?.branch_name || "—"}
-                </span>
-              </div>
-              <div className="flex justify-between gap-3">
-                <span className="text-muted-foreground">Selected items</span>
-                <span className="font-medium">
-                  {selectedItems.length} / {form.items.length}
                 </span>
               </div>
               <div className="flex justify-between gap-3">

@@ -5,9 +5,10 @@ import {
   BookOpenText,
   Boxes,
   Building2,
+  Calculator,
   CalendarCheck,
   CalendarDays,
-  ClipboardList,
+  FileSpreadsheet,
   FileText,
   GitBranch,
   Globe2,
@@ -16,6 +17,7 @@ import {
   Landmark,
   Layers,
   LayoutDashboard,
+  LockKeyhole,
   PackageCheck,
   PackagePlus,
   ReceiptText,
@@ -27,9 +29,9 @@ import {
   Tag,
   TrendingDown,
   Truck,
+  UserCog,
   UserSquare2,
   Users,
-  UserCog,
   Wallet,
   WalletCards,
 } from "lucide-react";
@@ -52,7 +54,7 @@ export const modules = [
     items: [
       {
         id: "dashboard-overview",
-        label: "Dashboard Overview",
+        label: "Dashboard",
         to: "/dashboard",
         icon: LayoutDashboard,
       },
@@ -119,7 +121,7 @@ export const modules = [
         id: "inventory-adjustments",
         label: "Stock Adjustments",
         to: "/inventory/adjustments",
-        icon: ClipboardList,
+        icon: FileText,
         permission: "inventory.adjustments.view",
       },
       {
@@ -293,54 +295,129 @@ export const modules = [
     title: "Accounting",
     shortTitle: "Accounting",
     description:
-      "Manage expenses, receivables, payables, cash registers, bank accounts, and ledger entries.",
+      "Manage ledgers, journals, receivables, payables, banking, assets, tax, budgets, and period closing.",
     icon: Landmark,
     path: "/finance",
-    landingPath: "/finance/expenses",
+    landingPath: "/finance/dashboard",
     color: "cyan",
-    permissionModule: "finance",
+    permissionModule: "accounting",
     items: [
       {
-        id: "accounting-expenses",
-        label: "Expenses",
-        to: "/finance/expenses",
-        icon: BadgeDollarSign,
-        permission: "finance.expenses.view",
+        id: "accounting-dashboard",
+        number: "00",
+        section: "Overview",
+        label: "Dashboard",
+        to: "/finance/dashboard",
+        icon: LayoutDashboard,
+        permission: "accounting.dashboard.view",
+      },
+      {
+        id: "accounting-chart-of-accounts",
+        number: "01",
+        section: "Core Ledgers",
+        label: "Chart of Accounts",
+        to: "/finance/chart-of-accounts",
+        icon: BookOpenText,
+        permission: "accounting.chart_of_accounts.view",
+      },
+      {
+        id: "accounting-journal-entries",
+        number: "02",
+        section: "Core Ledgers",
+        label: "Journal Entries",
+        to: "/finance/journal-entries",
+        icon: FileText,
+        permission: "accounting.journal_entries.view",
+      },
+      {
+        id: "accounting-general-ledger",
+        number: "03",
+        section: "Core Ledgers",
+        label: "General Ledger",
+        to: "/finance/general-ledger",
+        icon: BookOpenText,
+        permission: "accounting.general_ledger.view",
       },
       {
         id: "accounting-receivables",
-        label: "Customer Receivables",
+        number: "04",
+        section: "Receivables & Payables",
+        label: "Accounts Receivable",
         to: "/finance/receivables",
         icon: HandCoins,
-        permission: "finance.receivables.view",
+        permission: "accounting.receivables.view",
       },
       {
         id: "accounting-payables",
-        label: "Supplier Payables",
+        number: "05",
+        section: "Receivables & Payables",
+        label: "Accounts Payable",
         to: "/finance/payables",
         icon: Wallet,
-        permission: "finance.payables.view",
+        permission: "accounting.payables.view",
       },
       {
-        id: "accounting-cash-register",
-        label: "Cash Register",
-        to: "/finance/cash-register",
-        icon: Banknote,
-        permission: "finance.cash_register.view",
-      },
-      {
-        id: "accounting-bank-accounts",
-        label: "Bank Accounts",
+        id: "accounting-bank-cash",
+        number: "06",
+        section: "Cash & Bank",
+        label: "Bank & Cash",
         to: "/finance/bank-accounts",
         icon: Landmark,
-        permission: "finance.bank_accounts.view",
+        permission: "accounting.bank_cash.view",
       },
       {
-        id: "accounting-ledger",
-        label: "Ledger",
-        to: "/finance/ledger",
-        icon: BookOpenText,
-        permission: "finance.ledger.view",
+        id: "accounting-fixed-assets",
+        number: "07",
+        section: "Assets & Compliance",
+        label: "Fixed Assets",
+        to: "/finance/fixed-assets",
+        icon: Building2,
+        permission: "accounting.fixed_assets.view",
+      },
+      {
+        id: "accounting-tax",
+        number: "08",
+        section: "Assets & Compliance",
+        label: "VAT / Tax",
+        to: "/finance/tax",
+        icon: Calculator,
+        permission: "accounting.tax.view",
+      },
+      {
+        id: "accounting-budgeting",
+        number: "09",
+        section: "Assets & Compliance",
+        label: "Budgeting",
+        to: "/finance/budgeting",
+        icon: FileSpreadsheet,
+        permission: "accounting.budgeting.view",
+      },
+      {
+        id: "accounting-financial-reports",
+        number: "10",
+        section: "Statements",
+        label: "Financial Reports",
+        to: "/finance/reports",
+        icon: BarChart3,
+        permission: "accounting.financial_reports.view",
+      },
+      {
+        id: "accounting-period-close",
+        number: "11",
+        section: "Controls",
+        label: "Period Close",
+        to: "/finance/period-close",
+        icon: LockKeyhole,
+        permission: "accounting.period_close.view",
+      },
+      {
+        id: "accounting-branch-consolidation",
+        number: "12",
+        section: "Controls",
+        label: "Branch Consolidation",
+        to: "/finance/branch-consolidation",
+        icon: GitBranch,
+        permission: "accounting.branch_consolidation.view",
       },
     ],
   },
@@ -523,7 +600,7 @@ export const modules = [
 ];
 
 export const getUserRoleCode = (user) => {
-  const rawRole =
+  const role =
     user?.role?.code ||
     user?.role_detail?.code ||
     user?.role_code ||
@@ -531,7 +608,7 @@ export const getUserRoleCode = (user) => {
     user?.role_name ||
     "";
 
-  const normalized = String(rawRole).trim().toUpperCase().replace(/\s+/g, "_");
+  const normalized = String(role).trim().toUpperCase().replace(/\s+/g, "_");
 
   if (normalized === "SUPER_ADMIN" || normalized === "ADMINISTRATOR") {
     return "ADMIN";
@@ -546,8 +623,6 @@ export const getUserRoleCode = (user) => {
 
 export const isAdministrator = (user) => isAdmin(user);
 
-export const isStaffUser = (user) => getUserRoleCode(user) === "STAFF";
-
 export const canAccessNavigationItem = (item, user) => {
   if (!item || !user) {
     return false;
@@ -561,7 +636,10 @@ export const canAccessNavigationItem = (item, user) => {
     return false;
   }
 
-  if (item.allowedRoles && !item.allowedRoles.includes(getUserRoleCode(user))) {
+  if (
+    Array.isArray(item.allowedRoles) &&
+    !item.allowedRoles.includes(getUserRoleCode(user))
+  ) {
     return false;
   }
 
@@ -594,6 +672,7 @@ export const getVisibleModules = (user) =>
     })
     .map((module) => ({
       ...module,
+
       items: Array.isArray(module.items)
         ? module.items.filter((item) => canAccessNavigationItem(item, user))
         : [],
@@ -655,6 +734,14 @@ export const getModuleByPath = (pathname = "") => {
     safePath === "/reports/sales"
   ) {
     return getModuleById("sales");
+  }
+
+  if (
+    safePath === "/transfers" ||
+    safePath.startsWith("/transfers/") ||
+    safePath.startsWith("/inventory/")
+  ) {
+    return getModuleById("inventory");
   }
 
   if (safePath.startsWith("/finance/")) {

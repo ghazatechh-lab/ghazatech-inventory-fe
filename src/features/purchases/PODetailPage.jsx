@@ -1,38 +1,575 @@
 import React from "react";
-import { useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import api, { unwrap } from "@/lib/api";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  ArrowLeft,
+  CalendarDays,
+  CheckCircle2,
+  Edit3,
+  MapPin,
+  Package,
+  Printer,
+  RefreshCcw,
+  Truck,
+  UserRound,
+} from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+
+import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
-import { LoadingState } from "@/components/common/States";
+import { Button } from "@/components/ui/button";
+import { CurrencyText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { CurrencyText, DateText } from "@/components/common/CurrencyText";
-import { formatAED } from "@/lib/utils";
+
+const STATUS_LABELS = {
+  DRAFT: "Draft",
+  PENDING_APPROVAL: "Pending Approval",
+  APPROVED: "Approved",
+  PARTIALLY_RECEIVED: "Partially Received",
+  RECEIVED: "Received",
+  CANCELLED: "Cancelled",
+};
+
+const DEFAULT_TRANSITIONS = {
+  DRAFT: ["PENDING_APPROVAL", "CANCELLED"],
+  PENDING_APPROVAL: ["DRAFT", "APPROVED", "CANCELLED"],
+  APPROVED: ["PARTIALLY_RECEIVED", "RECEIVED", "CANCELLED"],
+  PARTIALLY_RECEIVED: ["RECEIVED", "CANCELLED"],
+  RECEIVED: [],
+  CANCELLED: [],
+};
+
+const formatDate = (value) => {
+  if (!value) return "—";
+
+  const date = new Date(`${value}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  }).format(date);
+};
+
+const numberValue = (value) => Number(value || 0);
+
+function InfoItem({ icon: Icon, label, value }) {
+  return (
+    <div className="flex gap-3">
+      <div className="mt-0.5 rounded-lg bg-muted p-2">
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </div>
+
+      <div>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+          {label}
+        </p>
+
+        <p className="mt-1 text-sm font-medium">{value || "—"}</p>
+      </div>
+    </div>
+  );
+}
 
 export default function PODetailPage() {
   const { id } = useParams();
-  const { data, isLoading } = useQuery({ queryKey: ["po", id], queryFn: async () => unwrap(await api.get(`/purchases/orders/${id}/`)) });
-  if (isLoading) return <LoadingState />;
-  const p = data || {};
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const [selectedStatus, setSelectedStatus] = React.useState("");
+
+  const purchaseOrderQuery = useQuery({
+    queryKey: ["purchase-order", id],
+
+    queryFn: async () => unwrap(await api.get(`/purchases/orders/${id}/`)),
+
+    enabled: Boolean(id),
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+
+  const purchaseOrder = purchaseOrderQuery.data;
+
+  React.useEffect(() => {
+    setSelectedStatus("");
+  }, [purchaseOrder?.status]);
+
+  const updateStatus = useMutation({
+    mutationFn: async (status) =>
+      api.post(
+        `/purchases/orders/${id}/update-status/`,
+        {
+          status,
+        },
+        {
+          skipGlobalErrorToast: true,
+        },
+      ),
+
+    onSuccess: async (response) => {
+      const payload = unwrap(response);
+
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["purchase-order", id],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["purchase-orders"],
+          exact: false,
+        }),
+      ]);
+
+      await purchaseOrderQuery.refetch();
+
+      setSelectedStatus("");
+
+      toast.success(payload?.message || "Purchase-order status updated.");
+    },
+
+    onError: (error) => {
+      const details = getApiErrorDetails(error);
+
+      const responseData = error?.response?.data;
+
+      toast.error(details.title || "Unable to update status", {
+        description:
+          responseData?.status ||
+          responseData?.detail ||
+          details.summary ||
+          details.message,
+      });
+    },
+  });
+
+  if (purchaseOrderQuery.isLoading) {
+    return (
+      <div className="rounded-2xl border bg-card p-12 text-center text-muted-foreground">
+        Loading purchase order...
+      </div>
+    );
+  }
+
+  if (purchaseOrderQuery.isError || !purchaseOrder) {
+    return (
+      <div className="space-y-4">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => navigate("/purchases/orders")}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Purchase Orders
+        </Button>
+
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center text-red-700">
+          Unable to load this purchase order.
+        </div>
+      </div>
+    );
+  }
+
+  const items = Array.isArray(purchaseOrder.items) ? purchaseOrder.items : [];
+
+  const allowedStatuses = Array.isArray(purchaseOrder.allowed_statuses)
+    ? purchaseOrder.allowed_statuses
+    : DEFAULT_TRANSITIONS[purchaseOrder.status] || [];
+
+  const lineDiscountTotal = items.reduce(
+    (sum, item) => sum + numberValue(item.discount_amount),
+    0,
+  );
+
+  const orderDiscount = numberValue(purchaseOrder.discount_amount);
+
+  const subtotal = numberValue(purchaseOrder.subtotal);
+
+  const vatAmount = numberValue(purchaseOrder.vat_amount);
+
+  const shipping = numberValue(purchaseOrder.shipping_amount);
+
+  const totalAmount = numberValue(purchaseOrder.total_amount);
+
   return (
-    <div>
-      <PageHeader title={p.po_number} subtitle={<><DateText value={p.date} /> · {p.supplier?.name}</>} actions={<StatusBadge status={p.status} />} />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 card-surface p-5">
-          <div className="grid grid-cols-2 gap-4 mb-5 text-sm">
-            <div><div className="text-[10px] uppercase tracking-widest text-slate-500">Supplier</div><div className="text-slate-100 mt-0.5">{p.supplier?.name}</div></div>
-            <div><div className="text-[10px] uppercase tracking-widest text-slate-500">Branch</div><div className="text-slate-100 mt-0.5">{p.branch?.name}</div></div>
+    <div className="space-y-6">
+      <PageHeader
+        title={purchaseOrder.po_number || "Purchase Order"}
+        subtitle="Purchase-order details, products, receiving progress, and workflow status."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate("/purchases/orders")}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => purchaseOrderQuery.refetch()}
+              disabled={purchaseOrderQuery.isFetching}
+            >
+              <RefreshCcw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => window.print()}
+            >
+              <Printer className="mr-2 h-4 w-4" />
+              Print
+            </Button>
+
+            {!["RECEIVED", "CANCELLED"].includes(purchaseOrder.status) && (
+              <Button asChild>
+                <Link to={`/purchases/orders/${id}/edit`}>
+                  <Edit3 className="mr-2 h-4 w-4" />
+                  Edit
+                </Link>
+              </Button>
+            )}
           </div>
-          <table className="w-full text-sm">
-            <thead><tr className="text-[10px] uppercase tracking-widest text-slate-500 border-b border-white/5"><th className="text-left py-2">Product</th><th className="text-right">Qty</th><th className="text-right">Unit</th><th className="text-right">Total</th></tr></thead>
-            <tbody>{(p.items || []).map((it, i) => (<tr key={i} className="border-b border-white/5"><td className="py-2 text-slate-200">{it.product.name}</td><td className="text-right font-numeric">{it.quantity}</td><td className="text-right font-numeric">{formatAED(it.unit_price)}</td><td className="text-right font-numeric text-white">{formatAED(it.line_total)}</td></tr>))}</tbody>
-          </table>
+        }
+      />
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="space-y-6">
+          <section className="rounded-2xl border bg-card p-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Purchase Order</p>
+
+                <h2 className="mt-1 text-2xl font-semibold">
+                  {purchaseOrder.po_number}
+                </h2>
+              </div>
+
+              <StatusBadge status={purchaseOrder.status} />
+            </div>
+
+            <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <InfoItem
+                icon={UserRound}
+                label="Supplier"
+                value={
+                  purchaseOrder.supplier_name ||
+                  purchaseOrder.supplier?.supplier_name
+                }
+              />
+
+              <InfoItem
+                icon={MapPin}
+                label="Branch"
+                value={
+                  purchaseOrder.branch_code
+                    ? `${purchaseOrder.branch_code} — ${purchaseOrder.branch_name || ""}`
+                    : purchaseOrder.branch_name
+                }
+              />
+
+              <InfoItem
+                icon={CalendarDays}
+                label="Order Date"
+                value={formatDate(purchaseOrder.order_date)}
+              />
+
+              <InfoItem
+                icon={Truck}
+                label="Expected Delivery"
+                value={formatDate(purchaseOrder.expected_delivery_date)}
+              />
+
+              <InfoItem
+                icon={Package}
+                label="Supplier Reference"
+                value={purchaseOrder.supplier_reference || "—"}
+              />
+
+              <InfoItem
+                icon={CheckCircle2}
+                label="Payment Status"
+                value={purchaseOrder.payment_status || "UNPAID"}
+              />
+            </div>
+          </section>
+
+          <section className="overflow-hidden rounded-2xl border bg-card">
+            <div className="border-b p-5">
+              <h2 className="font-semibold">Products</h2>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                {items.length} product line
+                {items.length === 1 ? "" : "s"} in this purchase order.
+              </p>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-[1000px] w-full text-sm">
+                <thead className="border-b bg-muted/40">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase">
+                      Product
+                    </th>
+
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase">
+                      Variant
+                    </th>
+
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase">
+                      Ordered
+                    </th>
+
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase">
+                      Received
+                    </th>
+
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase">
+                      Remaining
+                    </th>
+
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase">
+                      Unit Cost
+                    </th>
+
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase">
+                      Discount
+                    </th>
+
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase">
+                      VAT
+                    </th>
+
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase">
+                      Total
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {items.map((item) => {
+                    const productName =
+                      item.product_name ||
+                      item.product?.product_name ||
+                      item.product?.name ||
+                      "Product";
+
+                    const sku = item.sku || item.product?.sku || "—";
+
+                    const remaining =
+                      item.remaining_quantity ??
+                      Math.max(
+                        0,
+                        numberValue(item.quantity) -
+                          numberValue(item.received_quantity),
+                      );
+
+                    return (
+                      <tr
+                        key={item.id || `${item.product}-${item.variant}`}
+                        className="border-b"
+                      >
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted">
+                              {item.product_image ? (
+                                <img
+                                  src={item.product_image}
+                                  alt={productName}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <Package className="h-5 w-5 text-muted-foreground" />
+                              )}
+                            </div>
+
+                            <div>
+                              <p className="font-medium">{productName}</p>
+
+                              <p className="mt-1 font-mono text-xs text-muted-foreground">
+                                SKU: {sku}
+                              </p>
+
+                              {item.description && (
+                                <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+                                  {item.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-4">
+                          {item.variant_name ||
+                            item.variant?.display_name ||
+                            "—"}
+                        </td>
+
+                        <td className="px-4 py-4 text-right">
+                          {numberValue(item.quantity)}
+                        </td>
+
+                        <td className="px-4 py-4 text-right">
+                          {numberValue(item.received_quantity)}
+                        </td>
+
+                        <td className="px-4 py-4 text-right">
+                          {numberValue(remaining)}
+                        </td>
+
+                        <td className="px-4 py-4 text-right">
+                          <CurrencyText value={item.unit_price} />
+                        </td>
+
+                        <td className="px-4 py-4 text-right">
+                          <CurrencyText value={item.discount_amount} />
+                        </td>
+
+                        <td className="px-4 py-4 text-right">
+                          <CurrencyText value={item.vat_amount} />
+                        </td>
+
+                        <td className="px-4 py-4 text-right font-medium">
+                          <CurrencyText value={item.line_total} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {!items.length && (
+                    <tr>
+                      <td colSpan="9" className="p-12 text-center">
+                        <Package className="mx-auto h-9 w-9 text-muted-foreground" />
+
+                        <p className="mt-3 font-medium">No products found</p>
+
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          This purchase order has no nested item records in the
+                          API response.
+                        </p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          {purchaseOrder.notes && (
+            <section className="rounded-2xl border bg-card p-5">
+              <h2 className="font-semibold">Notes</h2>
+
+              <p className="mt-3 whitespace-pre-wrap text-sm text-muted-foreground">
+                {purchaseOrder.notes}
+              </p>
+            </section>
+          )}
         </div>
-        <div className="card-surface p-5 space-y-2 h-fit">
-          <div className="flex items-center justify-between text-sm"><span className="text-slate-400">Subtotal</span><span className="font-numeric text-slate-100">{formatAED(p.subtotal)}</span></div>
-          <div className="flex items-center justify-between text-sm"><span className="text-slate-400">VAT</span><span className="font-numeric text-slate-100">{formatAED(p.vat)}</span></div>
-          <div className="h-px bg-white/10" />
-          <div className="flex items-center justify-between"><span className="text-slate-300">Total</span><CurrencyText value={p.total} className="text-xl font-semibold text-white" /></div>
-        </div>
+
+        <aside className="space-y-5">
+          <section className="rounded-2xl border bg-card p-5">
+            <h2 className="font-semibold">Update Status</h2>
+
+            <p className="mt-1 text-sm text-muted-foreground">
+              Current status:{" "}
+              <strong>
+                {STATUS_LABELS[purchaseOrder.status] || purchaseOrder.status}
+              </strong>
+            </p>
+
+            {allowedStatuses.length ? (
+              <>
+                <select
+                  className="mt-4 h-10 w-full rounded-md border bg-background px-3"
+                  value={selectedStatus}
+                  onChange={(event) => setSelectedStatus(event.target.value)}
+                >
+                  <option value="">Select new status</option>
+
+                  {allowedStatuses.map((status) => (
+                    <option key={status} value={status}>
+                      {STATUS_LABELS[status] || status}
+                    </option>
+                  ))}
+                </select>
+
+                <Button
+                  type="button"
+                  className="mt-3 w-full"
+                  disabled={!selectedStatus || updateStatus.isPending}
+                  onClick={() => updateStatus.mutate(selectedStatus)}
+                >
+                  {updateStatus.isPending ? "Updating..." : "Update Status"}
+                </Button>
+              </>
+            ) : (
+              <div className="mt-4 rounded-xl bg-muted p-4 text-sm text-muted-foreground">
+                This purchase order is in a final status and cannot be changed.
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-2xl border bg-card p-5">
+            <h2 className="font-semibold">Order Summary</h2>
+
+            <div className="mt-4 space-y-3 text-sm">
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Gross subtotal</span>
+
+                <CurrencyText value={subtotal} />
+              </div>
+
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Line discounts</span>
+
+                <CurrencyText value={-lineDiscountTotal} />
+              </div>
+
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Order discount</span>
+
+                <CurrencyText value={-orderDiscount} />
+              </div>
+
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">VAT</span>
+
+                <CurrencyText value={vatAmount} />
+              </div>
+
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Shipping</span>
+
+                <CurrencyText value={shipping} />
+              </div>
+
+              <div className="flex justify-between gap-4 border-t pt-4 text-base font-semibold">
+                <span>Total</span>
+
+                <CurrencyText value={totalAmount} />
+              </div>
+            </div>
+          </section>
+
+          {purchaseOrder.status === "APPROVED" ||
+          purchaseOrder.status === "PARTIALLY_RECEIVED" ? (
+            <Button asChild className="w-full">
+              <Link
+                to={`/purchases/grn/new?purchase_order=${purchaseOrder.id}`}
+              >
+                <Truck className="mr-2 h-4 w-4" />
+                Create GRN
+              </Link>
+            </Button>
+          ) : null}
+        </aside>
       </div>
     </div>
   );

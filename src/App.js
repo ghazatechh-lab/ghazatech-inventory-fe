@@ -1,4 +1,5 @@
 /** GHAZA COMPUTER ERP — Root Application */
+
 import React from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -7,18 +8,34 @@ import { Toaster } from "sonner";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { AppLayout } from "@/components/layout/AppLayout";
 
+/* -------------------------------------------------------------------------- */
+/* Public pages                                                               */
+/* -------------------------------------------------------------------------- */
+
 import LoginPage from "@/pages/LoginPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import NotFoundPage from "@/pages/NotFoundPage";
 import UnauthorizedPage from "@/pages/UnauthorizedPage";
 
+/* -------------------------------------------------------------------------- */
+/* Dashboard                                                                  */
+/* -------------------------------------------------------------------------- */
+
 import DashboardPage from "@/features/dashboard/DashboardPage";
 import ModuleLandingPage from "@/features/modules/ModuleLandingPage";
+
+/* -------------------------------------------------------------------------- */
+/* Branches                                                                   */
+/* -------------------------------------------------------------------------- */
 
 import BranchListPage from "@/features/branches/BranchListPage";
 import BranchFormPage from "@/features/branches/BranchFormPage";
 import BranchDetailPage from "@/features/branches/BranchDetailPage";
+
+/* -------------------------------------------------------------------------- */
+/* Inventory                                                                  */
+/* -------------------------------------------------------------------------- */
 
 import CategoryListPage from "@/features/inventory/CategoryListPage";
 import BrandListPage from "@/features/inventory/BrandListPage";
@@ -32,43 +49,87 @@ import LowStockPage from "@/features/inventory/LowStockPage";
 import StockMovementsPage from "@/features/inventory/StockMovementsPage";
 import StockAdjustmentPage from "@/features/inventory/StockAdjustmentPage";
 
+/* -------------------------------------------------------------------------- */
+/* Customers                                                                  */
+/* -------------------------------------------------------------------------- */
+
 import CustomerListPage from "@/features/customers/CustomerListPage";
 import CustomerFormPage from "@/features/customers/CustomerFormPage";
 import CustomerDetailPage from "@/features/customers/CustomerDetailPage";
 
+/* -------------------------------------------------------------------------- */
+/* Sales                                                                      */
+/* -------------------------------------------------------------------------- */
+
 import QuotationListPage from "@/features/sales/QuotationListPage";
 import QuotationFormPage from "@/features/sales/QuotationFormPage";
 import QuotationDetailPage from "@/features/sales/QuotationDetailPage";
+
 import InvoiceListPage from "@/features/sales/InvoiceListPage";
 import InvoiceFormPage from "@/features/sales/InvoiceFormPage";
 import InvoiceDetailPage from "@/features/sales/InvoiceDetailPage";
+
 import POSPage from "@/features/sales/POSPage";
 import CreditNotesPage from "@/features/sales/CreditNotesPage";
 import SalesPaymentsPage from "@/features/sales/SalesPaymentsPage";
+
+/* -------------------------------------------------------------------------- */
+/* Suppliers                                                                  */
+/* -------------------------------------------------------------------------- */
 
 import SupplierListPage from "@/features/suppliers/SupplierListPage";
 import SupplierFormPage from "@/features/suppliers/SupplierFormPage";
 import SupplierDetailPage from "@/features/suppliers/SupplierDetailPage";
 
+/* -------------------------------------------------------------------------- */
+/* Purchases                                                                  */
+/* -------------------------------------------------------------------------- */
+
 import POListPage from "@/features/purchases/POListPage";
 import POFormPage from "@/features/purchases/POFormPage";
 import PODetailPage from "@/features/purchases/PODetailPage";
+
 import GRNListPage from "@/features/purchases/GRNListPage";
 import GRNFormPage from "@/features/purchases/GRNFormPage";
 import GRNDetailPage from "@/features/purchases/GRNDetailPage";
+
 import SupplierBillsPage from "@/features/purchases/SupplierBillsPage";
-import SupplierPaymentsPage from "@/features/purchases/SupplierPaymentsPage";
+
+import SupplierPaymentListPage from "@/features/purchases/SupplierPaymentListPage";
+import SupplierPaymentDetailPage from "@/features/purchases/SupplierPaymentDetailPage";
+import SupplierPaymentFormPage from "@/features/purchases/SupplierPaymentFormPage";
+
 import SupplierReturnsPage from "@/features/purchases/SupplierReturnsPage";
+import SupplierReturnListPage from "@/features/purchases/SupplierReturnListPage";
+import SupplierReturnDetailPage from "@/features/purchases/SupplierReturnDetailPage";
+
 import VendorCreditsPage from "@/features/purchases/VendorCreditsPage";
+import VendorCreditListPage from "@/features/purchases/VendorCreditListPage";
+import VendorCreditDetailPage from "@/features/purchases/VendorCreditDetailPage";
+
 import PurchaseExpensesPage from "@/features/purchases/PurchaseExpensesPage";
+import PurchaseExpenseListPage from "@/features/purchases/PurchaseExpenseListPage";
+import PurchaseExpenseDetailPage from "@/features/purchases/PurchaseExpenseDetailPage";
+
+/* -------------------------------------------------------------------------- */
+/* Transfers                                                                  */
+/* -------------------------------------------------------------------------- */
 
 import TransferListPage from "@/features/transfers/TransferListPage";
 import TransferFormPage from "@/features/transfers/TransferFormPage";
 import TransferDetailPage from "@/features/transfers/TransferDetailPage";
 
+/* -------------------------------------------------------------------------- */
+/* Shipments                                                                  */
+/* -------------------------------------------------------------------------- */
+
 import ShipmentListPage from "@/features/shipments/ShipmentListPage";
 import ShipmentFormPage from "@/features/shipments/ShipmentFormPage";
 import ShipmentDetailPage from "@/features/shipments/ShipmentDetailPage";
+
+/* -------------------------------------------------------------------------- */
+/* HRMS                                                                       */
+/* -------------------------------------------------------------------------- */
 
 import EmployeeListPage from "@/features/hrms/EmployeeListPage";
 import EmployeeFormPage from "@/features/hrms/EmployeeFormPage";
@@ -80,12 +141,27 @@ import PayslipPage from "@/features/hrms/PayslipPage";
 import SalaryHistoryPage from "@/features/hrms/SalaryHistoryPage";
 import DocumentExpiryPage from "@/features/hrms/DocumentExpiryPage";
 
-import ExpensesPage from "@/features/finance/ExpensesPage";
+/* -------------------------------------------------------------------------- */
+/* Finance                                                                    */
+/* -------------------------------------------------------------------------- */
+
+import AccountingDashboardPage from "@/features/finance/AccountingDashboardPage";
+import ChartOfAccountsPage from "@/features/finance/ChartOfAccountsPage";
+import JournalEntriesPage from "@/features/finance/JournalEntriesPage";
+import GeneralLedgerPage from "@/features/finance/GeneralLedgerPage";
 import ReceivablesPage from "@/features/finance/ReceivablesPage";
 import PayablesPage from "@/features/finance/PayablesPage";
-import CashRegisterPage from "@/features/finance/CashRegisterPage";
 import BankAccountsPage from "@/features/finance/BankAccountsPage";
-import LedgerPage from "@/features/finance/LedgerPage";
+import FixedAssetsPage from "@/features/finance/FixedAssetsPage";
+import TaxPage from "@/features/finance/TaxPage";
+import BudgetingPage from "@/features/finance/BudgetingPage";
+import FinancialReportsPage from "@/features/finance/FinancialReportsPage";
+import PeriodClosePage from "@/features/finance/PeriodClosePage";
+import BranchConsolidationPage from "@/features/finance/BranchConsolidationPage";
+
+/* -------------------------------------------------------------------------- */
+/* Reports                                                                    */
+/* -------------------------------------------------------------------------- */
 
 import ReportsDashboardPage from "@/features/reports/ReportsDashboardPage";
 import SalesReportPage from "@/features/reports/SalesReportPage";
@@ -94,10 +170,18 @@ import InventoryReportPage from "@/features/reports/InventoryReportPage";
 import FinanceReportPage from "@/features/reports/FinanceReportPage";
 import HRMSReportPage from "@/features/reports/HRMSReportPage";
 
+/* -------------------------------------------------------------------------- */
+/* Administration                                                             */
+/* -------------------------------------------------------------------------- */
+
 import NotificationsPage from "@/features/notifications/NotificationsPage";
 import AuditLogsPage from "@/features/auditLogs/AuditLogsPage";
 import SettingsPage from "@/features/settings/SettingsPage";
 import UserRoleManagementPage from "@/features/settings/UserRoleManagementPage";
+
+/* -------------------------------------------------------------------------- */
+/* React Query                                                                */
+/* -------------------------------------------------------------------------- */
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -108,6 +192,30 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+/* -------------------------------------------------------------------------- */
+/* Component export resolver                                                  */
+/* -------------------------------------------------------------------------- */
+
+function ComponentExportError({ componentName }) {
+  return (
+    <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-red-700">
+      <h1 className="text-lg font-semibold">Component export error</h1>
+
+      <p className="mt-2 text-sm">
+        {componentName} was not exported as a valid React component.
+      </p>
+
+      <p className="mt-3 font-mono text-xs">
+        Open the related JSX file and ensure it has a default function export.
+      </p>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Protected route                                                            */
+/* -------------------------------------------------------------------------- */
 
 function ProtectedRoute({ children, allow, permission }) {
   const { user, isLoading, hasPermission } = useAuth();
@@ -122,21 +230,30 @@ function ProtectedRoute({ children, allow, permission }) {
 
   const roleCode = user.role?.code || user.role_detail?.code || user.role_code;
 
-  const isSuperUser =
+  const isAdmin =
     user.is_superuser === true ||
     roleCode === "ADMIN" ||
     user.role_name === "Super Admin";
 
-  if (allow && !isSuperUser && !allow.includes(roleCode)) {
+  if (allow && !isAdmin && !allow.includes(roleCode)) {
     return <Navigate to="/unauthorized" replace />;
   }
 
-  if (permission && !isSuperUser && !hasPermission(permission)) {
+  if (
+    permission &&
+    !isAdmin &&
+    typeof hasPermission === "function" &&
+    !hasPermission(permission)
+  ) {
     return <Navigate to="/unauthorized" replace />;
   }
 
   return children;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Application                                                                */
+/* -------------------------------------------------------------------------- */
 
 export default function App() {
   return (
@@ -147,6 +264,7 @@ export default function App() {
 
           <Routes>
             {/* Public routes */}
+
             <Route path="/login" element={<LoginPage />} />
 
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -155,7 +273,8 @@ export default function App() {
 
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
-            {/* Authenticated routes */}
+            {/* Authenticated application */}
+
             <Route
               element={
                 <ProtectedRoute>
@@ -163,20 +282,18 @@ export default function App() {
                 </ProtectedRoute>
               }
             >
-              <Route path="/" element={<Navigate to="/modules" replace />} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
               <Route path="/modules" element={<ModuleLandingPage />} />
 
               <Route path="/dashboard" element={<DashboardPage />} />
 
               {/* Branches */}
+
               <Route
                 path="/branches"
                 element={
-                  <ProtectedRoute
-                    allow={["ADMIN"]}
-                    permission="settings.branches.view"
-                  >
+                  <ProtectedRoute allow={["ADMIN"]}>
                     <BranchListPage />
                   </ProtectedRoute>
                 }
@@ -185,10 +302,7 @@ export default function App() {
               <Route
                 path="/branches/new"
                 element={
-                  <ProtectedRoute
-                    allow={["ADMIN"]}
-                    permission="settings.branches.create"
-                  >
+                  <ProtectedRoute allow={["ADMIN"]}>
                     <BranchFormPage />
                   </ProtectedRoute>
                 }
@@ -197,10 +311,7 @@ export default function App() {
               <Route
                 path="/branches/:id"
                 element={
-                  <ProtectedRoute
-                    allow={["ADMIN"]}
-                    permission="settings.branches.view"
-                  >
+                  <ProtectedRoute allow={["ADMIN"]}>
                     <BranchDetailPage />
                   </ProtectedRoute>
                 }
@@ -209,504 +320,302 @@ export default function App() {
               <Route
                 path="/branches/:id/edit"
                 element={
-                  <ProtectedRoute
-                    allow={["ADMIN"]}
-                    permission="settings.branches.edit"
-                  >
+                  <ProtectedRoute allow={["ADMIN"]}>
                     <BranchFormPage />
                   </ProtectedRoute>
                 }
               />
 
               {/* Inventory */}
+
               <Route
                 path="/inventory/categories"
-                element={
-                  <ProtectedRoute permission="inventory.categories.view">
-                    <CategoryListPage />
-                  </ProtectedRoute>
-                }
+                element={<CategoryListPage />}
               />
 
-              <Route
-                path="/inventory/brands"
-                element={
-                  <ProtectedRoute permission="inventory.brands.view">
-                    <BrandListPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/inventory/brands" element={<BrandListPage />} />
 
-              <Route
-                path="/inventory/products"
-                element={
-                  <ProtectedRoute permission="inventory.products.view">
-                    <ProductListPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/inventory/products" element={<ProductListPage />} />
 
               <Route
                 path="/inventory/products/new"
-                element={
-                  <ProtectedRoute permission="inventory.products.create">
-                    <ProductFormPage />
-                  </ProtectedRoute>
-                }
+                element={<ProductFormPage />}
               />
 
               <Route
                 path="/inventory/products/:id"
-                element={
-                  <ProtectedRoute permission="inventory.products.view">
-                    <ProductDetailPage />
-                  </ProtectedRoute>
-                }
+                element={<ProductDetailPage />}
               />
 
               <Route
                 path="/inventory/products/:id/edit"
-                element={
-                  <ProtectedRoute permission="inventory.products.edit">
-                    <ProductFormPage />
-                  </ProtectedRoute>
-                }
+                element={<ProductFormPage />}
               />
 
-              <Route
-                path="/inventory/racks"
-                element={
-                  <ProtectedRoute permission="inventory.racks.view">
-                    <RackListPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/inventory/racks" element={<RackListPage />} />
 
-              <Route
-                path="/inventory/racks/new"
-                element={
-                  <ProtectedRoute permission="inventory.racks.create">
-                    <RackFormPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/inventory/racks/new" element={<RackFormPage />} />
 
               <Route
                 path="/inventory/racks/:id/edit"
-                element={
-                  <ProtectedRoute permission="inventory.racks.edit">
-                    <RackFormPage />
-                  </ProtectedRoute>
-                }
+                element={<RackFormPage />}
               />
 
-              <Route
-                path="/inventory/stock"
-                element={
-                  <ProtectedRoute permission="inventory.stock.view">
-                    <StockPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/inventory/stock" element={<StockPage />} />
 
-              <Route
-                path="/inventory/low-stock"
-                element={
-                  <ProtectedRoute permission="inventory.low_stock.view">
-                    <LowStockPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/inventory/low-stock" element={<LowStockPage />} />
 
               <Route
                 path="/inventory/movements"
-                element={
-                  <ProtectedRoute permission="inventory.movements.view">
-                    <StockMovementsPage />
-                  </ProtectedRoute>
-                }
+                element={<StockMovementsPage />}
               />
 
               <Route
                 path="/inventory/adjustments"
-                element={
-                  <ProtectedRoute permission="inventory.adjustments.view">
-                    <StockAdjustmentPage />
-                  </ProtectedRoute>
-                }
+                element={<StockAdjustmentPage />}
               />
 
               {/* Customers */}
-              <Route
-                path="/customers"
-                element={
-                  <ProtectedRoute permission="sales.customers.view">
-                    <CustomerListPage />
-                  </ProtectedRoute>
-                }
-              />
 
-              <Route
-                path="/customers/new"
-                element={
-                  <ProtectedRoute permission="sales.customers.create">
-                    <CustomerFormPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/customers" element={<CustomerListPage />} />
 
-              <Route
-                path="/customers/:id"
-                element={
-                  <ProtectedRoute permission="sales.customers.view">
-                    <CustomerDetailPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/customers/new" element={<CustomerFormPage />} />
+
+              <Route path="/customers/:id" element={<CustomerDetailPage />} />
 
               <Route
                 path="/customers/:id/edit"
-                element={
-                  <ProtectedRoute permission="sales.customers.edit">
-                    <CustomerFormPage />
-                  </ProtectedRoute>
-                }
+                element={<CustomerFormPage />}
               />
 
               {/* Sales */}
-              <Route
-                path="/sales/quotations"
-                element={
-                  <ProtectedRoute permission="sales.quotations.view">
-                    <QuotationListPage />
-                  </ProtectedRoute>
-                }
-              />
+
+              <Route path="/sales/quotations" element={<QuotationListPage />} />
 
               <Route
                 path="/sales/quotations/new"
-                element={
-                  <ProtectedRoute permission="sales.quotations.create">
-                    <QuotationFormPage />
-                  </ProtectedRoute>
-                }
+                element={<QuotationFormPage />}
               />
 
               <Route
                 path="/sales/quotations/:id"
-                element={
-                  <ProtectedRoute permission="sales.quotations.view">
-                    <QuotationDetailPage />
-                  </ProtectedRoute>
-                }
+                element={<QuotationDetailPage />}
               />
 
               <Route
                 path="/sales/quotations/:id/edit"
-                element={
-                  <ProtectedRoute permission="sales.quotations.edit">
-                    <QuotationFormPage />
-                  </ProtectedRoute>
-                }
+                element={<QuotationFormPage />}
               />
 
-              <Route
-                path="/sales/invoices"
-                element={
-                  <ProtectedRoute permission="sales.invoices.view">
-                    <InvoiceListPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/sales/invoices" element={<InvoiceListPage />} />
 
-              <Route
-                path="/sales/invoices/new"
-                element={
-                  <ProtectedRoute permission="sales.invoices.create">
-                    <InvoiceFormPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/sales/invoices/new" element={<InvoiceFormPage />} />
 
               <Route
                 path="/sales/invoices/:id"
-                element={
-                  <ProtectedRoute permission="sales.invoices.view">
-                    <InvoiceDetailPage />
-                  </ProtectedRoute>
-                }
+                element={<InvoiceDetailPage />}
               />
 
               <Route
-                path="/sales/pos"
-                element={
-                  <ProtectedRoute permission="sales.pos.view">
-                    <POSPage />
-                  </ProtectedRoute>
-                }
+                path="/sales/invoices/:id/edit"
+                element={<InvoiceFormPage />}
               />
 
-              <Route
-                path="/sales/credit-notes"
-                element={
-                  <ProtectedRoute permission="sales.credit_notes.view">
-                    <CreditNotesPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/sales/pos" element={<POSPage />} />
 
-              <Route
-                path="/sales/payments"
-                element={
-                  <ProtectedRoute permission="sales.payments.view">
-                    <SalesPaymentsPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/sales/credit-notes" element={<CreditNotesPage />} />
+
+              <Route path="/sales/payments" element={<SalesPaymentsPage />} />
 
               {/* Suppliers */}
-              <Route
-                path="/suppliers"
-                element={
-                  <ProtectedRoute permission="purchases.suppliers.view">
-                    <SupplierListPage />
-                  </ProtectedRoute>
-                }
-              />
 
-              <Route
-                path="/suppliers/new"
-                element={
-                  <ProtectedRoute permission="purchases.suppliers.create">
-                    <SupplierFormPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/suppliers" element={<SupplierListPage />} />
 
-              <Route
-                path="/suppliers/:id"
-                element={
-                  <ProtectedRoute permission="purchases.suppliers.view">
-                    <SupplierDetailPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/suppliers/new" element={<SupplierFormPage />} />
+
+              <Route path="/suppliers/:id" element={<SupplierDetailPage />} />
 
               <Route
                 path="/suppliers/:id/edit"
-                element={
-                  <ProtectedRoute permission="purchases.suppliers.edit">
-                    <SupplierFormPage />
-                  </ProtectedRoute>
-                }
+                element={<SupplierFormPage />}
               />
 
-              {/* Purchases */}
-              <Route
-                path="/purchases/orders"
-                element={
-                  <ProtectedRoute permission="purchases.orders.view">
-                    <POListPage />
-                  </ProtectedRoute>
-                }
-              />
+              {/* Purchase Orders */}
 
-              <Route
-                path="/purchases/orders/new"
-                element={
-                  <ProtectedRoute permission="purchases.orders.create">
-                    <POFormPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/purchases/orders" element={<POListPage />} />
 
-              <Route
-                path="/purchases/orders/:id"
-                element={
-                  <ProtectedRoute permission="purchases.orders.view">
-                    <PODetailPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/purchases/orders/new" element={<POFormPage />} />
+
+              <Route path="/purchases/orders/:id" element={<PODetailPage />} />
 
               <Route
                 path="/purchases/orders/:id/edit"
-                element={
-                  <ProtectedRoute permission="purchases.orders.edit">
-                    <POFormPage />
-                  </ProtectedRoute>
-                }
+                element={<POFormPage />}
               />
 
-              <Route
-                path="/purchases/grn"
-                element={
-                  <ProtectedRoute permission="purchases.grn.view">
-                    <GRNListPage />
-                  </ProtectedRoute>
-                }
-              />
+              {/* GRN */}
 
-              <Route
-                path="/purchases/grn/new"
-                element={
-                  <ProtectedRoute permission="purchases.grn.create">
-                    <GRNFormPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/purchases/grn" element={<GRNListPage />} />
 
-              <Route
-                path="/purchases/grn/:id"
-                element={
-                  <ProtectedRoute permission="purchases.grn.view">
-                    <GRNDetailPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/purchases/grn/new" element={<GRNFormPage />} />
 
-              <Route
-                path="/purchases/grn/:id/edit"
-                element={
-                  <ProtectedRoute permission="purchases.grn.edit">
-                    <GRNFormPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/purchases/grn/:id" element={<GRNDetailPage />} />
+
+              <Route path="/purchases/grn/:id/edit" element={<GRNFormPage />} />
+
+              {/* Supplier Bills */}
 
               <Route
                 path="/purchases/supplier-bills"
-                element={
-                  <ProtectedRoute permission="purchases.bills.view">
-                    <SupplierBillsPage />
-                  </ProtectedRoute>
-                }
+                element={<SupplierBillsPage />}
               />
+
+              {/* Supplier Payments */}
 
               <Route
                 path="/purchases/supplier-payments"
-                element={
-                  <ProtectedRoute permission="purchases.payments.view">
-                    <SupplierPaymentsPage />
-                  </ProtectedRoute>
-                }
+                element={<SupplierPaymentListPage />}
               />
+
+              <Route
+                path="/purchases/supplier-payments/new"
+                element={<SupplierPaymentFormPage />}
+              />
+
+              <Route
+                path="/purchases/supplier-payments/:id"
+                element={<SupplierPaymentDetailPage />}
+              />
+
+              <Route
+                path="/purchases/supplier-payments/:id/edit"
+                element={<SupplierPaymentFormPage />}
+              />
+
+              {/* Supplier Returns */}
 
               <Route
                 path="/purchases/supplier-returns"
-                element={
-                  <ProtectedRoute permission="purchases.returns.view">
-                    <SupplierReturnsPage />
-                  </ProtectedRoute>
-                }
+                element={<SupplierReturnListPage />}
               />
+
+              <Route
+                path="/purchases/supplier-returns/new"
+                element={<SupplierReturnsPage />}
+              />
+
+              <Route
+                path="/purchases/supplier-returns/:id"
+                element={<SupplierReturnDetailPage />}
+              />
+
+              <Route
+                path="/purchases/supplier-returns/:id/edit"
+                element={<SupplierReturnsPage />}
+              />
+
+              {/* Vendor Credits */}
 
               <Route
                 path="/purchases/vendor-credits"
-                element={
-                  <ProtectedRoute permission="purchases.vendor_credits.view">
-                    <VendorCreditsPage />
-                  </ProtectedRoute>
-                }
+                element={<VendorCreditListPage />}
               />
+
+              <Route
+                path="/purchases/vendor-credits/new"
+                element={<VendorCreditsPage />}
+              />
+
+              <Route
+                path="/purchases/vendor-credits/:id/edit"
+                element={<VendorCreditsPage />}
+              />
+
+              <Route
+                path="/purchases/vendor-credits/:id"
+                element={<VendorCreditDetailPage />}
+              />
+
+              {/* Purchase Expenses */}
+
+              <Route
+                path="/purchases/purchase-expenses"
+                element={<PurchaseExpenseListPage />}
+              />
+
+              <Route
+                path="/purchases/purchase-expenses/new"
+                element={<PurchaseExpensesPage />}
+              />
+
+              <Route
+                path="/purchases/purchase-expenses/:id"
+                element={<PurchaseExpenseDetailPage />}
+              />
+
+              <Route
+                path="/purchases/purchase-expenses/:id/edit"
+                element={<PurchaseExpensesPage />}
+              />
+
+              {/* Compatibility routes for old expense links */}
 
               <Route
                 path="/purchases/expenses"
+                element={<Navigate to="/purchases/purchase-expenses" replace />}
+              />
+
+              <Route
+                path="/purchases/expenses/new"
                 element={
-                  <ProtectedRoute permission="purchases.expenses.view">
-                    <PurchaseExpensesPage />
-                  </ProtectedRoute>
+                  <Navigate to="/purchases/purchase-expenses/new" replace />
                 }
+              />
+
+              <Route
+                path="/purchases/expenses/:id"
+                element={<PurchaseExpenseDetailPage />}
+              />
+
+              <Route
+                path="/purchases/expenses/:id/edit"
+                element={<PurchaseExpensesPage />}
               />
 
               {/* Transfers */}
-              <Route
-                path="/transfers"
-                element={
-                  <ProtectedRoute permission="inventory.transfers.view">
-                    <TransferListPage />
-                  </ProtectedRoute>
-                }
-              />
 
-              <Route
-                path="/transfers/new"
-                element={
-                  <ProtectedRoute permission="inventory.transfers.create">
-                    <TransferFormPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/transfers" element={<TransferListPage />} />
 
-              <Route
-                path="/transfers/:id"
-                element={
-                  <ProtectedRoute permission="inventory.transfers.view">
-                    <TransferDetailPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/transfers/new" element={<TransferFormPage />} />
+
+              <Route path="/transfers/:id" element={<TransferDetailPage />} />
 
               <Route
                 path="/transfers/:id/edit"
-                element={
-                  <ProtectedRoute permission="inventory.transfers.edit">
-                    <TransferFormPage />
-                  </ProtectedRoute>
-                }
+                element={<TransferFormPage />}
               />
 
               {/* Shipments */}
-              <Route
-                path="/shipments"
-                element={
-                  <ProtectedRoute permission="purchases.shipments.view">
-                    <ShipmentListPage />
-                  </ProtectedRoute>
-                }
-              />
 
-              <Route
-                path="/shipments/new"
-                element={
-                  <ProtectedRoute permission="purchases.shipments.create">
-                    <ShipmentFormPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/shipments" element={<ShipmentListPage />} />
 
-              <Route
-                path="/shipments/:id"
-                element={
-                  <ProtectedRoute permission="purchases.shipments.view">
-                    <ShipmentDetailPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/shipments/new" element={<ShipmentFormPage />} />
+
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
 
               <Route
                 path="/shipments/:id/edit"
-                element={
-                  <ProtectedRoute permission="purchases.shipments.edit">
-                    <ShipmentFormPage />
-                  </ProtectedRoute>
-                }
+                element={<ShipmentFormPage />}
               />
 
               {/* HRMS */}
-              <Route
-                path="/hrms/employees"
-                element={
-                  <ProtectedRoute permission="hrms.employees.view">
-                    <EmployeeListPage />
-                  </ProtectedRoute>
-                }
-              />
+
+              <Route path="/hrms/employees" element={<EmployeeListPage />} />
 
               <Route
                 path="/hrms/employees/new"
                 element={
-                  <ProtectedRoute permission="hrms.employees.create">
+                  <ProtectedRoute allow={["ADMIN", "BM"]}>
                     <EmployeeFormPage />
                   </ProtectedRoute>
                 }
@@ -714,44 +623,26 @@ export default function App() {
 
               <Route
                 path="/hrms/employees/:id"
-                element={
-                  <ProtectedRoute permission="hrms.employees.view">
-                    <EmployeeDetailPage />
-                  </ProtectedRoute>
-                }
+                element={<EmployeeDetailPage />}
               />
 
               <Route
                 path="/hrms/employees/:id/edit"
                 element={
-                  <ProtectedRoute permission="hrms.employees.edit">
+                  <ProtectedRoute allow={["ADMIN", "BM"]}>
                     <EmployeeFormPage />
                   </ProtectedRoute>
                 }
               />
 
-              <Route
-                path="/hrms/attendance"
-                element={
-                  <ProtectedRoute permission="hrms.attendance.view">
-                    <AttendancePage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/hrms/attendance" element={<AttendancePage />} />
 
-              <Route
-                path="/hrms/leaves"
-                element={
-                  <ProtectedRoute permission="hrms.leaves.view">
-                    <LeavesPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/hrms/leaves" element={<LeavesPage />} />
 
               <Route
                 path="/hrms/payroll"
                 element={
-                  <ProtectedRoute permission="hrms.payroll.view">
+                  <ProtectedRoute allow={["ADMIN"]}>
                     <PayrollPage />
                   </ProtectedRoute>
                 }
@@ -760,7 +651,7 @@ export default function App() {
               <Route
                 path="/hrms/payroll/:id/payslip"
                 element={
-                  <ProtectedRoute permission="hrms.payroll.view">
+                  <ProtectedRoute allow={["ADMIN"]}>
                     <PayslipPage />
                   </ProtectedRoute>
                 }
@@ -769,7 +660,7 @@ export default function App() {
               <Route
                 path="/hrms/salary-history"
                 element={
-                  <ProtectedRoute permission="hrms.salary_history.view">
+                  <ProtectedRoute allow={["ADMIN"]}>
                     <SalaryHistoryPage />
                   </ProtectedRoute>
                 }
@@ -777,19 +668,43 @@ export default function App() {
 
               <Route
                 path="/hrms/document-expiry"
+                element={<DocumentExpiryPage />}
+              />
+
+              {/* Finance */}
+
+              <Route
+                path="/finance/dashboard"
                 element={
-                  <ProtectedRoute permission="hrms.documents.view">
-                    <DocumentExpiryPage />
+                  <ProtectedRoute permission="accounting.dashboard.view">
+                    <AccountingDashboardPage />
                   </ProtectedRoute>
                 }
               />
 
-              {/* Finance */}
               <Route
-                path="/finance/expenses"
+                path="/finance/chart-of-accounts"
                 element={
-                  <ProtectedRoute permission="finance.expenses.view">
-                    <ExpensesPage />
+                  <ProtectedRoute permission="accounting.chart_of_accounts.view">
+                    <ChartOfAccountsPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/finance/journal-entries"
+                element={
+                  <ProtectedRoute permission="accounting.journal_entries.view">
+                    <JournalEntriesPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/finance/general-ledger"
+                element={
+                  <ProtectedRoute permission="accounting.general_ledger.view">
+                    <GeneralLedgerPage />
                   </ProtectedRoute>
                 }
               />
@@ -797,7 +712,7 @@ export default function App() {
               <Route
                 path="/finance/receivables"
                 element={
-                  <ProtectedRoute permission="finance.receivables.view">
+                  <ProtectedRoute permission="accounting.receivables.view">
                     <ReceivablesPage />
                   </ProtectedRoute>
                 }
@@ -806,17 +721,8 @@ export default function App() {
               <Route
                 path="/finance/payables"
                 element={
-                  <ProtectedRoute permission="finance.payables.view">
+                  <ProtectedRoute permission="accounting.payables.view">
                     <PayablesPage />
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="/finance/cash-register"
-                element={
-                  <ProtectedRoute permission="finance.cash_register.view">
-                    <CashRegisterPage />
                   </ProtectedRoute>
                 }
               />
@@ -824,26 +730,72 @@ export default function App() {
               <Route
                 path="/finance/bank-accounts"
                 element={
-                  <ProtectedRoute permission="finance.bank_accounts.view">
+                  <ProtectedRoute permission="accounting.bank_cash.view">
                     <BankAccountsPage />
                   </ProtectedRoute>
                 }
               />
 
               <Route
-                path="/finance/ledger"
+                path="/finance/fixed-assets"
                 element={
-                  <ProtectedRoute permission="finance.ledger.view">
-                    <LedgerPage />
+                  <ProtectedRoute permission="accounting.fixed_assets.view">
+                    <FixedAssetsPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/finance/tax"
+                element={
+                  <ProtectedRoute permission="accounting.tax.view">
+                    <TaxPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/finance/budgeting"
+                element={
+                  <ProtectedRoute permission="accounting.budgeting.view">
+                    <BudgetingPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/finance/reports"
+                element={
+                  <ProtectedRoute permission="accounting.financial_reports.view">
+                    <FinancialReportsPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/finance/period-close"
+                element={
+                  <ProtectedRoute permission="accounting.period_close.view">
+                    <PeriodClosePage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/finance/branch-consolidation"
+                element={
+                  <ProtectedRoute permission="accounting.branch_consolidation.view">
+                    <BranchConsolidationPage />
                   </ProtectedRoute>
                 }
               />
 
               {/* Reports */}
+
               <Route
                 path="/reports/dashboard"
                 element={
-                  <ProtectedRoute permission="reports.dashboard.view">
+                  <ProtectedRoute allow={["ADMIN", "BM"]}>
                     <ReportsDashboardPage />
                   </ProtectedRoute>
                 }
@@ -852,7 +804,7 @@ export default function App() {
               <Route
                 path="/reports/sales"
                 element={
-                  <ProtectedRoute permission="reports.sales.view">
+                  <ProtectedRoute allow={["ADMIN", "BM"]}>
                     <SalesReportPage />
                   </ProtectedRoute>
                 }
@@ -861,7 +813,7 @@ export default function App() {
               <Route
                 path="/reports/purchases"
                 element={
-                  <ProtectedRoute permission="reports.purchases.view">
+                  <ProtectedRoute allow={["ADMIN", "BM"]}>
                     <PurchaseReportPage />
                   </ProtectedRoute>
                 }
@@ -870,7 +822,7 @@ export default function App() {
               <Route
                 path="/reports/inventory"
                 element={
-                  <ProtectedRoute permission="reports.inventory.view">
+                  <ProtectedRoute allow={["ADMIN", "BM"]}>
                     <InventoryReportPage />
                   </ProtectedRoute>
                 }
@@ -879,7 +831,7 @@ export default function App() {
               <Route
                 path="/reports/finance"
                 element={
-                  <ProtectedRoute permission="reports.finance.view">
+                  <ProtectedRoute allow={["ADMIN", "BM"]}>
                     <FinanceReportPage />
                   </ProtectedRoute>
                 }
@@ -888,22 +840,20 @@ export default function App() {
               <Route
                 path="/reports/hrms"
                 element={
-                  <ProtectedRoute permission="reports.hrms.view">
+                  <ProtectedRoute allow={["ADMIN", "BM"]}>
                     <HRMSReportPage />
                   </ProtectedRoute>
                 }
               />
 
               {/* Other */}
+
               <Route path="/notifications" element={<NotificationsPage />} />
 
               <Route
                 path="/audit-logs"
                 element={
-                  <ProtectedRoute
-                    allow={["ADMIN"]}
-                    permission="settings.audit_logs.view"
-                  >
+                  <ProtectedRoute allow={["ADMIN"]}>
                     <AuditLogsPage />
                   </ProtectedRoute>
                 }

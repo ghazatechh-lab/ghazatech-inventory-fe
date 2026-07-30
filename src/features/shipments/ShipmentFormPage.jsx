@@ -178,7 +178,9 @@ export default function ShipmentFormPage() {
     setForm({
       shipment_number: existing.shipment_number || "",
 
-      shipment_type: existing.shipment_type || "PURCHASE",
+      shipment_type: existing.purchase_order
+        ? "PURCHASE"
+        : existing.shipment_type || "PURCHASE",
 
       purchase_order: optionValue(
         existing.purchase_order?.id ?? existing.purchase_order,
@@ -515,6 +517,9 @@ export default function ShipmentFormPage() {
     mutationFn: async () => {
       const body = {
         ...form,
+
+        // This form records supplier purchase receipts.
+        shipment_type: "PURCHASE",
 
         shipment_number: form.shipment_number || undefined,
 
