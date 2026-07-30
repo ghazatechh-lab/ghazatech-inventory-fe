@@ -526,8 +526,6 @@ export default function ShipmentFormPage() {
         // This form records supplier purchase receipts.
         shipment_type: "PURCHASE",
 
-        shipment_number: form.shipment_number || undefined,
-
         purchase_order: Number(form.purchase_order),
 
         supplier: Number(form.supplier),

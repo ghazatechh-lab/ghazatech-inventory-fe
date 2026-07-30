@@ -120,14 +120,14 @@ export default function DeliveryNotesPage() {
   );
 
   React.useEffect(() => {
-    console.log("Delivery Notes raw API response:", query.data);
-    console.log("Delivery Notes normalized rows:", payload.results);
+    // console.log("Delivery Notes raw API response:", query.data);
+    // console.log("Delivery Notes normalized rows:", payload.results);
     if (query.error) {
-      console.error("Delivery Notes API error:", query.error);
-      console.error(
-        "Delivery Notes API error response:",
-        query.error?.response?.data,
-      );
+      //   console.error("Delivery Notes API error:", query.error);
+      //   console.error(
+      //     "Delivery Notes API error response:",
+      //     query.error?.response?.data,
+      //   );
     }
   }, [query.data, query.error, payload.results]);
 
