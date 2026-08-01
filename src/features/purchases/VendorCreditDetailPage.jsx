@@ -245,7 +245,9 @@ export default function VendorCreditDetailPage() {
 
           <DetailField
             label="Status"
-            value={renderStatus(record.status || "DRAFT")}
+            value={renderStatus(
+              record.status_display || record.status || "DRAFT",
+            )}
           />
 
           <DetailField
@@ -539,6 +541,18 @@ export default function VendorCreditDetailPage() {
 
       <DetailSection title="Audit Information">
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <DetailField
+            label="Approved By"
+            value={record.approved_by_name || displayUser(record.approved_by)}
+          />
+
+          <DetailField
+            label="Approval Date"
+            value={renderDate(record.approval_date)}
+          />
+
+          <DetailField label="Posted At" value={renderDate(record.posted_at)} />
+
           <DetailField
             label="Created By"
             value={record.created_by_name || displayUser(record.created_by)}

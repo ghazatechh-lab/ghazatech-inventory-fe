@@ -2,7 +2,6 @@ import React from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  AlertTriangle,
   ArrowLeft,
   CheckCircle2,
   FileText,
@@ -83,8 +82,6 @@ const createForm = (branchId) => ({
   notes: "",
   internal_memo: "",
   status: "DRAFT",
-  approved_by: "",
-  approval_date: "",
   items: [emptyLine()],
   applications: [],
 });
@@ -247,9 +244,12 @@ export default function VendorCreditsPage() {
       supplierReturns: normalizeList(options.supplier_returns),
       purchaseOrders: normalizeList(options.purchase_orders),
       supplierBills: normalizeList(options.supplier_bills),
-      approvers: normalizeList(options.approvers),
       glAccounts: normalizeList(options.gl_accounts),
-      openBills: normalizeList(options.open_bills),
+      openBills: normalizeList(
+        options.open_bills?.length
+          ? options.open_bills
+          : options.supplier_bills,
+      ),
       defaultInventoryAccountId: options.default_inventory_account_id || null,
     };
   }, [optionsResponse]);
@@ -259,7 +259,6 @@ export default function VendorCreditsPage() {
     supplierReturns,
     purchaseOrders,
     supplierBills,
-    approvers,
     glAccounts,
     openBills,
     defaultInventoryAccountId,
@@ -300,12 +299,6 @@ export default function VendorCreditsPage() {
       internal_memo: existing.internal_memo || "",
 
       status: existing.status || "DRAFT",
-
-      approved_by: existing.approved_by
-        ? String(existing.approved_by?.id || existing.approved_by)
-        : "",
-
-      approval_date: existing.approval_date || "",
 
       items: (existing.items || []).map((item) => ({
         id: item.id,
@@ -375,10 +368,25 @@ export default function VendorCreditsPage() {
     });
   }, [openBills, form.supplier, mode]);
 
+  const selectedSupplierReturn = React.useMemo(
+    () =>
+      supplierReturns.find(
+        (item) => String(item.id) === String(form.supplier_return),
+      ),
+    [supplierReturns, form.supplier_return],
+  );
+
   const selectedSupplier = React.useMemo(
     () => suppliers.find((item) => String(item.id) === String(form.supplier)),
     [suppliers, form.supplier],
   );
+
+  const supplierDisplayName =
+    existing?.supplier_name ||
+    selectedSupplierReturn?.supplier_name ||
+    selectedSupplier?.supplier_name ||
+    selectedSupplier?.name ||
+    "";
 
   const calculatedItems = React.useMemo(
     () =>
@@ -418,6 +426,24 @@ export default function VendorCreditsPage() {
   );
 
   const remainingCredit = Math.max(0, totalCredit - totalApplied);
+
+  const normalizedStatus = String(form.status || "DRAFT").toUpperCase();
+
+  const isDraft =
+    !editingId ||
+    !["OPEN", "PARTIALLY_APPLIED", "FULLY_APPLIED", "VOID"].includes(
+      normalizedStatus,
+    );
+
+  const canEditDocument = !editingId || normalizedStatus === "DRAFT";
+
+  const isLegacyPending = Boolean(editingId) && normalizedStatus === "PENDING";
+
+  const canApproveDocument =
+    Boolean(editingId) &&
+    !["OPEN", "PARTIALLY_APPLIED", "FULLY_APPLIED", "VOID"].includes(
+      normalizedStatus,
+    );
 
   const updateForm = (field, value) => {
     setForm((current) => ({
@@ -477,7 +503,15 @@ export default function VendorCreditsPage() {
     );
 
     if (!supplierReturn) {
-      updateForm("supplier_return", "");
+      setForm((current) => ({
+        ...current,
+        supplier_return: "",
+        supplier: "",
+        purchase_order: "",
+        supplier_bill: "",
+        reference_number: "",
+        applications: [],
+      }));
       return;
     }
 
@@ -546,8 +580,13 @@ export default function VendorCreditsPage() {
   const validate = () => {
     const next = {};
 
+    if (!form.supplier_return) {
+      next.supplier_return = "Source return is required.";
+    }
+
     if (!form.supplier) {
-      next.supplier = "Vendor is required.";
+      next.supplier =
+        "Vendor could not be resolved from the selected source return.";
     }
 
     if (!form.credit_date) {
@@ -591,17 +630,11 @@ export default function VendorCreditsPage() {
   };
 
   const save = useMutation({
-    mutationFn: async ({ postCredit }) => {
+    mutationFn: async ({ shouldApprove = false }) => {
       const payload = {
-        ...form,
-
-        credit_number: form.credit_number || undefined,
-
         supplier: Number(form.supplier),
 
-        supplier_return: form.supplier_return
-          ? Number(form.supplier_return)
-          : null,
+        supplier_return: Number(form.supplier_return),
 
         purchase_order: form.purchase_order
           ? Number(form.purchase_order)
@@ -611,21 +644,13 @@ export default function VendorCreditsPage() {
 
         branch: form.branch ? Number(form.branch) : null,
 
-        approved_by: form.approved_by ? Number(form.approved_by) : null,
-
-        subtotal,
-        tax_amount: taxAmount,
-        total_amount: totalCredit,
-        applied_amount: totalApplied,
-        remaining_amount: remainingCredit,
-
-        status: postCredit
-          ? remainingCredit <= 0
-            ? "FULLY_APPLIED"
-            : totalApplied > 0
-              ? "PARTIALLY_APPLIED"
-              : "OPEN"
-          : "DRAFT",
+        credit_date: form.credit_date,
+        currency: form.currency,
+        reference_number: form.reference_number,
+        reason: form.reason,
+        notes: form.notes,
+        internal_memo: form.internal_memo,
+        status: "DRAFT",
 
         items: calculatedItems.map((item) => ({
           ...(item.id
@@ -674,6 +699,26 @@ export default function VendorCreditsPage() {
         skipGlobalErrorToast: true,
       };
 
+      /*
+       * Approval of an existing vendor credit must not PATCH the record first.
+       * Non-draft and legacy records are rejected by the serializer with:
+       * "Only draft vendor credits can be edited."
+       *
+       * Existing records are therefore approved directly through the dedicated
+       * status action. Draft changes should be saved separately before approval.
+       */
+      if (shouldApprove && editingId) {
+        return api.post(
+          `/purchases/vendor-credits/${editingId}/update-status/`,
+          {
+            status: "OPEN",
+          },
+          {
+            skipGlobalErrorToast: true,
+          },
+        );
+      }
+
       const response = editingId
         ? await api.patch(
             `/purchases/vendor-credits/${editingId}/`,
@@ -684,10 +729,16 @@ export default function VendorCreditsPage() {
 
       const saved = unwrap(response);
 
-      if (postCredit && saved.status === "DRAFT") {
+      if (!saved?.id) {
+        throw new Error("Vendor credit was saved but its ID was not returned.");
+      }
+
+      if (shouldApprove) {
         return api.post(
-          `/purchases/vendor-credits/${saved.id}/post/`,
-          {},
+          `/purchases/vendor-credits/${saved.id}/update-status/`,
+          {
+            status: "OPEN",
+          },
           {
             skipGlobalErrorToast: true,
           },
@@ -697,8 +748,9 @@ export default function VendorCreditsPage() {
       return response;
     },
 
-    onSuccess: async (response) => {
+    onSuccess: async (response, variables) => {
       const saved = unwrap(response);
+      const wasApproved = Boolean(variables?.shouldApprove);
 
       await Promise.all([
         queryClient.invalidateQueries({
@@ -719,9 +771,9 @@ export default function VendorCreditsPage() {
       ]);
 
       toast.success(
-        saved.status === "DRAFT"
-          ? "Vendor credit saved as draft."
-          : "Vendor credit posted successfully.",
+        wasApproved
+          ? "Vendor credit approved successfully."
+          : "Vendor credit saved as draft.",
       );
 
       closeForm();
@@ -729,21 +781,96 @@ export default function VendorCreditsPage() {
 
     onError: (error) => {
       const details = getApiErrorDetails(error);
+      const body = error?.response?.data;
+      const payload = body?.data || body || {};
+      const nextErrors = {};
+
+      if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+        Object.entries(payload).forEach(([field, value]) => {
+          if (Array.isArray(value)) {
+            nextErrors[field] = value.join(" ");
+          } else if (value && typeof value === "object") {
+            nextErrors[field] = Object.values(value).flat().join(" ");
+          } else if (value) {
+            nextErrors[field] = String(value);
+          }
+        });
+      }
+
+      setErrors((current) => ({
+        ...current,
+        ...nextErrors,
+      }));
 
       toast.error(details.title || "Unable to save vendor credit", {
         description:
           details.summary ||
           details.message ||
+          nextErrors.status ||
+          nextErrors.items ||
+          nextErrors.applications ||
           "Please correct the highlighted fields.",
       });
     },
   });
 
-  const submit = (postCredit) => {
+  const approveCredit = useMutation({
+    mutationFn: async (creditId) =>
+      unwrap(
+        await api.post(
+          `/purchases/vendor-credits/${creditId}/update-status/`,
+          {
+            status: "OPEN",
+          },
+          {
+            skipGlobalErrorToast: true,
+          },
+        ),
+      ),
+
+    onSuccess: async (approved) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["vendor-credits"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["vendor-credit-summary"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["vendor-credit", approved?.id],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["supplier-bills"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["supplier-bills-summary"],
+        }),
+      ]);
+
+      toast.success("Vendor credit approved successfully.");
+
+      if (editingId) {
+        navigate(`/purchases/vendor-credits/${editingId}`);
+      }
+    },
+
+    onError: (error) => {
+      const details = getApiErrorDetails(error);
+
+      toast.error(details.title || "Unable to approve vendor credit", {
+        description:
+          details.summary ||
+          details.message ||
+          "Only draft or pending vendor credits can be approved.",
+      });
+    },
+  });
+
+  const submit = (shouldApprove) => {
     if (!validate()) return;
 
     save.mutate({
-      postCredit,
+      shouldApprove: Boolean(shouldApprove),
     });
   };
 
@@ -767,135 +894,149 @@ export default function VendorCreditsPage() {
     event.target.value = "";
   };
 
-  const columns = React.useMemo(
-    () => [
-      {
-        key: "credit_number",
-        header: "Credit #",
-        sortKey: "credit_number",
-        sortType: "text",
+  const columns = [
+    {
+      key: "credit_number",
+      header: "Credit #",
+      sortKey: "credit_number",
+      sortType: "text",
 
-        cell: (row) => (
-          <button
+      cell: (row) => (
+        <button
+          type="button"
+          onClick={() => openExisting(row)}
+          className="font-medium text-blue-600 hover:underline dark:text-blue-400"
+        >
+          {row.credit_number || "—"}
+        </button>
+      ),
+    },
+    {
+      key: "supplier_name",
+      header: "Vendor",
+      sortKey: "supplier__supplier_name",
+      sortType: "text",
+    },
+    {
+      key: "credit_date",
+      header: "Date",
+      sortKey: "credit_date",
+      sortType: "date",
+
+      cell: (row) =>
+        row.credit_date ? <DateText value={row.credit_date} /> : "—",
+    },
+    {
+      key: "reason_display",
+      header: "Reason",
+      sortKey: "reason",
+      sortType: "text",
+
+      cell: (row) =>
+        row.reason_display ||
+        String(row.reason || "")
+          .replace(/_/g, " ")
+          .toLowerCase()
+          .replace(/\b\w/g, (letter) => letter.toUpperCase()),
+    },
+    {
+      key: "reference_number",
+      header: "Reference",
+      sortKey: "reference_number",
+      sortType: "text",
+    },
+    {
+      key: "total_amount",
+      header: "Total",
+      sortKey: "total_amount",
+      sortType: "currency",
+      align: "right",
+
+      cell: (row) => (
+        <CurrencyText
+          value={row.total_amount}
+          currency={row.currency || "AED"}
+        />
+      ),
+    },
+    {
+      key: "applied_amount",
+      header: "Applied",
+      sortKey: "applied_amount",
+      sortType: "currency",
+      align: "right",
+
+      cell: (row) => (
+        <CurrencyText
+          value={row.applied_amount}
+          currency={row.currency || "AED"}
+        />
+      ),
+    },
+    {
+      key: "remaining_amount",
+      header: "Remaining",
+      sortKey: "remaining_amount",
+      sortType: "currency",
+      align: "right",
+
+      cell: (row) => (
+        <CurrencyText
+          value={row.remaining_amount}
+          currency={row.currency || "AED"}
+        />
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      sortKey: "status",
+      sortType: "status",
+
+      cell: (row) => <StatusBadge status={row.status} />,
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      cell: (row) => (
+        <div className="flex items-center gap-2">
+          <Button
             type="button"
+            size="sm"
+            variant="outline"
             onClick={() => openExisting(row)}
-            className="font-medium text-blue-600 hover:underline dark:text-blue-400"
           >
-            {row.credit_number || "—"}
-          </button>
-        ),
-      },
-      {
-        key: "supplier_name",
-        header: "Vendor",
-        sortKey: "supplier__supplier_name",
-        sortType: "text",
-      },
-      {
-        key: "credit_date",
-        header: "Date",
-        sortKey: "credit_date",
-        sortType: "date",
+            View
+          </Button>
+          {!["OPEN", "PARTIALLY_APPLIED", "FULLY_APPLIED", "VOID"].includes(
+            String(row.status || "").toUpperCase(),
+          ) ? (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => openEdit(row)}
+              >
+                Edit
+              </Button>
 
-        cell: (row) =>
-          row.credit_date ? <DateText value={row.credit_date} /> : "—",
-      },
-      {
-        key: "reason_display",
-        header: "Reason",
-        sortKey: "reason",
-        sortType: "text",
-
-        cell: (row) =>
-          row.reason_display ||
-          String(row.reason || "")
-            .replace(/_/g, " ")
-            .toLowerCase()
-            .replace(/\b\w/g, (letter) => letter.toUpperCase()),
-      },
-      {
-        key: "reference_number",
-        header: "Reference",
-        sortKey: "reference_number",
-        sortType: "text",
-      },
-      {
-        key: "total_amount",
-        header: "Total",
-        sortKey: "total_amount",
-        sortType: "currency",
-        align: "right",
-
-        cell: (row) => (
-          <CurrencyText
-            value={row.total_amount}
-            currency={row.currency || "AED"}
-          />
-        ),
-      },
-      {
-        key: "applied_amount",
-        header: "Applied",
-        sortKey: "applied_amount",
-        sortType: "currency",
-        align: "right",
-
-        cell: (row) => (
-          <CurrencyText
-            value={row.applied_amount}
-            currency={row.currency || "AED"}
-          />
-        ),
-      },
-      {
-        key: "remaining_amount",
-        header: "Remaining",
-        sortKey: "remaining_amount",
-        sortType: "currency",
-        align: "right",
-
-        cell: (row) => (
-          <CurrencyText
-            value={row.remaining_amount}
-            currency={row.currency || "AED"}
-          />
-        ),
-      },
-      {
-        key: "status",
-        header: "Status",
-        sortKey: "status",
-        sortType: "status",
-
-        cell: (row) => <StatusBadge status={row.status} />,
-      },
-      {
-        key: "actions",
-        header: "Actions",
-        cell: (row) => (
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => openExisting(row)}
-            >
-              View
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => openEdit(row)}
-            >
-              Edit
-            </Button>
-          </div>
-        ),
-      },
-    ],
-    [openEdit, openExisting],
-  );
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => approveCredit.mutate(row.id)}
+                disabled={approveCredit.isPending}
+                className="bg-emerald-600 text-white hover:bg-emerald-700"
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                Approve
+              </Button>
+            </>
+          ) : null}
+        </div>
+      ),
+    },
+  ];
 
   if (mode === "list") {
     const payload = query.data || {
@@ -1038,12 +1179,36 @@ export default function VendorCreditsPage() {
         title={editingId ? "Edit Vendor Credit" : "New Vendor Credit"}
         subtitle="Record supplier credit and apply it against open bills"
         actions={
-          <Button type="button" variant="outline" onClick={closeForm}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Credits
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={closeForm}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Credits
+            </Button>
+
+            {canApproveDocument ? (
+              <Button
+                type="button"
+                onClick={() => approveCredit.mutate(editingId)}
+                disabled={approveCredit.isPending || save.isPending}
+                className="bg-emerald-600 text-white hover:bg-emerald-700"
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                {approveCredit.isPending
+                  ? "Approving..."
+                  : "Approve Vendor Credit"}
+              </Button>
+            ) : null}
+          </div>
         }
       />
+
+      {!canEditDocument ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
+          {isLegacyPending
+            ? "This is a legacy pending vendor credit. It cannot be edited, but it can be approved directly."
+            : `This vendor credit is already ${form.status}. Only draft credits can be edited.`}
+        </div>
+      ) : null}
 
       <section className="card-surface p-5">
         <h2 className="font-semibold">Credit Details</h2>
@@ -1052,30 +1217,19 @@ export default function VendorCreditsPage() {
           <div>
             <Label>Vendor *</Label>
 
-            <Select
-              value={form.supplier}
-              onValueChange={(value) => {
-                updateForm("supplier", value);
+            <Input
+              value={supplierDisplayName || "Select a source return"}
+              className="mt-2"
+              disabled
+            />
 
-                setForm((current) => ({
-                  ...current,
-                  applications: [],
-                }));
-              }}
-              disabled={optionsLoading}
-            >
-              <SelectTrigger className="mt-2">
-                <SelectValue placeholder="Select vendor" />
-              </SelectTrigger>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Vendor is automatically selected from the source return.
+            </p>
 
-              <SelectContent className="max-h-72">
-                {suppliers.map((supplier) => (
-                  <SelectItem key={supplier.id} value={String(supplier.id)}>
-                    {supplier.supplier_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {errors.supplier ? (
+              <p className="mt-1 text-xs text-red-500">{errors.supplier}</p>
+            ) : null}
           </div>
 
           <div>
@@ -1111,21 +1265,14 @@ export default function VendorCreditsPage() {
           </div>
 
           <div>
-            <Label>Source Return</Label>
+            <Label>Source Return *</Label>
 
-            <Select
-              value={form.supplier_return || "__none__"}
-              onValueChange={(value) =>
-                selectReturn(value === "__none__" ? "" : value)
-              }
-            >
+            <Select value={form.supplier_return} onValueChange={selectReturn}>
               <SelectTrigger className="mt-2">
                 <SelectValue placeholder="Select supplier return" />
               </SelectTrigger>
 
               <SelectContent className="max-h-72">
-                <SelectItem value="__none__">No linked return</SelectItem>
-
                 {supplierReturns.map((supplierReturn) => (
                   <SelectItem
                     key={supplierReturn.id}
@@ -1138,6 +1285,12 @@ export default function VendorCreditsPage() {
                 ))}
               </SelectContent>
             </Select>
+
+            {errors.supplier_return ? (
+              <p className="mt-1 text-xs text-red-500">
+                {errors.supplier_return}
+              </p>
+            ) : null}
           </div>
 
           <div>
@@ -1178,12 +1331,9 @@ export default function VendorCreditsPage() {
             <Label>Credit number</Label>
 
             <Input
-              value={form.credit_number}
-              onChange={(event) =>
-                updateForm("credit_number", event.target.value)
-              }
-              placeholder="Auto generated"
+              value={form.credit_number || "Automatically generated"}
               className="mt-2"
+              disabled
             />
           </div>
         </div>
@@ -1546,44 +1696,10 @@ export default function VendorCreditsPage() {
       <section className="card-surface p-5">
         <h2 className="font-semibold">Approval</h2>
 
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <div>
-            <Label>Approved by</Label>
-
-            <Select
-              value={form.approved_by || "__pending__"}
-              onValueChange={(value) =>
-                updateForm("approved_by", value === "__pending__" ? "" : value)
-              }
-            >
-              <SelectTrigger className="mt-2">
-                <SelectValue />
-              </SelectTrigger>
-
-              <SelectContent>
-                <SelectItem value="__pending__">Pending</SelectItem>
-
-                {approvers.map((approver) => (
-                  <SelectItem key={approver.id} value={String(approver.id)}>
-                    {approver.display_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label>Approval date</Label>
-
-            <Input
-              type="date"
-              value={form.approval_date}
-              onChange={(event) =>
-                updateForm("approval_date", event.target.value)
-              }
-              className="mt-2"
-            />
-          </div>
+        <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
+          Approval is handled by the logged-in user when
+          <strong> Save and Approve</strong> is selected. The backend records
+          the approver, approval date, and posted time.
         </div>
       </section>
 
@@ -1601,20 +1717,37 @@ export default function VendorCreditsPage() {
           type="button"
           variant="outline"
           onClick={() => submit(false)}
-          disabled={save.isPending}
+          disabled={save.isPending || !canEditDocument}
         >
           <Save className="mr-2 h-4 w-4" />
           Save as Draft
         </Button>
 
+        {canApproveDocument ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => approveCredit.mutate(editingId)}
+            disabled={approveCredit.isPending || save.isPending}
+            className="border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+          >
+            <CheckCircle2 className="mr-2 h-4 w-4" />
+            {approveCredit.isPending ? "Approving..." : "Approve Credit"}
+          </Button>
+        ) : null}
+
         <Button
           type="button"
           onClick={() => submit(true)}
-          disabled={save.isPending}
+          disabled={save.isPending || approveCredit.isPending}
           className="bg-blue-600 text-white hover:bg-blue-700"
         >
           <Send className="mr-2 h-4 w-4" />
-          Post Credit
+          {save.isPending
+            ? "Processing..."
+            : editingId
+              ? "Approve Credit"
+              : "Save and Approve"}
         </Button>
       </div>
     </div>

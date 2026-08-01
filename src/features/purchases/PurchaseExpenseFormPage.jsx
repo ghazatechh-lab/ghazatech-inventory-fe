@@ -1,887 +1,906 @@
 import React from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, Loader2, Paperclip, Save, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowLeft,
-  FileText,
-  Info,
-  Plus,
-  Save,
-  UploadCloud,
-  X,
-} from "lucide-react";
 import { toast } from "sonner";
 
-import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
-import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
+import api, { getApiErrorDetails } from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { CurrencyText, DateText } from "@/components/common/CurrencyText";
-import { StatusBadge } from "@/components/common/StatusBadge";
+import { CurrencyText } from "@/components/common/CurrencyText";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { normalizeApiResponse } from "./purchaseUi";
 
-const list = (v) =>
-  Array.isArray(v) ? v : Array.isArray(v?.results) ? v.results : [];
-const today = () => new Date().toISOString().slice(0, 10);
-const num = (v) => Number(v || 0);
-const DEFAULT_EXPENSE_CATEGORIES = [
-  { value: "RENT_UTILITIES", label: "Rent & Utilities" },
-  { value: "OFFICE", label: "Office" },
-  { value: "TRANSPORT", label: "Transport" },
-  { value: "MAINTENANCE", label: "Maintenance" },
-  { value: "MARKETING", label: "Marketing" },
-  { value: "PROFESSIONAL_FEES", label: "Professional Fees" },
-  { value: "TRAVEL", label: "Travel" },
-  { value: "MISCELLANEOUS", label: "Miscellaneous" },
+const ENDPOINT = "/purchases/expenses/";
+
+const DEFAULT_STATUS_OPTIONS = [
+  { value: "PENDING", label: "Pending" },
+  { value: "APPROVED", label: "Approved" },
+  { value: "PAID", label: "Paid" },
+  { value: "REJECTED", label: "Rejected" },
+  { value: "CANCELLED", label: "Cancelled" },
 ];
 
-const normalizeCategories = (value) => {
-  const rows = list(value?.data ?? value);
-  return rows
-    .map((item) => ({
-      id: item.id,
-      value: String(item.value ?? item.code ?? ""),
-      label: item.label ?? item.name ?? item.value ?? item.code ?? "",
-    }))
-    .filter((item) => item.value && item.label);
-};
+const DEFAULT_PAYMENT_METHOD_OPTIONS = [
+  { value: "CASH", label: "Cash" },
+  { value: "BANK_TRANSFER", label: "Bank Transfer" },
+  { value: "CHEQUE", label: "Cheque" },
+  { value: "CARD", label: "Card" },
+  { value: "PETTY_CASH", label: "Petty Cash" },
+  { value: "OTHER", label: "Other" },
+];
 
-const normalizeOptionList = (...candidates) => {
-  for (const candidate of candidates) {
-    const rows = list(candidate?.data ?? candidate);
-    if (rows.length) {
-      return rows;
-    }
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function normalizeList(value) {
+  const normalized = normalizeApiResponse(value);
+
+  if (Array.isArray(normalized)) {
+    return normalized;
+  }
+
+  if (Array.isArray(normalized?.results)) {
+    return normalized.results;
+  }
+
+  if (Array.isArray(normalized?.data)) {
+    return normalized.data;
   }
 
   return [];
-};
+}
 
-const getBankAccountLabel = (account) =>
-  account.account_name ||
-  account.name ||
-  account.bank_name ||
-  account.account_number ||
-  `Bank Account ${account.id}`;
+function createInitialForm(branchId) {
+  return {
+    expense_number: "",
+    branch: branchId ? String(branchId) : "",
+    category: "",
+    description: "",
+    vendor_name: "",
+    expense_date: today(),
+    amount: "",
+    tax_amount: "0.00",
+    payment_method: "",
+    bank_account: "",
+    cash_register: "",
+    reference_number: "",
+    status: "PENDING",
+    notes: "",
+    attachments: [],
+  };
+}
 
-const getCashRegisterLabel = (register) =>
-  register.name ||
-  register.register_name ||
-  register.cash_register_name ||
-  register.reference ||
-  register.opening_date ||
-  `Cash Register ${register.id}`;
+function FieldError({ message }) {
+  if (!message) {
+    return null;
+  }
 
-const initial = (branchId) => ({
-  expense_number: "",
-  description: "",
-  category: "",
-  branch: branchId ? String(branchId) : "",
-  amount: 0,
-  expense_date: today(),
-  vendor_name: "",
-  payment_method: "BANK_TRANSFER",
-  bank_account: "",
-  cash_register: "",
-  reference_number: "",
-  notes: "",
-  status: "PENDING",
-});
+  return <p className="mt-1 text-xs text-red-600">{message}</p>;
+}
 
-function Metric({ label, value, subtitle }) {
+function Section({ title, description, children }) {
   return (
-    <div className="card-surface p-5">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <div className="mt-1 text-2xl font-semibold">{value}</div>
-      <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
-    </div>
+    <section className="rounded-2xl border bg-card">
+      <div className="border-b p-5">
+        <h2 className="font-semibold">{title}</h2>
+
+        {description ? (
+          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        ) : null}
+      </div>
+
+      <div className="p-5">{children}</div>
+    </section>
   );
 }
 
+function extractErrors(error) {
+  const details = getApiErrorDetails?.(error);
+  const body = normalizeApiResponse(error?.response?.data);
+
+  if (details?.message) {
+    return {
+      general: details.message,
+    };
+  }
+
+  if (!body) {
+    return {
+      general: error?.message || "The submitted data could not be processed.",
+    };
+  }
+
+  if (typeof body === "string") {
+    return {
+      general: body,
+    };
+  }
+
+  if (body.detail || body.message) {
+    return {
+      general: body.detail || body.message,
+    };
+  }
+
+  const result = {};
+
+  Object.entries(body).forEach(([field, value]) => {
+    if (Array.isArray(value)) {
+      result[field] = value.join(" ");
+    } else if (value && typeof value === "object") {
+      result[field] = Object.values(value).flat().join(" ");
+    } else {
+      result[field] = String(value);
+    }
+  });
+
+  return result;
+}
+
 export default function PurchaseExpenseFormPage() {
-  const qc = useQueryClient();
+  const { id } = useParams();
+  const isEdit = Boolean(id);
+
   const navigate = useNavigate();
-  const location = useLocation();
-  const { id: routeId } = useParams();
-  const { branchId, branchParams } = useActiveBranchFilter();
-  const isNewRoute = location.pathname.endsWith("/new");
-  const isEditRoute = location.pathname.endsWith("/edit") && Boolean(routeId);
-  const [mode, setMode] = React.useState(() =>
-    isNewRoute || isEditRoute ? "form" : "list",
-  );
-  const [editingId, setEditingId] = React.useState(() =>
-    isEditRoute ? routeId : null,
-  );
-  const [form, setForm] = React.useState(() => initial(branchId));
-  const [files, setFiles] = React.useState([]);
-  const [statusFilter, setStatusFilter] = React.useState("ALL");
-  const [categoryFilter, setCategoryFilter] = React.useState("ALL");
+  const queryClient = useQueryClient();
+  const { branchId } = useActiveBranchFilter();
 
-  React.useEffect(() => {
-    if (isEditRoute) {
-      setEditingId(routeId);
-      setMode("form");
-      return;
-    }
+  const [form, setForm] = React.useState(() => createInitialForm(branchId));
 
-    if (isNewRoute) {
-      setEditingId(null);
-      setForm(initial(branchId));
-      setFiles([]);
-      setMode("form");
-      return;
-    }
+  const [errors, setErrors] = React.useState({});
+  const [existingAttachments, setExistingAttachments] = React.useState([]);
 
-    setEditingId(null);
-    setMode("list");
-  }, [isEditRoute, isNewRoute, routeId, branchId]);
+  const optionsQuery = useQuery({
+    queryKey: ["purchase-expense-form-options", form.branch],
 
-  const { query, q, setQ, page, setPage } = useListQuery(
-    "purchase-expenses",
-    "/purchases/expenses/",
-    {
-      ...branchParams,
-      status: statusFilter === "ALL" ? undefined : statusFilter,
-      category: categoryFilter === "ALL" ? undefined : categoryFilter,
+    queryFn: async () => {
+      const response = await api.get(`${ENDPOINT}form-options/`, {
+        params: {
+          branch: form.branch || undefined,
+        },
+        skipGlobalErrorToast: true,
+      });
+
+      return normalizeApiResponse(response);
     },
-  );
 
-  const { data: summary = {} } = useQuery({
-    queryKey: ["purchase-expense-summary", branchParams],
-    queryFn: async () =>
-      unwrap(
-        await api.get("/purchases/expenses/summary/", { params: branchParams }),
-      ),
-  });
-
-  const { data: options = {} } = useQuery({
-    queryKey: ["purchase-expense-options", form.branch],
-    queryFn: async () =>
-      unwrap(
-        await api.get("/purchases/expenses/form-options/", {
-          params: { branch: form.branch || undefined },
-        }),
-      ),
-    enabled: mode === "form",
-  });
-
-  const {
-    data: bankAccountResponse,
-    isLoading: bankAccountsLoading,
-    isError: bankAccountsLoadFailed,
-    error: bankAccountsLoadError,
-  } = useQuery({
-    queryKey: ["purchase-expense-bank-accounts", form.branch],
-    queryFn: async () =>
-      unwrap(
-        await api.get("/finance/bank-accounts/", {
-          params: {
-            branch: form.branch || undefined,
-            page_size: 500,
-          },
-          skipGlobalErrorToast: true,
-        }),
-      ),
-    enabled: mode === "form",
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
     retry: false,
   });
 
-  const {
-    data: cashRegisterResponse,
-    isLoading: cashRegistersLoading,
-    isError: cashRegistersLoadFailed,
-    error: cashRegistersLoadError,
-  } = useQuery({
-    queryKey: ["purchase-expense-cash-registers", form.branch],
-    queryFn: async () =>
-      unwrap(
-        await api.get("/finance/cash-registers/", {
-          params: {
-            branch: form.branch || undefined,
-            page_size: 500,
-          },
-          skipGlobalErrorToast: true,
-        }),
-      ),
-    enabled: mode === "form",
-    staleTime: 5 * 60 * 1000,
+  const existingQuery = useQuery({
+    queryKey: ["purchase-expense", id],
+
+    queryFn: async () => {
+      const response = await api.get(`${ENDPOINT}${id}/`, {
+        skipGlobalErrorToast: true,
+      });
+
+      return normalizeApiResponse(response);
+    },
+
+    enabled: isEdit,
+    staleTime: 0,
     retry: false,
+    refetchOnMount: "always",
   });
 
-  const {
-    data: categoryResponse,
-    isError: categoryLoadFailed,
-    error: categoryLoadError,
-  } = useQuery({
-    queryKey: ["purchase-expense-categories"],
-    queryFn: async () =>
-      unwrap(await api.get("/purchases/expenses/categories/")),
-    staleTime: 5 * 60 * 1000,
-  });
+  const options = optionsQuery.data || {};
 
-  const {
-    data: branchResponse,
-    isLoading: branchesLoading,
-    isError: branchesLoadFailed,
-    error: branchesLoadError,
-  } = useQuery({
-    queryKey: ["purchase-expense-all-branches"],
-    queryFn: async () =>
-      unwrap(
-        await api.get("/branches/", {
-          params: { page_size: 500 },
-        }),
-      ),
-    staleTime: 5 * 60 * 1000,
-    enabled: mode === "form",
-  });
+  const categories = normalizeList(options.categories);
 
-  const branches = React.useMemo(() => {
-    const candidates = [
-      branchResponse,
-      branchResponse?.data,
-      branchResponse?.results,
-      branchResponse?.data?.results,
-      options?.branches,
-    ];
+  const branches = normalizeList(options.branches);
 
-    for (const candidate of candidates) {
-      const rows = list(candidate);
-      if (rows.length) return rows;
-    }
+  const bankAccounts = normalizeList(options.bank_accounts);
 
-    return [];
-  }, [branchResponse, options?.branches]);
+  const cashRegisters = normalizeList(options.cash_registers);
 
-  const categories = React.useMemo(() => {
-    const direct = normalizeCategories(categoryResponse);
-    const fromOptions = normalizeCategories(options?.categories);
-    const merged = [...direct, ...fromOptions, ...DEFAULT_EXPENSE_CATEGORIES];
-    const seen = new Set();
-    return merged.filter((category) => {
-      if (seen.has(category.value)) return false;
-      seen.add(category.value);
-      return true;
-    });
-  }, [categoryResponse, options?.categories]);
+  const statusOptions = normalizeList(options.statuses).length
+    ? normalizeList(options.statuses)
+    : DEFAULT_STATUS_OPTIONS;
 
-  const bankAccounts = React.useMemo(
-    () =>
-      normalizeOptionList(
-        options?.bank_accounts,
-        options?.data?.bank_accounts,
-        bankAccountResponse,
-        bankAccountResponse?.data,
-        bankAccountResponse?.results,
-        bankAccountResponse?.data?.results,
-      ),
-    [options, bankAccountResponse],
-  );
-
-  const cashRegisters = React.useMemo(
-    () =>
-      normalizeOptionList(
-        options?.cash_registers,
-        options?.data?.cash_registers,
-        cashRegisterResponse,
-        cashRegisterResponse?.data,
-        cashRegisterResponse?.results,
-        cashRegisterResponse?.data?.results,
-      ).filter(
-        (register) =>
-          !["CLOSED", "INACTIVE"].includes(
-            String(register.status || "").toUpperCase(),
-          ),
-      ),
-    [options, cashRegisterResponse],
-  );
+  const paymentMethodOptions = normalizeList(options.payment_methods).length
+    ? normalizeList(options.payment_methods)
+    : DEFAULT_PAYMENT_METHOD_OPTIONS;
 
   React.useEffect(() => {
-    console.log("Purchase Expense category API response:", categoryResponse);
-    console.log("Purchase Expense normalized categories:", categories);
-    if (categoryLoadFailed) {
-      console.error(
-        "Purchase Expense category API error:",
-        categoryLoadError?.response?.data || categoryLoadError,
-      );
+    if (isEdit || !branchId) {
+      return;
     }
-  }, [categoryResponse, categories, categoryLoadFailed, categoryLoadError]);
+
+    setForm((current) => ({
+      ...current,
+      branch: current.branch || String(branchId),
+    }));
+  }, [branchId, isEdit]);
 
   React.useEffect(() => {
-    console.log("Purchase Expense branch API response:", branchResponse);
-    console.log("Purchase Expense normalized branches:", branches);
-    if (branchesLoadFailed) {
-      console.error(
-        "Purchase Expense branch API error:",
-        branchesLoadError?.response?.data || branchesLoadError,
-      );
-    }
-  }, [branchResponse, branches, branchesLoadFailed, branchesLoadError]);
+    const existing = existingQuery.data;
 
-  React.useEffect(() => {
-    console.log("Purchase Expense form options:", options);
-    console.log("Purchase Expense bank accounts:", bankAccounts);
-    console.log("Purchase Expense cash registers:", cashRegisters);
-
-    if (bankAccountsLoadFailed) {
-      console.error(
-        "Bank account API error:",
-        bankAccountsLoadError?.response?.data || bankAccountsLoadError,
-      );
+    if (!isEdit || !existing) {
+      return;
     }
 
-    if (cashRegistersLoadFailed) {
-      console.error(
-        "Cash register API error:",
-        cashRegistersLoadError?.response?.data || cashRegistersLoadError,
-      );
-    }
-  }, [
-    options,
-    bankAccounts,
-    cashRegisters,
-    bankAccountsLoadFailed,
-    bankAccountsLoadError,
-    cashRegistersLoadFailed,
-    cashRegistersLoadError,
-  ]);
-
-  const { data: existing } = useQuery({
-    queryKey: ["purchase-expense", editingId],
-    queryFn: async () =>
-      unwrap(await api.get(`/purchases/expenses/${editingId}/`)),
-    enabled: mode === "form" && Boolean(editingId),
-  });
-
-  React.useEffect(() => {
-    if (!existing) return;
     setForm({
       expense_number: existing.expense_number || "",
-      description: existing.description || "",
+
+      branch: existing.branch
+        ? String(existing.branch.id || existing.branch)
+        : "",
+
       category: existing.category || "",
-      branch: String(existing.branch?.id || existing.branch || ""),
-      amount: num(existing.amount),
-      expense_date: existing.expense_date || today(),
+
+      description: existing.description || "",
+
       vendor_name: existing.vendor_name || "",
-      payment_method: existing.payment_method || "BANK_TRANSFER",
+
+      expense_date: existing.expense_date || today(),
+
+      amount: existing.amount ?? "",
+
+      tax_amount: existing.tax_amount ?? "0.00",
+
+      payment_method: existing.payment_method || "",
+
       bank_account: existing.bank_account
-        ? String(existing.bank_account?.id || existing.bank_account)
+        ? String(existing.bank_account.id || existing.bank_account)
         : "",
+
       cash_register: existing.cash_register
-        ? String(existing.cash_register?.id || existing.cash_register)
+        ? String(existing.cash_register.id || existing.cash_register)
         : "",
+
       reference_number: existing.reference_number || "",
-      notes: existing.notes || "",
+
       status: existing.status || "PENDING",
+
+      notes: existing.notes || "",
+
+      attachments: [],
     });
-  }, [existing]);
 
-  const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-  const openNew = () => {
-    navigate("/purchases/purchase-expenses/new");
-  };
-  const openEdit = React.useCallback(
-    (row) => {
-      navigate(`/purchases/purchase-expenses/${row.id}/edit`);
-    },
-    [navigate],
-  );
-  const close = () => {
-    setEditingId(null);
-    setFiles([]);
-    navigate("/purchases/purchase-expenses");
-  };
+    setExistingAttachments(
+      Array.isArray(existing.attachments) ? existing.attachments : [],
+    );
+  }, [existingQuery.data, isEdit]);
 
-  const save = useMutation({
-    mutationFn: async () => {
-      if (
-        !form.description ||
-        !form.category ||
-        !form.branch ||
-        num(form.amount) <= 0 ||
-        !form.expense_date
-      ) {
-        throw new Error("Complete all required expense fields.");
+  const amount = Number(form.amount || 0);
+
+  const taxAmount = Number(form.tax_amount || 0);
+
+  const grandTotal = amount + taxAmount;
+
+  function updateField(field, value) {
+    setForm((current) => {
+      const next = {
+        ...current,
+        [field]: value,
+      };
+
+      if (field === "payment_method") {
+        if (value !== "BANK_TRANSFER") {
+          next.bank_account = "";
+        }
+
+        if (!["CASH", "PETTY_CASH"].includes(value)) {
+          next.cash_register = "";
+        }
       }
+
+      return next;
+    });
+
+    setErrors((current) => ({
+      ...current,
+      [field]: undefined,
+      general: undefined,
+    }));
+  }
+
+  function handleFiles(event) {
+    const files = Array.from(event.target.files || []);
+
+    setForm((current) => ({
+      ...current,
+      attachments: [...current.attachments, ...files],
+    }));
+
+    event.target.value = "";
+  }
+
+  function removeNewAttachment(index) {
+    setForm((current) => ({
+      ...current,
+      attachments: current.attachments.filter(
+        (_, fileIndex) => fileIndex !== index,
+      ),
+    }));
+  }
+
+  function validateForm() {
+    const nextErrors = {};
+
+    if (!form.branch) {
+      nextErrors.branch = "Select a branch.";
+    }
+
+    if (!form.category) {
+      nextErrors.category = "Select a category.";
+    }
+
+    if (!form.description.trim()) {
+      nextErrors.description = "Description is required.";
+    }
+
+    if (!form.expense_date) {
+      nextErrors.expense_date = "Expense date is required.";
+    }
+
+    if (!form.amount || Number(form.amount) <= 0) {
+      nextErrors.amount = "Amount must be greater than zero.";
+    }
+
+    if (Number(form.tax_amount || 0) < 0) {
+      nextErrors.tax_amount = "Tax amount cannot be negative.";
+    }
+
+    if (!form.payment_method) {
+      nextErrors.payment_method = "Select a payment method.";
+    }
+
+    if (form.payment_method === "BANK_TRANSFER" && !form.bank_account) {
+      nextErrors.bank_account = "Select a bank account.";
+    }
+
+    if (
+      ["CASH", "PETTY_CASH"].includes(form.payment_method) &&
+      !form.cash_register
+    ) {
+      nextErrors.cash_register = "Select a cash register.";
+    }
+
+    setErrors(nextErrors);
+
+    return Object.keys(nextErrors).length === 0;
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!validateForm()) {
+        throw new Error("Please correct the highlighted fields.");
+      }
+
       const payload = {
-        ...form,
         branch: Number(form.branch),
-        amount: num(form.amount),
+        category: form.category,
+        description: form.description.trim(),
+        vendor_name: form.vendor_name.trim(),
+        expense_date: form.expense_date,
+        amount: Number(Number(form.amount).toFixed(2)),
+        tax_amount: Number(Number(form.tax_amount || 0).toFixed(2)),
+        payment_method: form.payment_method,
         bank_account: form.bank_account ? Number(form.bank_account) : null,
         cash_register: form.cash_register ? Number(form.cash_register) : null,
+        reference_number: form.reference_number.trim(),
+        status: form.status || "PENDING",
+        notes: form.notes.trim(),
       };
-      const data = new FormData();
-      data.append("payload", JSON.stringify(payload));
-      files.forEach((f) => data.append("attachments", f));
-      const cfg = {
-        headers: { "Content-Type": "multipart/form-data" },
+
+      const hasFiles = form.attachments.length > 0;
+
+      if (hasFiles) {
+        const multipart = new FormData();
+
+        multipart.append("payload", JSON.stringify(payload));
+
+        form.attachments.forEach((file) => {
+          multipart.append("attachments", file);
+        });
+
+        if (isEdit) {
+          return api.put(`${ENDPOINT}${id}/`, multipart, {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+            skipGlobalErrorToast: true,
+          });
+        }
+
+        return api.post(ENDPOINT, multipart, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+          skipGlobalErrorToast: true,
+        });
+      }
+
+      if (isEdit) {
+        return api.put(`${ENDPOINT}${id}/`, payload, {
+          skipGlobalErrorToast: true,
+        });
+      }
+
+      return api.post(ENDPOINT, payload, {
         skipGlobalErrorToast: true,
-      };
-      return editingId
-        ? api.patch(`/purchases/expenses/${editingId}/`, data, cfg)
-        : api.post("/purchases/expenses/", data, cfg);
-    },
-    onSuccess: async () => {
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ["purchase-expenses"] }),
-        qc.invalidateQueries({ queryKey: ["purchase-expense-summary"] }),
-      ]);
-      toast.success("Purchase expense saved.");
-      close();
-    },
-    onError: (e) => {
-      const d = getApiErrorDetails(e);
-      toast.error(d.title || "Unable to save expense", {
-        description: d.summary || d.message || e.message,
       });
     },
-  });
 
-  const addCategory = useMutation({
-    mutationFn: async () => {
-      const name = window.prompt("Enter the new expense category name");
-      if (!name?.trim()) return null;
-      return unwrap(
-        await api.post("/purchases/expenses/categories/", {
-          name: name.trim(),
+    onSuccess: async (response) => {
+      const saved = normalizeApiResponse(response);
+
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["purchase-expenses"],
         }),
+        queryClient.invalidateQueries({
+          queryKey: ["purchase-expense-summary"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["purchase-expense", id],
+        }),
+      ]);
+
+      toast.success(
+        isEdit
+          ? "Purchase expense updated successfully."
+          : "Purchase expense created successfully.",
+      );
+
+      navigate(
+        saved?.id
+          ? `/purchases/purchase-expenses/${saved.id}`
+          : "/purchases/purchase-expenses",
       );
     },
-    onSuccess: async (category) => {
-      if (!category) return;
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ["purchase-expense-categories"] }),
-        qc.invalidateQueries({ queryKey: ["purchase-expense-options"] }),
-      ]);
-      update("category", String(category.value || category.code || ""));
-      toast.success("Expense category created.");
-    },
+
     onError: (error) => {
-      const details = getApiErrorDetails(error);
-      toast.error(details.title || "Unable to create category", {
-        description: details.summary || details.message,
-      });
+      const apiErrors = extractErrors(error);
+
+      setErrors((current) => ({
+        ...current,
+        ...apiErrors,
+      }));
+
+      toast.error(
+        apiErrors.general || "The submitted data could not be processed.",
+      );
     },
   });
 
-  const columns = React.useMemo(
-    () => [
-      {
-        key: "expense_number",
-        header: "Expense",
-        sortKey: "expense_number",
-        sortType: "text",
-        cell: (r) => (
-          <button onClick={() => openEdit(r)} className="text-left">
-            <div className="font-medium text-blue-600 dark:text-blue-400">
-              {r.expense_number}
-            </div>
-            <div className="text-xs text-muted-foreground">{r.description}</div>
-          </button>
-        ),
-      },
-      {
-        key: "category_display",
-        header: "Category",
-        sortKey: "category",
-        sortType: "text",
-      },
-      {
-        key: "branch_name",
-        header: "Branch",
-        sortKey: "branch__branch_name",
-        sortType: "text",
-      },
-      {
-        key: "expense_date",
-        header: "Date",
-        sortKey: "expense_date",
-        sortType: "date",
-        cell: (r) =>
-          r.expense_date ? <DateText value={r.expense_date} /> : "—",
-      },
-      {
-        key: "payment_method_display",
-        header: "Payment Method",
-        sortKey: "payment_method",
-        sortType: "text",
-      },
-      {
-        key: "amount",
-        header: "Amount",
-        sortKey: "amount",
-        sortType: "currency",
-        align: "right",
-        cell: (r) => <CurrencyText value={r.amount} />,
-      },
-      {
-        key: "status",
-        header: "Status",
-        sortKey: "status",
-        sortType: "status",
-        cell: (r) => <StatusBadge status={r.status} />,
-      },
-    ],
-    [openEdit],
-  );
-
-  if (mode === "list") {
-    const payload = query.data || { results: [], count: 0 };
+  if (isEdit && existingQuery.isLoading) {
     return (
-      <div className="space-y-5">
-        <PageHeader
-          title="Purchase Expenses"
-          subtitle="Non-stock operating costs across branches"
-          actions={
-            <Button onClick={openNew} className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="mr-2 h-4 w-4" />
-              Log Expense
-            </Button>
-          }
-        />
-        <div className="flex gap-2 rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
-          <Info className="h-4 w-4" />
-          Track rent, utilities, transport, maintenance, office, and
-          miscellaneous expenses.
+      <div className="rounded-2xl border bg-card p-12 text-center text-muted-foreground">
+        Loading purchase expense...
+      </div>
+    );
+  }
+
+  if (isEdit && existingQuery.isError) {
+    return (
+      <div className="space-y-4">
+        <Button
+          variant="outline"
+          onClick={() => navigate("/purchases/purchase-expenses")}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back
+        </Button>
+
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+          Unable to load the purchase expense.
         </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Metric
-            label="This Month"
-            value={<CurrencyText value={summary.this_month_total || 0} />}
-            subtitle={`${summary.this_month_count || 0} expense(s)`}
-          />
-          <Metric
-            label="Pending Approval"
-            value={<CurrencyText value={summary.pending_total || 0} />}
-            subtitle={`${summary.pending_count || 0} awaiting review`}
-          />
-          <Metric
-            label="Paid This Month"
-            value={<CurrencyText value={summary.paid_this_month || 0} />}
-            subtitle={`${summary.paid_count || 0} settled`}
-          />
-          <Metric
-            label="Top Category"
-            value={summary.top_category || "—"}
-            subtitle={
-              summary.top_category
-                ? `AED ${summary.top_category_total || 0}`
-                : "No data"
-            }
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {["ALL", "PENDING", "APPROVED", "PAID", "REJECTED"].map((s) => (
-            <Button
-              key={s}
-              size="sm"
-              variant={statusFilter === s ? "default" : "outline"}
-              onClick={() => setStatusFilter(s)}
-            >
-              {s}
-            </Button>
-          ))}
-        </div>
-        <div className="grid gap-2 md:grid-cols-[1fr_220px]">
-          <SearchInput
-            value={q}
-            onChange={setQ}
-            placeholder="Search description, vendor, expense number"
-          />
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Categories</SelectItem>
-              {categories.map((c) => (
-                <SelectItem key={c.value} value={c.value}>
-                  {c.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <DataTable
-          columns={columns}
-          data={payload.results || []}
-          isLoading={query.isLoading}
-          page={page}
-          pageSize={12}
-          total={payload.count || 0}
-          onPageChange={setPage}
-          emptyTitle="No purchase expenses"
-          emptyDescription="Log the first operating expense."
-        />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5 pb-10">
+    <div className="space-y-6 pb-10">
       <PageHeader
-        title={editingId ? "Edit Purchase Expense" : "Log Purchase Expense"}
-        subtitle="Record a non-stock operating cost"
+        title={isEdit ? "Edit Purchase Expense" : "New Purchase Expense"}
+        subtitle="Record purchase-related expenses and payment information."
         actions={
-          <Button variant="outline" onClick={close}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
-          </Button>
-        }
-      />
-      <section className="card-surface p-5 grid gap-4 md:grid-cols-2">
-        <div className="md:col-span-2">
-          <Label>Description *</Label>
-          <Input
-            className="mt-2"
-            value={form.description}
-            onChange={(e) => update("description", e.target.value)}
-            placeholder="e.g. DEWA electricity bill, July"
-          />
-        </div>
-        <div>
-          <div className="flex items-center justify-between gap-2">
-            <Label>Category *</Label>
+          <div className="flex gap-2">
             <Button
               type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => addCategory.mutate()}
-              disabled={addCategory.isPending}
+              variant="outline"
+              onClick={() => navigate("/purchases/purchase-expenses")}
             >
-              <Plus className="mr-1 h-3.5 w-3.5" />
-              New Category
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Cancel
+            </Button>
+
+            <Button
+              type="button"
+              disabled={saveMutation.isPending}
+              onClick={() => saveMutation.mutate()}
+            >
+              {saveMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+
+              {isEdit ? "Update Expense" : "Create Expense"}
             </Button>
           </div>
-          <Select
-            value={form.category}
-            onValueChange={(v) => update("category", v)}
-          >
-            <SelectTrigger className="mt-2">
-              <SelectValue placeholder="Select category" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((c) => (
-                <SelectItem key={c.value} value={c.value}>
-                  {c.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label>Branch *</Label>
-          <Select
-            value={form.branch}
-            onValueChange={(v) => update("branch", v)}
-          >
-            <SelectTrigger className="mt-2">
-              <SelectValue placeholder="Select branch" />
-            </SelectTrigger>
-            <SelectContent>
-              {branches.map((b) => (
-                <SelectItem key={b.id} value={String(b.id)}>
-                  {b.branch_name || b.name || b.branch_code || `Branch ${b.id}`}
-                </SelectItem>
-              ))}
-              {!branchesLoading && branches.length === 0 ? (
-                <SelectItem value="__no_branches__" disabled>
-                  No branches available
-                </SelectItem>
-              ) : null}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label>Amount (AED) *</Label>
-          <Input
-            className="mt-2 text-left"
-            type="number"
-            step="0.01"
-            min="0"
-            value={form.amount}
-            onChange={(e) => update("amount", e.target.value)}
-          />
-        </div>
-        <div>
-          <Label>Date *</Label>
-          <Input
-            className="mt-2"
-            type="date"
-            value={form.expense_date}
-            onChange={(e) => update("expense_date", e.target.value)}
-          />
-        </div>
-        <div className="md:col-span-2">
-          <Label>Vendor / Paid To</Label>
-          <Input
-            className="mt-2"
-            value={form.vendor_name}
-            onChange={(e) => update("vendor_name", e.target.value)}
-            placeholder="e.g. DEWA, ADNOC, Al Futtaim"
-          />
-        </div>
-        <div>
-          <Label>Payment Method *</Label>
-          <Select
-            value={form.payment_method}
-            onValueChange={(value) => {
-              setForm((current) => ({
-                ...current,
-                payment_method: value,
-                bank_account: ["CASH", "PETTY_CASH"].includes(value)
-                  ? ""
-                  : current.bank_account,
-                cash_register: ["CASH", "PETTY_CASH"].includes(value)
-                  ? current.cash_register
-                  : "",
-              }));
-            }}
-          >
-            <SelectTrigger className="mt-2">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[
-                ["BANK_TRANSFER", "Bank Transfer"],
-                ["CHEQUE", "Cheque"],
-                ["CASH", "Cash"],
-                ["CARD", "Company Card"],
-                ["PETTY_CASH", "Petty Cash"],
-                ["OTHER", "Other"],
-              ].map(([v, l]) => (
-                <SelectItem key={v} value={v}>
-                  {l}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label>Paid From</Label>
-          {["CASH", "PETTY_CASH"].includes(form.payment_method) ? (
-            <Select
-              value={form.cash_register}
-              onValueChange={(v) => update("cash_register", v)}
-            >
-              <SelectTrigger className="mt-2">
-                <SelectValue placeholder="Select cash register" />
-              </SelectTrigger>
-              <SelectContent>
-                {cashRegisters.map((register) => (
-                  <SelectItem key={register.id} value={String(register.id)}>
-                    {getCashRegisterLabel(register)}
-                  </SelectItem>
-                ))}
+        }
+      />
 
-                {!cashRegistersLoading && cashRegisters.length === 0 ? (
-                  <SelectItem value="__no_cash_registers__" disabled>
-                    No open cash registers available
-                  </SelectItem>
-                ) : null}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Select
+      {errors.general ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {errors.general}
+        </div>
+      ) : null}
+
+      {optionsQuery.isError ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          Unable to load expense form options. Check the backend endpoint:{" "}
+          <code>/api/purchases/expenses/form-options/</code>
+        </div>
+      ) : null}
+
+      <Section
+        title="Expense Information"
+        description="Enter the branch, category, payee, date, and expense amount."
+      >
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          <div>
+            <Label>Expense Number</Label>
+
+            <Input
+              className="mt-2"
+              value={form.expense_number || "Automatically generated"}
+              disabled
+            />
+          </div>
+
+          <div>
+            <Label>Branch *</Label>
+
+            <select
+              className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"
+              value={form.branch}
+              onChange={(event) => updateField("branch", event.target.value)}
+            >
+              <option value="">Select branch</option>
+
+              {branches.map((branch) => (
+                <option key={branch.id} value={String(branch.id)}>
+                  {branch.branch_code ? `${branch.branch_code} — ` : ""}
+                  {branch.branch_name || branch.name}
+                </option>
+              ))}
+            </select>
+
+            <FieldError message={errors.branch} />
+          </div>
+
+          <div>
+            <Label>Category *</Label>
+
+            <select
+              className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"
+              value={form.category}
+              onChange={(event) => updateField("category", event.target.value)}
+            >
+              <option value="">Select category</option>
+
+              {categories.map((category) => (
+                <option key={category.value} value={category.value}>
+                  {category.label}
+                </option>
+              ))}
+            </select>
+
+            <FieldError message={errors.category} />
+          </div>
+
+          <div>
+            <Label>Expense Date *</Label>
+
+            <Input
+              className="mt-2"
+              type="date"
+              value={form.expense_date}
+              onChange={(event) =>
+                updateField("expense_date", event.target.value)
+              }
+            />
+
+            <FieldError message={errors.expense_date} />
+          </div>
+
+          <div className="md:col-span-2">
+            <Label>Description *</Label>
+
+            <Input
+              className="mt-2"
+              value={form.description}
+              onChange={(event) =>
+                updateField("description", event.target.value)
+              }
+              placeholder="Describe the expense"
+            />
+
+            <FieldError message={errors.description} />
+          </div>
+
+          <div>
+            <Label>Vendor / Payee</Label>
+
+            <Input
+              className="mt-2"
+              value={form.vendor_name}
+              onChange={(event) =>
+                updateField("vendor_name", event.target.value)
+              }
+              placeholder="Vendor or payee name"
+            />
+          </div>
+
+          <div>
+            <Label>Reference Number</Label>
+
+            <Input
+              className="mt-2"
+              value={form.reference_number}
+              onChange={(event) =>
+                updateField("reference_number", event.target.value)
+              }
+              placeholder="Receipt, invoice, or reference"
+            />
+          </div>
+
+          <div>
+            <Label>Expense Amount *</Label>
+
+            <Input
+              className="mt-2"
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={form.amount}
+              onChange={(event) => updateField("amount", event.target.value)}
+            />
+
+            <FieldError message={errors.amount} />
+          </div>
+
+          <div>
+            <Label>Tax Amount</Label>
+
+            <Input
+              className="mt-2"
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.tax_amount}
+              onChange={(event) =>
+                updateField("tax_amount", event.target.value)
+              }
+            />
+
+            <FieldError message={errors.tax_amount} />
+          </div>
+
+          <div>
+            <Label>Status</Label>
+
+            <select
+              className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"
+              value={form.status}
+              onChange={(event) => updateField("status", event.target.value)}
+            >
+              {statusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Payment Information"
+        description="Select the payment method and related financial account."
+      >
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <div>
+            <Label>Payment Method *</Label>
+
+            <select
+              className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"
+              value={form.payment_method}
+              onChange={(event) =>
+                updateField("payment_method", event.target.value)
+              }
+            >
+              <option value="">Select payment method</option>
+
+              {paymentMethodOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+
+            <FieldError message={errors.payment_method} />
+          </div>
+
+          <div>
+            <Label>Bank Account</Label>
+
+            <select
+              className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm disabled:opacity-60"
               value={form.bank_account}
-              onValueChange={(v) => update("bank_account", v)}
+              disabled={form.payment_method !== "BANK_TRANSFER"}
+              onChange={(event) =>
+                updateField("bank_account", event.target.value)
+              }
             >
-              <SelectTrigger className="mt-2">
-                <SelectValue placeholder="Select bank account" />
-              </SelectTrigger>
-              <SelectContent>
-                {bankAccounts.map((account) => (
-                  <SelectItem key={account.id} value={String(account.id)}>
-                    {getBankAccountLabel(account)}
-                  </SelectItem>
-                ))}
+              <option value="">Select bank account</option>
 
-                {!bankAccountsLoading && bankAccounts.length === 0 ? (
-                  <SelectItem value="__no_bank_accounts__" disabled>
-                    No bank accounts available
-                  </SelectItem>
-                ) : null}
-              </SelectContent>
-            </Select>
-          )}
+              {bankAccounts.map((account) => (
+                <option key={account.id} value={String(account.id)}>
+                  {account.account_name || account.name}
+                </option>
+              ))}
+            </select>
+
+            <FieldError message={errors.bank_account} />
+          </div>
+
+          <div>
+            <Label>Cash Register</Label>
+
+            <select
+              className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm disabled:opacity-60"
+              value={form.cash_register}
+              disabled={!["CASH", "PETTY_CASH"].includes(form.payment_method)}
+              onChange={(event) =>
+                updateField("cash_register", event.target.value)
+              }
+            >
+              <option value="">Select cash register</option>
+
+              {cashRegisters.map((register) => (
+                <option key={register.id} value={String(register.id)}>
+                  {register.name || `Cash Register #${register.id}`}
+                </option>
+              ))}
+            </select>
+
+            <FieldError message={errors.cash_register} />
+          </div>
         </div>
-        <div className="md:col-span-2">
-          <Label>Reference Number</Label>
-          <Input
-            className="mt-2"
-            value={form.reference_number}
-            onChange={(e) => update("reference_number", e.target.value)}
-          />
-        </div>
-        <div className="md:col-span-2">
-          <Label>Notes</Label>
+      </Section>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Section title="Notes">
+          <Label>Additional Notes</Label>
+
           <Textarea
-            className="mt-2"
-            rows={4}
+            className="mt-2 min-h-32"
             value={form.notes}
-            onChange={(e) => update("notes", e.target.value)}
-            placeholder="Optional remarks"
+            onChange={(event) => updateField("notes", event.target.value)}
+            placeholder="Add any supporting notes"
           />
-        </div>
-      </section>
-      <section className="card-surface p-5">
-        <Label>Receipt / Invoice</Label>
-        <label className="mt-3 flex cursor-pointer flex-col items-center rounded-xl border-2 border-dashed p-8">
-          <UploadCloud className="h-7 w-7 text-blue-500" />
-          <span className="mt-2 text-sm">Drop file or browse to upload</span>
-          <span className="text-xs text-muted-foreground">
-            PDF, JPG, PNG up to 10 MB
-          </span>
-          <input
+        </Section>
+
+        <Section title="Expense Summary">
+          <div className="space-y-4">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Expense Amount</span>
+
+              <CurrencyText value={amount} />
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Tax Amount</span>
+
+              <CurrencyText value={taxAmount} />
+            </div>
+
+            <div className="flex justify-between border-t pt-4 text-lg font-bold">
+              <span>Total</span>
+
+              <CurrencyText value={grandTotal} />
+            </div>
+          </div>
+        </Section>
+      </div>
+
+      <Section
+        title="Attachments"
+        description="Attach receipts, invoices, or supporting documents."
+      >
+        <div className="space-y-4">
+          <Label
+            htmlFor="expense-attachments"
+            className="inline-flex cursor-pointer items-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
+          >
+            <Paperclip className="mr-2 h-4 w-4" />
+            Add Files
+          </Label>
+
+          <Input
+            id="expense-attachments"
             type="file"
             multiple
-            accept=".pdf,.jpg,.jpeg,.png"
-            className="sr-only"
-            onChange={(e) => {
-              const fs = [...e.target.files];
-              setFiles((v) => [...v, ...fs]);
-            }}
+            className="hidden"
+            onChange={handleFiles}
           />
-        </label>
-        {files.map((f, i) => (
-          <div
-            key={`${f.name}-${i}`}
-            className="mt-2 flex items-center gap-2 rounded-lg border p-3"
-          >
-            <FileText className="h-4 w-4" />
-            <span className="flex-1 truncate text-sm">{f.name}</span>
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => setFiles((v) => v.filter((_, x) => x !== i))}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        ))}
-      </section>
-      <div className="flex justify-end gap-2">
-        <Button variant="ghost" onClick={close}>
-          Cancel
+
+          {existingAttachments.length ? (
+            <div>
+              <p className="mb-2 text-sm font-medium">Existing Attachments</p>
+
+              <div className="space-y-2">
+                {existingAttachments.map((attachment) => (
+                  <div
+                    key={attachment.id}
+                    className="rounded-lg border px-3 py-2 text-sm"
+                  >
+                    {attachment.original_name ||
+                      attachment.file_name ||
+                      `Attachment ${attachment.id}`}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {form.attachments.length ? (
+            <div>
+              <p className="mb-2 text-sm font-medium">New Attachments</p>
+
+              <div className="space-y-2">
+                {form.attachments.map((file, index) => (
+                  <div
+                    key={`${file.name}-${index}`}
+                    className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm"
+                  >
+                    <span>{file.name}</span>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeNewAttachment(index)}
+                    >
+                      <Trash2 className="h-4 w-4 text-red-600" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </Section>
+
+      <div className="flex justify-end gap-3">
+        <Button type="button" variant="outline" asChild>
+          <Link to="/purchases/purchase-expenses">Cancel</Link>
         </Button>
+
         <Button
-          className="bg-blue-600 hover:bg-blue-700"
-          onClick={() => save.mutate()}
-          disabled={save.isPending}
+          type="button"
+          disabled={saveMutation.isPending}
+          onClick={() => saveMutation.mutate()}
         >
-          <Save className="mr-2 h-4 w-4" />
-          {save.isPending ? "Saving..." : "Save Expense"}
+          {saveMutation.isPending ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="mr-2 h-4 w-4" />
+          )}
+
+          {isEdit ? "Update Purchase Expense" : "Create Purchase Expense"}
         </Button>
       </div>
     </div>
