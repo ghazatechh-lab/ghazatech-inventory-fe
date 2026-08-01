@@ -218,6 +218,10 @@ export default function StockMovementsPage() {
                   "Qty Change",
                   "Previous",
                   "New Stock",
+                  "Unit Cost",
+                  "VAT",
+                  "Value Change",
+                  "Running Value",
                   "Reference",
                   "By",
                 ].map((header) => (
@@ -235,7 +239,7 @@ export default function StockMovementsPage() {
               {isLoading ? (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={13}
                     className="px-4 py-14 text-center text-sm text-muted-foreground"
                   >
                     Loading stock movements...
@@ -244,7 +248,7 @@ export default function StockMovementsPage() {
               ) : isError ? (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={13}
                     className="px-4 py-14 text-center text-sm text-red-500"
                   >
                     Unable to load stock movements.
@@ -253,7 +257,7 @@ export default function StockMovementsPage() {
               ) : movements.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={13}
                     className="px-4 py-14 text-center text-sm text-muted-foreground"
                   >
                     No stock movements found.
@@ -328,6 +332,32 @@ export default function StockMovementsPage() {
 
                       <td className="px-4 py-4 text-right font-mono font-bold">
                         {movement.new_stock ?? "—"}
+                      </td>
+
+                      <td className="px-4 py-4 text-right font-mono">
+                        AED{" "}
+                        {Number(movement.capitalized_unit_cost || 0).toFixed(2)}
+                      </td>
+                      <td className="px-4 py-4 text-sm">
+                        <div>
+                          {String(
+                            movement.vat_treatment || "OUT_OF_SCOPE",
+                          ).replaceAll("_", " ")}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {Number(movement.vat_percentage || 0).toFixed(2)}% ·
+                          Recoverable AED{" "}
+                          {Number(movement.recoverable_vat_amount || 0).toFixed(
+                            2,
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-right font-mono">
+                        AED {Number(movement.net_value_change || 0).toFixed(2)}
+                      </td>
+                      <td className="px-4 py-4 text-right font-mono font-semibold">
+                        AED{" "}
+                        {Number(movement.running_stock_value || 0).toFixed(2)}
                       </td>
 
                       <td className="whitespace-nowrap px-4 py-4 font-mono text-xs text-blue-600 dark:text-blue-400">

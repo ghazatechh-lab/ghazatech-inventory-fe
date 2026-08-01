@@ -3,6 +3,7 @@ import React from "react";
 import { useListQuery, DataTable, SearchInput } from "@/hooks/useListQuery";
 import { PageHeader } from "@/components/common/PageHeader";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { currency } from "@/lib/inventoryValuation";
 
 const normalizePayload = (value) => {
   if (Array.isArray(value)) {
@@ -95,6 +96,18 @@ export default function LowStockPage() {
       header: "Damaged",
       sortKey: "damaged_stock",
       align: "right",
+    },
+    {
+      key: "average_unit_cost",
+      header: "Avg Cost",
+      align: "right",
+      cell: (row) => currency(row.average_unit_cost),
+    },
+    {
+      key: "total_inventory_value",
+      header: "Stock Value",
+      align: "right",
+      cell: (row) => currency(row.total_inventory_value),
     },
     {
       key: "available_stock",

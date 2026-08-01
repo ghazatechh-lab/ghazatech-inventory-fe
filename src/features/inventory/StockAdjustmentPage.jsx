@@ -69,6 +69,7 @@ export default function StockAdjustmentPage() {
       branch: "",
       product: "",
       variant: "",
+      stock_classification: "REGULAR",
       adjustment_type: "DEDUCT",
       quantity: 1,
       reason: "",
@@ -78,6 +79,8 @@ export default function StockAdjustmentPage() {
 
   const selectedBranchId = watch("branch");
   const selectedProductId = watch("product");
+  const selectedVariantId = watch("variant");
+  const selectedClassification = watch("stock_classification");
 
   const { data: branchResponse } = useQuery({
     queryKey: ["adjustment-branches"],
@@ -109,6 +112,41 @@ export default function StockAdjustmentPage() {
   });
 
   const {
+    data: stockResponse,
+    isLoading: stockLoading,
+    isFetching: stockFetching,
+  } = useQuery({
+    queryKey: [
+      "stock-adjustment-options",
+      selectedBranchId,
+      selectedProductId,
+      selectedVariantId,
+    ],
+
+    queryFn: async () =>
+      unwrap(
+        await api.get("/inventory/stock/adjustment-options/", {
+          params: {
+            branch: selectedBranchId,
+            product: selectedProductId,
+            variant: selectedVariantId || undefined,
+          },
+        }),
+      ),
+
+    enabled: Boolean(
+      selectedBranchId &&
+      selectedProductId &&
+      (selectedVariantId ||
+        !normalizeList(productResponse).find(
+          (product) => String(product.id) === String(selectedProductId),
+        )?.has_variants),
+    ),
+
+    staleTime: 0,
+  });
+
+  const {
     query: adjustmentQuery,
     page: adjustmentPage,
     setPage: setAdjustmentPage,
@@ -132,6 +170,26 @@ export default function StockAdjustmentPage() {
   );
 
   const products = normalizeList(productResponse);
+  const selectedStock = stockResponse || null;
+
+  const regularQuantity = Number(selectedStock?.regular_quantity || 0);
+
+  const restrictedQuantity = Number(selectedStock?.restricted_quantity || 0);
+
+  const availableRegularQuantity = Number(
+    selectedStock?.available_regular_quantity || 0,
+  );
+
+  const availableRestrictedQuantity = Number(
+    selectedStock?.available_restricted_quantity || 0,
+  );
+
+  const restrictedAllowed = selectedStock?.restricted_allowed !== false;
+
+  const selectedAvailableQuantity =
+    selectedClassification === "RESTRICTED"
+      ? availableRestrictedQuantity
+      : availableRegularQuantity;
 
   const adjustmentPayload = adjustmentQuery.data || {
     results: [],
@@ -156,6 +214,12 @@ export default function StockAdjustmentPage() {
   React.useEffect(() => {
     setValue("variant", "");
   }, [selectedProductId, setValue]);
+
+  React.useEffect(() => {
+    if (selectedClassification === "RESTRICTED" && !restrictedAllowed) {
+      setValue("stock_classification", "REGULAR");
+    }
+  }, [restrictedAllowed, selectedClassification, setValue]);
 
   React.useEffect(() => {
     if (branchId) {
@@ -191,6 +255,7 @@ export default function StockAdjustmentPage() {
         branch: branchId ? String(branchId) : "",
         product: "",
         variant: "",
+        stock_classification: "REGULAR",
         adjustment_type: "DEDUCT",
         quantity: 1,
         reason: "",
@@ -206,12 +271,28 @@ export default function StockAdjustmentPage() {
   });
 
   const submit = async (values) => {
+    if (
+      values.adjustment_type === "DEDUCT" &&
+      Number(values.quantity) > Number(selectedAvailableQuantity)
+    ) {
+      toast.error(
+        `Only ${selectedAvailableQuantity} ${
+          values.stock_classification === "RESTRICTED"
+            ? "restricted"
+            : "regular"
+        } units are available.`,
+      );
+      return;
+    }
+
     const payload = {
       branch: Number(values.branch),
 
       product: Number(values.product),
 
       variant: values.variant ? Number(values.variant) : null,
+
+      stock_classification: values.stock_classification,
 
       adjustment_type: values.adjustment_type,
 
@@ -270,6 +351,13 @@ export default function StockAdjustmentPage() {
       header: "Branch",
       sortKey: "branch__branch_code",
       cell: (item) => item.branch_code || item.branch_name,
+    },
+    {
+      key: "stock_classification",
+      header: "Stock type",
+      sortKey: "stock_classification",
+      cell: (item) =>
+        item.stock_classification === "RESTRICTED" ? "Restricted" : "Regular",
     },
     {
       key: "adjustment_type",
@@ -417,7 +505,7 @@ export default function StockAdjustmentPage() {
             {selectedProduct?.has_variants && (
               <div>
                 <Label>
-                  Attribute combination
+                  Attribute
                   <span className="ml-1 text-red-400">*</span>
                 </Label>
 
@@ -430,7 +518,7 @@ export default function StockAdjustmentPage() {
                   render={({ field }) => (
                     <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger className="mt-2 h-11">
-                        <SelectValue placeholder="Select attributes" />
+                        <SelectValue placeholder="Select attribute" />
                       </SelectTrigger>
 
                       <SelectContent>
@@ -457,6 +545,84 @@ export default function StockAdjustmentPage() {
                 )}
               </div>
             )}
+
+            <div>
+              <Label>
+                Stock type
+                <span className="ml-1 text-red-400">*</span>
+              </Label>
+
+              <Controller
+                name="stock_classification"
+                control={control}
+                rules={{
+                  required: "Stock type is required.",
+                }}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger className="mt-2 h-11">
+                      <SelectValue />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      <SelectItem value="REGULAR">
+                        Regular stock — {availableRegularQuantity} available
+                      </SelectItem>
+
+                      {restrictedAllowed && (
+                        <SelectItem value="RESTRICTED">
+                          Restricted stock — {availableRestrictedQuantity}{" "}
+                          available
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+
+              <div className="mt-2 rounded-lg border bg-slate-50 px-3 py-2 text-xs dark:border-white/10 dark:bg-white/[0.025]">
+                {stockLoading || stockFetching ? (
+                  <span className="text-muted-foreground">
+                    Loading available stock...
+                  </span>
+                ) : selectedClassification === "RESTRICTED" ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">
+                      Restricted stock
+                    </span>
+                    <span className="font-semibold text-amber-600 dark:text-amber-400">
+                      {availableRestrictedQuantity} available
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Regular stock</span>
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                      {availableRegularQuantity} available
+                    </span>
+                  </div>
+                )}
+
+                {!stockLoading && !stockFetching && selectedStock && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Physical quantity:{" "}
+                    {selectedClassification === "RESTRICTED"
+                      ? restrictedQuantity
+                      : regularQuantity}
+                  </p>
+                )}
+              </div>
+
+              {selectedProductId &&
+                (!selectedProduct?.has_variants || selectedVariantId) &&
+                !stockLoading &&
+                !selectedStock?.stock_id && (
+                  <p className="mt-1 text-xs text-amber-500">
+                    No stock record exists for this branch, product, and
+                    attribute. Increase will create the stock balance.
+                  </p>
+                )}
+            </div>
 
             <div>
               <Label>Adjustment type</Label>
@@ -511,6 +677,11 @@ export default function StockAdjustmentPage() {
               <Input
                 type="number"
                 min="1"
+                max={
+                  watch("adjustment_type") === "DEDUCT"
+                    ? selectedAvailableQuantity || undefined
+                    : undefined
+                }
                 {...register("quantity", {
                   required: "Quantity is required.",
 
@@ -567,7 +738,12 @@ export default function StockAdjustmentPage() {
           <div className="border-t border-white/10 bg-white/[0.02] p-5">
             <Button
               type="submit"
-              disabled={saving}
+              disabled={
+                saving ||
+                !selectedBranchId ||
+                !selectedProductId ||
+                (selectedProduct?.has_variants && !selectedVariantId)
+              }
               className="w-full bg-blue-600 hover:bg-blue-700"
             >
               {saving ? "Applying..." : "Apply adjustment"}
@@ -613,6 +789,16 @@ export default function StockAdjustmentPage() {
           {pendingAdjustment && (
             <div className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
               <div className="flex justify-between text-sm">
+                <span className="text-slate-400">Stock type</span>
+
+                <span className="font-medium text-white">
+                  {pendingAdjustment.stock_classification === "RESTRICTED"
+                    ? "Restricted"
+                    : "Regular"}
+                </span>
+              </div>
+
+              <div className="mt-3 flex justify-between text-sm">
                 <span className="text-slate-400">Type</span>
 
                 <span

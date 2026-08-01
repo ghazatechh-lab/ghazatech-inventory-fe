@@ -201,11 +201,17 @@ export default function ProductListPage() {
         .map((product) => [String(product.sku), product]),
     );
 
-    const rows = [];
-    const seen = new Set();
+    /*
+     * All branches mode:
+     * Aggregate all base-stock and attribute rows into one Product + Branch
+     * row. This prevents the same product from appearing multiple times in
+     * the same branch.
+     */
+    const branchRowMap = new Map();
 
     stockGroups.forEach((group) => {
       const productId = group.product_id ?? group.product?.id ?? group.id;
+
       const product = productById.get(String(productId)) ||
         productBySku.get(String(group.sku || group.product_sku || "")) || {
           id: productId,
@@ -225,16 +231,14 @@ export default function ProductListPage() {
       branchStocks.forEach((stock) => {
         const branchIdValue =
           stock.branch_id ?? stock.branch?.id ?? stock.branch;
-        const variantId = stock.variant_id ?? group.variant_id ?? "";
-        const rowKey = `${product.id}-${branchIdValue}-${variantId}`;
 
-        if (seen.has(rowKey)) {
+        if (!branchIdValue) {
           return;
         }
 
-        seen.add(rowKey);
+        const rowKey = `${product.id}-${branchIdValue}`;
 
-        rows.push({
+        const currentRow = branchRowMap.get(rowKey) || {
           ...product,
           row_key: rowKey,
           branch_id: branchIdValue,
@@ -248,22 +252,68 @@ export default function ProductListPage() {
             stock.branch?.branch_name ||
             stock.branch?.name ||
             "",
-          rack_code:
-            stock.rack_code || stock.rack?.rack_code || stock.rack?.code || "",
-          rack_name:
-            stock.rack_name || stock.rack?.rack_name || stock.rack?.name || "",
-          total_available_qty: Number(
+          rack_codes: new Set(),
+          rack_names: new Set(),
+          total_available_qty: 0,
+          total_available_regular: 0,
+          total_available_restricted: 0,
+          stock_row_count: 0,
+        };
+
+        const availableQuantity = Number(
+          stock.total_available_quantity ??
             stock.available_stock ??
-              stock.available_qty ??
-              stock.current_stock ??
-              stock.quantity ??
-              0,
-          ),
-          variant_id: variantId || null,
-          variant_label: stock.variant_label || group.variant_label || "",
-        });
+            stock.available_qty ??
+            stock.current_stock ??
+            stock.quantity ??
+            0,
+        );
+
+        const regularAvailable = Number(stock.available_regular_quantity ?? 0);
+
+        const restrictedAvailable = Number(
+          stock.available_restricted_quantity ?? 0,
+        );
+
+        const rackCode =
+          stock.rack_code || stock.rack?.rack_code || stock.rack?.code || "";
+
+        const rackName =
+          stock.rack_name || stock.rack?.rack_name || stock.rack?.name || "";
+
+        if (rackCode) {
+          currentRow.rack_codes.add(rackCode);
+        }
+
+        if (rackName) {
+          currentRow.rack_names.add(rackName);
+        }
+
+        currentRow.total_available_qty += Number.isFinite(availableQuantity)
+          ? Math.max(0, availableQuantity)
+          : 0;
+
+        currentRow.total_available_regular += Number.isFinite(regularAvailable)
+          ? Math.max(0, regularAvailable)
+          : 0;
+
+        currentRow.total_available_restricted += Number.isFinite(
+          restrictedAvailable,
+        )
+          ? Math.max(0, restrictedAvailable)
+          : 0;
+
+        currentRow.stock_row_count += 1;
+
+        branchRowMap.set(rowKey, currentRow);
       });
     });
+
+    const rows = Array.from(branchRowMap.values()).map((row) => ({
+      ...row,
+      rack_code: Array.from(row.rack_codes).join(", "),
+      rack_name: Array.from(row.rack_names).join(", "),
+    }));
 
     products.forEach((product) => {
       const alreadyIncluded = rows.some(
@@ -273,7 +323,13 @@ export default function ProductListPage() {
       if (!alreadyIncluded) {
         rows.push({
           ...product,
-          row_key: `${product.id}-${product.branch_id || product.branch || "unassigned"}`,
+          row_key: `${product.id}-unassigned`,
+          branch_code: product.branch_code || product.branch?.branch_code || "",
+          branch_name: product.branch_name || product.branch?.branch_name || "",
+          total_available_qty: 0,
+          total_available_regular: 0,
+          total_available_restricted: 0,
+          stock_row_count: 0,
         });
       }
     });
@@ -384,9 +440,28 @@ export default function ProductListPage() {
       header: "Available Qty",
       align: "right",
       cell: (product) => (
-        <span className="font-numeric font-medium text-slate-200">
-          {getAvailableQuantity(product)}
-        </span>
+        <div className="text-right">
+          <span
+            className="font-numeric font-medium text-slate-200"
+            title={
+              isAllBranches
+                ? `Regular: ${Number(
+                    product.total_available_regular || 0,
+                  )}, Restricted: ${Number(
+                    product.total_available_restricted || 0,
+                  )}`
+                : undefined
+            }
+          >
+            {getAvailableQuantity(product)}
+          </span>
+
+          {isAllBranches && Number(product.stock_row_count || 0) > 1 && (
+            <p className="mt-0.5 text-[10px] text-slate-500">
+              Total across attributes
+            </p>
+          )}
+        </div>
       ),
     },
     {
@@ -475,8 +550,8 @@ export default function ProductListPage() {
 
       {isAllBranches && (
         <div className="mb-4 rounded-xl border border-blue-400/20 bg-blue-500/10 px-4 py-3 text-sm text-blue-100">
-          All Branches is selected. The same product is shown as a separate row
-          for every branch where it has stock.
+          All Branches is selected. Each product is shown once per branch, with
+          the available quantity totalled across all attributes.
         </div>
       )}
 

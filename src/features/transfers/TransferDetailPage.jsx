@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { DateText } from "@/components/common/CurrencyText";
+import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { cn } from "@/lib/utils";
 
 const STEPS = [
@@ -108,6 +108,13 @@ export default function TransferDetailPage() {
   if (isLoading) return <LoadingState />;
 
   const transfer = data || {};
+
+  const transferItems = Array.isArray(transfer.items)
+    ? transfer.items
+    : Array.isArray(transfer.items?.results)
+      ? transfer.items.results
+      : [];
+
   const status = normalizeStatus(transfer.status);
 
   const deleteTransfer = async () => {
@@ -239,10 +246,13 @@ export default function TransferDetailPage() {
                 <th className="py-2 text-left">Product</th>
                 <th className="text-right">Quantity</th>
                 <th className="text-right">Damaged</th>
+                <th className="text-left">Class</th>
+                <th className="text-right">Unit Cost</th>
+                <th className="text-right">Value</th>
               </tr>
             </thead>
             <tbody>
-              {(transfer.items || []).map((item) => (
+              {transferItems.map((item) => (
                 <tr key={item.id} className="border-b last:border-0">
                   <td className="py-3">
                     <div className="font-medium">
@@ -260,13 +270,49 @@ export default function TransferDetailPage() {
                   <td className="text-right font-numeric text-red-500">
                     {item.damaged_quantity ?? item.damaged ?? 0}
                   </td>
+                  <td>{item.stock_classification || "REGULAR"}</td>
+                  <td className="text-right">
+                    <CurrencyText value={item.transfer_unit_cost || 0} />
+                  </td>
+                  <td className="text-right font-medium">
+                    <CurrencyText value={item.line_transfer_value || 0} />
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+
+          {!transferItems.length && (
+            <div className="py-12 text-center">
+              <p className="font-medium">No transfer items were saved</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                This transfer record does not contain any item rows. Delete and
+                recreate older affected records after applying the backend fix.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="card-surface space-y-4 p-5 text-sm">
+          <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
+            Internal stock movement: VAT scope is{" "}
+            {transfer.tax_scope || "OUT_OF_SCOPE"}. Only courier charges create
+            VAT.
+          </div>
+          <div className="grid grid-cols-2 gap-3 rounded-lg border p-3">
+            <span className="text-muted-foreground">Transfer value</span>
+            <span className="text-right font-medium">
+              <CurrencyText value={transfer.transfer_value || 0} />
+            </span>
+            <span className="font-medium">Total transfer cost</span>
+            <span className="text-right font-semibold">
+              <CurrencyText value={transfer.total_transfer_cost || 0} />
+            </span>
+            <span className="text-muted-foreground">Reconciliation</span>
+            <span className="text-right">
+              {transfer.reconciliation_status || "PENDING"}
+            </span>
+          </div>
           <div>
             <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
               Created / requested by

@@ -97,7 +97,9 @@ function Breadcrumbs() {
 
         const isLast = index === parts.length - 1;
 
-        const isSectionOnly = nonClickableSegments.has(part);
+        const isDynamicId = /^\d+$/.test(part);
+
+        const isSectionOnly = nonClickableSegments.has(part) || isDynamicId;
 
         return (
           <React.Fragment key={generatedPath}>

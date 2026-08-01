@@ -4,6 +4,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import {
+  calculateTaxLine,
+  canCreateNonStandardTaxSale,
+  canManageRestrictedStock,
+} from "@/lib/taxAccess";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -22,6 +28,7 @@ import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { SalesDocumentFlow } from "@/components/sales/SalesDocumentFlow";
 import { MetricCard } from "@/components/sales/MetricCard";
+import { SalesVatLineControls } from "@/components/sales/SalesVatLineControls";
 
 const normalizeList = (value) => {
   if (Array.isArray(value)) return value;
@@ -76,6 +83,10 @@ const createForm = (branchId) => ({
 
 export default function CreditNotesPage() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  const canManageTax = canCreateNonStandardTaxSale(user);
+  const canManageRestricted = canManageRestrictedStock(user);
 
   const { branchId, branchParams } = useActiveBranchFilter();
 
@@ -162,7 +173,12 @@ export default function CreditNotesPage() {
         selected: number(item.available_quantity) > 0,
         credit_quantity: number(item.available_quantity),
         unit_price: number(item.unit_price),
-        vat_percentage: number(item.vat_percentage),
+        vat_percentage: number(item.vat_percentage ?? item.tax_rate ?? 5),
+        tax_rate: number(item.tax_rate ?? item.vat_percentage ?? 5),
+        tax_treatment: item.tax_treatment || "STANDARD_VAT",
+        tax_reason: item.tax_reason || "",
+        stock_classification: item.stock_classification || "REGULAR",
+        tax_inclusive: Boolean(invoiceDetail.tax_inclusive),
       })),
     }));
   }, [invoiceDetail, editingId]);
@@ -192,7 +208,12 @@ export default function CreditNotesPage() {
         selected: true,
         credit_quantity: number(item.credit_quantity),
         unit_price: number(item.unit_price),
-        vat_percentage: number(item.vat_percentage),
+        vat_percentage: number(item.vat_percentage ?? item.tax_rate ?? 5),
+        tax_rate: number(item.tax_rate ?? item.vat_percentage ?? 5),
+        tax_treatment: item.tax_treatment || "STANDARD_VAT",
+        tax_reason: item.tax_reason || "",
+        stock_classification: item.stock_classification || "REGULAR",
+        tax_inclusive: Boolean(existing.tax_inclusive),
       })),
     });
   }, [existing]);
@@ -202,15 +223,19 @@ export default function CreditNotesPage() {
   );
 
   const calculatedItems = selectedItems.map((item) => {
-    const subtotal = number(item.credit_quantity) * number(item.unit_price);
-
-    const vat = (subtotal * number(item.vat_percentage)) / 100;
+    const values = calculateTaxLine({
+      quantity: item.credit_quantity,
+      unitPrice: item.unit_price,
+      treatment: item.tax_treatment || "STANDARD_VAT",
+      taxRate: item.tax_rate ?? item.vat_percentage ?? 5,
+      inclusive: Boolean(item.tax_inclusive),
+    });
 
     return {
       ...item,
-      subtotal,
-      vat_amount: vat,
-      line_total: subtotal + vat,
+      subtotal: values.taxable,
+      vat_amount: values.tax,
+      line_total: values.total,
     };
   });
 
@@ -335,7 +360,14 @@ export default function CreditNotesPage() {
           invoiced_quantity: number(item.invoiced_quantity),
           credit_quantity: number(item.credit_quantity),
           unit_price: number(item.unit_price),
-          vat_percentage: number(item.vat_percentage),
+          vat_percentage: number(item.tax_rate ?? item.vat_percentage ?? 5),
+          tax_rate: number(item.tax_rate ?? item.vat_percentage ?? 5),
+          tax_treatment: canManageTax ? item.tax_treatment : "STANDARD_VAT",
+          tax_reason: canManageTax ? String(item.tax_reason || "").trim() : "",
+          stock_classification: canManageRestricted
+            ? item.stock_classification
+            : "REGULAR",
+          tax_inclusive: Boolean(item.tax_inclusive),
         })),
       };
 
@@ -745,6 +777,18 @@ export default function CreditNotesPage() {
                               AED {number(item.unit_price).toFixed(2)}
                               {" / unit"}
                             </p>
+
+                            {(canManageTax || canManageRestricted) && (
+                              <div className="mt-2">
+                                <SalesVatLineControls
+                                  item={item}
+                                  canManageTax={canManageTax}
+                                  canManageRestricted={canManageRestricted}
+                                  readOnly
+                                  onChange={() => {}}
+                                />
+                              </div>
+                            )}
                           </div>
 
                           <div className="text-right">

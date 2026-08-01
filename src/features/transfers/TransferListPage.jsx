@@ -23,7 +23,10 @@ export default function TransferListPage() {
     count: 0,
   };
 
-  const rows = React.useMemo(() => payload.results || [], [payload.results]);
+  const rows = React.useMemo(
+    () => (Array.isArray(payload.results) ? payload.results : []),
+    [payload.results],
+  );
 
   const summary = React.useMemo(
     () => ({

@@ -285,6 +285,32 @@ export default function StockPage() {
         </div>
       </section>
 
+      <section className="grid gap-4 sm:grid-cols-2">
+        <div className="card-surface p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            Inventory Carrying Value
+          </p>
+          <p className="mt-2 text-2xl font-bold">
+            {currency(summary.inventoryValue)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Excludes recoverable input VAT; includes capitalized non-recoverable
+            VAT.
+          </p>
+        </div>
+        <div className="card-surface p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            Recoverable Input VAT
+          </p>
+          <p className="mt-2 text-2xl font-bold text-blue-600 dark:text-blue-400">
+            {currency(summary.recoverableVat)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Tracked separately from inventory value.
+          </p>
+        </div>
+      </section>
+
       <section className="card-surface grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-6">
         <div className="xl:col-span-2">
           <Label>Search</Label>
@@ -392,6 +418,12 @@ export default function StockPage() {
                 <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Retail Price
                 </th>
+                <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Avg Cost
+                </th>
+                <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Stock Value
+                </th>
                 <th className="min-w-[420px] px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Branch Inventory
                 </th>
@@ -408,7 +440,7 @@ export default function StockPage() {
               {isLoading ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={8}
                     className="px-5 py-14 text-center text-sm text-muted-foreground"
                   >
                     Loading stock overview...
@@ -417,7 +449,7 @@ export default function StockPage() {
               ) : isError ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={8}
                     className="px-5 py-14 text-center text-sm text-red-500"
                   >
                     Unable to load stock overview.
@@ -425,7 +457,7 @@ export default function StockPage() {
                 </tr>
               ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-14 text-center">
+                  <td colSpan={8} className="px-5 py-14 text-center">
                     <Boxes className="mx-auto h-8 w-8 text-muted-foreground" />
                     <p className="mt-3 font-medium">No stock records found</p>
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -487,6 +519,26 @@ export default function StockPage() {
 
                       <td className="px-5 py-4 text-right font-medium">
                         {currency(price)}
+                      </td>
+
+                      <td className="px-5 py-4 text-right">
+                        <div className="font-medium">
+                          {currency(row.average_unit_cost)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {row.vat_treatment || "OUT_OF_SCOPE"} ·{" "}
+                          {numberValue(row.vat_percentage)}%
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4 text-right">
+                        <div className="font-semibold">
+                          {currency(row.total_inventory_value)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          VAT excl.{" "}
+                          {currency(row.inventory_value_excluding_vat)}
+                        </div>
                       </td>
 
                       <td className="px-5 py-4">

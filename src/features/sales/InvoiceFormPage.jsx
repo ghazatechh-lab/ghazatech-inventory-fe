@@ -10,6 +10,12 @@ import { Plus, Save, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import {
+  calculateTaxLine,
+  canManageRestrictedStock,
+  isAdmin,
+} from "@/lib/taxAccess";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -47,6 +53,8 @@ const number = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const money = (value) => Number(number(value).toFixed(2));
+
 const getProductPrice = (product) =>
   number(
     product?.retail_price ??
@@ -66,6 +74,13 @@ const emptyItem = () => ({
   quantity: 1,
   unit_price: 0,
   vat_percentage: 5,
+  tax_rate: 5,
+  tax_treatment: "STANDARD_VAT",
+  tax_reason: "",
+  stock_classification: "REGULAR",
+  tax_inclusive: false,
+  available_regular_quantity: 0,
+  available_restricted_quantity: 0,
 });
 
 export default function InvoiceFormPage() {
@@ -76,6 +91,9 @@ export default function InvoiceFormPage() {
   const isEdit = Boolean(id);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  const canManageRestricted = isAdmin(user) || canManageRestrictedStock(user);
 
   const { branchId } = useActiveBranchFilter();
 
@@ -142,6 +160,16 @@ export default function InvoiceFormPage() {
   const salesOrders = normalizeList(options.sales_orders);
 
   const bankAccounts = normalizeList(options.bank_accounts);
+
+  const findProductOption = React.useCallback(
+    (productId, variantId) =>
+      products.find(
+        (option) =>
+          String(option.product_id || option.id) === String(productId || "") &&
+          String(option.variant_id || "") === String(variantId || ""),
+      ),
+    [products],
+  );
 
   React.useEffect(() => {
     const source = existing || sourceOrder;
@@ -217,11 +245,69 @@ export default function InvoiceFormPage() {
 
             unit_price: number(item.unit_price),
 
-            vat_percentage: number(item.vat_percentage),
+            vat_percentage: number(item.vat_percentage ?? item.tax_rate ?? 5),
+            tax_rate: number(item.tax_rate ?? item.vat_percentage ?? 5),
+            tax_treatment: item.tax_treatment || "STANDARD_VAT",
+            tax_reason: item.tax_reason || "",
+            stock_classification: item.stock_classification || "REGULAR",
+            tax_inclusive: Boolean(
+              existing?.tax_inclusive || sourceOrder?.tax_inclusive,
+            ),
           }))
         : [emptyItem()],
     });
   }, [existing, sourceOrder]);
+
+  React.useEffect(() => {
+    if (!products.length) return;
+
+    setForm((current) => {
+      let changed = false;
+
+      const items = current.items.map((item) => {
+        const option = findProductOption(item.product, item.variant);
+
+        if (!option) {
+          return item;
+        }
+
+        const regular = number(
+          option.available_regular_quantity ??
+            option.regular_quantity ??
+            option.available_stock ??
+            0,
+        );
+
+        const restricted = number(
+          option.available_restricted_quantity ??
+            option.restricted_quantity ??
+            0,
+        );
+
+        if (
+          number(item.available_regular_quantity) === regular &&
+          number(item.available_restricted_quantity) === restricted
+        ) {
+          return item;
+        }
+
+        changed = true;
+
+        return {
+          ...item,
+          available_regular_quantity: regular,
+          available_restricted_quantity: restricted,
+        };
+      });
+
+      return changed
+        ? {
+            ...current,
+            items,
+          }
+        : current;
+    });
+  }, [products, findProductOption]);
 
   React.useEffect(() => {
     const termDays = {
@@ -245,15 +331,19 @@ export default function InvoiceFormPage() {
   }, [form.invoice_date, form.payment_terms]);
 
   const calculatedItems = form.items.map((item) => {
-    const subtotal = number(item.quantity) * number(item.unit_price);
-
-    const vatAmount = (subtotal * number(item.vat_percentage)) / 100;
+    const values = calculateTaxLine({
+      quantity: item.quantity,
+      unitPrice: item.unit_price,
+      treatment: item.tax_treatment || "STANDARD_VAT",
+      taxRate: item.tax_rate ?? item.vat_percentage ?? 5,
+      inclusive: Boolean(item.tax_inclusive),
+    });
 
     return {
       ...item,
-      subtotal,
-      vat_amount: vatAmount,
-      line_total: subtotal + vatAmount,
+      subtotal: values.taxable,
+      vat_amount: values.tax,
+      line_total: values.total,
     };
   });
 
@@ -308,17 +398,30 @@ export default function InvoiceFormPage() {
 
   const selectProduct = (index, optionValue) => {
     const [productId, variantId = ""] = String(optionValue || "").split(":");
-    const product = products.find(
-      (item) =>
-        String(item.product_id || item.id) === String(productId) &&
-        String(item.variant_id || "") === String(variantId),
-    );
+    const product = findProductOption(productId, variantId);
 
     updateItem(index, {
       product: productId,
       variant: variantId,
       description: product?.description || product?.product_name || "",
       unit_price: getProductPrice(product),
+      vat_percentage: number(product?.vat_percentage ?? product?.vat_rate ?? 5),
+      tax_rate: number(product?.vat_rate ?? product?.vat_percentage ?? 5),
+      tax_treatment: product?.tax_treatment || "STANDARD_VAT",
+      tax_reason: "",
+      stock_classification: "REGULAR",
+      tax_inclusive: Boolean(product?.vat_inclusive),
+      available_regular_quantity: number(
+        product?.available_regular_quantity ??
+          product?.regular_quantity ??
+          product?.available_stock ??
+          0,
+      ),
+      available_restricted_quantity: number(
+        product?.available_restricted_quantity ??
+          product?.restricted_quantity ??
+          0,
+      ),
     });
   };
 
@@ -400,16 +503,11 @@ export default function InvoiceFormPage() {
 
         bank_account: form.bank_account ? Number(form.bank_account) : null,
 
-        discount_amount: number(form.discount_amount),
+        discount_amount: money(form.discount_amount),
 
-        shipping_amount: number(form.shipping_amount),
+        shipping_amount: money(form.shipping_amount),
 
-        paid_amount: number(form.paid_amount),
-
-        subtotal,
-        vat_amount: vatAmount,
-        total_amount: total,
-        balance_due: amountDue,
+        paid_amount: money(form.paid_amount),
 
         items: calculatedItems.map((item) => ({
           ...(item.id
@@ -428,11 +526,18 @@ export default function InvoiceFormPage() {
 
           description: item.description,
 
-          quantity: number(item.quantity),
+          quantity: Number(number(item.quantity).toFixed(2)),
 
-          unit_price: number(item.unit_price),
+          unit_price: money(item.unit_price),
 
-          vat_percentage: number(item.vat_percentage),
+          vat_percentage: number(item.tax_rate ?? item.vat_percentage ?? 5),
+          tax_rate: number(item.tax_rate ?? item.vat_percentage ?? 5),
+          tax_treatment: item.tax_treatment || "STANDARD_VAT",
+          tax_reason: String(item.tax_reason || "").trim(),
+          stock_classification: canManageRestricted
+            ? item.stock_classification
+            : "REGULAR",
+          tax_inclusive: Boolean(item.tax_inclusive),
         })),
       };
 
@@ -779,13 +884,21 @@ export default function InvoiceFormPage() {
 
         <div className="overflow-x-auto p-5">
           <div className="min-w-[980px]">
-            <div className="grid grid-cols-[minmax(200px,1fr)_minmax(220px,1fr)_85px_120px_90px_140px_40px] gap-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <div
+              className={`grid gap-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground ${
+                canManageRestricted
+                  ? "grid-cols-[minmax(210px,1.2fr)_minmax(220px,1fr)_150px_85px_120px_110px_40px]"
+                  : "grid-cols-[minmax(230px,1.2fr)_minmax(240px,1fr)_85px_120px_110px_40px]"
+              }`}
+            >
               <span>Item</span>
               <span>Description</span>
+
+              {canManageRestricted && <span>Stock type</span>}
+
               <span className="text-right">Qty</span>
-              <span className="text-right">Unit Price</span>
-              <span>VAT</span>
-              <span className="text-right">Line Total</span>
+              <span className="text-right">Unit price</span>
+              <span className="text-right">Line total</span>
               <span />
             </div>
 
@@ -793,7 +906,11 @@ export default function InvoiceFormPage() {
               {calculatedItems.map((item, index) => (
                 <div
                   key={item.id || index}
-                  className="grid grid-cols-[minmax(200px,1fr)_minmax(220px,1fr)_85px_120px_90px_140px_40px] items-center gap-3 border-b border-slate-100 py-2 last:border-b-0 dark:border-white/5"
+                  className={`grid items-center gap-3 border-b border-slate-100 py-3 last:border-b-0 dark:border-white/5 ${
+                    canManageRestricted
+                      ? "grid-cols-[minmax(210px,1.2fr)_minmax(220px,1fr)_150px_85px_120px_110px_40px]"
+                      : "grid-cols-[minmax(230px,1.2fr)_minmax(240px,1fr)_85px_120px_110px_40px]"
+                  }`}
                 >
                   <Select
                     value={
@@ -828,7 +945,17 @@ export default function InvoiceFormPage() {
                               </p>
                               <p className="mt-0.5 truncate text-xs text-muted-foreground">
                                 {product.sku || "No SKU"} ·{" "}
-                                {product.available_stock ?? 0} available
+                                {canManageRestricted
+                                  ? `Regular ${number(
+                                      product.available_regular_quantity ??
+                                        product.available_stock,
+                                    )} · Restricted ${number(
+                                      product.available_restricted_quantity,
+                                    )}`
+                                  : `${number(
+                                      product.available_regular_quantity ??
+                                        product.available_stock,
+                                    )} available`}
                               </p>
                             </div>
                             <span className="shrink-0 text-sm font-semibold text-blue-600 dark:text-blue-300">
@@ -875,23 +1002,50 @@ export default function InvoiceFormPage() {
                     className="text-right"
                   />
 
-                  <Select
-                    value={String(item.vat_percentage)}
-                    onValueChange={(value) =>
-                      updateItem(index, {
-                        vat_percentage: value,
-                      })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                  {canManageRestricted && (
+                    <div>
+                      <Select
+                        value={item.stock_classification || "REGULAR"}
+                        onValueChange={(value) =>
+                          updateItem(index, {
+                            stock_classification: value,
+                          })
+                        }
+                      >
+                        <SelectTrigger className="h-10">
+                          <SelectValue />
+                        </SelectTrigger>
 
-                    <SelectContent>
-                      <SelectItem value="0">0%</SelectItem>
-                      <SelectItem value="5">5%</SelectItem>
-                    </SelectContent>
-                  </Select>
+                        <SelectContent>
+                          <SelectItem value="REGULAR">
+                            Regular · {number(item.available_regular_quantity)}{" "}
+                            available
+                          </SelectItem>
+
+                          <SelectItem
+                            value="RESTRICTED"
+                            disabled={
+                              number(item.available_restricted_quantity) <= 0
+                            }
+                          >
+                            Restricted ·{" "}
+                            {number(item.available_restricted_quantity)}{" "}
+                            available
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        {item.stock_classification === "RESTRICTED"
+                          ? `${number(
+                              item.available_restricted_quantity,
+                            )} restricted available`
+                          : `${number(
+                              item.available_regular_quantity,
+                            )} regular available`}
+                      </p>
+                    </div>
+                  )}
 
                   <div className="text-right font-semibold">
                     <CurrencyText

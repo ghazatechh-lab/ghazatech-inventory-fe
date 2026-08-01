@@ -1,5 +1,3 @@
-import { hasAnyPermission, hasPermission, isAdmin } from "@/lib/permissions";
-
 export const canViewRestrictedStock = (user) =>
   isAdmin(user) ||
   hasAnyPermission(user, [
@@ -16,6 +14,9 @@ export const canCreateRestrictedPurchase = (user) =>
 
 export const canCreateNonStandardTaxSale = (user) =>
   isAdmin(user) || hasPermission(user, "sales.create_non_standard_tax_sale");
+
+export const canViewNonStandardTaxSale = (user) =>
+  isAdmin(user) || hasPermission(user, "sales.view_non_standard_tax_sale");
 
 export const taxRateFor = (treatment, configuredRate = 5) =>
   treatment === "STANDARD_VAT" ? Number(configuredRate || 0) : 0;
@@ -35,4 +36,14 @@ export const calculateTaxLine = ({
     inclusive && rate > 0 ? net - net / (1 + rate / 100) : (net * rate) / 100;
   const taxable = inclusive ? net - tax : net;
   return { gross, taxable, tax, total: inclusive ? net : net + tax };
+};
+
+export const isAdmin = (user) => {
+  const roleCode = String(
+    user?.role_code || user?.role?.code || user?.role || "",
+  )
+    .trim()
+    .toUpperCase();
+
+  return roleCode === "ADMIN";
 };

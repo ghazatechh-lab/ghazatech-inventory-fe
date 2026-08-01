@@ -24,7 +24,13 @@ export default function TransferFormPage() {
   const [from, setFrom] = React.useState("");
   const [to, setTo] = React.useState("");
   const [items, setItems] = React.useState([
-    { stock_key: "", product: "", variant: null, requested_quantity: 1 },
+    {
+      stock_key: "",
+      product: "",
+      variant: null,
+      requested_quantity: 1,
+      stock_classification: "REGULAR",
+    },
   ]);
   const [transferDate, setTransferDate] = React.useState(today());
   const [notes, setNotes] = React.useState("");
@@ -60,10 +66,17 @@ export default function TransferFormPage() {
 
           const productId = Number(row.product_id ?? row.product);
           const variantId = row.variant_id ?? row.variant ?? null;
-          const availableStock = Number(
-            branchStock?.available_stock ??
-              row.total_available ??
-              row.available_stock ??
+          const availableRegular = Number(
+            branchStock?.available_regular_quantity ??
+              row.available_regular_quantity ??
+              row.regular_quantity ??
+              0,
+          );
+
+          const availableRestricted = Number(
+            branchStock?.available_restricted_quantity ??
+              row.available_restricted_quantity ??
+              row.restricted_quantity ??
               0,
           );
 
@@ -74,21 +87,40 @@ export default function TransferFormPage() {
             sku: row.sku,
             product_name: row.product_name,
             variant_label: row.variant_label || "Base stock",
-            available_stock: availableStock,
+            available_regular_quantity: availableRegular,
+            available_restricted_quantity: availableRestricted,
+            average_unit_cost_excluding_vat: Number(
+              branchStock?.average_unit_cost_excluding_vat ??
+                row.average_unit_cost_excluding_vat ??
+                0,
+            ),
           };
         })
-        .filter((product) => product.product && product.available_stock > 0),
+        .filter(
+          (product) =>
+            product.product &&
+            (product.available_regular_quantity > 0 ||
+              product.available_restricted_quantity > 0),
+        ),
     [stockRows, from],
   );
   const mutation = useMutation({
-    mutationFn: (payload) => api.post("/transfers/", payload),
-    onSuccess: async () => {
+    mutationFn: async (payload) =>
+      unwrap(await api.post("/transfers/", payload)),
+
+    onSuccess: async (createdTransfer) => {
       await queryClient.invalidateQueries({ queryKey: ["transfers"] });
       await queryClient.refetchQueries({
         queryKey: ["transfers"],
         type: "active",
       });
       toast.success("Transfer request created.");
+
+      if (createdTransfer?.id) {
+        navigate(`/transfers/${createdTransfer.id}`);
+        return;
+      }
+
       navigate("/transfers");
     },
     onError: (error) => {
@@ -111,7 +143,27 @@ export default function TransferFormPage() {
     if (!transferDate) return toast.error("Select the transfer date.");
     if (from === to)
       return toast.error("Source and destination must be different.");
-    if (!validItems.length) return toast.error("Add at least one product.");
+    if (!validItems.length) {
+      return toast.error("Add at least one product.");
+    }
+
+    const invalidItem = validItems.find((item) => {
+      const product = products.find((row) => row.stock_key === item.stock_key);
+
+      const available =
+        item.stock_classification === "RESTRICTED"
+          ? product?.available_restricted_quantity
+          : product?.available_regular_quantity;
+
+      return Number(item.requested_quantity) > Number(available || 0);
+    });
+
+    if (invalidItem) {
+      return toast.error(
+        "Requested quantity exceeds the selected regular or restricted stock.",
+      );
+    }
+
     mutation.mutate({
       from_branch: Number(from),
       to_branch: Number(to),
@@ -121,6 +173,7 @@ export default function TransferFormPage() {
         product: Number(item.product),
         variant: item.variant ? Number(item.variant) : null,
         requested_quantity: Number(item.requested_quantity),
+        stock_classification: item.stock_classification || "REGULAR",
         remarks: item.remarks || "",
       })),
     });
@@ -147,6 +200,7 @@ export default function TransferFormPage() {
                       product: "",
                       variant: null,
                       requested_quantity: 1,
+                      stock_classification: "REGULAR",
                     },
                   ]);
                 }}
@@ -197,8 +251,8 @@ export default function TransferFormPage() {
             <div>
               <h2 className="font-semibold">Transfer items</h2>
               <p className="text-sm text-muted-foreground">
-                Only products with available stock in the source branch are
-                shown.
+                Select the product, then choose whether the quantity is regular
+                or restricted. Internal transfers are VAT out of scope.
               </p>
             </div>
             <Button
@@ -212,6 +266,7 @@ export default function TransferFormPage() {
                     product: "",
                     variant: null,
                     requested_quantity: 1,
+                    stock_classification: "REGULAR",
                   },
                 ])
               }
@@ -224,7 +279,7 @@ export default function TransferFormPage() {
             {items.map((item, index) => (
               <div
                 key={index}
-                className="grid gap-3 p-4 md:grid-cols-[1fr_160px_44px]"
+                className="grid gap-3 p-4 md:grid-cols-[1fr_190px_170px_44px]"
               >
                 <Select
                   value={item.stock_key}
@@ -237,6 +292,10 @@ export default function TransferFormPage() {
                       product: selected ? String(selected.product) : "",
                       variant: selected?.variant || null,
                       requested_quantity: 1,
+                      stock_classification:
+                        selected?.available_regular_quantity > 0
+                          ? "REGULAR"
+                          : "RESTRICTED",
                     });
                   }}
                 >
@@ -256,7 +315,8 @@ export default function TransferFormPage() {
                       products.map((p) => (
                         <SelectItem key={p.stock_key} value={p.stock_key}>
                           {p.sku} · {p.product_name} · {p.variant_label} ·{" "}
-                          {p.available_stock} available
+                          Regular {p.available_regular_quantity} · Restricted{" "}
+                          {p.available_restricted_quantity}
                         </SelectItem>
                       ))
                     ) : (
@@ -266,19 +326,64 @@ export default function TransferFormPage() {
                     )}
                   </SelectContent>
                 </Select>
+                <Select
+                  value={item.stock_classification || "REGULAR"}
+                  onValueChange={(value) =>
+                    updateItem(index, {
+                      stock_classification: value,
+                      requested_quantity: 1,
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="REGULAR">
+                      Regular (
+                      {products.find(
+                        (product) => product.stock_key === item.stock_key,
+                      )?.available_regular_quantity || 0}
+                      )
+                    </SelectItem>
+                    <SelectItem value="RESTRICTED">
+                      Restricted (
+                      {products.find(
+                        (product) => product.stock_key === item.stock_key,
+                      )?.available_restricted_quantity || 0}
+                      )
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
                 <Input
                   type="number"
                   min="1"
                   max={
-                    products.find(
-                      (product) => product.stock_key === item.stock_key,
-                    )?.available_stock || undefined
+                    item.stock_classification === "RESTRICTED"
+                      ? products.find(
+                          (product) => product.stock_key === item.stock_key,
+                        )?.available_restricted_quantity || undefined
+                      : products.find(
+                          (product) => product.stock_key === item.stock_key,
+                        )?.available_regular_quantity || undefined
                   }
                   value={item.requested_quantity}
                   onChange={(e) =>
                     updateItem(index, { requested_quantity: e.target.value })
                   }
                 />
+                <div className="text-xs text-muted-foreground md:col-span-3">
+                  Unit cost excluding VAT is fetched automatically:
+                  <span className="ml-1 font-medium text-foreground">
+                    AED{" "}
+                    {Number(
+                      products.find(
+                        (product) => product.stock_key === item.stock_key,
+                      )?.average_unit_cost_excluding_vat || 0,
+                    ).toFixed(4)}
+                  </span>
+                </div>
+
                 <Button
                   type="button"
                   size="icon"
@@ -294,6 +399,7 @@ export default function TransferFormPage() {
             ))}
           </div>
         </section>
+
         <section className="card-surface p-5">
           <Label>Notes</Label>
           <Textarea

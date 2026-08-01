@@ -5,6 +5,12 @@ import { Plus, Save, Send, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import {
+  calculateTaxLine,
+  canCreateNonStandardTaxSale,
+  canManageRestrictedStock,
+} from "@/lib/taxAccess";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -20,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { CurrencyText } from "@/components/common/CurrencyText";
 import InlineCustomerDialog from "./InlineCustomerDialog";
+import { SalesVatLineControls } from "@/components/sales/SalesVatLineControls";
 
 const normalizeList = (value) => {
   if (Array.isArray(value)) return value;
@@ -60,6 +67,11 @@ const emptyItem = () => ({
   quantity: 1,
   unit_price: 0,
   vat_percentage: 5,
+  tax_rate: 5,
+  tax_treatment: "STANDARD_VAT",
+  tax_reason: "",
+  stock_classification: "REGULAR",
+  tax_inclusive: false,
 });
 
 export default function QuotationFormPage() {
@@ -67,6 +79,10 @@ export default function QuotationFormPage() {
   const isEdit = Boolean(id);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  const canManageTax = canCreateNonStandardTaxSale(user);
+  const canManageRestricted = canManageRestrictedStock(user);
 
   const { branchId } = useActiveBranchFilter();
 
@@ -214,7 +230,12 @@ export default function QuotationFormPage() {
 
             unit_price: number(item.unit_price),
 
-            vat_percentage: number(item.vat_percentage),
+            vat_percentage: number(item.vat_percentage ?? item.tax_rate ?? 5),
+            tax_rate: number(item.tax_rate ?? item.vat_percentage ?? 5),
+            tax_treatment: item.tax_treatment || "STANDARD_VAT",
+            tax_reason: item.tax_reason || "",
+            stock_classification: item.stock_classification || "REGULAR",
+            tax_inclusive: Boolean(existing.tax_inclusive),
           }))
         : [emptyItem()],
     });
@@ -225,15 +246,19 @@ export default function QuotationFormPage() {
   );
 
   const calculatedItems = form.items.map((item) => {
-    const subtotal = number(item.quantity) * number(item.unit_price);
-
-    const vat = (subtotal * number(item.vat_percentage)) / 100;
+    const values = calculateTaxLine({
+      quantity: item.quantity,
+      unitPrice: item.unit_price,
+      treatment: item.tax_treatment || "STANDARD_VAT",
+      taxRate: item.tax_rate ?? item.vat_percentage ?? 5,
+      inclusive: Boolean(item.tax_inclusive),
+    });
 
     return {
       ...item,
-      subtotal,
-      vat_amount: vat,
-      line_total: subtotal + vat,
+      subtotal: values.taxable,
+      vat_amount: values.tax,
+      line_total: values.total,
     };
   });
 
@@ -299,6 +324,12 @@ export default function QuotationFormPage() {
       description: product?.description || product?.product_name || "",
 
       unit_price: getProductPrice(product),
+      vat_percentage: number(product?.vat_percentage ?? product?.vat_rate ?? 5),
+      tax_rate: number(product?.vat_rate ?? product?.vat_percentage ?? 5),
+      tax_treatment: product?.tax_treatment || "STANDARD_VAT",
+      tax_reason: "",
+      stock_classification: "REGULAR",
+      tax_inclusive: Boolean(product?.vat_inclusive),
     });
   };
 
@@ -388,7 +419,14 @@ export default function QuotationFormPage() {
 
           unit_price: number(item.unit_price),
 
-          vat_percentage: number(item.vat_percentage),
+          vat_percentage: number(item.tax_rate ?? item.vat_percentage ?? 5),
+          tax_rate: number(item.tax_rate ?? item.vat_percentage ?? 5),
+          tax_treatment: canManageTax ? item.tax_treatment : "STANDARD_VAT",
+          tax_reason: canManageTax ? String(item.tax_reason || "").trim() : "",
+          stock_classification: canManageRestricted
+            ? item.stock_classification
+            : "REGULAR",
+          tax_inclusive: Boolean(item.tax_inclusive),
         })),
       };
 
@@ -772,24 +810,20 @@ export default function QuotationFormPage() {
                     className="text-right"
                   />
 
-                  <Select
-                    value={String(item.vat_percentage)}
-                    onValueChange={(value) =>
-                      updateItem(index, {
-                        vat_percentage: value,
-                      })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                  <div className="md:col-span-2">
+                    <SalesVatLineControls
+                      item={item}
+                      canManageTax={canManageTax}
+                      canManageRestricted={canManageRestricted}
+                      onChange={(patch) => updateItem(index, patch)}
+                    />
 
-                    <SelectContent>
-                      <SelectItem value="0">0%</SelectItem>
-
-                      <SelectItem value="5">5%</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    {!canManageTax && (
+                      <p className="text-xs text-muted-foreground">
+                        Standard VAT 5%
+                      </p>
+                    )}
+                  </div>
 
                   <div className="text-right font-semibold">
                     <CurrencyText
