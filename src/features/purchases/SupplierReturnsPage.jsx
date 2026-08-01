@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -96,6 +97,35 @@ const reasonButtons = [
   },
 ];
 
+const getAllowedReturnStatuses = (status) => {
+  const transitions = {
+    DRAFT: [
+      { value: "DRAFT", label: "Draft" },
+      { value: "PENDING_APPROVAL", label: "Pending Approval" },
+      { value: "CANCELLED", label: "Cancelled" },
+    ],
+    PENDING_APPROVAL: [
+      { value: "PENDING_APPROVAL", label: "Pending Approval" },
+      { value: "APPROVED", label: "Approve" },
+      { value: "REJECTED", label: "Rejected" },
+      { value: "CANCELLED", label: "Cancelled" },
+    ],
+    APPROVED: [
+      { value: "APPROVED", label: "Approved" },
+      { value: "CREDIT_ISSUED", label: "Credit Issued" },
+    ],
+    CREDIT_ISSUED: [{ value: "CREDIT_ISSUED", label: "Credit Issued" }],
+    REJECTED: [{ value: "REJECTED", label: "Rejected" }],
+    CANCELLED: [{ value: "CANCELLED", label: "Cancelled" }],
+  };
+
+  return (
+    transitions[status] || [
+      { value: status, label: String(status || "").replaceAll("_", " ") },
+    ]
+  );
+};
+
 export default function SupplierReturnsPage() {
   const queryClient = useQueryClient();
 
@@ -113,39 +143,88 @@ export default function SupplierReturnsPage() {
 
   const { query, q, setQ, page, setPage } = useListQuery(
     "supplier-returns",
-    "/purchases/returns/",
+    "/purchases/supplier-returns/",
     branchParams,
   );
 
-  const { data: optionsResponse, isLoading: optionsLoading } = useQuery({
-    queryKey: ["supplier-return-form-options", form.branch],
+  const {
+    data: optionsResponse,
+    isLoading: optionsLoading,
+    error: optionsError,
+  } = useQuery({
+    queryKey: ["supplier-return-form-options"],
 
-    queryFn: async () =>
-      unwrap(
-        await api.get("/purchases/returns/form-options/", {
-          params: {
-            branch: form.branch || undefined,
-          },
-        }),
-      ),
+    queryFn: async () => {
+      const response = await api.get(
+        "/purchases/supplier-returns/form-options/",
+        {
+          skipGlobalErrorToast: true,
+        },
+      );
+
+      const unwrapped = unwrap(response);
+
+      console.log("Supplier Return GRN raw API response:", response?.data);
+      console.log("Supplier Return GRN unwrapped response:", unwrapped);
+
+      return unwrapped;
+    },
 
     enabled: mode === "form",
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const { data: existing, isLoading: existingLoading } = useQuery({
     queryKey: ["supplier-return", editingId],
 
     queryFn: async () =>
-      unwrap(await api.get(`/purchases/returns/${editingId}/`)),
+      unwrap(await api.get(`/purchases/supplier-returns/${editingId}/`)),
 
     enabled: mode === "form" && Boolean(editingId),
 
     staleTime: 0,
   });
 
-  const options = optionsResponse || {};
+  const options = useMemo(() => optionsResponse || {}, [optionsResponse]);
 
-  const grns = normalizeList(options.grns);
+  const grns = React.useMemo(() => {
+    const candidates = [
+      options?.grns,
+      options?.data?.grns,
+      options?.results,
+      options?.data?.results,
+      optionsResponse,
+    ];
+
+    for (const candidate of candidates) {
+      const normalized = normalizeList(candidate);
+      if (normalized.length) return normalized;
+    }
+
+    return [];
+  }, [options, optionsResponse]);
+
+  const canViewRestricted = Boolean(
+    options?.can_view_restricted ?? options?.data?.can_view_restricted ?? false,
+  );
+
+  const canReturnRestricted = Boolean(
+    options?.can_return_restricted ??
+    options?.data?.can_return_restricted ??
+    false,
+  );
+
+  React.useEffect(() => {
+    console.log("Supplier Return normalized GRNs:", grns);
+
+    if (optionsError) {
+      console.error(
+        "Supplier Return GRN options error:",
+        optionsError?.response?.data || optionsError,
+      );
+    }
+  }, [grns, optionsError]);
 
   React.useEffect(() => {
     if (!existing) return;
@@ -187,12 +266,21 @@ export default function SupplierReturnsPage() {
         sku: item.sku || "",
 
         received_quantity: number(item.received_quantity),
-
-        quantity: number(item.quantity),
+        available_regular_quantity: number(
+          item.available_regular_quantity ?? item.regular_quantity,
+        ),
+        available_restricted_quantity: number(
+          item.available_restricted_quantity ?? item.restricted_quantity,
+        ),
+        regular_quantity: number(item.regular_quantity),
+        restricted_quantity: number(item.restricted_quantity),
+        quantity:
+          number(item.regular_quantity) + number(item.restricted_quantity),
 
         unit_price: number(item.unit_price),
 
-        selected: number(item.quantity) > 0,
+        selected:
+          number(item.regular_quantity) + number(item.restricted_quantity) > 0,
 
         reason: item.reason || "",
       })),
@@ -205,7 +293,9 @@ export default function SupplierReturnsPage() {
   );
 
   const selectedItems = form.items.filter(
-    (item) => item.selected && number(item.quantity) > 0,
+    (item) =>
+      item.selected &&
+      number(item.regular_quantity) + number(item.restricted_quantity) > 0,
   );
 
   const totalAmount = selectedItems.reduce(
@@ -271,7 +361,15 @@ export default function SupplierReturnsPage() {
         sku: item.sku || "",
 
         received_quantity: number(item.accepted_quantity),
-
+        available_regular_quantity: number(
+          item.available_regular_quantity ?? item.accepted_regular_quantity,
+        ),
+        available_restricted_quantity: number(
+          item.available_restricted_quantity ??
+            item.accepted_restricted_quantity,
+        ),
+        regular_quantity: 0,
+        restricted_quantity: 0,
         quantity: 0,
 
         unit_price: number(item.unit_price),
@@ -323,21 +421,76 @@ export default function SupplierReturnsPage() {
       next.items = "Select at least one item to return.";
     }
 
-    const invalid = selectedItems.some(
-      (item) =>
-        number(item.quantity) <= 0 ||
-        number(item.quantity) > number(item.received_quantity),
-    );
+    const invalid = selectedItems.some((item) => {
+      const regular = number(item.regular_quantity);
+      const restricted = number(item.restricted_quantity);
+      return (
+        regular + restricted <= 0 ||
+        regular > number(item.available_regular_quantity) ||
+        restricted > number(item.available_restricted_quantity) ||
+        (restricted > 0 && !canReturnRestricted)
+      );
+    });
 
     if (invalid) {
       next.items =
-        "Return quantity must be greater than zero and cannot exceed accepted GRN quantity.";
+        "Return quantities must be within the available regular and restricted balances.";
     }
 
     setErrors(next);
 
     return Object.keys(next).length === 0;
   };
+
+  const updateStatus = useMutation({
+    mutationFn: async ({ row, nextStatus }) => {
+      if (nextStatus === row.status) {
+        return row;
+      }
+
+      if (nextStatus === "APPROVED") {
+        return unwrap(
+          await api.post(
+            `/purchases/supplier-returns/${row.id}/approve/`,
+            {},
+            { skipGlobalErrorToast: true },
+          ),
+        );
+      }
+
+      return unwrap(
+        await api.post(
+          `/purchases/supplier-returns/${row.id}/update-status/`,
+          { status: nextStatus },
+          { skipGlobalErrorToast: true },
+        ),
+      );
+    },
+
+    onSuccess: async (saved) => {
+      await queryClient.invalidateQueries({
+        queryKey: ["supplier-returns"],
+      });
+
+      toast.success(
+        `Return status updated to ${String(saved.status || "")
+          .replaceAll("_", " ")
+          .toLowerCase()
+          .replace(/\b\w/g, (letter) => letter.toUpperCase())}.`,
+      );
+    },
+
+    onError: (error) => {
+      const details = getApiErrorDetails(error);
+
+      toast.error(details.title || "Unable to update return status", {
+        description:
+          details.summary ||
+          details.message ||
+          "The selected status transition is not allowed.",
+      });
+    },
+  });
 
   const save = useMutation({
     mutationFn: async ({ submitForApproval }) => {
@@ -369,9 +522,13 @@ export default function SupplierReturnsPage() {
 
           variant: item.variant ? Number(item.variant) : null,
 
-          received_quantity: number(item.received_quantity),
+          received_quantity:
+            number(item.regular_quantity) + number(item.restricted_quantity),
 
-          quantity: number(item.quantity),
+          regular_quantity: number(item.regular_quantity),
+          restricted_quantity: number(item.restricted_quantity),
+          quantity:
+            number(item.regular_quantity) + number(item.restricted_quantity),
 
           unit_price: number(item.unit_price),
 
@@ -394,8 +551,8 @@ export default function SupplierReturnsPage() {
       };
 
       return editingId
-        ? api.patch(`/purchases/returns/${editingId}/`, data, config)
-        : api.post("/purchases/returns/", data, config);
+        ? api.patch(`/purchases/supplier-returns/${editingId}/`, data, config)
+        : api.post("/purchases/supplier-returns/", data, config);
     },
 
     onSuccess: async (response) => {
@@ -533,10 +690,49 @@ export default function SupplierReturnsPage() {
         sortKey: "status",
         sortType: "status",
 
-        cell: (row) => <StatusBadge status={row.status} />,
+        cell: (row) => {
+          const statusOptions = getAllowedReturnStatuses(row.status);
+          const isLocked = statusOptions.length <= 1;
+
+          return (
+            <div
+              className="min-w-[180px]"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <Select
+                value={row.status}
+                disabled={
+                  isLocked ||
+                  (updateStatus.isPending &&
+                    updateStatus.variables?.row?.id === row.id)
+                }
+                onValueChange={(nextStatus) =>
+                  updateStatus.mutate({
+                    row,
+                    nextStatus,
+                  })
+                }
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue>
+                    <StatusBadge status={row.status} />
+                  </SelectValue>
+                </SelectTrigger>
+
+                <SelectContent>
+                  {statusOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          );
+        },
       },
     ],
-    [],
+    [updateStatus],
   );
 
   if (mode === "list") {
@@ -646,6 +842,19 @@ export default function SupplierReturnsPage() {
                 </SelectContent>
               </Select>
 
+              {optionsError && (
+                <p className="mt-2 text-xs text-red-500">
+                  Unable to load confirmed GRNs. Check the browser console and
+                  backend logs.
+                </p>
+              )}
+
+              {!optionsLoading && !optionsError && grns.length === 0 && (
+                <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                  No confirmed GRNs with returnable quantities are available.
+                </p>
+              )}
+
               {errors.grn && (
                 <p className="mt-1 text-xs text-red-500">{errors.grn}</p>
               )}
@@ -713,33 +922,49 @@ export default function SupplierReturnsPage() {
           <section className="card-surface overflow-hidden">
             <div className="border-b border-slate-200 px-5 py-4 dark:border-white/10">
               <h2 className="font-semibold">Items to return</h2>
-
               <p className="mt-1 text-xs text-muted-foreground">
-                Select items and quantity from the received goods.
+                Enter regular and restricted quantities separately. Approval
+                deducts each quantity from its matching stock balance.
               </p>
             </div>
 
             <div className="overflow-x-auto p-5">
-              <div className="min-w-[750px]">
-                <div className="grid grid-cols-[36px_minmax(260px,1fr)_120px_120px_130px] gap-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <div className="min-w-[980px]">
+                <div
+                  className={`grid gap-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground ${
+                    canViewRestricted
+                      ? "grid-cols-[36px_minmax(240px,1fr)_110px_110px_110px_110px_120px]"
+                      : "grid-cols-[36px_minmax(300px,1fr)_130px_130px_120px]"
+                  }`}
+                >
                   <span />
                   <span>Item</span>
-                  <span className="text-right">Received</span>
-                  <span className="text-right">Return Qty</span>
+                  <span className="text-right">Available Regular</span>
+                  <span className="text-right">Return Regular</span>
+                  {canViewRestricted && (
+                    <>
+                      <span className="text-right">Available Restricted</span>
+                      <span className="text-right">Return Restricted</span>
+                    </>
+                  )}
                   <span className="text-right">Value</span>
                 </div>
 
                 <div className="space-y-1">
                   {form.items.map((item, index) => {
-                    const lineValue =
-                      number(item.quantity) * number(item.unit_price);
+                    const totalReturn =
+                      number(item.regular_quantity) +
+                      number(item.restricted_quantity);
+                    const lineValue = totalReturn * number(item.unit_price);
 
                     return (
                       <div
                         key={item.grn_item || index}
-                        className={`grid grid-cols-[36px_minmax(260px,1fr)_120px_120px_130px] items-center gap-3 border-b border-slate-100 py-2 last:border-b-0 dark:border-white/5 ${
-                          item.selected ? "" : "opacity-60"
-                        }`}
+                        className={`grid items-center gap-3 border-b border-slate-100 py-2 last:border-b-0 dark:border-white/5 ${
+                          canViewRestricted
+                            ? "grid-cols-[36px_minmax(240px,1fr)_110px_110px_110px_110px_120px]"
+                            : "grid-cols-[36px_minmax(300px,1fr)_130px_130px_120px]"
+                        } ${item.selected ? "" : "opacity-60"}`}
                       >
                         <input
                           type="checkbox"
@@ -747,9 +972,18 @@ export default function SupplierReturnsPage() {
                           onChange={(event) =>
                             updateItem(index, {
                               selected: event.target.checked,
-
+                              regular_quantity: event.target.checked
+                                ? Math.min(
+                                    1,
+                                    number(item.available_regular_quantity),
+                                  )
+                                : 0,
+                              restricted_quantity: 0,
                               quantity: event.target.checked
-                                ? Math.min(1, number(item.received_quantity))
+                                ? Math.min(
+                                    1,
+                                    number(item.available_regular_quantity),
+                                  )
                                 : 0,
                             })
                           }
@@ -760,29 +994,76 @@ export default function SupplierReturnsPage() {
                           <p className="text-sm font-medium">
                             {item.product_name}
                           </p>
-
                           <p className="text-xs text-muted-foreground">
                             {item.sku || "No SKU"}
+                          </p>
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            Total return: {totalReturn}
                           </p>
                         </div>
 
                         <div className="text-right text-sm">
-                          {item.received_quantity}
+                          {item.available_regular_quantity}
                         </div>
 
                         <Input
                           type="number"
                           min="0"
-                          max={item.received_quantity}
-                          value={item.quantity}
+                          max={item.available_regular_quantity}
+                          value={item.regular_quantity}
                           disabled={!item.selected}
-                          onChange={(event) =>
+                          onChange={(event) => {
+                            const regular = Math.max(
+                              0,
+                              Math.min(
+                                number(event.target.value),
+                                number(item.available_regular_quantity),
+                              ),
+                            );
                             updateItem(index, {
-                              quantity: event.target.value,
-                            })
-                          }
+                              regular_quantity: regular,
+                              quantity:
+                                regular + number(item.restricted_quantity),
+                            });
+                          }}
                           className="text-right"
                         />
+
+                        {canViewRestricted && (
+                          <>
+                            <div className="text-right text-sm">
+                              {item.available_restricted_quantity}
+                            </div>
+
+                            <Input
+                              type="number"
+                              min="0"
+                              max={item.available_restricted_quantity}
+                              value={item.restricted_quantity}
+                              disabled={!item.selected || !canReturnRestricted}
+                              onChange={(event) => {
+                                const restricted = Math.max(
+                                  0,
+                                  Math.min(
+                                    number(event.target.value),
+                                    number(item.available_restricted_quantity),
+                                  ),
+                                );
+                                updateItem(index, {
+                                  restricted_quantity: restricted,
+                                  quantity:
+                                    number(item.regular_quantity) + restricted,
+                                });
+                              }}
+                              className="text-right"
+                              title={
+                                canReturnRestricted
+                                  ? "Restricted quantity to return"
+                                  : "You do not have permission to return restricted stock"
+                              }
+                            />
+                          </>
+                        )}
 
                         <div className="text-right font-medium">
                           <CurrencyText value={lineValue} />
@@ -804,7 +1085,6 @@ export default function SupplierReturnsPage() {
 
                 <div className="mt-5 flex justify-end gap-8 border-t pt-4 font-semibold">
                   <span>Return value</span>
-
                   <CurrencyText value={totalAmount} />
                 </div>
               </div>

@@ -1,4 +1,5 @@
 import React from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -134,12 +135,22 @@ function SummaryCard({ label, value, tone = "default" }) {
 
 export default function VendorCreditsPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { id: routeId } = useParams();
+
+  const isNewRoute = location.pathname.endsWith("/new");
+  const isEditRoute = location.pathname.endsWith("/edit") && Boolean(routeId);
 
   const { branchId, branchParams } = useActiveBranchFilter();
 
-  const [mode, setMode] = React.useState("list");
+  const [mode, setMode] = React.useState(() =>
+    isNewRoute || isEditRoute ? "form" : "list",
+  );
 
-  const [editingId, setEditingId] = React.useState(null);
+  const [editingId, setEditingId] = React.useState(() =>
+    isEditRoute ? routeId : null,
+  );
 
   const [form, setForm] = React.useState(() => createForm(branchId));
 
@@ -148,6 +159,28 @@ export default function VendorCreditsPage() {
   const [errors, setErrors] = React.useState({});
 
   const [statusFilter, setStatusFilter] = React.useState("ALL");
+
+  React.useEffect(() => {
+    if (isEditRoute) {
+      setEditingId(routeId);
+      setMode("form");
+      return;
+    }
+
+    if (isNewRoute) {
+      setEditingId(null);
+      setForm(createForm(branchId));
+      setFiles([]);
+      setErrors({});
+      setMode("form");
+      return;
+    }
+
+    setEditingId(null);
+    setFiles([]);
+    setErrors({});
+    setMode("list");
+  }, [isEditRoute, isNewRoute, routeId, branchId]);
 
   const { query, q, setQ, page, setPage } = useListQuery(
     "vendor-credits",
@@ -206,21 +239,31 @@ export default function VendorCreditsPage() {
     open_balance: 0,
   };
 
-  const options = optionsResponse || {};
+  const optionLists = React.useMemo(() => {
+    const options = optionsResponse || {};
 
-  const suppliers = normalizeList(options.suppliers);
+    return {
+      suppliers: normalizeList(options.suppliers),
+      supplierReturns: normalizeList(options.supplier_returns),
+      purchaseOrders: normalizeList(options.purchase_orders),
+      supplierBills: normalizeList(options.supplier_bills),
+      approvers: normalizeList(options.approvers),
+      glAccounts: normalizeList(options.gl_accounts),
+      openBills: normalizeList(options.open_bills),
+      defaultInventoryAccountId: options.default_inventory_account_id || null,
+    };
+  }, [optionsResponse]);
 
-  const supplierReturns = normalizeList(options.supplier_returns);
-
-  const purchaseOrders = normalizeList(options.purchase_orders);
-
-  const supplierBills = normalizeList(options.supplier_bills);
-
-  const approvers = normalizeList(options.approvers);
-
-  const glAccounts = normalizeList(options.gl_accounts);
-
-  const openBills = normalizeList(options.open_bills);
+  const {
+    suppliers,
+    supplierReturns,
+    purchaseOrders,
+    supplierBills,
+    approvers,
+    glAccounts,
+    openBills,
+    defaultInventoryAccountId,
+  } = optionLists;
 
   React.useEffect(() => {
     if (!existing) return;
@@ -289,10 +332,8 @@ export default function VendorCreditsPage() {
       return;
     }
 
-    setForm((current) => ({
-      ...current,
-
-      applications: openBills.map((bill) => {
+    setForm((current) => {
+      const nextApplications = openBills.map((bill) => {
         const existingApplication = current.applications.find(
           (item) => String(item.bill) === String(bill.id),
         );
@@ -306,8 +347,32 @@ export default function VendorCreditsPage() {
             amount: 0,
           }
         );
-      }),
-    }));
+      });
+
+      const unchanged =
+        current.applications.length === nextApplications.length &&
+        current.applications.every((application, index) => {
+          const next = nextApplications[index];
+
+          return (
+            String(application.bill) === String(next?.bill) &&
+            number(application.amount) === number(next?.amount) &&
+            number(application.open_balance) === number(next?.open_balance) &&
+            String(application.bill_number || "") ===
+              String(next?.bill_number || "") &&
+            String(application.due_date || "") === String(next?.due_date || "")
+          );
+        });
+
+      if (unchanged) {
+        return current;
+      }
+
+      return {
+        ...current,
+        applications: nextApplications,
+      };
+    });
   }, [openBills, form.supplier, mode]);
 
   const selectedSupplier = React.useMemo(
@@ -440,8 +505,8 @@ export default function VendorCreditsPage() {
           item.quantity ? ` — ${item.quantity} unit(s)` : ""
         }`,
 
-        gl_account: options.default_inventory_account_id
-          ? String(options.default_inventory_account_id)
+        gl_account: defaultInventoryAccountId
+          ? String(defaultInventoryAccountId)
           : "",
 
         quantity: number(item.quantity),
@@ -453,27 +518,30 @@ export default function VendorCreditsPage() {
     }));
   };
 
-  const openNew = () => {
-    setEditingId(null);
-    setForm(createForm(branchId));
-    setFiles([]);
-    setErrors({});
-    setMode("form");
-  };
+  const openNew = React.useCallback(() => {
+    navigate("/purchases/vendor-credits/new");
+  }, [navigate]);
 
-  const openExisting = (row) => {
-    setEditingId(row.id);
-    setFiles([]);
-    setErrors({});
-    setMode("form");
-  };
+  const openExisting = React.useCallback(
+    (row) => {
+      navigate(`/purchases/vendor-credits/${row.id}`);
+    },
+    [navigate],
+  );
 
-  const closeForm = () => {
-    setMode("list");
+  const openEdit = React.useCallback(
+    (row) => {
+      navigate(`/purchases/vendor-credits/${row.id}/edit`);
+    },
+    [navigate],
+  );
+
+  const closeForm = React.useCallback(() => {
     setEditingId(null);
     setFiles([]);
     setErrors({});
-  };
+    navigate("/purchases/vendor-credits");
+  }, [navigate]);
 
   const validate = () => {
     const next = {};
@@ -801,8 +869,32 @@ export default function VendorCreditsPage() {
 
         cell: (row) => <StatusBadge status={row.status} />,
       },
+      {
+        key: "actions",
+        header: "Actions",
+        cell: (row) => (
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => openExisting(row)}
+            >
+              View
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => openEdit(row)}
+            >
+              Edit
+            </Button>
+          </div>
+        ),
+      },
     ],
-    [],
+    [openEdit, openExisting],
   );
 
   if (mode === "list") {

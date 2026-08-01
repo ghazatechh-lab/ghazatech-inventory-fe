@@ -119,7 +119,7 @@ export default function SupplierBillsPage() {
 
   const { query, q, setQ, page, setPage } = useListQuery(
     "supplier-bills",
-    "/purchases/bills/",
+    "/purchases/supplier-bills/",
     branchParams,
   );
 
@@ -128,32 +128,38 @@ export default function SupplierBillsPage() {
 
     queryFn: async () =>
       unwrap(
-        await api.get("/purchases/bills/summary/", {
+        await api.get("/purchases/supplier-bills/summary/", {
           params: branchParams,
         }),
       ),
   });
 
-  const { data: optionsResponse, isLoading: optionsLoading } = useQuery({
-    queryKey: ["supplier-bill-form-options", form.branch],
+  const {
+    data: optionsResponse,
+    isLoading: optionsLoading,
+    isError: optionsError,
+    error: optionsQueryError,
+  } = useQuery({
+    queryKey: ["supplier-bill-form-options"],
 
     queryFn: async () =>
       unwrap(
-        await api.get("/purchases/bills/form-options/", {
+        await api.get("/purchases/supplier-bills/form-options/", {
           params: {
-            branch: form.branch || undefined,
+            include_all_branches: true,
           },
         }),
       ),
 
     enabled: mode === "form",
+    staleTime: 0,
   });
 
   const { data: existing, isLoading: existingLoading } = useQuery({
     queryKey: ["supplier-bill", editingId],
 
     queryFn: async () =>
-      unwrap(await api.get(`/purchases/bills/${editingId}/`)),
+      unwrap(await api.get(`/purchases/supplier-bills/${editingId}/`)),
 
     enabled: mode === "form" && Boolean(editingId),
 
@@ -547,8 +553,8 @@ export default function SupplierBillsPage() {
       };
 
       return editingId
-        ? api.patch(`/purchases/bills/${editingId}/`, data, config)
-        : api.post("/purchases/bills/", data, config);
+        ? api.patch(`/purchases/supplier-bills/${editingId}/`, data, config)
+        : api.post("/purchases/supplier-bills/", data, config);
     },
 
     onSuccess: async (response) => {
@@ -819,9 +825,9 @@ export default function SupplierBillsPage() {
                 <Label>PO reference *</Label>
 
                 <Select
-                  value={form.purchase_order}
+                  value={form.purchase_order || undefined}
                   onValueChange={selectPO}
-                  disabled={optionsLoading}
+                  disabled={optionsLoading || purchaseOrders.length === 0}
                 >
                   <SelectTrigger className="mt-2">
                     <SelectValue placeholder="Select PO" />
@@ -833,10 +839,33 @@ export default function SupplierBillsPage() {
                         {order.po_number}
                         {" · "}
                         {order.supplier_name}
+                        {order.branch_name ? ` · ${order.branch_name}` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+
+                {optionsLoading && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Loading approved purchase orders...
+                  </p>
+                )}
+
+                {!optionsLoading &&
+                  !optionsError &&
+                  purchaseOrders.length === 0 && (
+                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                      No approved or received purchase orders are available.
+                      Approve a PO first.
+                    </p>
+                  )}
+
+                {optionsError && (
+                  <p className="mt-1 text-xs text-red-500">
+                    {getApiErrorDetails(optionsQueryError).summary ||
+                      "Unable to load purchase orders."}
+                  </p>
+                )}
 
                 {errors.purchase_order && (
                   <p className="mt-1 text-xs text-red-500">

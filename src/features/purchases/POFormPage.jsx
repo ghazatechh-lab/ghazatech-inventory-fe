@@ -18,6 +18,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CurrencyText } from "@/components/common/CurrencyText";
+import { useAuth } from "@/lib/auth";
+import { canCreateRestrictedPurchase } from "@/lib/taxAccess";
+import { ClassifiedQuantityFields } from "@/components/tax/ClassifiedQuantityFields";
+import { TaxTreatmentSelect } from "@/components/tax/TaxTreatmentSelect";
 
 const normalizeList = (value) => {
   if (Array.isArray(value)) return value;
@@ -38,9 +42,13 @@ const emptyItem = () => ({
   product: "",
   variant: "",
   description: "",
+  regular_quantity: 1,
+  restricted_quantity: 0,
   quantity: 1,
   unit_price: 0,
   discount_amount: 0,
+  tax_treatment: "STANDARD_VAT",
+  tax_reason: "",
   vat_percentage: 5,
 });
 
@@ -80,6 +88,8 @@ export default function POFormPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { branchId } = useActiveBranchFilter();
+  const { user } = useAuth();
+  const allowRestricted = canCreateRestrictedPurchase(user);
 
   const [form, setForm] = React.useState({
     po_number: "",
@@ -216,7 +226,11 @@ export default function POFormPage() {
                 ? String(item.variant?.id || item.variant)
                 : "",
               description: item.description || "",
+              regular_quantity: item.regular_quantity ?? item.quantity ?? 1,
+              restricted_quantity: item.restricted_quantity ?? 0,
               quantity: item.quantity || 1,
+              tax_treatment: item.tax_treatment || "STANDARD_VAT",
+              tax_reason: item.tax_reason || "",
               unit_price: item.unit_price || 0,
               discount_amount: item.discount_amount || 0,
               vat_percentage: item.vat_percentage ?? 5,
@@ -254,10 +268,17 @@ export default function POFormPage() {
   const calculations = React.useMemo(
     () =>
       form.items.map((item) => {
-        const gross = money(item.quantity) * money(item.unit_price);
+        const totalQuantity =
+          money(item.regular_quantity) +
+          (allowRestricted ? money(item.restricted_quantity) : 0);
+        const gross = totalQuantity * money(item.unit_price);
         const discount = money(item.discount_amount);
         const taxable = Math.max(0, gross - discount);
-        const vat = (taxable * money(item.vat_percentage)) / 100;
+        const vatRate =
+          item.tax_treatment === "STANDARD_VAT"
+            ? money(item.vat_percentage)
+            : 0;
+        const vat = (taxable * vatRate) / 100;
 
         return {
           gross,
@@ -301,7 +322,7 @@ export default function POFormPage() {
       form.items.some(
         (item) =>
           !item.product ||
-          money(item.quantity) <= 0 ||
+          money(item.regular_quantity) + money(item.restricted_quantity) <= 0 ||
           money(item.unit_price) < 0,
       )
     ) {
@@ -328,7 +349,15 @@ export default function POFormPage() {
           product: Number(item.product),
           variant: item.variant ? Number(item.variant) : null,
           description: item.description || "",
-          quantity: Number(item.quantity),
+          regular_quantity: Number(item.regular_quantity || 0),
+          restricted_quantity: allowRestricted
+            ? Number(item.restricted_quantity || 0)
+            : 0,
+          quantity:
+            Number(item.regular_quantity || 0) +
+            (allowRestricted ? Number(item.restricted_quantity || 0) : 0),
+          tax_treatment: item.tax_treatment || "STANDARD_VAT",
+          tax_reason: item.tax_reason || "",
           unit_price: money(item.unit_price),
           discount_amount: money(item.discount_amount),
           vat_percentage: money(item.vat_percentage),
@@ -671,17 +700,51 @@ export default function POFormPage() {
                         </Select>
                       </div>
 
-                      <Input
-                        type="number"
-                        min="1"
-                        value={item.quantity}
-                        onChange={(event) =>
-                          updateItem(index, {
-                            quantity: event.target.value,
-                          })
-                        }
-                        className="text-right"
-                      />
+                      <div className="md:col-span-4 rounded-lg border p-3">
+                        <ClassifiedQuantityFields
+                          regular={item.regular_quantity}
+                          restricted={item.restricted_quantity}
+                          canUseRestricted={allowRestricted}
+                          onRegularChange={(value) =>
+                            updateItem(index, {
+                              regular_quantity: value,
+                              quantity:
+                                Number(value || 0) +
+                                Number(item.restricted_quantity || 0),
+                            })
+                          }
+                          onRestrictedChange={(value) =>
+                            updateItem(index, {
+                              restricted_quantity: value,
+                              quantity:
+                                Number(item.regular_quantity || 0) +
+                                Number(value || 0),
+                            })
+                          }
+                        />
+                        <div className="mt-3">
+                          <TaxTreatmentSelect
+                            value={item.tax_treatment}
+                            taxRate={item.vat_percentage}
+                            reason={item.tax_reason}
+                            onChange={(value) =>
+                              updateItem(index, {
+                                tax_treatment: value,
+                                vat_percentage:
+                                  value === "STANDARD_VAT"
+                                    ? item.vat_percentage || 5
+                                    : 0,
+                              })
+                            }
+                            onTaxRateChange={(value) =>
+                              updateItem(index, { vat_percentage: value })
+                            }
+                            onReasonChange={(value) =>
+                              updateItem(index, { tax_reason: value })
+                            }
+                          />
+                        </div>
+                      </div>
 
                       <Input
                         type="number"
@@ -756,23 +819,6 @@ export default function POFormPage() {
                   <CurrencyText
                     value={form.shipping_amount}
                     currency={form.currency}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between gap-4">
-                  <Label htmlFor="order-discount" className="text-slate-500">
-                    Order Discount
-                  </Label>
-                  <Input
-                    id="order-discount"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={form.discount_amount}
-                    onChange={(event) =>
-                      updateForm("discount_amount", event.target.value)
-                    }
-                    className="h-8 w-32 text-right"
                   />
                 </div>
                 <div className="flex justify-between border-t border-slate-200 pt-3 font-semibold dark:border-white/10">

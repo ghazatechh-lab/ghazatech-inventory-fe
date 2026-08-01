@@ -58,6 +58,7 @@ export default function PayrollPage() {
   const [generatorOpen, setGeneratorOpen] = React.useState(false);
   const [step, setStep] = React.useState(1);
   const [selected, setSelected] = React.useState([]);
+  const [payableDays, setPayableDays] = React.useState({});
   const [selectedBranch, setSelectedBranch] = React.useState(
     branchId ? String(branchId) : "",
   );
@@ -132,10 +133,13 @@ export default function PayrollPage() {
     selected.includes(item.id),
   );
 
-  const selectedGross = selectedEmployees.reduce(
-    (sum, item) => sum + moneyNumber(item.gross_salary),
-    0,
-  );
+  const selectedGross = selectedEmployees.reduce((sum, item) => {
+    const totalDays = moneyNumber(item.total_period_days) || 30;
+    const days = moneyNumber(
+      payableDays[item.id] ?? item.suggested_payable_days ?? totalDays,
+    );
+    return sum + moneyNumber(item.gross_salary) * (days / totalDays);
+  }, 0);
 
   const selectedPayrollEmployee = employees.find(
     (item) => String(item.id) === String(payrollForm.employee),
@@ -157,6 +161,7 @@ export default function PayrollPage() {
 
   const openGenerator = () => {
     setSelected([]);
+    setPayableDays({});
     setSelectedBranch(branchId ? String(branchId) : "");
     setStep(1);
     setGeneratorOpen(true);
@@ -166,6 +171,7 @@ export default function PayrollPage() {
     setGeneratorOpen(false);
     setStep(1);
     setSelected([]);
+    setPayableDays({});
   };
 
   const selectAll = () =>
@@ -181,6 +187,14 @@ export default function PayrollPage() {
           period,
           branch: selectedBranch ? Number(selectedBranch) : null,
           employee_ids: selected,
+          payable_days: Object.fromEntries(
+            selected.map((employeeId) => [
+              String(employeeId),
+              payableDays[employeeId] ??
+                eligible.find((item) => item.id === employeeId)
+                  ?.suggested_payable_days,
+            ]),
+          ),
         },
         { skipGlobalErrorToast: true },
       ),
@@ -419,6 +433,12 @@ export default function PayrollPage() {
     },
     { key: "branch_name", header: "Branch" },
     { key: "period", header: "Period" },
+    {
+      key: "payable_days",
+      header: "Payable Days",
+      cell: (row) =>
+        `${row.payable_days || row.total_period_days || 30} / ${row.total_period_days || 30}`,
+    },
     {
       key: "basic_salary",
       header: "Basic",
@@ -922,8 +942,48 @@ export default function PayrollPage() {
                               {employee.employee_code} · {employee.branch_name}
                             </p>
                           </div>
+                          <div className="w-36">
+                            <Label className="text-xs">Payable Days</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              max={employee.total_period_days || 30}
+                              step="0.5"
+                              value={
+                                payableDays[employee.id] ??
+                                employee.suggested_payable_days ??
+                                employee.total_period_days ??
+                                30
+                              }
+                              disabled={employee.already_paid}
+                              onClick={(event) => event.preventDefault()}
+                              onChange={(event) =>
+                                setPayableDays((current) => ({
+                                  ...current,
+                                  [employee.id]: event.target.value,
+                                }))
+                              }
+                            />
+                            {moneyNumber(employee.unpaid_leave_days) > 0 && (
+                              <p className="mt-1 text-xs text-amber-600">
+                                {employee.unpaid_leave_days} unpaid leave day(s)
+                              </p>
+                            )}
+                          </div>
                           <div className="text-right">
-                            <CurrencyText value={employee.gross_salary} />
+                            <CurrencyText
+                              value={
+                                moneyNumber(employee.gross_salary) *
+                                (moneyNumber(
+                                  payableDays[employee.id] ??
+                                    employee.suggested_payable_days ??
+                                    employee.total_period_days ??
+                                    30,
+                                ) /
+                                  (moneyNumber(employee.total_period_days) ||
+                                    30))
+                              }
+                            />
                             {employee.already_paid && (
                               <p className="text-xs text-amber-600">
                                 Already generated

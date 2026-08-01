@@ -24,7 +24,8 @@ import {
 
 const emptyBaseStock = {
   attributes: [],
-  available_qty: 0,
+  initial_regular_stock: 0,
+  initial_restricted_stock: 0,
   purchase_price: "",
   retail_price: 0,
   wholesale_price: 0,
@@ -79,7 +80,8 @@ function variantFromApi(item) {
       name,
       value,
     })),
-    available_qty: item.available_qty ?? 0,
+    initial_regular_stock: item.regular_quantity ?? item.available_qty ?? 0,
+    initial_restricted_stock: item.restricted_quantity ?? 0,
     purchase_price: item.purchase_price ?? "",
     retail_price: item.retail_price ?? 0,
     wholesale_price: item.wholesale_price ?? 0,
@@ -93,7 +95,12 @@ export default function ProductFormPage() {
   const isEdit = Boolean(id);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { branchOverride } = useAuth();
+  const { branchOverride, user } = useAuth();
+  const isAdmin = Boolean(
+    user?.is_superuser ||
+    user?.role?.code === "ADMIN" ||
+    user?.role_code === "ADMIN",
+  );
   const fileRef = React.useRef(null);
   const hydratedRef = React.useRef(false);
   const previousBranchRef = React.useRef("");
@@ -550,7 +557,13 @@ export default function ProductFormPage() {
         return {
           ...(variant.id ? { id: variant.id } : {}),
           attributes: hasVariants ? attributes : {},
-          available_qty: Math.max(0, Number(variant.available_qty || 0)),
+          initial_regular_stock: Math.max(
+            0,
+            Number(variant.initial_regular_stock || 0),
+          ),
+          initial_restricted_stock: isAdmin
+            ? Math.max(0, Number(variant.initial_restricted_stock || 0))
+            : 0,
           purchase_price:
             variant.purchase_price === "" || variant.purchase_price == null
               ? null
@@ -629,8 +642,12 @@ export default function ProductFormPage() {
               (item) => String(item.id) === String(variant.id),
             )
           : originalVariants[index];
-        const before = Number(original?.available_qty || 0);
-        const after = Number(variant.available_qty || 0);
+        const before =
+          Number(original?.regular_quantity || original?.available_qty || 0) +
+          Number(original?.restricted_quantity || 0);
+        const after =
+          Number(variant.initial_regular_stock || 0) +
+          Number(variant.initial_restricted_stock || 0);
         if (before === after) return null;
         const label = hasVariants
           ? Object.values(
@@ -1374,24 +1391,58 @@ export default function ProductFormPage() {
                       </div>
                     )}
 
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
                       <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.035] p-3">
                         <Label className="text-emerald-700 dark:text-emerald-100">
-                          Available qty
+                          Initial Regular Qty
                         </Label>
-
                         <Input
                           type="number"
                           min="0"
-                          value={variant.available_qty ?? 0}
+                          value={variant.initial_regular_stock ?? 0}
                           onChange={(event) =>
                             updateVariant(
                               variantIndex,
-                              "available_qty",
+                              "initial_regular_stock",
                               event.target.value,
                             )
                           }
                           className="mt-2 h-11 border-emerald-500/20 bg-white dark:bg-slate-950/80"
+                        />
+                      </div>
+
+                      {isAdmin ? (
+                        <div className="rounded-xl border border-amber-500/15 bg-amber-500/[0.035] p-3">
+                          <Label className="text-amber-700 dark:text-amber-100">
+                            Initial Restricted Qty
+                          </Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={variant.initial_restricted_stock ?? 0}
+                            onChange={(event) =>
+                              updateVariant(
+                                variantIndex,
+                                "initial_restricted_stock",
+                                event.target.value,
+                              )
+                            }
+                            className="mt-2 h-11 border-amber-500/20 bg-white dark:bg-slate-950/80"
+                          />
+                        </div>
+                      ) : null}
+
+                      <div className="rounded-xl border border-blue-500/15 bg-blue-500/[0.035] p-3">
+                        <Label className="text-blue-700 dark:text-blue-100">
+                          Total Qty
+                        </Label>
+                        <Input
+                          readOnly
+                          value={
+                            Number(variant.initial_regular_stock || 0) +
+                            Number(variant.initial_restricted_stock || 0)
+                          }
+                          className="mt-2 h-11 border-blue-500/20 bg-slate-100 dark:bg-slate-900"
                         />
                       </div>
 

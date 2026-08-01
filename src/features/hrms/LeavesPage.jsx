@@ -30,6 +30,7 @@ export default function LeavesPage() {
   const [leaveTypeForm, setLeaveTypeForm] = React.useState({
     name: "",
     annual_limit: "0",
+    is_paid: true,
   });
   const [leaveTypeSaving, setLeaveTypeSaving] = React.useState(false);
   const [form, setForm] = React.useState({
@@ -66,7 +67,7 @@ export default function LeavesPage() {
         {
           name: leaveTypeForm.name.trim(),
           annual_limit: Number(leaveTypeForm.annual_limit || 0),
-          is_paid: true,
+          is_paid: Boolean(leaveTypeForm.is_paid),
           requires_document: false,
           is_active: true,
         },
@@ -75,7 +76,7 @@ export default function LeavesPage() {
       const created = unwrap(response);
       await refreshLeaveOptions();
       setForm((current) => ({ ...current, leave_type: String(created.id) }));
-      setLeaveTypeForm({ name: "", annual_limit: "0" });
+      setLeaveTypeForm({ name: "", annual_limit: "0", is_paid: true });
       setShowLeaveTypeForm(false);
       toast.success("Leave type added.");
     } catch (error) {
@@ -130,12 +131,37 @@ export default function LeavesPage() {
   });
 
   const action = useMutation({
-    mutationFn: ({ id, type }) => api.post(`/hrms/leaves/${id}/${type}/`, {}),
+    mutationFn: ({ id, type, overrideBalance = false }) =>
+      api.post(
+        `/hrms/leaves/${id}/${type}/`,
+        overrideBalance ? { override_balance: true } : {},
+        { skipGlobalErrorToast: true },
+      ),
     onSuccess: async (_response, variables) => {
       await queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
       toast.success(
         variables.type === "approve" ? "Leave approved." : "Leave rejected.",
       );
+    },
+    onError: (error, variables) => {
+      const payload = error?.response?.data || {};
+      if (
+        variables.type === "approve" &&
+        payload.code === "INSUFFICIENT_LEAVE_BALANCE" &&
+        payload.can_override
+      ) {
+        const proceed = window.confirm(
+          `${payload.detail} Approve this leave as an HR override?`,
+        );
+        if (proceed) {
+          action.mutate({ ...variables, overrideBalance: true });
+          return;
+        }
+      }
+      const details = getApiErrorDetails(error);
+      toast.error(details.title || "Unable to update leave", {
+        description: details.summary || details.message || payload.detail,
+      });
     },
   });
 
@@ -337,6 +363,26 @@ export default function LeavesPage() {
                           }
                         />
                       </div>
+                      <div>
+                        <Label className="text-xs">Salary Treatment</Label>
+                        <Select
+                          value={leaveTypeForm.is_paid ? "PAID" : "UNPAID"}
+                          onValueChange={(value) =>
+                            setLeaveTypeForm((current) => ({
+                              ...current,
+                              is_paid: value === "PAID",
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="mt-1.5">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="PAID">Paid Leave</SelectItem>
+                            <SelectItem value="UNPAID">Unpaid Leave</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                     <div className="mt-3 flex justify-end gap-2">
                       <Button
@@ -345,7 +391,11 @@ export default function LeavesPage() {
                         size="sm"
                         onClick={() => {
                           setShowLeaveTypeForm(false);
-                          setLeaveTypeForm({ name: "", annual_limit: "0" });
+                          setLeaveTypeForm({
+                            name: "",
+                            annual_limit: "0",
+                            is_paid: true,
+                          });
                         }}
                       >
                         Cancel

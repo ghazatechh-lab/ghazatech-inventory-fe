@@ -73,6 +73,25 @@ const getActiveSubmodulePath = (items, currentPath) => {
     return "";
   }
 
+  // Keep Purchase Expenses selected on list, create, detail, and edit pages.
+  if (
+    pathname === "/purchases/purchase-expenses" ||
+    pathname.startsWith("/purchases/purchase-expenses/") ||
+    pathname === "/purchases/expenses" ||
+    pathname.startsWith("/purchases/expenses/")
+  ) {
+    const purchaseExpenseItem = items.find(
+      (item) =>
+        item?.id === "purchase-expenses" ||
+        normalizePath(safePath(item)) === "/purchases/purchase-expenses" ||
+        normalizePath(safePath(item)) === "/purchases/expenses",
+    );
+
+    if (purchaseExpenseItem) {
+      return normalizePath(safePath(purchaseExpenseItem));
+    }
+  }
+
   const matchingPaths = items
     .map((item) => normalizePath(safePath(item)))
     .filter(Boolean)

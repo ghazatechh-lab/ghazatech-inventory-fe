@@ -733,9 +733,7 @@ export default function POSPage() {
                                   if (!term || item.product) return true;
 
                                   return [
-                                    product.product_name ||
-                                      product.name ||
-                                      product.sku,
+                                    product.product_name,
                                     product.variant_name,
                                     product.sku,
                                     product.barcode,
@@ -771,10 +769,7 @@ export default function POSPage() {
                                     >
                                       <div className="min-w-0">
                                         <p className="truncate text-sm font-semibold text-foreground">
-                                          {product.product_name ||
-                                            product.name ||
-                                            product.sku ||
-                                            `Product #${product.id}`}
+                                          {product.product_name}
                                           {product.variant_name
                                             ? ` — ${product.variant_name}`
                                             : ""}
@@ -809,9 +804,7 @@ export default function POSPage() {
                                   .toLowerCase();
                                 if (!term || item.product) return true;
                                 return [
-                                  product.product_name ||
-                                    product.name ||
-                                    product.sku,
+                                  product.product_name,
                                   product.variant_name,
                                   product.sku,
                                   product.barcode,

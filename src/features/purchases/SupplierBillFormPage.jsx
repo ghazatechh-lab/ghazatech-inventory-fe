@@ -287,19 +287,27 @@ export default function SupplierBillFormPage() {
 
   const [initialized, setInitialized] = React.useState(false);
 
+  console.log("Supplier Bill form-options query key:");
   const optionsQuery = useQuery({
-    queryKey: ["supplier-bill-form-options", form.branch],
+    queryKey: ["supplier-bill-form-options"],
 
     queryFn: async () => {
       const response = await api.get(`${SUPPLIER_BILL_ENDPOINT}form-options/`, {
-        params: {
-          branch: form.branch || undefined,
-        },
-
         skipGlobalErrorToast: true,
       });
 
-      return normalizePayload(response);
+      console.log("Supplier Bill form-options raw response:", response);
+
+      const normalized = normalizePayload(response);
+
+      console.log("Supplier Bill form-options normalized:", normalized);
+      console.log(
+        "Supplier Bill purchase orders:",
+        normalizeList(normalized?.purchase_orders),
+      );
+      console.log("Supplier Bill GRNs:", normalizeList(normalized?.grns));
+
+      return normalized;
     },
 
     staleTime: 0,
@@ -329,6 +337,19 @@ export default function SupplierBillFormPage() {
 
   const grns = normalizeList(options.grns);
 
+  const availableGrns = React.useMemo(() => {
+    if (!form.purchase_order) {
+      return [];
+    }
+
+    return grns.filter((grn) => {
+      const purchaseOrderId =
+        grn.purchase_order_id ?? getId(grn.purchase_order);
+
+      return String(purchaseOrderId) === String(form.purchase_order);
+    });
+  }, [grns, form.purchase_order]);
+
   const suppliers = normalizeList(options.suppliers);
 
   const branches = normalizeList(options.branches);
@@ -356,9 +377,12 @@ export default function SupplierBillFormPage() {
             calculateItem({
               id: item.id,
 
-              product: String(getId(item.product)),
+              product: String(item.product_id ?? getId(item.product)),
 
-              variant: item.variant ? String(getId(item.variant)) : "",
+              variant:
+                (item.variant_id ?? getId(item.variant))
+                  ? String(item.variant_id ?? getId(item.variant))
+                  : "",
 
               grn_item: item.grn_item ? String(getId(item.grn_item)) : "",
 
@@ -551,71 +575,75 @@ export default function SupplierBillFormPage() {
   }
 
   function applyPurchaseOrder(purchaseOrderId) {
-    if (!purchaseOrderId) {
-      updateField("purchase_order", "");
+    const selectedId = String(purchaseOrderId || "");
 
+    console.log("Selected Purchase Order ID:", selectedId);
+
+    if (!selectedId) {
+      setForm((current) => ({
+        ...current,
+        purchase_order: "",
+        grn: "",
+      }));
       return;
     }
 
     const purchaseOrder = purchaseOrders.find(
-      (item) => String(item.id) === String(purchaseOrderId),
+      (item) => String(item.id) === selectedId,
     );
 
-    if (!purchaseOrder) {
-      updateField("purchase_order", purchaseOrderId);
+    console.log("Selected Purchase Order record:", purchaseOrder);
 
+    if (!purchaseOrder) {
+      updateField("purchase_order", selectedId);
       return;
     }
 
     const poItems = normalizeList(purchaseOrder.items);
+    const supplierId =
+      purchaseOrder.supplier_id ?? getId(purchaseOrder.supplier);
+    const branchId = purchaseOrder.branch_id ?? getId(purchaseOrder.branch);
+    const paymentTermsDays = numberValue(purchaseOrder.payment_terms_days);
 
     setForm((current) => ({
       ...current,
-
-      purchase_order: String(purchaseOrder.id),
-
-      supplier: purchaseOrder.supplier
-        ? String(getId(purchaseOrder.supplier))
-        : current.supplier,
-
-      branch: purchaseOrder.branch
-        ? String(getId(purchaseOrder.branch))
-        : current.branch,
-
-      currency: purchaseOrder.currency || current.currency,
-
-      payment_terms_days: numberValue(purchaseOrder.payment_terms_days),
-
-      due_date: addDays(current.bill_date, purchaseOrder.payment_terms_days),
-
+      purchase_order: selectedId,
+      grn: "",
+      supplier: supplierId ? String(supplierId) : current.supplier,
+      branch: branchId ? String(branchId) : current.branch,
+      currency: purchaseOrder.currency || current.currency || "AED",
+      payment_terms_days: paymentTermsDays,
+      due_date: addDays(current.bill_date, paymentTermsDays),
       items: poItems.length
         ? poItems.map((item) =>
             calculateItem({
-              product: String(getId(item.product)),
-
-              variant: item.variant ? String(getId(item.variant)) : "",
-
+              product: String(item.product_id ?? getId(item.product)),
+              variant:
+                (item.variant_id ?? getId(item.variant))
+                  ? String(item.variant_id ?? getId(item.variant))
+                  : "",
               grn_item: "",
-
               product_name:
                 item.product_name || item.product?.product_name || "",
-
               sku: item.sku || item.product?.sku || "",
-
               variant_name: item.variant_name || "",
-
               description: item.description || item.product_name || "",
-
               quantity: numberValue(item.quantity),
-
               unit_price: numberValue(item.unit_price),
-
               discount_amount: numberValue(item.discount_amount),
-
               vat_percentage: numberValue(item.vat_percentage ?? 5),
             }),
           )
-        : current.items,
+        : [createEmptyItem()],
+    }));
+
+    setErrors((current) => ({
+      ...current,
+      purchase_order: undefined,
+      supplier: undefined,
+      branch: undefined,
+      items: undefined,
+      general: undefined,
     }));
   }
 
@@ -626,7 +654,9 @@ export default function SupplierBillFormPage() {
       return;
     }
 
-    const grn = grns.find((item) => String(item.id) === String(grnId));
+    const grn = availableGrns.find((item) => String(item.id) === String(grnId));
+
+    console.log("Selected GRN record:", grn);
 
     if (!grn) {
       updateField("grn", grnId);
@@ -641,20 +671,27 @@ export default function SupplierBillFormPage() {
 
       grn: String(grn.id),
 
-      purchase_order: grn.purchase_order
-        ? String(getId(grn.purchase_order))
-        : current.purchase_order,
+      purchase_order: String(
+        grn.purchase_order_id ??
+          getId(grn.purchase_order) ??
+          current.purchase_order,
+      ),
 
-      supplier: grn.supplier ? String(getId(grn.supplier)) : current.supplier,
+      supplier: String(
+        grn.supplier_id ?? getId(grn.supplier) ?? current.supplier,
+      ),
 
-      branch: grn.branch ? String(getId(grn.branch)) : current.branch,
+      branch: String(grn.branch_id ?? getId(grn.branch) ?? current.branch),
 
       items: grnItems.length
         ? grnItems.map((item) =>
             calculateItem({
-              product: String(getId(item.product)),
+              product: String(item.product_id ?? getId(item.product)),
 
-              variant: item.variant ? String(getId(item.variant)) : "",
+              variant:
+                (item.variant_id ?? getId(item.variant))
+                  ? String(item.variant_id ?? getId(item.variant))
+                  : "",
 
               grn_item: String(item.id),
 
@@ -684,6 +721,14 @@ export default function SupplierBillFormPage() {
 
   function validateForm() {
     const nextErrors = {};
+
+    if (!form.purchase_order) {
+      nextErrors.purchase_order = "Select a Purchase Order.";
+    }
+
+    if (!form.grn) {
+      nextErrors.grn = "Select a confirmed GRN.";
+    }
 
     if (!form.branch) {
       nextErrors.branch = "Select a branch.";
@@ -875,6 +920,9 @@ export default function SupplierBillFormPage() {
     },
 
     onError: (error) => {
+      console.error("Supplier Bill save error:", error);
+      console.error("Supplier Bill save response:", error?.response?.data);
+
       const apiErrors = getApiErrors(error);
 
       setErrors((current) => ({
@@ -1131,7 +1179,7 @@ export default function SupplierBillFormPage() {
           </div>
 
           <div>
-            <Label htmlFor="purchase_order">Purchase Order</Label>
+            <Label htmlFor="purchase_order">Purchase Order *</Label>
 
             <select
               id="purchase_order"
@@ -1139,7 +1187,13 @@ export default function SupplierBillFormPage() {
               value={form.purchase_order}
               onChange={(event) => applyPurchaseOrder(event.target.value)}
             >
-              <option value="">Select purchase order</option>
+              <option value="">
+                {optionsQuery.isLoading
+                  ? "Loading purchase orders..."
+                  : purchaseOrders.length
+                    ? "Select purchase order"
+                    : "No approved purchase orders available"}
+              </option>
 
               {purchaseOrders.map((purchaseOrder) => (
                 <option key={purchaseOrder.id} value={String(purchaseOrder.id)}>
@@ -1150,26 +1204,37 @@ export default function SupplierBillFormPage() {
                 </option>
               ))}
             </select>
+
+            <FieldError message={errors.purchase_order} />
           </div>
 
           <div>
-            <Label htmlFor="grn">Confirmed GRN</Label>
+            <Label htmlFor="grn">Confirmed GRN *</Label>
 
             <select
               id="grn"
               className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"
               value={form.grn}
+              disabled={!form.purchase_order || optionsQuery.isLoading}
               onChange={(event) => applyGrn(event.target.value)}
             >
-              <option value="">Select GRN</option>
+              <option value="">
+                {!form.purchase_order
+                  ? "Select Purchase Order first"
+                  : availableGrns.length
+                    ? "Select confirmed GRN"
+                    : "No confirmed GRN for this PO"}
+              </option>
 
-              {grns.map((grn) => (
+              {availableGrns.map((grn) => (
                 <option key={grn.id} value={String(grn.id)}>
                   {grn.grn_number || `GRN ${grn.id}`}
                   {grn.po_number ? ` — ${grn.po_number}` : ""}
                 </option>
               ))}
             </select>
+
+            <FieldError message={errors.grn} />
           </div>
 
           <div>

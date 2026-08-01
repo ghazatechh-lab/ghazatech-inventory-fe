@@ -2,6 +2,9 @@ import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Boxes, FilterX, Search, Warehouse } from "lucide-react";
 
+import { useAuth } from "@/lib/auth";
+import { canViewRestrictedStock } from "@/lib/taxAccess";
+
 import api, { unwrap } from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -57,6 +60,8 @@ const getAvailableStock = (stock) =>
   numberValue(stock.available_stock ?? stock.current_stock ?? stock.quantity);
 
 export default function StockPage() {
+  const { user } = useAuth();
+  const showRestricted = canViewRestrictedStock(user);
   const [search, setSearch] = React.useState("");
   const [category, setCategory] = React.useState(ALL);
   const [minPrice, setMinPrice] = React.useState("");
@@ -236,6 +241,11 @@ export default function StockPage() {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs text-blue-700">
+        {showRestricted
+          ? "Full stock view: regular, restricted and total balances."
+          : "Operational stock view: regular balances only."}
+      </div>
       <PageHeader
         title="Stock Overview"
         subtitle="Current inventory summary across all branches"
