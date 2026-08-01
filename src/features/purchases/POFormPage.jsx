@@ -271,13 +271,17 @@ export default function POFormPage() {
         const totalQuantity =
           money(item.regular_quantity) +
           (allowRestricted ? money(item.restricted_quantity) : 0);
+
         const gross = totalQuantity * money(item.unit_price);
+
         const discount = money(item.discount_amount);
         const taxable = Math.max(0, gross - discount);
+
         const vatRate =
           item.tax_treatment === "STANDARD_VAT"
             ? money(item.vat_percentage)
             : 0;
+
         const vat = (taxable * vatRate) / 100;
 
         return {
@@ -287,7 +291,7 @@ export default function POFormPage() {
           total: taxable + vat,
         };
       }),
-    [form.items],
+    [form.items, allowRestricted],
   );
 
   const subtotal = calculations.reduce((sum, item) => sum + item.gross, 0);
