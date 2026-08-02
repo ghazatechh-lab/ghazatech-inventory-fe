@@ -494,7 +494,7 @@ export const modules = [
       },
       {
         id: "hrms-salary-history",
-        label: "Salary History",
+        label: "Salary Revision",
         to: "/hrms/salary-history",
         icon: History,
         permission: "hrms.salary_history.view",
