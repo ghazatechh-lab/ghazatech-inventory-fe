@@ -1,96 +1,166 @@
+const normalizeCode = (value) => String(value || "").trim();
+
 export const getRoleCode = (user) =>
-  String(user?.role_code || user?.role?.code || user?.role_detail?.code || "")
+  String(
+    user?.role?.code ||
+      user?.role_detail?.code ||
+      user?.role_code ||
+      user?.role_name ||
+      "",
+  )
     .trim()
-    .toUpperCase();
+    .toUpperCase()
+    .replace(/\s+/g, "_");
 
 export const isAdmin = (user) =>
-  Boolean(user?.is_superuser || getRoleCode(user) === "ADMIN");
+  Boolean(
+    user?.is_superuser === true ||
+    ["ADMIN", "SUPER_ADMIN"].includes(getRoleCode(user)),
+  );
 
-export const isBranchManager = (user) => getRoleCode(user) === "BM";
+const addPermission = (target, value) => {
+  if (!value) return;
 
-export const isStaff = (user) => getRoleCode(user) === "STAFF";
+  if (typeof value === "string") {
+    const code = normalizeCode(value);
 
-export const getPermissionCodes = (user) => {
-  if (isAdmin(user)) {
-    return ["*"];
+    if (code) {
+      target.add(code);
+    }
+
+    return;
   }
 
-  if (Array.isArray(user?.permissions)) {
-    return user.permissions;
-  }
+  if (typeof value === "object") {
+    const code =
+      value.code ||
+      value.permission_code ||
+      value.permission ||
+      value.codename ||
+      value.name;
 
-  if (Array.isArray(user?.role_detail?.permissions)) {
-    return user.role_detail.permissions;
+    if (code) {
+      target.add(normalizeCode(code));
+    }
   }
-
-  if (Array.isArray(user?.role?.permissions)) {
-    return user.role.permissions;
-  }
-
-  return [];
 };
 
-export const hasPermission = (user, permissionCode) => {
-  if (!user || !permissionCode) {
-    return false;
+export const getUserPermissions = (user) => {
+  if (!user) {
+    return new Set();
+  }
+
+  if (isAdmin(user)) {
+    return new Set(["*"]);
+  }
+
+  const permissions = new Set();
+
+  [
+    user.permissions,
+    user.permission_codes,
+    user.all_permissions,
+    user.effective_permissions,
+    user.role?.permissions,
+    user.role_detail?.permissions,
+  ].forEach((collection) => {
+    if (Array.isArray(collection)) {
+      collection.forEach((value) => addPermission(permissions, value));
+    } else if (collection && typeof collection === "object") {
+      Object.entries(collection).forEach(([code, allowed]) => {
+        if (allowed === true) {
+          addPermission(permissions, code);
+        }
+      });
+    }
+  });
+
+  return permissions;
+};
+
+const moduleAliases = {
+  finance: "accounting",
+  accounting: "finance",
+  purchase: "purchases",
+  purchases: "purchase",
+};
+
+const candidateCodes = (code) => {
+  const candidates = new Set([code]);
+
+  const parts = String(code).split(".");
+
+  if (parts.length && moduleAliases[parts[0]]) {
+    candidates.add([moduleAliases[parts[0]], ...parts.slice(1)].join("."));
+  }
+
+  return candidates;
+};
+
+export const hasPermission = (user, code) => {
+  if (!code) {
+    return true;
   }
 
   if (isAdmin(user)) {
     return true;
   }
 
-  const permissions = getPermissionCodes(user);
+  const permissions = getUserPermissions(user);
 
-  return permissions.includes("*") || permissions.includes(permissionCode);
+  if (permissions.has("*")) {
+    return true;
+  }
+
+  for (const candidate of candidateCodes(code)) {
+    if (permissions.has(candidate)) {
+      return true;
+    }
+
+    const parts = candidate.split(".");
+
+    if (permissions.has(`${parts[0]}.*`)) {
+      return true;
+    }
+
+    if (parts.length > 1 && permissions.has(`${parts[0]}.${parts[1]}.*`)) {
+      return true;
+    }
+  }
+
+  return false;
 };
 
-export const hasAnyPermission = (user, permissionCodes = []) =>
-  Array.isArray(permissionCodes) &&
-  permissionCodes.some((code) => hasPermission(user, code));
+export const hasAnyPermission = (user, codes) =>
+  (codes || []).some((code) => hasPermission(user, code));
 
-export const hasAllPermissions = (user, permissionCodes = []) =>
-  Array.isArray(permissionCodes) &&
-  permissionCodes.every((code) => hasPermission(user, code));
-
-export const canView = (user, resource) =>
-  hasPermission(user, `${resource}.view`);
-
-export const canCreate = (user, resource) =>
-  hasPermission(user, `${resource}.create`);
-
-export const canEdit = (user, resource) =>
-  hasPermission(user, `${resource}.edit`);
-
-export const canDelete = (user, resource) =>
-  hasPermission(user, `${resource}.delete`);
-
-export const canApprove = (user, resource) =>
-  hasPermission(user, `${resource}.approve`);
-
-export const canReject = (user, resource) =>
-  hasPermission(user, `${resource}.reject`);
-
-export const canCancel = (user, resource) =>
-  hasPermission(user, `${resource}.cancel`);
-
-export const canExport = (user, resource) =>
-  hasPermission(user, `${resource}.export`);
-
-export const canPrint = (user, resource) =>
-  hasPermission(user, `${resource}.print`);
+export const hasAllPermissions = (user, codes) =>
+  (codes || []).every((code) => hasPermission(user, code));
 
 export const canAccessModule = (user, moduleName) => {
-  if (!user || !moduleName) {
-    return false;
-  }
-
   if (isAdmin(user)) {
     return true;
   }
 
-  const prefix = `${moduleName}.`;
+  const permissions = getUserPermissions(user);
 
-  return getPermissionCodes(user).some((permission) =>
-    permission.startsWith(prefix),
-  );
+  const modules = new Set([moduleName, moduleAliases[moduleName]]);
+
+  return Array.from(permissions).some((code) => {
+    if (code === "*") {
+      return true;
+    }
+
+    return Array.from(modules)
+      .filter(Boolean)
+      .some(
+        (moduleCode) =>
+          code === `${moduleCode}.*` || code.startsWith(`${moduleCode}.`),
+      );
+  });
 };
+
+export const filterByPermission = (values, user) =>
+  (values || []).filter(
+    (value) => !value.permission || hasPermission(user, value.permission),
+  );

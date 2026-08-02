@@ -14,6 +14,7 @@ import { useAuth } from "@/lib/auth";
 import {
   calculateTaxLine,
   canManageRestrictedStock,
+  canUseNonVatSale,
   isAdmin,
 } from "@/lib/taxAccess";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
@@ -94,6 +95,8 @@ export default function InvoiceFormPage() {
   const { user } = useAuth();
 
   const canManageRestricted = isAdmin(user) || canManageRestrictedStock(user);
+
+  const canUseNonVat = canUseNonVatSale(user);
 
   const { branchId } = useActiveBranchFilter();
 
@@ -883,15 +886,30 @@ export default function InvoiceFormPage() {
         </div>
 
         <div className="overflow-x-auto p-5">
-          <div className="min-w-[980px]">
+          <div
+            className={
+              canUseNonVat && canManageRestricted
+                ? "min-w-[1320px]"
+                : canUseNonVat || canManageRestricted
+                  ? "min-w-[1160px]"
+                  : "min-w-[980px]"
+            }
+          >
             <div
-              className={`grid gap-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground ${
-                canManageRestricted
-                  ? "grid-cols-[minmax(210px,1.2fr)_minmax(220px,1fr)_150px_85px_120px_110px_40px]"
-                  : "grid-cols-[minmax(230px,1.2fr)_minmax(240px,1fr)_85px_120px_110px_40px]"
+              className={`grid items-center gap-3 border-b border-slate-200 pb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:border-white/10 ${
+                canUseNonVat && canManageRestricted
+                  ? "grid-cols-[minmax(240px,1.35fr)_minmax(190px,1fr)_minmax(220px,1.15fr)_170px_90px_125px_120px_44px]"
+                  : canUseNonVat
+                    ? "grid-cols-[minmax(250px,1.4fr)_minmax(200px,1fr)_minmax(240px,1.2fr)_90px_125px_120px_44px]"
+                    : canManageRestricted
+                      ? "grid-cols-[minmax(250px,1.4fr)_minmax(250px,1.25fr)_170px_90px_125px_120px_44px]"
+                      : "grid-cols-[minmax(280px,1.45fr)_minmax(280px,1.3fr)_90px_125px_120px_44px]"
               }`}
             >
               <span>Item</span>
+
+              {canUseNonVat && <span>Tax treatment</span>}
+
               <span>Description</span>
 
               {canManageRestricted && <span>Stock type</span>}
@@ -902,14 +920,18 @@ export default function InvoiceFormPage() {
               <span />
             </div>
 
-            <div className="space-y-2">
+            <div className="divide-y divide-slate-100 dark:divide-white/5">
               {calculatedItems.map((item, index) => (
                 <div
                   key={item.id || index}
-                  className={`grid items-center gap-3 border-b border-slate-100 py-3 last:border-b-0 dark:border-white/5 ${
-                    canManageRestricted
-                      ? "grid-cols-[minmax(210px,1.2fr)_minmax(220px,1fr)_150px_85px_120px_110px_40px]"
-                      : "grid-cols-[minmax(230px,1.2fr)_minmax(240px,1fr)_85px_120px_110px_40px]"
+                  className={`grid items-start gap-3 py-4 ${
+                    canUseNonVat && canManageRestricted
+                      ? "grid-cols-[minmax(240px,1.35fr)_minmax(190px,1fr)_minmax(220px,1.15fr)_170px_90px_125px_120px_44px]"
+                      : canUseNonVat
+                        ? "grid-cols-[minmax(250px,1.4fr)_minmax(200px,1fr)_minmax(240px,1.2fr)_90px_125px_120px_44px]"
+                        : canManageRestricted
+                          ? "grid-cols-[minmax(250px,1.4fr)_minmax(250px,1.25fr)_170px_90px_125px_120px_44px]"
+                          : "grid-cols-[minmax(280px,1.45fr)_minmax(280px,1.3fr)_90px_125px_120px_44px]"
                   }`}
                 >
                   <Select
@@ -922,7 +944,7 @@ export default function InvoiceFormPage() {
                       selectProduct(index, value === "__none__" ? "" : value)
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-10 w-full">
                       <SelectValue placeholder="Select product" />
                     </SelectTrigger>
 
@@ -943,6 +965,7 @@ export default function InvoiceFormPage() {
                                   ? ` — ${product.variant_name}`
                                   : ""}
                               </p>
+
                               <p className="mt-0.5 truncate text-xs text-muted-foreground">
                                 {product.sku || "No SKU"} ·{" "}
                                 {canManageRestricted
@@ -958,6 +981,7 @@ export default function InvoiceFormPage() {
                                     )} available`}
                               </p>
                             </div>
+
                             <span className="shrink-0 text-sm font-semibold text-blue-600 dark:text-blue-300">
                               AED {getProductPrice(product).toFixed(2)}
                             </span>
@@ -967,6 +991,58 @@ export default function InvoiceFormPage() {
                     </SelectContent>
                   </Select>
 
+                  {canUseNonVat && (
+                    <div className="space-y-2">
+                      <Select
+                        value={item.tax_treatment || "STANDARD_VAT"}
+                        onValueChange={(value) =>
+                          updateItem(index, {
+                            tax_treatment: value,
+                            tax_rate: value === "STANDARD_VAT" ? 5 : 0,
+                            vat_percentage: value === "STANDARD_VAT" ? 5 : 0,
+                            tax_reason:
+                              value === "STANDARD_VAT" ? "" : item.tax_reason,
+                          })
+                        }
+                      >
+                        <SelectTrigger className="h-10 w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+
+                        <SelectContent>
+                          <SelectItem value="STANDARD_VAT">
+                            Standard VAT (5%)
+                          </SelectItem>
+                          <SelectItem value="ZERO_RATED">
+                            Zero Rated (0%)
+                          </SelectItem>
+                          <SelectItem value="EXEMPT">
+                            Exempt / Non-VAT
+                          </SelectItem>
+                          <SelectItem value="OUT_OF_SCOPE">
+                            Out of Scope / Non-VAT
+                          </SelectItem>
+                          <SelectItem value="REVERSE_CHARGE">
+                            Reverse Charge
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      {item.tax_treatment !== "STANDARD_VAT" && (
+                        <Input
+                          value={item.tax_reason || ""}
+                          onChange={(event) =>
+                            updateItem(index, {
+                              tax_reason: event.target.value,
+                            })
+                          }
+                          placeholder="Reason / legal reference"
+                          className="h-9 text-xs"
+                        />
+                      )}
+                    </div>
+                  )}
+
                   <Input
                     value={item.description}
                     onChange={(event) =>
@@ -974,36 +1050,11 @@ export default function InvoiceFormPage() {
                         description: event.target.value,
                       })
                     }
-                  />
-
-                  <Input
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value={item.quantity}
-                    onChange={(event) =>
-                      updateItem(index, {
-                        quantity: event.target.value,
-                      })
-                    }
-                    className="text-right"
-                  />
-
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={item.unit_price}
-                    onChange={(event) =>
-                      updateItem(index, {
-                        unit_price: event.target.value,
-                      })
-                    }
-                    className="text-right"
+                    className="h-10 w-full"
                   />
 
                   {canManageRestricted && (
-                    <div>
+                    <div className="space-y-1.5">
                       <Select
                         value={item.stock_classification || "REGULAR"}
                         onValueChange={(value) =>
@@ -1012,7 +1063,7 @@ export default function InvoiceFormPage() {
                           })
                         }
                       >
-                        <SelectTrigger className="h-10">
+                        <SelectTrigger className="h-10 w-full">
                           <SelectValue />
                         </SelectTrigger>
 
@@ -1035,7 +1086,7 @@ export default function InvoiceFormPage() {
                         </SelectContent>
                       </Select>
 
-                      <p className="mt-1 text-[10px] text-muted-foreground">
+                      <p className="px-1 text-[10px] leading-4 text-muted-foreground">
                         {item.stock_classification === "RESTRICTED"
                           ? `${number(
                               item.available_restricted_quantity,
@@ -1047,7 +1098,33 @@ export default function InvoiceFormPage() {
                     </div>
                   )}
 
-                  <div className="text-right font-semibold">
+                  <Input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={item.quantity}
+                    onChange={(event) =>
+                      updateItem(index, {
+                        quantity: event.target.value,
+                      })
+                    }
+                    className="h-10 text-right"
+                  />
+
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={item.unit_price}
+                    onChange={(event) =>
+                      updateItem(index, {
+                        unit_price: event.target.value,
+                      })
+                    }
+                    className="h-10 text-right"
+                  />
+
+                  <div className="flex h-10 items-center justify-end whitespace-nowrap font-semibold">
                     <CurrencyText
                       value={item.line_total}
                       currency={form.currency}
@@ -1058,6 +1135,7 @@ export default function InvoiceFormPage() {
                     type="button"
                     size="icon"
                     variant="ghost"
+                    className="h-10 w-10"
                     onClick={() =>
                       setForm((current) => ({
                         ...current,

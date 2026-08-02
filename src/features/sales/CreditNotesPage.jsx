@@ -7,8 +7,9 @@ import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import {
   calculateTaxLine,
-  canCreateNonStandardTaxSale,
+  canManageSalesVat,
   canManageRestrictedStock,
+  canUseNonVatSale,
 } from "@/lib/taxAccess";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
@@ -85,7 +86,10 @@ export default function CreditNotesPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  const canManageTax = canCreateNonStandardTaxSale(user);
+  const canManageTax = canManageSalesVat(user);
+
+  const canUseNonVat = canUseNonVatSale(user);
+
   const canManageRestricted = canManageRestrictedStock(user);
 
   const { branchId, branchParams } = useActiveBranchFilter();
@@ -778,11 +782,12 @@ export default function CreditNotesPage() {
                               {" / unit"}
                             </p>
 
-                            {(canManageTax || canManageRestricted) && (
+                            {(canUseNonVat || canManageRestricted) && (
                               <div className="mt-2">
                                 <SalesVatLineControls
                                   item={item}
                                   canManageTax={canManageTax}
+                                  canUseNonVat={canUseNonVat}
                                   canManageRestricted={canManageRestricted}
                                   readOnly
                                   onChange={() => {}}

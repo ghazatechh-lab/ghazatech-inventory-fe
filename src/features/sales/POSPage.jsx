@@ -13,7 +13,11 @@ import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { calculateTaxLine, canManageRestrictedStock } from "@/lib/taxAccess";
+import {
+  calculateTaxLine,
+  canManageRestrictedStock,
+  canUseNonVatSale,
+} from "@/lib/taxAccess";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -94,6 +98,8 @@ export default function POSPage() {
   const { user } = useAuth();
 
   const canManageRestricted = canManageRestrictedStock(user);
+
+  const canUseNonVat = canUseNonVatSale(user);
 
   const { branchId, branchParams } = useActiveBranchFilter();
 
@@ -932,6 +938,61 @@ export default function POSPage() {
                             </div>
                           )}
                         </div>
+
+                        {canUseNonVat && (
+                          <div className="grid gap-2 sm:grid-cols-[180px_1fr]">
+                            <Select
+                              value={item.tax_treatment || "STANDARD_VAT"}
+                              onValueChange={(value) =>
+                                updateItem(index, {
+                                  tax_treatment: value,
+                                  tax_rate: value === "STANDARD_VAT" ? 5 : 0,
+                                  vat_percentage:
+                                    value === "STANDARD_VAT" ? 5 : 0,
+                                  tax_reason:
+                                    value === "STANDARD_VAT"
+                                      ? ""
+                                      : item.tax_reason,
+                                })
+                              }
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue />
+                              </SelectTrigger>
+
+                              <SelectContent>
+                                <SelectItem value="STANDARD_VAT">
+                                  Standard VAT (5%)
+                                </SelectItem>
+                                <SelectItem value="ZERO_RATED">
+                                  Zero Rated (0%)
+                                </SelectItem>
+                                <SelectItem value="EXEMPT">
+                                  Exempt / Non-VAT
+                                </SelectItem>
+                                <SelectItem value="OUT_OF_SCOPE">
+                                  Out of Scope / Non-VAT
+                                </SelectItem>
+                                <SelectItem value="REVERSE_CHARGE">
+                                  Reverse Charge
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+
+                            {item.tax_treatment !== "STANDARD_VAT" && (
+                              <Input
+                                value={item.tax_reason || ""}
+                                onChange={(event) =>
+                                  updateItem(index, {
+                                    tax_reason: event.target.value,
+                                  })
+                                }
+                                placeholder="Reason / legal reference"
+                                className="h-9 text-xs"
+                              />
+                            )}
+                          </div>
+                        )}
 
                         {item.product && (
                           <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-xs dark:bg-white/[0.035]">

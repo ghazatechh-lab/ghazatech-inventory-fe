@@ -8,8 +8,9 @@ import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import {
   calculateTaxLine,
-  canCreateNonStandardTaxSale,
+  canManageSalesVat,
   canManageRestrictedStock,
+  canUseNonVatSale,
 } from "@/lib/taxAccess";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -81,7 +82,10 @@ export default function QuotationFormPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  const canManageTax = canCreateNonStandardTaxSale(user);
+  const canManageTax = canManageSalesVat(user);
+
+  const canUseNonVat = canUseNonVatSale(user);
+
   const canManageRestricted = canManageRestrictedStock(user);
 
   const { branchId } = useActiveBranchFilter();
@@ -814,11 +818,12 @@ export default function QuotationFormPage() {
                     <SalesVatLineControls
                       item={item}
                       canManageTax={canManageTax}
+                      canUseNonVat={canUseNonVat}
                       canManageRestricted={canManageRestricted}
                       onChange={(patch) => updateItem(index, patch)}
                     />
 
-                    {!canManageTax && (
+                    {!canUseNonVat && (
                       <p className="text-xs text-muted-foreground">
                         Standard VAT 5%
                       </p>

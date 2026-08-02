@@ -7,6 +7,7 @@ import { Toaster } from "sonner";
 
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { AppLayout } from "@/components/layout/AppLayout";
+import RoutePermissionGuard from "@/components/auth/RoutePermissionGuard";
 
 /* -------------------------------------------------------------------------- */
 /* Public pages                                                               */
@@ -48,7 +49,6 @@ import StockPage from "@/features/inventory/StockPage";
 import LowStockPage from "@/features/inventory/LowStockPage";
 import StockMovementsPage from "@/features/inventory/StockMovementsPage";
 import StockAdjustmentPage from "@/features/inventory/StockAdjustmentPage";
-import StockReclassificationPage from "@/features/inventory/StockReclassificationPage";
 
 /* -------------------------------------------------------------------------- */
 /* Customers                                                                  */
@@ -73,6 +73,12 @@ import InvoiceDetailPage from "@/features/sales/InvoiceDetailPage";
 import POSPage from "@/features/sales/POSPage";
 import CreditNotesPage from "@/features/sales/CreditNotesPage";
 import SalesPaymentsPage from "@/features/sales/SalesPaymentsPage";
+import SalesOrderListPage from "@/features/sales/SalesOrderListPage";
+import SalesOrderFormPage from "@/features/sales/SalesOrderFormPage";
+import SalesOrderDetailPage from "@/features/sales/SalesOrderDetailPage";
+import SalesReturnsPage from "@/features/sales/SalesReturnsPage";
+import PriceListsPage from "@/features/sales/PriceListsPage";
+import DeliveryNotesPage from "@/features/sales/DeliveryNotesPage";
 
 /* -------------------------------------------------------------------------- */
 /* Suppliers                                                                  */
@@ -101,13 +107,13 @@ import SupplierPaymentDetailPage from "@/features/purchases/SupplierPaymentDetai
 import SupplierPaymentFormPage from "@/features/purchases/SupplierPaymentFormPage";
 
 import SupplierReturnsPage from "@/features/purchases/SupplierReturnsPage";
+import SupplierReturnListPage from "@/features/purchases/SupplierReturnListPage";
 import SupplierReturnDetailPage from "@/features/purchases/SupplierReturnDetailPage";
 
 import VendorCreditsPage from "@/features/purchases/VendorCreditsPage";
 import VendorCreditDetailPage from "@/features/purchases/VendorCreditDetailPage";
 
 import PurchaseExpensesPage from "@/features/purchases/PurchaseExpensesPage";
-import PurchaseExpenseFormPage from "@/features/purchases/PurchaseExpenseFormPage";
 import PurchaseExpenseDetailPage from "@/features/purchases/PurchaseExpenseDetailPage";
 
 /* -------------------------------------------------------------------------- */
@@ -277,7 +283,9 @@ export default function App() {
             <Route
               element={
                 <ProtectedRoute>
-                  <AppLayout />
+                  <RoutePermissionGuard>
+                    <AppLayout />
+                  </RoutePermissionGuard>
                 </ProtectedRoute>
               }
             >
@@ -292,7 +300,7 @@ export default function App() {
               <Route
                 path="/branches"
                 element={
-                  <ProtectedRoute allow={["ADMIN"]}>
+                  <ProtectedRoute permission="settings.branches.view">
                     <BranchListPage />
                   </ProtectedRoute>
                 }
@@ -301,7 +309,7 @@ export default function App() {
               <Route
                 path="/branches/new"
                 element={
-                  <ProtectedRoute allow={["ADMIN"]}>
+                  <ProtectedRoute permission="settings.branches.create">
                     <BranchFormPage />
                   </ProtectedRoute>
                 }
@@ -310,7 +318,7 @@ export default function App() {
               <Route
                 path="/branches/:id"
                 element={
-                  <ProtectedRoute allow={["ADMIN"]}>
+                  <ProtectedRoute permission="settings.branches.view">
                     <BranchDetailPage />
                   </ProtectedRoute>
                 }
@@ -319,7 +327,7 @@ export default function App() {
               <Route
                 path="/branches/:id/edit"
                 element={
-                  <ProtectedRoute allow={["ADMIN"]}>
+                  <ProtectedRoute permission="settings.branches.edit">
                     <BranchFormPage />
                   </ProtectedRoute>
                 }
@@ -361,10 +369,6 @@ export default function App() {
               />
 
               <Route path="/inventory/stock" element={<StockPage />} />
-              <Route
-                path="/inventory/stock-reclassification"
-                element={<StockReclassificationPage />}
-              />
 
               <Route path="/inventory/low-stock" element={<LowStockPage />} />
 
@@ -409,6 +413,26 @@ export default function App() {
                 path="/sales/quotations/:id/edit"
                 element={<QuotationFormPage />}
               />
+
+              <Route path="/sales/orders" element={<SalesOrderListPage />} />
+              <Route
+                path="/sales/orders/new"
+                element={<SalesOrderFormPage />}
+              />
+              <Route
+                path="/sales/orders/:id"
+                element={<SalesOrderDetailPage />}
+              />
+              <Route
+                path="/sales/orders/:id/edit"
+                element={<SalesOrderFormPage />}
+              />
+              <Route
+                path="/sales/delivery-notes"
+                element={<DeliveryNotesPage />}
+              />
+              <Route path="/sales/returns" element={<SalesReturnsPage />} />
+              <Route path="/sales/price-lists" element={<PriceListsPage />} />
 
               <Route path="/sales/invoices" element={<InvoiceListPage />} />
 
@@ -499,7 +523,7 @@ export default function App() {
 
               <Route
                 path="/purchases/supplier-returns"
-                element={<SupplierReturnsPage />}
+                element={<SupplierReturnListPage />}
               />
 
               <Route
@@ -548,7 +572,7 @@ export default function App() {
 
               <Route
                 path="/purchases/purchase-expenses/new"
-                element={<PurchaseExpenseFormPage />}
+                element={<PurchaseExpensesPage />}
               />
 
               <Route
@@ -558,7 +582,7 @@ export default function App() {
 
               <Route
                 path="/purchases/purchase-expenses/:id/edit"
-                element={<PurchaseExpenseFormPage />}
+                element={<PurchaseExpensesPage />}
               />
 
               {/* Compatibility routes for old expense links */}

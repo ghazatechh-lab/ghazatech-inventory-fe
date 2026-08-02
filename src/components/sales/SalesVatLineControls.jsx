@@ -14,6 +14,7 @@ export function SalesVatLineControls({
   item,
   onChange,
   canManageTax,
+  canUseNonVat = false,
   canManageRestricted,
   readOnly = false,
 }) {
@@ -45,35 +46,45 @@ export function SalesVatLineControls({
 
               <SelectContent>
                 <SelectItem value="STANDARD_VAT">Standard VAT (5%)</SelectItem>
-                <SelectItem value="ZERO_RATED">Zero rated</SelectItem>
-                <SelectItem value="EXEMPT">Exempt</SelectItem>
-                <SelectItem value="OUT_OF_SCOPE">Out of scope</SelectItem>
-                <SelectItem value="REVERSE_CHARGE">Reverse charge</SelectItem>
+                {canUseNonVat && (
+                  <>
+                    <SelectItem value="ZERO_RATED">Zero rated</SelectItem>
+                    <SelectItem value="EXEMPT">Exempt / Non-VAT</SelectItem>
+                    <SelectItem value="OUT_OF_SCOPE">
+                      Out of scope / Non-VAT
+                    </SelectItem>
+                    <SelectItem value="REVERSE_CHARGE">
+                      Reverse charge
+                    </SelectItem>
+                  </>
+                )}
               </SelectContent>
             </Select>
           </div>
 
-          <div className="md:col-span-2">
-            <Label className="text-xs">
-              Legal reason / supporting reference
-            </Label>
+          {(canUseNonVat || item.tax_treatment === "STANDARD_VAT") && (
+            <div className="md:col-span-2">
+              <Label className="text-xs">
+                Legal reason / supporting reference
+              </Label>
 
-            <Input
-              className="mt-1"
-              value={item.tax_reason || ""}
-              onChange={(event) =>
-                onChange({
-                  tax_reason: event.target.value,
-                })
-              }
-              placeholder={
-                item.tax_treatment === "STANDARD_VAT"
-                  ? "Optional"
-                  : "Required for non-standard VAT"
-              }
-              disabled={readOnly}
-            />
-          </div>
+              <Input
+                className="mt-1"
+                value={item.tax_reason || ""}
+                onChange={(event) =>
+                  onChange({
+                    tax_reason: event.target.value,
+                  })
+                }
+                placeholder={
+                  item.tax_treatment === "STANDARD_VAT"
+                    ? "Optional"
+                    : "Required for Non-VAT treatment"
+                }
+                disabled={readOnly}
+              />
+            </div>
+          )}
 
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
             <input

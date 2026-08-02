@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Edit,
   Plus,
+  Search,
   ShieldCheck,
   Trash2,
   UserCheck,
@@ -18,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PERMISSION_GROUPS } from "@/config/permissionGroups";
 
 const normalizeList = (value) => {
   if (Array.isArray(value)) {
@@ -210,6 +212,9 @@ export default function UserRoleManagementPage() {
   const [editingUser, setEditingUser] = React.useState(null);
   const [editingRole, setEditingRole] = React.useState(null);
 
+  const [permissionTab, setPermissionTab] = React.useState("special");
+  const [permissionSearch, setPermissionSearch] = React.useState("");
+
   const { data: usersData, isLoading: usersLoading } = useQuery({
     queryKey: ["admin-users"],
     queryFn: async () =>
@@ -277,6 +282,86 @@ export default function UserRoleManagementPage() {
     () => normalizePermissions(roleForm.permissions),
     [roleForm.permissions],
   );
+
+  const catalogPermissionCodes = React.useMemo(() => {
+    const codes = new Set();
+
+    catalog.forEach((group) => {
+      (group.resources || []).forEach((resource) => {
+        (resource.actions || []).forEach((action) => {
+          codes.add(`${group.module}.${resource.resource}.${action}`);
+        });
+      });
+    });
+
+    return codes;
+  }, [catalog]);
+
+  const specialPermissionGroups = React.useMemo(
+    () =>
+      PERMISSION_GROUPS.map((group) => ({
+        ...group,
+        permissions: group.permissions.filter((permission) => {
+          const search = permissionSearch.trim().toLowerCase();
+
+          if (!search) {
+            return true;
+          }
+
+          return [permission.label, permission.code, permission.description]
+            .filter(Boolean)
+            .some((value) => String(value).toLowerCase().includes(search));
+        }),
+      })).filter((group) => group.permissions.length),
+    [permissionSearch],
+  );
+
+  const filteredCatalog = React.useMemo(
+    () =>
+      catalog
+        .map((group) => ({
+          ...group,
+          resources: (group.resources || [])
+            .map((resource) => ({
+              ...resource,
+              actions: (resource.actions || []).filter((action) => {
+                const search = permissionSearch.trim().toLowerCase();
+
+                if (!search) {
+                  return true;
+                }
+
+                return [
+                  group.label,
+                  group.module,
+                  resource.label,
+                  resource.resource,
+                  action,
+                  `${group.module}.${resource.resource}.${action}`,
+                ]
+                  .filter(Boolean)
+                  .some((value) =>
+                    String(value).toLowerCase().includes(search),
+                  );
+              }),
+            }))
+            .filter((resource) => resource.actions.length),
+        }))
+        .filter((group) => group.resources.length),
+    [catalog, permissionSearch],
+  );
+
+  const specialPermissionCodes = React.useMemo(
+    () =>
+      PERMISSION_GROUPS.flatMap((group) =>
+        group.permissions.map((permission) => permission.code),
+      ),
+    [],
+  );
+
+  const selectedSpecialCount = specialPermissionCodes.filter((code) =>
+    rolePermissions.includes(code),
+  ).length;
 
   const selectedRole = roles.find(
     (role) => String(role.id) === String(userForm.role),
@@ -390,6 +475,8 @@ export default function UserRoleManagementPage() {
 
   const openRole = (role = null) => {
     setEditingRole(role);
+    setPermissionTab("special");
+    setPermissionSearch("");
 
     setRoleForm(
       role
@@ -437,6 +524,23 @@ export default function UserRoleManagementPage() {
         permissions: allSelected
           ? currentPermissions.filter((code) => !permissionCodes.includes(code))
           : Array.from(new Set([...currentPermissions, ...permissionCodes])),
+      };
+    });
+  };
+
+  const togglePermissionCodes = (codes) => {
+    setRoleForm((current) => {
+      const currentPermissions = normalizePermissions(current.permissions);
+
+      const allSelected = codes.every((code) =>
+        currentPermissions.includes(code),
+      );
+
+      return {
+        ...current,
+        permissions: allSelected
+          ? currentPermissions.filter((code) => !codes.includes(code))
+          : Array.from(new Set([...currentPermissions, ...codes])),
       };
     });
   };
@@ -857,7 +961,7 @@ export default function UserRoleManagementPage() {
               event.preventDefault();
               roleMutation.mutate();
             }}
-            className="max-h-[94vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-background shadow-2xl"
+            className="max-h-[94vh] w-full max-w-6xl overflow-y-auto rounded-2xl bg-background shadow-2xl"
           >
             <div className="flex justify-between border-b p-5">
               <div>
@@ -932,80 +1036,276 @@ export default function UserRoleManagementPage() {
               </div>
             </div>
 
-            <div className="space-y-5 border-t p-5">
-              {catalog.map((group) => (
-                <section key={group.module} className="rounded-xl border">
-                  <h3 className="border-b bg-muted/40 px-4 py-3 font-semibold">
-                    {group.label}
-                  </h3>
+            <div className="border-t">
+              <div className="sticky top-0 z-10 border-b bg-background/95 px-5 py-4 backdrop-blur">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="h-5 w-5 text-blue-600" />
 
-                  <div className="divide-y">
-                    {(group.resources || []).map((resource) => {
-                      const actions = Array.isArray(resource.actions)
-                        ? resource.actions
-                        : [];
+                      <h3 className="text-lg font-semibold">
+                        Permission Access
+                      </h3>
+                    </div>
 
-                      const codes = actions.map(
-                        (action) =>
-                          `${group.module}.${resource.resource}.${action}`,
-                      );
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Configure sensitive access first, then assign regular
+                      module permissions.
+                    </p>
+                  </div>
 
-                      const checked =
-                        codes.length > 0 &&
-                        codes.every((code) => rolePermissions.includes(code));
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-full bg-blue-50 px-3 py-1.5 font-medium text-blue-700">
+                      {rolePermissions.length} selected
+                    </span>
 
-                      return (
-                        <div key={resource.resource} className="p-4">
-                          <label className="flex items-center gap-2 font-medium">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() =>
-                                toggleResource(
-                                  group.module,
-                                  resource.resource,
-                                  actions,
-                                )
-                              }
-                            />
+                    <span className="rounded-full bg-amber-50 px-3 py-1.5 font-medium text-amber-700">
+                      {selectedSpecialCount} special access
+                    </span>
+                  </div>
+                </div>
 
-                            {resource.label}
-                          </label>
+                <div className="relative mt-4">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 
-                          <div className="mt-3 flex flex-wrap gap-3">
-                            {actions.map((action) => {
-                              const code = `${group.module}.${resource.resource}.${action}`;
+                  <Input
+                    value={permissionSearch}
+                    onChange={(event) =>
+                      setPermissionSearch(event.target.value)
+                    }
+                    placeholder="Search permission name or code..."
+                    className="pl-9"
+                  />
+                </div>
+              </div>
 
-                              return (
-                                <label
-                                  key={action}
-                                  className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm"
-                                >
+              <Tabs
+                value={permissionTab}
+                onValueChange={setPermissionTab}
+                className="p-5"
+              >
+                <TabsList className="grid w-full grid-cols-2 lg:w-[520px]">
+                  <TabsTrigger value="special">
+                    Special Access
+                    <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] text-amber-700">
+                      Sensitive
+                    </span>
+                  </TabsTrigger>
+
+                  <TabsTrigger value="all">All Module Permissions</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="special" className="mt-5 space-y-4">
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+                    <h4 className="font-semibold text-amber-800">
+                      Special Access Permissions
+                    </h4>
+
+                    <p className="mt-1 text-sm text-amber-700">
+                      These permissions control VAT, Non-VAT, selling price,
+                      stock classification, restricted stock and other sensitive
+                      operations.
+                    </p>
+                  </div>
+
+                  {specialPermissionGroups.map((group) => {
+                    const codes = group.permissions.map(
+                      (permission) => permission.code,
+                    );
+
+                    const selectedCount = codes.filter((code) =>
+                      rolePermissions.includes(code),
+                    ).length;
+
+                    const allSelected =
+                      codes.length > 0 && selectedCount === codes.length;
+
+                    return (
+                      <section
+                        key={group.key}
+                        className="overflow-hidden rounded-2xl border bg-card shadow-sm"
+                      >
+                        <div className="flex flex-col gap-3 border-b bg-muted/25 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <h4 className="font-semibold">{group.label}</h4>
+
+                            <p className="text-xs text-muted-foreground">
+                              {selectedCount} of {codes.length} selected
+                            </p>
+                          </div>
+
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={allSelected ? "default" : "outline"}
+                            onClick={() => togglePermissionCodes(codes)}
+                          >
+                            {allSelected ? "Clear Group" : "Select Group"}
+                          </Button>
+                        </div>
+
+                        <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
+                          {group.permissions.map((permission) => {
+                            const checked = rolePermissions.includes(
+                              permission.code,
+                            );
+
+                            return (
+                              <label
+                                key={permission.code}
+                                className={`cursor-pointer rounded-xl border p-4 transition ${
+                                  checked
+                                    ? "border-blue-500 bg-blue-50/70 ring-1 ring-blue-500/20"
+                                    : "hover:border-blue-300 hover:bg-muted/30"
+                                }`}
+                              >
+                                <div className="flex items-start gap-3">
                                   <input
                                     type="checkbox"
-                                    checked={rolePermissions.includes(code)}
-                                    onChange={() => togglePermission(code)}
+                                    checked={checked}
+                                    onChange={() =>
+                                      togglePermission(permission.code)
+                                    }
+                                    className="mt-1 h-4 w-4"
                                   />
 
-                                  <span className="capitalize">
-                                    {action.replace(/_/g, " ")}
-                                  </span>
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </section>
-              ))}
+                                  <div className="min-w-0">
+                                    <span className="block font-medium">
+                                      {permission.label}
+                                    </span>
 
-              {!catalog.length && (
-                <div className="rounded-xl border p-8 text-center text-sm text-muted-foreground">
-                  No permission catalogue was returned by the API.
-                </div>
-              )}
+                                    {permission.description && (
+                                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                                        {permission.description}
+                                      </span>
+                                    )}
+
+                                    <code className="mt-2 block break-all rounded bg-background/70 px-2 py-1 text-[10px] text-muted-foreground">
+                                      {permission.code}
+                                    </code>
+                                  </div>
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    );
+                  })}
+
+                  {!specialPermissionGroups.length && (
+                    <div className="rounded-xl border p-8 text-center text-sm text-muted-foreground">
+                      No special access permissions match your search.
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="all" className="mt-5 space-y-5">
+                  {filteredCatalog.map((group) => (
+                    <section
+                      key={group.module}
+                      className="overflow-hidden rounded-2xl border"
+                    >
+                      <div className="border-b bg-muted/35 px-5 py-4">
+                        <h3 className="font-semibold">{group.label}</h3>
+
+                        <code className="mt-1 block text-[10px] text-muted-foreground">
+                          {group.module}
+                        </code>
+                      </div>
+
+                      <div className="divide-y">
+                        {(group.resources || []).map((resource) => {
+                          const actions = Array.isArray(resource.actions)
+                            ? resource.actions
+                            : [];
+
+                          const codes = actions.map(
+                            (action) =>
+                              `${group.module}.${resource.resource}.${action}`,
+                          );
+
+                          const checked =
+                            codes.length > 0 &&
+                            codes.every((code) =>
+                              rolePermissions.includes(code),
+                            );
+
+                          return (
+                            <div key={resource.resource} className="p-5">
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                  <h4 className="font-medium">
+                                    {resource.label}
+                                  </h4>
+
+                                  <code className="text-[10px] text-muted-foreground">
+                                    {group.module}.{resource.resource}
+                                  </code>
+                                </div>
+
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant={checked ? "default" : "outline"}
+                                  onClick={() =>
+                                    toggleResource(
+                                      group.module,
+                                      resource.resource,
+                                      actions,
+                                    )
+                                  }
+                                >
+                                  {checked
+                                    ? "Clear Resource"
+                                    : "Select Resource"}
+                                </Button>
+                              </div>
+
+                              <div className="mt-4 flex flex-wrap gap-2">
+                                {actions.map((action) => {
+                                  const code = `${group.module}.${resource.resource}.${action}`;
+
+                                  const selected =
+                                    rolePermissions.includes(code);
+
+                                  return (
+                                    <label
+                                      key={action}
+                                      className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition ${
+                                        selected
+                                          ? "border-blue-500 bg-blue-50 text-blue-700"
+                                          : "hover:border-blue-300"
+                                      }`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={selected}
+                                        onChange={() => togglePermission(code)}
+                                        className="mr-2"
+                                      />
+
+                                      <span className="capitalize">
+                                        {action.replace(/_/g, " ")}
+                                      </span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ))}
+
+                  {!filteredCatalog.length && (
+                    <div className="rounded-xl border p-8 text-center text-sm text-muted-foreground">
+                      No module permissions match your search.
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
             </div>
 
             <div className="flex justify-end gap-2 border-t p-5">
