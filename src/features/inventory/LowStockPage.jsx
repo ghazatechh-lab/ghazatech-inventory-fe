@@ -61,7 +61,9 @@ export default function LowStockPage() {
       sortKey: "product__product_name",
       cell: (row) => (
         <div>
-          <div className="font-medium text-white">{row.product_name}</div>
+          <div className="font-semibold text-foreground">
+            {row.product_name}
+          </div>
 
           <div className="text-xs text-slate-500">
             {row.sku}
@@ -115,7 +117,9 @@ export default function LowStockPage() {
       sortKey: "available_stock",
       align: "right",
       cell: (row) => (
-        <strong className="text-red-400">{row.available_stock}</strong>
+        <strong className="text-rose-600 dark:text-rose-400">
+          {row.available_stock}
+        </strong>
       ),
     },
     {
@@ -123,7 +127,7 @@ export default function LowStockPage() {
       header: "Status",
       sortable: false,
       cell: (row) => (
-        <span className="text-red-400">
+        <span className="text-rose-600 dark:text-rose-400">
           {Number(row.available_stock) <= 0 ? "Out of stock" : "Low stock"}
         </span>
       ),
@@ -131,7 +135,7 @@ export default function LowStockPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div data-stock-module="low-stock" className="stock-module-page space-y-6">
       <PageHeader
         title="Low stock items"
         subtitle="Items with available quantity below 10"

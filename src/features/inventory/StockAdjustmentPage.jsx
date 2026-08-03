@@ -338,7 +338,7 @@ export default function StockAdjustmentPage() {
         <div>
           <div className="font-medium text-white">{item.product_name}</div>
 
-          <div className="text-xs text-slate-500">
+          <div className="text-xs text-muted-foreground">
             {item.variant_label !== "Base product"
               ? item.variant_label
               : item.sku}
@@ -366,7 +366,9 @@ export default function StockAdjustmentPage() {
       cell: (item) => (
         <span
           className={
-            item.adjustment_type === "ADD" ? "text-emerald-400" : "text-red-400"
+            item.adjustment_type === "ADD"
+              ? "text-emerald-400"
+              : "text-rose-600 dark:text-rose-400"
           }
         >
           {item.adjustment_type === "ADD" ? "Increase" : "Decrease"}
@@ -379,7 +381,7 @@ export default function StockAdjustmentPage() {
       sortKey: "quantity",
       align: "right",
       cell: (item) => (
-        <span className="font-mono font-semibold text-white">
+        <span className="font-mono font-semibold text-foreground">
           {item.signed_quantity > 0 ? "+" : ""}
           {item.signed_quantity}
         </span>
@@ -409,7 +411,10 @@ export default function StockAdjustmentPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div
+      data-stock-module="stock-adjustments"
+      className="stock-module-page space-y-6"
+    >
       <PageHeader
         title="Stock adjustments"
         subtitle="Manually increase or decrease stock to match the physical count"
@@ -418,12 +423,12 @@ export default function StockAdjustmentPage() {
       <div className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
         <form
           onSubmit={handleSubmit(submit)}
-          className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/70"
+          className="overflow-hidden stock-operation-form overflow-hidden rounded-2xl border bg-card shadow-sm"
         >
-          <div className="border-b border-white/10 bg-white/[0.025] px-5 py-4">
-            <h2 className="font-semibold text-white">New adjustment</h2>
+          <div className="border-b bg-muted/30 px-5 py-4">
+            <h2 className="font-semibold text-foreground">New adjustment</h2>
 
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-muted-foreground">
               Example: system stock is 100 but physical stock is 98, so deduct
               2.
             </p>
@@ -433,7 +438,7 @@ export default function StockAdjustmentPage() {
             <div>
               <Label>
                 Branch
-                <span className="ml-1 text-red-400">*</span>
+                <span className="ml-1 text-rose-600 dark:text-rose-400">*</span>
               </Label>
 
               <Controller
@@ -460,7 +465,7 @@ export default function StockAdjustmentPage() {
               />
 
               {errors.branch && (
-                <p className="mt-1 text-sm text-red-400">
+                <p className="mt-1 text-sm text-rose-600 dark:text-rose-400">
                   {errors.branch.message}
                 </p>
               )}
@@ -469,7 +474,7 @@ export default function StockAdjustmentPage() {
             <div>
               <Label>
                 Product
-                <span className="ml-1 text-red-400">*</span>
+                <span className="ml-1 text-rose-600 dark:text-rose-400">*</span>
               </Label>
 
               <Controller
@@ -496,7 +501,7 @@ export default function StockAdjustmentPage() {
               />
 
               {errors.product && (
-                <p className="mt-1 text-sm text-red-400">
+                <p className="mt-1 text-sm text-rose-600 dark:text-rose-400">
                   {errors.product.message}
                 </p>
               )}
@@ -506,7 +511,9 @@ export default function StockAdjustmentPage() {
               <div>
                 <Label>
                   Attribute
-                  <span className="ml-1 text-red-400">*</span>
+                  <span className="ml-1 text-rose-600 dark:text-rose-400">
+                    *
+                  </span>
                 </Label>
 
                 <Controller
@@ -539,7 +546,7 @@ export default function StockAdjustmentPage() {
                 />
 
                 {errors.variant && (
-                  <p className="mt-1 text-sm text-red-400">
+                  <p className="mt-1 text-sm text-rose-600 dark:text-rose-400">
                     {errors.variant.message}
                   </p>
                 )}
@@ -549,7 +556,7 @@ export default function StockAdjustmentPage() {
             <div>
               <Label>
                 Stock type
-                <span className="ml-1 text-red-400">*</span>
+                <span className="ml-1 text-rose-600 dark:text-rose-400">*</span>
               </Label>
 
               <Controller
@@ -657,7 +664,7 @@ export default function StockAdjustmentPage() {
                           : "border-white/10 bg-white/[0.02]"
                       }`}
                     >
-                      <MinusCircle className="h-5 w-5 text-red-400" />
+                      <MinusCircle className="h-5 w-5 text-rose-600 dark:text-rose-400" />
 
                       <div className="mt-2 text-sm font-medium text-white">
                         Decrease
@@ -671,7 +678,7 @@ export default function StockAdjustmentPage() {
             <div>
               <Label>
                 Quantity
-                <span className="ml-1 text-red-400">*</span>
+                <span className="ml-1 text-rose-600 dark:text-rose-400">*</span>
               </Label>
 
               <Input
@@ -696,7 +703,7 @@ export default function StockAdjustmentPage() {
               />
 
               {errors.quantity && (
-                <p className="mt-1 text-sm text-red-400">
+                <p className="mt-1 text-sm text-rose-600 dark:text-rose-400">
                   {errors.quantity.message}
                 </p>
               )}
@@ -705,7 +712,7 @@ export default function StockAdjustmentPage() {
             <div>
               <Label>
                 Reason
-                <span className="ml-1 text-red-400">*</span>
+                <span className="ml-1 text-rose-600 dark:text-rose-400">*</span>
               </Label>
 
               <Input
@@ -717,7 +724,7 @@ export default function StockAdjustmentPage() {
               />
 
               {errors.reason && (
-                <p className="mt-1 text-sm text-red-400">
+                <p className="mt-1 text-sm text-rose-600 dark:text-rose-400">
                   {errors.reason.message}
                 </p>
               )}
@@ -752,10 +759,12 @@ export default function StockAdjustmentPage() {
         </form>
 
         <div className="space-y-4">
-          <div className="rounded-2xl border border-white/10 bg-slate-950/70 px-5 py-4">
-            <h2 className="font-semibold text-white">Recent adjustments</h2>
+          <div className="stock-operation-form overflow-hidden rounded-2xl border bg-card shadow-sm px-5 py-4">
+            <h2 className="font-semibold text-foreground">
+              Recent adjustments
+            </h2>
 
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-muted-foreground">
               Sort by date, product, branch, quantity, status or user.
             </p>
           </div>
@@ -805,7 +814,7 @@ export default function StockAdjustmentPage() {
                   className={
                     pendingAdjustment.adjustment_type === "ADD"
                       ? "text-emerald-400"
-                      : "text-red-400"
+                      : "text-rose-600 dark:text-rose-400"
                   }
                 >
                   {pendingAdjustment.adjustment_type === "ADD"
@@ -817,7 +826,7 @@ export default function StockAdjustmentPage() {
               <div className="mt-3 flex justify-between text-sm">
                 <span className="text-slate-400">Quantity</span>
 
-                <span className="font-mono font-semibold text-white">
+                <span className="font-mono font-semibold text-foreground">
                   {pendingAdjustment.adjustment_type === "ADD" ? "+" : "-"}
                   {pendingAdjustment.quantity}
                 </span>

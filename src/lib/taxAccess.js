@@ -40,6 +40,30 @@ export const canCreateNonStandardTaxSale = canUseNonVatSale;
 
 export const canViewNonStandardTaxSale = canViewNonVatSale;
 
+export const canSellRegularStock = (user) =>
+  hasPermission(
+    user,
+    permissionCode(PERMISSIONS?.SALES?.SELL_REGULAR, "sales.selling.regular"),
+  );
+
+export const canApplySalesDiscount = (user) =>
+  hasPermission(
+    user,
+    permissionCode(
+      PERMISSIONS?.SALES?.APPLY_DISCOUNT,
+      "sales.selling.discount",
+    ),
+  );
+
+export const canOverrideSellingPrice = (user) =>
+  hasPermission(
+    user,
+    permissionCode(
+      PERMISSIONS?.SALES?.PRICE_OVERRIDE,
+      "sales.selling.price_override",
+    ),
+  );
+
 export const canViewPurchaseVat = (user) =>
   hasPermission(
     user,

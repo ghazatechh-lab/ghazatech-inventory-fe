@@ -5,7 +5,7 @@ export default function CategoryListPage() {
   return (
     <ReferenceDataPage
       title="Categories"
-      subtitle="Organize products into clear inventory categories."
+      subtitle="Create and maintain a clear product category structure for faster inventory organization, reporting and product selection."
       singular="Category"
       endpoint="/categories/"
       queryKey="categories"

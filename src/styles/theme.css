@@ -1,186 +1,290 @@
+/* =========================================================
+   GHAZATECH SIDEBAR — FINAL WHITE LABEL FIX
+   Save as: src/styles/sidebar-theme.css
+
+   IMPORTANT:
+   Import this file LAST in src/index.css:
+   @import "./styles/sidebar-theme.css";
+   ========================================================= */
+
 :root {
-  --app-background: #f8fafc;
-  --app-surface: #ffffff;
-  --app-border: #e2e8f0;
-  --app-text: #0f172a;
-  --app-muted: #64748b;
+  --ghaza-sidebar-bg-top: #0d2a51;
+  --ghaza-sidebar-bg-middle: #07162f;
+  --ghaza-sidebar-bg-bottom: #040f22;
+  --ghaza-sidebar-white: #ffffff;
+  --ghaza-sidebar-muted: #dbeafe;
+  --ghaza-sidebar-gold: #fbbf24;
 }
 
-html.dark {
-  --app-background: #070b12;
-  --app-surface: #0f172a;
-  --app-border: rgba(255, 255, 255, 0.1);
-  --app-text: #f8fafc;
-  --app-muted: #94a3b8;
+html body aside[data-app-sidebar="true"] {
+  color: var(--ghaza-sidebar-white) !important;
+  background:
+    radial-gradient(circle at 95% 0%, rgba(34, 211, 238, 0.1), transparent 28%),
+    radial-gradient(
+      circle at 0% 85%,
+      rgba(251, 191, 36, 0.07),
+      transparent 30%
+    ),
+    linear-gradient(
+      180deg,
+      var(--ghaza-sidebar-bg-top) 0%,
+      var(--ghaza-sidebar-bg-middle) 52%,
+      var(--ghaza-sidebar-bg-bottom) 100%
+    ) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color-scheme: dark;
 }
 
-html,
-body,
-#root {
-  min-height: 100%;
+/* Remove inherited dimming, filters and blend effects. */
+html body aside[data-app-sidebar="true"] nav,
+html body aside[data-app-sidebar="true"] nav > div,
+html body aside[data-app-sidebar="true"] nav button,
+html body aside[data-app-sidebar="true"] nav a {
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
 }
 
-body {
-  margin: 0;
-  background: var(--app-background);
-  color: var(--app-text);
-  transition: background-color 180ms ease, color 180ms ease;
+/* Force every visible navigation label to white. */
+html body aside[data-app-sidebar="true"] .sidebar-main-label,
+html body aside[data-app-sidebar="true"] .sidebar-sub-label,
+html body aside[data-app-sidebar="true"] .sidebar-section-label,
+html body aside[data-app-sidebar="true"] .sidebar-user-label,
+html body aside[data-app-sidebar="true"] .sidebar-role-label,
+html body aside[data-app-sidebar="true"] .sidebar-logout-label,
+html body aside[data-app-sidebar="true"] nav button > span,
+html body aside[data-app-sidebar="true"] nav a > span {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.32) !important;
 }
 
-html.light body {
-  background: #f8fafc;
-  color: #0f172a;
+html body aside[data-app-sidebar="true"] .sidebar-main-label {
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.005em !important;
 }
 
-html.light .bg-\[\#0A0E17\],
-html.light .bg-\[\#0A0E17\]\/85,
-html.light .bg-\[\#070B12\],
-html.light .bg-slate-950,
-html.light .bg-slate-950\/70,
-html.light .bg-slate-950\/80,
-html.light .bg-slate-950\/90,
-html.light .bg-slate-950\/95,
-html.light .bg-slate-900,
-html.light .bg-slate-900\/80,
-html.light .bg-slate-900\/90 {
-  background-color: #ffffff !important;
+html body aside[data-app-sidebar="true"] .sidebar-sub-label {
+  font-size: 13px !important;
+  font-weight: 700 !important;
 }
 
-html.light .bg-white\/\[0\.02\],
-html.light .bg-white\/\[0\.025\],
-html.light .bg-white\/\[0\.03\],
-html.light .bg-white\/5,
-html.light .bg-black\/10 {
-  background-color: #f8fafc !important;
+html body aside[data-app-sidebar="true"] .sidebar-section-label {
+  color: #dbeafe !important;
+  -webkit-text-fill-color: #dbeafe !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
 }
 
-html.light .from-slate-950,
-html.light .via-slate-900 {
-  --tw-gradient-from: #ffffff var(--tw-gradient-from-position) !important;
-  --tw-gradient-to: rgb(255 255 255 / 0) var(--tw-gradient-to-position) !important;
+html body aside[data-app-sidebar="true"] .sidebar-role-label {
+  color: rgba(255, 255, 255, 0.82) !important;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.82) !important;
 }
 
-html.light .to-blue-950\/40,
-html.light .to-blue-950\/50 {
-  --tw-gradient-to: rgb(239 246 255 / 0.95) var(--tw-gradient-to-position) !important;
+/* Force all sidebar icons to a visible light tone. */
+html body aside[data-app-sidebar="true"] nav svg,
+html body aside[data-app-sidebar="true"] .sidebar-footer-icon {
+  color: #e2e8f0 !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+  filter: none !important;
 }
 
-html.light .border-white\/5,
-html.light .border-white\/10,
-html.light .border-white\/15 {
-  border-color: #e2e8f0 !important;
+html body aside[data-app-sidebar="true"] nav button:hover svg,
+html body aside[data-app-sidebar="true"] nav a:hover svg {
+  color: #ffffff !important;
 }
 
-html.light .text-white,
-html.light .text-slate-100,
-html.light .text-slate-200,
-html.light .text-slate-300 {
-  color: #0f172a !important;
+/* Normal menu buttons. */
+html body aside[data-app-sidebar="true"] nav button,
+html body aside[data-app-sidebar="true"] nav a {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
 
-html.light .text-slate-400 {
-  color: #475569 !important;
+html body aside[data-app-sidebar="true"] nav button:hover,
+html body aside[data-app-sidebar="true"] nav a:hover {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.09) !important;
 }
 
-html.light .text-slate-500,
-html.light .text-slate-600 {
-  color: #64748b !important;
+/* Active main module. */
+html body aside[data-app-sidebar="true"] .sidebar-module-active {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: linear-gradient(
+    90deg,
+    rgba(251, 191, 36, 0.18),
+    rgba(255, 255, 255, 0.08),
+    rgba(34, 211, 238, 0.06)
+  ) !important;
+  border-color: rgba(251, 191, 36, 0.32) !important;
 }
 
-html.light input,
-html.light textarea,
-html.light select {
-  color: #0f172a;
+/* Active submenu page. */
+html body aside[data-app-sidebar="true"] nav a[aria-current="page"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: linear-gradient(90deg, #16477f 0%, #0d315f 100%) !important;
+  border-color: rgba(251, 191, 36, 0.45) !important;
 }
 
-html.light input::placeholder,
-html.light textarea::placeholder {
-  color: #94a3b8;
+html body aside[data-app-sidebar="true"] nav a[aria-current="page"] span {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
 }
 
-html.light input[class*="bg-slate"],
-html.light textarea[class*="bg-slate"],
-html.light select[class*="bg-slate"] {
-  background-color: #ffffff !important;
-  border-color: #cbd5e1 !important;
+html body aside[data-app-sidebar="true"] nav a[aria-current="page"] svg {
+  color: #fcd34d !important;
 }
 
-html.light select option {
-  background: #ffffff;
-  color: #0f172a;
+/* Search input. */
+html body aside[data-app-sidebar="true"] input {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #fbbf24 !important;
+  background: transparent !important;
+  opacity: 1 !important;
 }
 
-html.light .card-surface {
-  background: #ffffff !important;
-  border-color: #e2e8f0 !important;
-  box-shadow:
-    0 1px 2px rgb(15 23 42 / 0.04),
-    0 8px 30px rgb(15 23 42 / 0.06);
+html body aside[data-app-sidebar="true"] input::placeholder {
+  color: rgba(255, 255, 255, 0.72) !important;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.72) !important;
+  opacity: 1 !important;
 }
 
-html.light table {
-  background: #ffffff;
+/* Footer/profile section. */
+html body aside[data-app-sidebar="true"] > div:last-child button,
+html body aside[data-app-sidebar="true"] > div:last-child button span,
+html body aside[data-app-sidebar="true"] > div:last-child p {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
 }
 
-html.light thead {
-  background: #f8fafc !important;
+html body aside[data-app-sidebar="true"] a:focus-visible,
+html body aside[data-app-sidebar="true"] button:focus-visible,
+html body aside[data-app-sidebar="true"] input:focus-visible {
+  outline: 2px solid #fbbf24 !important;
+  outline-offset: 2px !important;
 }
 
-html.light tr {
-  border-color: #e2e8f0 !important;
+/* =========================================================
+   GHAZATECH — SUPPLIER HERO VISIBILITY FIX
+   Add at the VERY END of src/styles/supplier-module.css
+   ========================================================= */
+
+/* Keep decorative layers behind the actual hero content. */
+.supplier-form-hero,
+.supplier-hero,
+.supplier-detail-hero {
+  isolation: isolate;
 }
 
-html.light .table-row-hover:hover,
-html.light tbody tr:hover {
-  background: #f8fafc !important;
+.supplier-form-hero::after,
+.supplier-hero::after,
+.supplier-detail-hero::after {
+  z-index: 0;
+  pointer-events: none;
 }
 
-html.light th {
-  color: #64748b !important;
+.supplier-form-hero > *,
+.supplier-hero > *,
+.supplier-detail-hero > * {
+  position: relative;
+  z-index: 2;
 }
 
-html.light td {
-  color: #334155;
+/* Back navigation must remain readable. */
+html.light body .supplier-form-hero .supplier-back-button,
+html.dark body .supplier-form-hero .supplier-back-button,
+body .supplier-form-hero .supplier-back-button,
+html.light body .supplier-detail-hero .supplier-back-link,
+html.dark body .supplier-detail-hero .supplier-back-link,
+body .supplier-detail-hero .supplier-back-link {
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  opacity: 1 !important;
+  filter: none !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
 }
 
-html.light [role="dialog"],
-html.light [role="menu"],
-html.light [data-radix-popper-content-wrapper] > div {
-  background-color: #ffffff;
-  color: #0f172a;
-  border-color: #e2e8f0;
+/* Small uppercase heading. */
+html.light body .supplier-form-hero .supplier-eyebrow,
+html.dark body .supplier-form-hero .supplier-eyebrow,
+body .supplier-form-hero .supplier-eyebrow,
+html.light body .supplier-detail-hero .supplier-eyebrow,
+html.dark body .supplier-detail-hero .supplier-eyebrow,
+body .supplier-detail-hero .supplier-eyebrow {
+  color: #7dd3fc !important;
+  -webkit-text-fill-color: #7dd3fc !important;
+  opacity: 1 !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.16em !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
-html.light aside {
-  background: #ffffff !important;
-  border-color: #e2e8f0 !important;
+/* Main supplier form title. */
+html.light body .supplier-form-hero .supplier-hero-title,
+html.dark body .supplier-form-hero .supplier-hero-title,
+body .supplier-form-hero .supplier-hero-title {
+  margin: 0.25rem 0 0 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  filter: none !important;
+  font-size: clamp(1.75rem, 2.5vw, 2.25rem) !important;
+  font-weight: 900 !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.025em !important;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.34);
 }
 
-html.light aside a:hover,
-html.light aside button:hover {
-  background: #f1f5f9 !important;
+/* Supporting description. */
+html.light body .supplier-form-hero .supplier-hero-description,
+html.dark body .supplier-form-hero .supplier-hero-description,
+body .supplier-form-hero .supplier-hero-description {
+  max-width: 48rem;
+  color: #e2e8f0 !important;
+  -webkit-text-fill-color: #e2e8f0 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  filter: none !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  line-height: 1.65 !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.26);
 }
 
-html.light header {
-  background: rgb(255 255 255 / 0.9) !important;
-  border-color: #e2e8f0 !important;
+/* Ensure global theme rules cannot recolor nested hero copy. */
+html.light body .supplier-form-hero .supplier-hero-copy,
+html.light body .supplier-form-hero .supplier-hero-copy *,
+html.dark body .supplier-form-hero .supplier-hero-copy,
+html.dark body .supplier-form-hero .supplier-hero-copy *,
+body .supplier-form-hero .supplier-hero-copy,
+body .supplier-form-hero .supplier-hero-copy * {
+  opacity: 1 !important;
 }
 
-html.light button[class*="hover:bg-white/5"]:hover,
-html.light a[class*="hover:bg-white/5"]:hover {
-  background: #f1f5f9 !important;
-}
+@media (max-width: 640px) {
+  .supplier-form-hero .supplier-hero-content {
+    gap: 0.75rem;
+  }
 
-html.light .shadow-black\/10,
-html.light .shadow-black\/20,
-html.light .shadow-black\/30 {
-  --tw-shadow-color: rgb(15 23 42 / 0.08) !important;
-}
+  body .supplier-form-hero .supplier-hero-title {
+    font-size: 1.65rem !important;
+  }
 
-html.light {
-  scrollbar-color: #cbd5e1 #f8fafc;
-}
-
-html.dark {
-  scrollbar-color: #334155 #0f172a;
+  body .supplier-form-hero .supplier-hero-description {
+    font-size: 13px !important;
+  }
 }

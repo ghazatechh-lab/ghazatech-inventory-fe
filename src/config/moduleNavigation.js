@@ -716,7 +716,7 @@ export const getVisibleModules = (user) =>
 
 export const getModuleTarget = (module, user) => {
   if (!module) {
-    return "/modules";
+    return "/dashboard";
   }
 
   if (module.externalUrl) {
@@ -727,7 +727,9 @@ export const getModuleTarget = (module, user) => {
     ? module.items.filter((item) => canAccessNavigationItem(item, user))
     : [];
 
-  return visibleItems[0]?.to || module.landingPath || module.path || "/modules";
+  return (
+    visibleItems[0]?.to || module.landingPath || module.path || "/dashboard"
+  );
 };
 
 export const getModuleById = (moduleId) =>

@@ -1,0 +1,43 @@
+.sidebar-desktop-shell,
+.app-content-shell {
+  min-height: 0;
+}
+
+.sidebar-desktop-shell > aside[data-app-sidebar="true"] {
+  height: 100% !important;
+  max-height: 100dvh !important;
+  min-height: 0 !important;
+}
+
+/* Keep the menu scroll contained inside the sidebar. */
+aside[data-app-sidebar="true"] nav {
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+
+/* Prevent the mobile drawer from extending beyond the viewport. */
+.sidebar-mobile-sheet {
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  overflow: hidden !important;
+}
+
+.sidebar-mobile-sheet > aside[data-app-sidebar="true"] {
+  height: 100% !important;
+  max-height: 100dvh !important;
+}
+
+/* Stable scrollbar spacing prevents content width jumping. */
+.app-content-shell main {
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+@supports not (height: 100dvh) {
+  .sidebar-desktop-shell,
+  .sidebar-mobile-sheet,
+  .sidebar-mobile-sheet > aside[data-app-sidebar="true"] {
+    height: 100vh !important;
+    max-height: 100vh !important;
+  }
+}

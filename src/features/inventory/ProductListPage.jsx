@@ -3,17 +3,21 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Barcode as BarcodeIcon,
+  Boxes,
   Eye,
+  FilterX,
+  Layers3,
   Package,
+  PackageCheck,
   Pencil,
   Plus,
+  Tags,
   Trash2,
 } from "lucide-react";
 
 import api, { getApiErrorMessage, unwrap } from "@/lib/api";
 import { useDebouncedValue } from "@/hooks/useDebounce";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
-import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { SearchInput } from "@/components/common/SearchInput";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -356,6 +360,19 @@ export default function ProductListPage() {
     };
   }, [productsQuery.data, allBranchStockQuery.data, isAllBranches, page]);
 
+  const productSummary = useMemo(() => {
+    const rows = productData.results || [];
+    return {
+      visible: rows.length,
+      active: rows.filter((item) => item.is_active !== false).length,
+      stock: rows.reduce(
+        (total, item) => total + getAvailableQuantity(item),
+        0,
+      ),
+      filtered: Boolean(search || brand || category),
+    };
+  }, [productData.results, search, brand, category]);
+
   const deleteMutation = useMutation({
     mutationFn: async (productId) => api.delete(`/products/${productId}/`),
     onSuccess: () => {
@@ -382,22 +399,22 @@ export default function ProductListPage() {
         return (
           <Link
             to={`/inventory/products/${product.id}`}
-            className="flex items-center gap-3"
+            className="group flex items-center gap-3"
           >
             {image ? (
               <img
                 src={image}
                 alt={product.product_name || "Product"}
-                className="h-10 w-10 rounded-md object-cover ring-1 ring-white/5"
+                className="h-12 w-12 rounded-xl object-cover ring-1 ring-slate-200 transition group-hover:scale-[1.03] dark:ring-white/10"
               />
             ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-white/[0.04] ring-1 ring-white/5">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10">
                 <Package className="h-4 w-4 text-slate-500" />
               </div>
             )}
 
             <div className="min-w-0">
-              <div className="truncate text-slate-100">
+              <div className="truncate font-bold text-slate-900 group-hover:text-blue-600 dark:text-white dark:group-hover:text-blue-400">
                 {product.product_name}
               </div>
 
@@ -530,23 +547,99 @@ export default function ProductListPage() {
   ];
 
   return (
-    <div>
-      <PageHeader
-        title="Products"
-        subtitle="Laptop spare parts catalog"
-        actions={
+    <div className="mx-auto w-full max-w-[1600px] space-y-6 pb-10">
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.12),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(14,165,233,0.08),transparent_30%)]" />
+        <div className="relative flex flex-col gap-5 px-6 py-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+          <div className="flex items-start gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-500/20">
+              <Boxes className="h-7 w-7" />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">
+                Inventory catalogue
+              </p>
+              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-3xl">
+                Products
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">
+                Manage laptop spare parts, branch availability, rack
+                assignments, pricing and product status from one place.
+              </p>
+            </div>
+          </div>
           <Button
             asChild
-            className="bg-blue-600 hover:bg-blue-700"
+            className="h-11 rounded-xl bg-blue-600 px-5 font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700"
             data-testid="new-product-btn"
           >
             <Link to="/inventory/products/new">
-              <Plus className="mr-1.5 h-4 w-4" />
-              New product
+              <Plus className="mr-2 h-4 w-4" />
+              Add product
             </Link>
           </Button>
-        }
-      />
+        </div>
+      </section>
+
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          {
+            label: "Visible products",
+            value: productData.count || 0,
+            icon: Package,
+            note: productSummary.filtered
+              ? "Matching current filters"
+              : "Available in catalogue",
+          },
+          {
+            label: "Active on page",
+            value: productSummary.active,
+            icon: PackageCheck,
+            note: `${productSummary.visible} rows currently shown`,
+          },
+          {
+            label: "Available stock",
+            value: productSummary.stock,
+            icon: Layers3,
+            note: isAllBranches
+              ? "Across displayed branches"
+              : "For selected branch",
+          },
+          {
+            label: "Catalogue filters",
+            value: productSummary.filtered ? "Applied" : "All",
+            icon: Tags,
+            note: productSummary.filtered
+              ? "Use clear to reset"
+              : "No filters applied",
+          },
+        ].map((card) => {
+          const Icon = card.icon;
+          return (
+            <div
+              key={card.label}
+              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-slate-950/70"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                    {card.label}
+                  </p>
+                  <p className="mt-2 text-2xl font-extrabold text-slate-950 dark:text-white">
+                    {card.value}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-500">
+                    {card.note}
+                  </p>
+                </div>
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
+                  <Icon className="h-5 w-5" />
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </section>
 
       {isAllBranches && (
         <div className="mb-4 rounded-xl border border-blue-400/20 bg-blue-500/10 px-4 py-3 text-sm text-blue-100">
@@ -555,80 +648,93 @@ export default function ProductListPage() {
         </div>
       )}
 
-      <div className="mb-4 flex flex-wrap gap-3">
-        <div className="min-w-[240px] flex-1">
-          <SearchInput
-            value={search}
-            onChange={(value) => updateParam("search", value)}
-            placeholder="Search name, SKU, barcode or model…"
-          />
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/70">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-bold text-slate-950 dark:text-white">
+              Product directory
+            </h2>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Search and filter the catalogue before reviewing stock and storage
+              details.
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <div className="min-w-[240px] flex-1">
+            <SearchInput
+              value={search}
+              onChange={(value) => updateParam("search", value)}
+              placeholder="Search name, SKU, barcode or model…"
+            />
+          </div>
+
+          <Select
+            value={brand || "all"}
+            onValueChange={(value) =>
+              updateParam("brand", value === "all" ? "" : value)
+            }
+          >
+            <SelectTrigger className="h-9 w-44 border-white/10 bg-white/[0.02] text-sm">
+              <SelectValue placeholder="All brands" />
+            </SelectTrigger>
+
+            <SelectContent>
+              <SelectItem value="all">All brands</SelectItem>
+
+              {(brandsQuery.data || []).map((item) => (
+                <SelectItem key={item.id} value={String(item.id)}>
+                  {item.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={category || "all"}
+            onValueChange={(value) =>
+              updateParam("category", value === "all" ? "" : value)
+            }
+          >
+            <SelectTrigger className="h-9 w-48 border-white/10 bg-white/[0.02] text-sm">
+              <SelectValue placeholder="All categories" />
+            </SelectTrigger>
+
+            <SelectContent>
+              <SelectItem value="all">All categories</SelectItem>
+
+              {(categoriesQuery.data || []).map((item) => (
+                <SelectItem key={item.id} value={String(item.id)}>
+                  {item.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {(search || brand || category) && (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9"
+              onClick={() => setSearchParams({ page: "1" })}
+            >
+              Clear filters
+            </Button>
+          )}
         </div>
 
-        <Select
-          value={brand || "all"}
-          onValueChange={(value) =>
-            updateParam("brand", value === "all" ? "" : value)
+        <DataTable
+          columns={columns}
+          data={productData.results}
+          isLoading={
+            productsQuery.isLoading ||
+            (isAllBranches && allBranchStockQuery.isLoading)
           }
-        >
-          <SelectTrigger className="h-9 w-44 border-white/10 bg-white/[0.02] text-sm">
-            <SelectValue placeholder="All brands" />
-          </SelectTrigger>
-
-          <SelectContent>
-            <SelectItem value="all">All brands</SelectItem>
-
-            {(brandsQuery.data || []).map((item) => (
-              <SelectItem key={item.id} value={String(item.id)}>
-                {item.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={category || "all"}
-          onValueChange={(value) =>
-            updateParam("category", value === "all" ? "" : value)
-          }
-        >
-          <SelectTrigger className="h-9 w-48 border-white/10 bg-white/[0.02] text-sm">
-            <SelectValue placeholder="All categories" />
-          </SelectTrigger>
-
-          <SelectContent>
-            <SelectItem value="all">All categories</SelectItem>
-
-            {(categoriesQuery.data || []).map((item) => (
-              <SelectItem key={item.id} value={String(item.id)}>
-                {item.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {(search || brand || category) && (
-          <Button
-            type="button"
-            variant="outline"
-            className="h-9"
-            onClick={() => setSearchParams({ page: "1" })}
-          >
-            Clear filters
-          </Button>
-        )}
-      </div>
-
-      <DataTable
-        columns={columns}
-        data={productData.results}
-        isLoading={
-          productsQuery.isLoading ||
-          (isAllBranches && allBranchStockQuery.isLoading)
-        }
-        page={page}
-        total={productData.count}
-        onPageChange={(nextPage) => updateParam("page", nextPage)}
-      />
+          page={page}
+          total={productData.count}
+          onPageChange={(nextPage) => updateParam("page", nextPage)}
+        />
+      </section>
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}

@@ -164,3 +164,6 @@ export const filterByPermission = (values, user) =>
   (values || []).filter(
     (value) => !value.permission || hasPermission(user, value.permission),
   );
+
+export const canViewAllBranches = (user) =>
+  isAdmin(user) || hasPermission(user, "branches.view_all");

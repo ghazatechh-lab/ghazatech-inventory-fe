@@ -13,7 +13,7 @@ import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import {
   calculateTaxLine,
-  canManageRestrictedStock,
+  canSellRestrictedStock,
   canUseNonVatSale,
   isAdmin,
 } from "@/lib/taxAccess";
@@ -94,7 +94,7 @@ export default function InvoiceFormPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  const canManageRestricted = isAdmin(user) || canManageRestrictedStock(user);
+  const canSellRestricted = isAdmin(user) || canSellRestrictedStock(user);
 
   const canUseNonVat = canUseNonVatSale(user);
 
@@ -260,6 +260,18 @@ export default function InvoiceFormPage() {
         : [emptyItem()],
     });
   }, [existing, sourceOrder]);
+
+  React.useEffect(() => {
+    if (canSellRestricted) return;
+
+    setForm((current) => ({
+      ...current,
+      items: current.items.map((item) => ({
+        ...item,
+        stock_classification: "REGULAR",
+      })),
+    }));
+  }, [canSellRestricted]);
 
   React.useEffect(() => {
     if (!products.length) return;
@@ -537,9 +549,10 @@ export default function InvoiceFormPage() {
           tax_rate: number(item.tax_rate ?? item.vat_percentage ?? 5),
           tax_treatment: item.tax_treatment || "STANDARD_VAT",
           tax_reason: String(item.tax_reason || "").trim(),
-          stock_classification: canManageRestricted
-            ? item.stock_classification
-            : "REGULAR",
+          stock_classification:
+            canSellRestricted && item.stock_classification === "RESTRICTED"
+              ? "RESTRICTED"
+              : "REGULAR",
           tax_inclusive: Boolean(item.tax_inclusive),
         })),
       };
@@ -888,20 +901,20 @@ export default function InvoiceFormPage() {
         <div className="overflow-x-auto p-5">
           <div
             className={
-              canUseNonVat && canManageRestricted
+              canUseNonVat && canSellRestricted
                 ? "min-w-[1320px]"
-                : canUseNonVat || canManageRestricted
+                : canUseNonVat || canSellRestricted
                   ? "min-w-[1160px]"
                   : "min-w-[980px]"
             }
           >
             <div
               className={`grid items-center gap-3 border-b border-slate-200 pb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:border-white/10 ${
-                canUseNonVat && canManageRestricted
+                canUseNonVat && canSellRestricted
                   ? "grid-cols-[minmax(240px,1.35fr)_minmax(190px,1fr)_minmax(220px,1.15fr)_170px_90px_125px_120px_44px]"
                   : canUseNonVat
                     ? "grid-cols-[minmax(250px,1.4fr)_minmax(200px,1fr)_minmax(240px,1.2fr)_90px_125px_120px_44px]"
-                    : canManageRestricted
+                    : canSellRestricted
                       ? "grid-cols-[minmax(250px,1.4fr)_minmax(250px,1.25fr)_170px_90px_125px_120px_44px]"
                       : "grid-cols-[minmax(280px,1.45fr)_minmax(280px,1.3fr)_90px_125px_120px_44px]"
               }`}
@@ -912,7 +925,7 @@ export default function InvoiceFormPage() {
 
               <span>Description</span>
 
-              {canManageRestricted && <span>Stock type</span>}
+              {canSellRestricted && <span>Stock type</span>}
 
               <span className="text-right">Qty</span>
               <span className="text-right">Unit price</span>
@@ -925,11 +938,11 @@ export default function InvoiceFormPage() {
                 <div
                   key={item.id || index}
                   className={`grid items-start gap-3 py-4 ${
-                    canUseNonVat && canManageRestricted
+                    canUseNonVat && canSellRestricted
                       ? "grid-cols-[minmax(240px,1.35fr)_minmax(190px,1fr)_minmax(220px,1.15fr)_170px_90px_125px_120px_44px]"
                       : canUseNonVat
                         ? "grid-cols-[minmax(250px,1.4fr)_minmax(200px,1fr)_minmax(240px,1.2fr)_90px_125px_120px_44px]"
-                        : canManageRestricted
+                        : canSellRestricted
                           ? "grid-cols-[minmax(250px,1.4fr)_minmax(250px,1.25fr)_170px_90px_125px_120px_44px]"
                           : "grid-cols-[minmax(280px,1.45fr)_minmax(280px,1.3fr)_90px_125px_120px_44px]"
                   }`}
@@ -968,7 +981,7 @@ export default function InvoiceFormPage() {
 
                               <p className="mt-0.5 truncate text-xs text-muted-foreground">
                                 {product.sku || "No SKU"} ·{" "}
-                                {canManageRestricted
+                                {canSellRestricted
                                   ? `Regular ${number(
                                       product.available_regular_quantity ??
                                         product.available_stock,
@@ -1053,7 +1066,7 @@ export default function InvoiceFormPage() {
                     className="h-10 w-full"
                   />
 
-                  {canManageRestricted && (
+                  {canSellRestricted && (
                     <div className="space-y-1.5">
                       <Select
                         value={item.stock_classification || "REGULAR"}

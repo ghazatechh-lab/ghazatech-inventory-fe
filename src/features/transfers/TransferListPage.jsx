@@ -145,7 +145,10 @@ export default function TransferListPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div
+      data-stock-module="stock-transfers"
+      className="stock-module-page space-y-6"
+    >
       <PageHeader
         title="Branch Transfers"
         subtitle="Create and track inventory movements between branches"

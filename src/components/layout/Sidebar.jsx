@@ -1,6 +1,18 @@
 import React from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Cpu, Grid2X2, LogOut } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Cpu,
+  ExternalLink,
+  Grid2X2,
+  LogOut,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  X,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
@@ -9,28 +21,24 @@ import {
   canAccessNavigationItem,
   getModuleByPath,
   getModuleTarget,
+  getVisibleModules,
 } from "@/config/moduleNavigation";
 
 const safePath = (item) => {
-  if (typeof item?.to === "string") {
-    return item.to;
-  }
-
-  if (typeof item?.path === "string") {
-    return item.path;
-  }
-
-  if (typeof item?.href === "string") {
-    return item.href;
-  }
-
+  if (typeof item?.to === "string") return item.to;
+  if (typeof item?.path === "string") return item.path;
+  if (typeof item?.href === "string") return item.href;
   return "";
 };
 
-const createTestId = (item) => {
-  const target = safePath(item);
+const normalizePath = (value) => {
+  const path = typeof value === "string" ? value.trim() : "";
+  if (!path) return "";
+  return path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
+};
 
-  const source = target || item?.label || "unknown";
+const createTestId = (item) => {
+  const source = safePath(item) || item?.label || item?.title || "unknown";
 
   return `nav-${String(source)
     .toLowerCase()
@@ -39,385 +47,419 @@ const createTestId = (item) => {
     .replace(/^-+|-+$/g, "")}`;
 };
 
-const normalizePath = (value) => {
-  const path = typeof value === "string" ? value.trim() : "";
+const isPathActive = (target, pathname) => {
+  const itemPath = normalizePath(target);
+  const currentPath = normalizePath(pathname);
 
-  if (!path) {
-    return "";
-  }
+  if (!itemPath || !currentPath) return false;
+  if (itemPath === "/dashboard") return currentPath === "/dashboard";
 
-  if (path.length > 1 && path.endsWith("/")) {
-    return path.slice(0, -1);
-  }
-
-  return path;
+  return currentPath === itemPath || currentPath.startsWith(`${itemPath}/`);
 };
 
-/**
- * Returns the single, most-specific matching sidebar path.
- *
- * Example:
- * Current path: /settings/users-roles
- *
- * Matching items:
- * - /settings
- * - /settings/users-roles
- *
- * Result:
- * - /settings/users-roles
- */
-const getActiveSubmodulePath = (items, currentPath) => {
-  const pathname = normalizePath(currentPath);
+const isDirectModule = (module, items) => {
+  if (module?.externalUrl) return true;
+  if (!Array.isArray(items) || items.length !== 1) return false;
 
-  if (!pathname || !Array.isArray(items)) {
-    return "";
-  }
+  const moduleTarget = normalizePath(module?.landingPath || module?.path || "");
+  const itemTarget = normalizePath(safePath(items[0]));
 
-  // Keep Purchase Expenses selected on list, create, detail, and edit pages.
-  if (
-    pathname === "/purchases/purchase-expenses" ||
-    pathname.startsWith("/purchases/purchase-expenses/") ||
-    pathname === "/purchases/expenses" ||
-    pathname.startsWith("/purchases/expenses/")
-  ) {
-    const purchaseExpenseItem = items.find(
-      (item) =>
-        item?.id === "purchase-expenses" ||
-        normalizePath(safePath(item)) === "/purchases/purchase-expenses" ||
-        normalizePath(safePath(item)) === "/purchases/expenses",
-    );
+  return Boolean(moduleTarget && itemTarget && moduleTarget === itemTarget);
+};
 
-    if (purchaseExpenseItem) {
-      return normalizePath(safePath(purchaseExpenseItem));
-    }
-  }
+const getInitials = (user) => {
+  const name =
+    user?.full_name || user?.name || user?.username || user?.email || "User";
 
-  const matchingPaths = items
-    .map((item) => normalizePath(safePath(item)))
+  return String(name)
+    .split(" ")
     .filter(Boolean)
-    .filter(
-      (target) => pathname === target || pathname.startsWith(`${target}/`),
-    )
-    .sort((first, second) => second.length - first.length);
-
-  return matchingPaths[0] || "";
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
 };
 
-export function Sidebar({ collapsed, onToggle }) {
+export function Sidebar({ collapsed, onToggle, onNavigate, mobile = false }) {
   const location = useLocation();
-
   const navigate = useNavigate();
-
   const { user, logout } = useAuth();
 
+  const [search, setSearch] = React.useState("");
+  const visibleModules = React.useMemo(() => getVisibleModules(user), [user]);
   const activeModule = React.useMemo(
     () => getModuleByPath(location.pathname),
     [location.pathname],
   );
+  const [expandedModules, setExpandedModules] = React.useState(() => new Set());
 
-  const submodules = React.useMemo(() => {
-    if (!activeModule || !Array.isArray(activeModule.items)) {
-      return [];
+  React.useEffect(() => {
+    if (!activeModule?.id) return;
+
+    setExpandedModules((current) => {
+      if (current.has(activeModule.id)) return current;
+      const next = new Set(current);
+      next.add(activeModule.id);
+      return next;
+    });
+  }, [activeModule?.id]);
+
+  const filteredModules = React.useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    if (!keyword) return visibleModules;
+
+    return visibleModules
+      .map((module) => {
+        const items = (module.items || []).filter((item) =>
+          canAccessNavigationItem(item, user),
+        );
+        const moduleMatches = String(module.title || module.shortTitle || "")
+          .toLowerCase()
+          .includes(keyword);
+        const matchingItems = items.filter((item) =>
+          String(item.label || item.title || "")
+            .toLowerCase()
+            .includes(keyword),
+        );
+
+        if (!moduleMatches && !matchingItems.length) return null;
+        return { ...module, items: moduleMatches ? items : matchingItems };
+      })
+      .filter(Boolean);
+  }, [search, user, visibleModules]);
+
+  const handleModuleClick = (module, items = []) => {
+    if (module.externalUrl) {
+      window.open(module.externalUrl, "_blank", "noopener,noreferrer");
+      return;
     }
 
-    return activeModule.items.filter(
-      (item) => safePath(item) && canAccessNavigationItem(item, user),
-    );
-  }, [activeModule, user]);
+    const directModule = isDirectModule(module, items);
 
-  const activeSubmodulePath = React.useMemo(
-    () => getActiveSubmodulePath(submodules, location.pathname),
-    [submodules, location.pathname],
-  );
+    if (collapsed || directModule) {
+      const target = directModule
+        ? safePath(items[0])
+        : getModuleTarget(module, user);
 
-  const ModuleIcon = activeModule?.icon || Grid2X2;
+      if (target) {
+        navigate(target);
+        onNavigate?.();
+      }
+      return;
+    }
 
-  const goToMainMenu = () => {
-    navigate("/modules");
+    setExpandedModules((current) => {
+      const next = new Set(current);
+      next.has(module.id) ? next.delete(module.id) : next.add(module.id);
+      return next;
+    });
   };
 
   const handleLogout = async () => {
     try {
       await logout?.();
     } finally {
-      navigate("/login", {
-        replace: true,
-      });
+      navigate("/login", { replace: true });
+      onNavigate?.();
     }
   };
 
+  const userName = user?.full_name || user?.name || user?.username || "User";
+  const roleName =
+    user?.role?.name || user?.role_name || user?.role_code || "Team Member";
+
   return (
     <aside
-      className={cn(
-        "sticky top-0 flex h-screen shrink-0 flex-col overflow-hidden",
-        "border-r border-blue-400/20",
-        "bg-gradient-to-b from-[#123b78] via-[#0d3269] to-[#082554]",
-        "text-white shadow-xl shadow-blue-950/20",
-        "transition-[width] duration-200",
-        collapsed ? "w-[72px]" : "w-[270px]",
-      )}
       data-testid="app-sidebar"
+      data-app-sidebar="true"
+      className={cn(
+        "relative z-30 flex h-screen shrink-0 flex-col overflow-hidden text-white",
+        "border-r border-white/[0.08] bg-[#07162f]",
+        "shadow-[18px_0_48px_rgba(2,12,30,0.20)]",
+        "transition-[width] duration-300 ease-out",
+        mobile ? "w-full" : collapsed ? "w-[84px]" : "w-[304px]",
+      )}
     >
-      {/* Application logo */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(13,42,81,0.94)_0%,rgba(7,22,47,0.98)_52%,rgba(4,15,34,1)_100%)]" />
+        <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-cyan-400/[0.09] blur-3xl" />
+        <div className="absolute -left-28 bottom-10 h-60 w-60 rounded-full bg-amber-300/[0.06] blur-3xl" />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/60 to-transparent" />
+      </div>
+
       <div
         className={cn(
-          "flex min-h-[72px] items-center gap-3 border-b border-white/10 px-4",
-          collapsed && "justify-center px-2",
+          "relative flex min-h-[88px] items-center gap-3 border-b border-white/[0.08] px-4",
+          collapsed && !mobile && "justify-center px-3",
         )}
       >
         <button
           type="button"
-          onClick={goToMainMenu}
-          className={cn(
-            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-            "bg-gradient-to-br from-blue-400 to-blue-700",
-            "shadow-lg shadow-blue-950/40",
-            "transition hover:scale-105",
-          )}
-          title="Open Main Menu"
+          onClick={() => {
+            navigate("/dashboard");
+            onNavigate?.();
+          }}
+          className="group relative flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] border border-amber-100/25 bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 shadow-[0_12px_30px_rgba(245,158,11,0.20)] transition duration-200 hover:-translate-y-0.5"
+          title="Dashboard"
         >
-          <Cpu className="h-5 w-5 text-white" strokeWidth={2.2} />
+          <span className="absolute inset-[1px] rounded-[17px] bg-gradient-to-br from-white/25 to-transparent" />
+          <Cpu className="relative h-5 w-5 text-[#08214a]" strokeWidth={2.3} />
         </button>
 
-        {!collapsed && (
-          <div className="min-w-0">
-            <p className="truncate text-sm font-bold tracking-wide text-white">
-              {APP_NAME}
-            </p>
-
-            <p className="truncate text-[10px] text-blue-100/65">
+        {(!collapsed || mobile) && (
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <p className="sidebar-user-label truncate text-[15px] font-extrabold tracking-[0.02em]">
+                {APP_NAME}
+              </p>
+              <span className="rounded-md border border-amber-200/20 bg-amber-300/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] !text-amber-200">
+                ERP
+              </span>
+            </div>
+            <p className="sidebar-role-label mt-1 truncate text-[10px] font-medium tracking-wide">
               {APP_TAGLINE}
             </p>
           </div>
         )}
-      </div>
 
-      {/* Main Menu */}
-      <div className={cn("px-3 pt-4", collapsed && "px-2")}>
-        <button
-          type="button"
-          onClick={goToMainMenu}
-          className={cn(
-            "group flex w-full items-center rounded-xl",
-            "border border-white/15 bg-white/[0.07]",
-            "text-blue-50 transition",
-            "hover:border-white/25 hover:bg-white/[0.13]",
-            collapsed ? "h-11 justify-center px-2" : "gap-3 px-3 py-3",
-          )}
-          title={collapsed ? "Main Menu" : undefined}
-        >
-          <div
-            className={cn(
-              "flex h-8 w-8 shrink-0 items-center justify-center",
-              "rounded-lg bg-white/10",
-            )}
-          >
-            <Grid2X2 className="h-4 w-4" />
-          </div>
-
-          {!collapsed && (
-            <span className="truncate text-sm font-semibold text-white">
-              Main Menu
-            </span>
-          )}
-        </button>
-      </div>
-
-      {/* Selected module */}
-      {activeModule && (
-        <div className={cn("px-3 pt-4", collapsed && "px-2")}>
-          {!collapsed && (
-            <p
-              className={cn(
-                "mb-2 px-2 text-[10px] font-semibold uppercase",
-                "tracking-[0.14em] text-blue-100/45",
-              )}
-            >
-              Selected Module
-            </p>
-          )}
-
+        {mobile && (
           <button
             type="button"
-            onClick={() => {
-              const target = getModuleTarget(activeModule, user);
-
-              if (target && !activeModule.externalUrl) {
-                navigate(target);
-              }
-            }}
-            className={cn(
-              "flex w-full items-center rounded-xl",
-              "border border-cyan-300/20",
-              "bg-gradient-to-r from-cyan-400/15 to-blue-400/10",
-              "shadow-inner shadow-white/[0.03]",
-              collapsed ? "h-11 justify-center px-2" : "gap-3 px-3 py-3",
-            )}
-            title={
-              collapsed
-                ? activeModule.shortTitle || activeModule.title
-                : undefined
-            }
+            onClick={onNavigate}
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] !text-white hover:bg-white/[0.12]"
+            aria-label="Close navigation"
           >
-            <div
-              className={cn(
-                "flex h-8 w-8 shrink-0 items-center justify-center",
-                "rounded-lg bg-cyan-300/15 text-cyan-100",
-              )}
-            >
-              <ModuleIcon className="h-4 w-4" />
-            </div>
-
-            {!collapsed && (
-              <div className="min-w-0 text-left">
-                <p className="text-[10px] uppercase tracking-wide text-cyan-100/55">
-                  Module
-                </p>
-
-                <p className="truncate text-sm font-semibold text-white">
-                  {activeModule.shortTitle || activeModule.title}
-                </p>
-              </div>
-            )}
+            <X className="h-4 w-4" />
           </button>
+        )}
+      </div>
+
+      {(!collapsed || mobile) && (
+        <div className="relative px-4 pb-2 pt-4">
+          <div className="group flex items-center gap-2.5 rounded-2xl border border-white/[0.09] bg-white/[0.055] px-3.5 py-3 shadow-inner shadow-black/10 backdrop-blur-xl transition focus-within:border-amber-200/35 focus-within:bg-white/[0.08]">
+            <Search className="h-4 w-4 shrink-0 !text-white/80" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search menu"
+              className="min-w-0 flex-1 bg-transparent text-[13px] font-semibold !text-white outline-none placeholder:!text-white/70"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="!text-white/80 hover:!text-white"
+                aria-label="Clear search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         </div>
       )}
 
-      {/* Submodules */}
-      <nav className="mt-5 flex-1 overflow-y-auto px-3 pb-4">
-        {!collapsed && (
-          <p
-            className={cn(
-              "mb-2 px-2 text-[10px] font-semibold uppercase",
-              "tracking-[0.14em] text-blue-100/45",
-            )}
-          >
-            Submodules
-          </p>
+      <nav className="relative flex-1 overflow-y-auto px-3 py-3 [scrollbar-color:rgba(255,255,255,0.14)_transparent] [scrollbar-width:thin]">
+        {(!collapsed || mobile) && (
+          <div className="mb-2 flex items-center justify-between px-2.5 py-1.5">
+            <p className="sidebar-section-label text-[11px] font-extrabold uppercase tracking-[0.16em]">
+              Main workspace
+            </p>
+            <Sparkles className="h-3.5 w-3.5 !text-amber-300" />
+          </div>
         )}
 
-        <div className="space-y-1">
-          {submodules.map((item) => {
-            const target = normalizePath(safePath(item));
-
-            const Icon = item.icon || Grid2X2;
-
-            const active = target === activeSubmodulePath;
+        <div className="space-y-1.5">
+          {filteredModules.map((module) => {
+            const ModuleIcon = module.icon || Grid2X2;
+            const moduleActive = activeModule?.id === module.id;
+            const expanded =
+              (!collapsed || mobile) &&
+              (expandedModules.has(module.id) || Boolean(search.trim()));
+            const items = (module.items || []).filter((item) =>
+              canAccessNavigationItem(item, user),
+            );
+            const directModule = isDirectModule(module, items);
 
             return (
-              <NavLink
-                key={item.id || target}
-                to={target}
-                title={collapsed ? item.label : undefined}
-                data-testid={createTestId(item)}
-                className={cn(
-                  "group relative flex items-center rounded-xl",
-                  "text-sm transition-all duration-150",
-                  collapsed ? "h-11 justify-center px-2" : "gap-3 px-3 py-2.5",
-                  active
-                    ? "bg-white text-blue-800 shadow-lg shadow-blue-950/20"
-                    : "text-blue-100/75 hover:bg-white/10 hover:text-white",
-                )}
-              >
-                {active && (
-                  <span
-                    className={cn(
-                      "absolute -left-3 h-6 w-1",
-                      "rounded-r-full bg-cyan-300",
-                    )}
-                  />
-                )}
-
-                <Icon
+              <div key={module.id} className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => handleModuleClick(module, items)}
+                  title={
+                    collapsed && !mobile
+                      ? module.shortTitle || module.title
+                      : undefined
+                  }
                   className={cn(
-                    "h-[18px] w-[18px] shrink-0",
-                    active
-                      ? "text-blue-600"
-                      : "text-blue-100/70 group-hover:text-white",
+                    "group relative flex w-full items-center overflow-hidden rounded-2xl border !text-white transition-all duration-200",
+                    collapsed && !mobile
+                      ? "h-12 justify-center border-transparent px-2"
+                      : "gap-3 px-3.5 py-3",
+                    moduleActive
+                      ? "sidebar-module-active border-amber-200/20 bg-gradient-to-r from-amber-300/[0.14] via-white/[0.07] to-cyan-300/[0.05] shadow-[0_12px_28px_rgba(1,9,24,0.24)]"
+                      : "border-transparent hover:border-white/[0.10] hover:bg-white/[0.065]",
                   )}
-                  strokeWidth={1.8}
-                />
+                >
+                  {moduleActive && (
+                    <span className="absolute inset-y-2 left-0 w-[3px] rounded-r-full bg-gradient-to-b from-amber-200 via-amber-400 to-amber-500 shadow-[0_0_14px_rgba(251,191,36,0.55)]" />
+                  )}
 
-                {!collapsed && (
-                  <span className="min-w-0 flex-1 truncate font-medium">
-                    {item.label}
-                  </span>
-                )}
-
-                {!collapsed && item.badge && (
                   <span
                     className={cn(
-                      "rounded-full bg-red-500",
-                      "px-2 py-0.5 text-[10px]",
-                      "font-bold text-white",
+                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] border transition-all",
+                      moduleActive
+                        ? "border-amber-100/20 bg-amber-300/[0.14] !text-amber-200"
+                        : "border-white/[0.07] bg-white/[0.045] !text-white/90 group-hover:bg-white/[0.09] group-hover:!text-white",
                     )}
                   >
-                    {item.badge}
+                    <ModuleIcon
+                      className="h-[17px] w-[17px]"
+                      strokeWidth={1.9}
+                    />
                   </span>
+
+                  {(!collapsed || mobile) && (
+                    <>
+                      <span className="sidebar-main-label min-w-0 flex-1 truncate text-left leading-5">
+                        {module.shortTitle || module.title}
+                      </span>
+
+                      {module.externalUrl ? (
+                        <ExternalLink className="h-3.5 w-3.5 shrink-0 !text-white/75" />
+                      ) : !directModule ? (
+                        <ChevronDown
+                          className={cn(
+                            "h-4 w-4 shrink-0 !text-white/75 transition-transform duration-200",
+                            expanded && "rotate-180 !text-amber-200",
+                          )}
+                        />
+                      ) : (
+                        <ChevronRight className="h-3.5 w-3.5 shrink-0 !text-white/65" />
+                      )}
+                    </>
+                  )}
+                </button>
+
+                {expanded && !module.externalUrl && !directModule && (
+                  <div className="relative ml-[27px] space-y-1 border-l border-white/[0.12] py-1 pl-4">
+                    {items.map((item) => {
+                      const target = normalizePath(safePath(item));
+                      const Icon = item.icon || Grid2X2;
+                      const active = isPathActive(target, location.pathname);
+
+                      return (
+                        <NavLink
+                          key={item.id || target}
+                          to={target}
+                          onClick={() => onNavigate?.()}
+                          data-testid={createTestId(item)}
+                          className={cn(
+                            "group relative flex items-center gap-3 rounded-xl border px-3.5 py-3 text-[13px] !text-white transition-all duration-200",
+                            active
+                              ? "border-amber-200/30 bg-gradient-to-r from-[#123d73] to-[#0d315f] font-bold shadow-[0_8px_24px_rgba(1,9,24,0.28)]"
+                              : "border-transparent font-semibold hover:translate-x-0.5 hover:border-white/[0.06] hover:bg-white/[0.06]",
+                          )}
+                        >
+                          {active && (
+                            <span className="absolute -left-[17px] h-4 w-[3px] rounded-r-full bg-amber-400" />
+                          )}
+                          <Icon
+                            className={cn(
+                              "h-3.5 w-3.5 shrink-0",
+                              active ? "!text-amber-300" : "!text-white/80",
+                            )}
+                            strokeWidth={2}
+                          />
+                          <span className="sidebar-sub-label min-w-0 flex-1 truncate leading-5">
+                            {item.label}
+                          </span>
+                          {item.badge && (
+                            <span className="rounded-full bg-rose-500 px-2 py-0.5 text-[9px] font-bold !text-white shadow-sm">
+                              {item.badge}
+                            </span>
+                          )}
+                        </NavLink>
+                      );
+                    })}
+
+                    {!items.length && (
+                      <p className="px-3 py-2 text-xs !text-white/75">
+                        No accessible pages
+                      </p>
+                    )}
+                  </div>
                 )}
-              </NavLink>
+              </div>
             );
           })}
 
-          {!submodules.length && !collapsed && (
-            <div
-              className={cn(
-                "rounded-xl border border-white/10",
-                "bg-white/[0.05] px-3 py-5 text-center",
-              )}
-            >
-              <p className="text-sm text-blue-100/70">
-                No submodules are available.
+          {!filteredModules.length && (!collapsed || mobile) && (
+            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.035] px-4 py-8 text-center">
+              <Search className="mx-auto h-5 w-5 !text-white/70" />
+              <p className="mt-2 text-xs font-medium !text-white/80">
+                No menu items found
               </p>
-
-              <button
-                type="button"
-                onClick={goToMainMenu}
-                className="mt-3 text-xs font-semibold text-cyan-200 hover:text-cyan-100"
-              >
-                Main Menu
-              </button>
             </div>
           )}
         </div>
       </nav>
 
-      {/* Bottom controls */}
-      <div className="border-t border-white/10 p-3">
+      <div className="relative border-t border-white/[0.08] bg-black/[0.08] p-3 backdrop-blur-xl">
+        {(!collapsed || mobile) && (
+          <div className="mb-2.5 flex items-center gap-3 rounded-2xl border border-white/[0.09] bg-white/[0.045] p-2.5">
+            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 text-xs font-extrabold text-[#08214a] shadow-lg shadow-black/20">
+              {getInitials(user)}
+              <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#07162f] bg-emerald-400" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="sidebar-user-label truncate text-[13px] font-bold">
+                {userName}
+              </p>
+              <div className="mt-1 flex items-center gap-1.5">
+                <ShieldCheck className="sidebar-footer-icon h-3 w-3 !text-emerald-300" />
+                <p className="sidebar-role-label truncate text-[11px] font-semibold">
+                  {roleName}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <button
           type="button"
           onClick={handleLogout}
           className={cn(
-            "mb-2 flex w-full items-center rounded-xl",
-            "text-blue-100/70 transition",
-            "hover:bg-red-500/15 hover:text-red-100",
-            collapsed ? "h-10 justify-center" : "gap-3 px-3 py-2.5",
+            "flex w-full items-center rounded-xl border border-transparent !text-white/85 transition duration-200 hover:border-rose-300/10 hover:bg-rose-500/[0.10] hover:!text-white",
+            collapsed && !mobile ? "h-10 justify-center" : "gap-3 px-3.5 py-3",
           )}
-          title={collapsed ? "Logout" : undefined}
+          title={collapsed && !mobile ? "Logout" : undefined}
         >
-          <LogOut className="h-4 w-4" />
-
-          {!collapsed && <span className="text-sm font-medium">Logout</span>}
+          <LogOut className="sidebar-footer-icon h-4 w-4" />
+          {(!collapsed || mobile) && (
+            <span className="sidebar-logout-label text-[13px] font-bold">
+              Sign out
+            </span>
+          )}
         </button>
 
-        <button
-          type="button"
-          onClick={onToggle}
-          data-testid="sidebar-toggle-btn"
-          className={cn(
-            "flex h-9 w-full items-center justify-center rounded-xl",
-            "border border-white/15 text-blue-100/70 transition",
-            "hover:bg-white/10 hover:text-white",
-          )}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-4 w-4" />
-          )}
-        </button>
+        {!mobile && (
+          <button
+            type="button"
+            onClick={onToggle}
+            data-testid="sidebar-toggle-btn"
+            className="mt-2 flex h-9 w-full items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.035] !text-white/80 transition duration-200 hover:border-amber-200/15 hover:bg-white/[0.07] hover:!text-amber-200"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
+          </button>
+        )}
       </div>
     </aside>
   );
 }
+
+export default Sidebar;

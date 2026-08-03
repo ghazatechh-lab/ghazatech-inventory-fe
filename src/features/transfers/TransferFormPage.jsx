@@ -179,7 +179,10 @@ export default function TransferFormPage() {
     });
   };
   return (
-    <div className="space-y-6">
+    <div
+      data-stock-module="stock-transfer-form"
+      className="stock-module-page space-y-6"
+    >
       <PageHeader
         title="Branch transfer"
         subtitle="Transfer stock between branches"

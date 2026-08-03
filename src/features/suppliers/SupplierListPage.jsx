@@ -6,6 +6,11 @@ import {
   ChevronRight,
   Info,
   Plus,
+  Building2,
+  Users,
+  WalletCards,
+  CreditCard,
+  ArrowUpRight,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -94,13 +99,31 @@ const getStatus = (supplier) => {
   return "Active";
 };
 
-function MetricCard({ label, value, tone = "text-slate-900 dark:text-white" }) {
+function MetricCard({
+  label,
+  value,
+  tone = "text-slate-900 dark:text-white",
+  icon: Icon,
+}) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm dark:border-white/10 dark:bg-slate-900">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-        {label}
-      </p>
-      <div className={`mt-2 text-xl font-bold ${tone}`}>{value}</div>
+    <div className="supplier-metric-card group">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+            {label}
+          </p>
+          <div
+            className={`mt-2 text-2xl font-extrabold tracking-tight ${tone}`}
+          >
+            {value}
+          </div>
+        </div>
+        {Icon && (
+          <span className="supplier-metric-icon">
+            <Icon className="h-5 w-5" />
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -221,8 +244,8 @@ export default function SupplierListPage() {
   const totalPages = Math.max(1, Math.ceil(summary.totalSuppliers / PAGE_SIZE));
 
   return (
-    <div className="min-h-full bg-[#f6f7fb] text-slate-900 dark:bg-slate-950 dark:text-white">
-      <div className="border-b border-slate-200 bg-white px-5 py-4 dark:border-white/10 dark:bg-slate-900">
+    <div className="supplier-module-page min-h-full text-slate-900 dark:text-white">
+      <div className="supplier-topbar">
         <div className="mx-auto flex max-w-[1600px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-slate-500 dark:text-slate-400">
             Purchases /{" "}
@@ -241,24 +264,38 @@ export default function SupplierListPage() {
         </div>
       </div>
 
-      <main className="mx-auto max-w-[1600px] space-y-5 px-5 py-6">
-        <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Suppliers</h1>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Vendor master records, terms, and outstanding balances
-            </p>
-          </div>
+      <main className="mx-auto max-w-[1600px] space-y-6 px-5 py-6 lg:px-7">
+        <section className="supplier-hero supplier-list-hero">
+          <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="supplier-hero-content flex min-w-0 items-start gap-4">
+              <span className="supplier-hero-icon shrink-0">
+                <Building2 className="h-6 w-6" />
+              </span>
 
-          <Button
-            asChild
-            className="bg-indigo-600 text-white hover:bg-indigo-700"
-          >
-            <Link to="/suppliers/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Supplier
-            </Link>
-          </Button>
+              <div className="min-w-0 flex-1">
+                <p className="supplier-eyebrow supplier-list-eyebrow">
+                  Purchase management
+                </p>
+                <h1 className="supplier-hero-title supplier-list-title mt-1">
+                  Suppliers
+                </h1>
+                <p className="supplier-hero-description supplier-list-description mt-2 max-w-3xl">
+                  Manage vendor identities, tax records, commercial terms,
+                  credit exposure and payment readiness.
+                </p>
+              </div>
+            </div>
+
+            <Button
+              asChild
+              className="supplier-hero-action h-11 shrink-0 rounded-xl bg-amber-400 px-5 font-extrabold text-slate-950 shadow-lg shadow-black/15 hover:bg-amber-300"
+            >
+              <Link to="/suppliers/new">
+                <Plus className="mr-2 h-4 w-4" />
+                Add Supplier
+              </Link>
+            </Button>
+          </div>
         </section>
 
         <section className="flex items-start gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-950 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-200">
@@ -270,30 +307,38 @@ export default function SupplierListPage() {
           </p>
         </section>
 
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <MetricCard label="Total Suppliers" value={summary.totalSuppliers} />
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <MetricCard
+            label="Total Suppliers"
+            value={summary.totalSuppliers}
+            icon={Users}
+          />
           <MetricCard
             label="Active"
             value={summary.active}
             tone="text-emerald-600 dark:text-emerald-400"
+            icon={Building2}
           />
           <MetricCard
             label="Total Outstanding"
             value={formatCurrency(summary.outstanding)}
             tone="text-amber-700 dark:text-amber-400"
+            icon={WalletCards}
           />
           <MetricCard
             label="Total Payable"
             value={formatCurrency(summary.payable)}
             tone="text-red-600 dark:text-red-400"
+            icon={CreditCard}
           />
           <MetricCard
             label="Credit Used"
             value={formatCurrency(summary.creditUsed)}
+            icon={ArrowUpRight}
           />
         </section>
 
-        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-900">
+        <section className="supplier-table-card">
           <div className="overflow-x-auto">
             <table className="min-w-[1280px] w-full border-collapse text-sm">
               <thead>
@@ -343,7 +388,7 @@ export default function SupplierListPage() {
                         <td className="px-4 py-4">
                           <Link
                             to={`/suppliers/${supplier.id}`}
-                            className="font-semibold text-slate-950 hover:text-indigo-600 dark:text-white dark:hover:text-indigo-300"
+                            className="font-bold text-slate-950 transition hover:text-blue-600 dark:text-white dark:hover:text-blue-300"
                           >
                             {textValue(
                               supplier.supplier_name,
@@ -374,7 +419,7 @@ export default function SupplierListPage() {
                           {supplier.email ? (
                             <a
                               href={`mailto:${supplier.email}`}
-                              className="text-indigo-600 hover:underline dark:text-indigo-300"
+                              className="font-medium text-blue-600 hover:underline dark:text-blue-300"
                             >
                               {supplier.email}
                             </a>
@@ -459,7 +504,7 @@ export default function SupplierListPage() {
                 <ChevronLeft className="h-4 w-4" />
               </Button>
 
-              <span className="flex h-8 min-w-8 items-center justify-center rounded-md bg-indigo-600 px-2 text-xs font-semibold text-white">
+              <span className="flex h-8 min-w-8 items-center justify-center rounded-lg bg-blue-600 px-2 text-xs font-bold text-white shadow-sm shadow-blue-600/20">
                 {page}
               </span>
 

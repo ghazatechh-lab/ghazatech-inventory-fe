@@ -17,7 +17,7 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
 
   if (!isLoading && user) {
-    return <Navigate to="/modules" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   const submit = async (e) => {

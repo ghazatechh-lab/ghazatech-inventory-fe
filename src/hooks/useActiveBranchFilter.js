@@ -1,29 +1,8 @@
 import React from "react";
 
 import { useAuth } from "@/lib/auth";
-
-const normalizeRoleCode = (user) =>
-  String(
-    user?.role_code ||
-      user?.role?.code ||
-      user?.role_detail?.code ||
-      user?.role_name ||
-      "",
-  )
-    .trim()
-    .toUpperCase()
-    .replace(/\s+/g, "_");
-
-const isAdministrator = (user) => {
-  const roleCode = normalizeRoleCode(user);
-
-  return Boolean(
-    user?.is_superuser === true ||
-    roleCode === "ADMIN" ||
-    roleCode === "SUPER_ADMIN" ||
-    roleCode === "ADMINISTRATOR",
-  );
-};
+import { canViewAllBranches, isAdmin } from "@/lib/permissions";
+import { getUserBranchId } from "@/lib/branchAccess";
 
 const normalizeBranchId = (value) => {
   if (
@@ -48,17 +27,20 @@ const normalizeBranchId = (value) => {
   return Number.isNaN(parsed) ? value : parsed;
 };
 
-const getUserBranchId = (user) =>
-  normalizeBranchId(
-    user?.branch?.id ?? user?.branch_id ?? user?.branch_detail?.id ?? null,
-  );
-
 export function useActiveBranchFilter() {
   const { user, branchOverride } = useAuth();
 
-  const admin = React.useMemo(() => isAdministrator(user), [user]);
+  const administrator = React.useMemo(() => isAdmin(user), [user]);
 
-  const userBranchId = React.useMemo(() => getUserBranchId(user), [user]);
+  const viewAllBranches = React.useMemo(
+    () => administrator || canViewAllBranches(user),
+    [administrator, user],
+  );
+
+  const userBranchId = React.useMemo(
+    () => normalizeBranchId(getUserBranchId(user)),
+    [user],
+  );
 
   const selectedBranchId = React.useMemo(
     () => normalizeBranchId(branchOverride),
@@ -66,24 +48,23 @@ export function useActiveBranchFilter() {
   );
 
   /*
-   * Admin:
-   * - null means All branches.
-   * - selected branch ID means filter by that branch.
+   * Admin or a user with branches.view_all:
+   * - null means All Branches.
+   * - a selected branch ID filters records to that branch.
    *
-   * Non-admin:
-   * - always restricted to the user's assigned branch.
+   * A user without branches.view_all:
+   * - is always restricted to the assigned branch.
+   * - branchOverride is ignored.
    */
-  const branchId = admin ? selectedBranchId : userBranchId;
+  const branchId = viewAllBranches ? selectedBranchId : userBranchId;
 
   /*
-   * For All branches, return an entirely empty object.
-   * Do not return:
+   * For All Branches, return an empty object.
+   * This prevents Axios from sending:
    *
    * {
    *   branch: undefined
    * }
-   *
-   * This guarantees Axios will not send a branch parameter.
    */
   const branchParams = React.useMemo(() => {
     if (branchId === null || branchId === undefined || branchId === "") {
@@ -99,11 +80,16 @@ export function useActiveBranchFilter() {
     branchId,
     branchParams,
 
-    isAdmin: admin,
+    isAdmin: administrator,
 
-    isAllBranches: admin && branchId === null,
+    canViewAllBranches: viewAllBranches,
+
+    canSwitchBranches: viewAllBranches,
+
+    isAllBranches: viewAllBranches && branchId === null,
 
     userBranchId,
+    selectedBranchId,
   };
 }
 

@@ -240,7 +240,10 @@ export default function StockPage() {
     sortBy !== "name";
 
   return (
-    <div className="space-y-6">
+    <div
+      data-stock-module="stock-overview"
+      className="stock-module-page space-y-6"
+    >
       <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs text-blue-700">
         {showRestricted
           ? "Full stock view: regular, restricted and total balances."

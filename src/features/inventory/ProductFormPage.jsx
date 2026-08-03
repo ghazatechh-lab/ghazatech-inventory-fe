@@ -2,12 +2,19 @@ import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { Plus, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Boxes,
+  CheckCircle2,
+  ImagePlus,
+  Plus,
+  Save,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import api, { unwrap } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -700,15 +707,38 @@ export default function ProductFormPage() {
     return <div className="p-6">Loading product details...</div>;
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6 pb-10">
-      <div className="rounded-2xl border border-slate-200 dark:border-white/10 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950/50 p-1 shadow-2xl shadow-black/20">
-        <div className="rounded-[14px] bg-white dark:bg-slate-950/70 px-6 py-5 backdrop-blur">
-          <PageHeader
-            title={isEdit ? "Edit product" : "New product"}
-            subtitle="Create and maintain products, branch stock, rack location and pricing"
-          />
+    <div className="mx-auto w-full max-w-[1500px] space-y-6 pb-10">
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.14),transparent_36%),radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.08),transparent_30%)]" />
+        <div className="relative flex flex-col gap-5 px-6 py-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+          <div className="flex items-start gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-500/20">
+              <Boxes className="h-7 w-7" />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">
+                Product management
+              </p>
+              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-3xl">
+                {isEdit ? "Edit product" : "Create product"}
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">
+                Maintain catalogue details, branch stock, rack placement,
+                variants, tax and selling prices.
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 rounded-xl"
+            onClick={() => navigate("/inventory/products")}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to products
+          </Button>
         </div>
-      </div>
+      </section>
 
       <form
         onSubmit={handleSubmit(requestSubmit, (formErrors) => {
@@ -731,8 +761,8 @@ export default function ProductFormPage() {
 
           <div className="space-y-7 p-6">
             <div className="rounded-xl border border-dashed border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.02] p-4">
-              <Label className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                Product image
+              <Label className="flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-slate-200">
+                <ImagePlus className="h-4 w-4 text-blue-500" /> Product image
               </Label>
 
               <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -1549,13 +1579,19 @@ export default function ProductFormPage() {
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="min-w-40 bg-blue-600 shadow-lg shadow-blue-950/40 hover:bg-blue-700"
+            className="min-w-44 rounded-xl bg-blue-600 font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700"
           >
-            {isSubmitting
-              ? "Saving..."
-              : isEdit
-                ? "Save changes"
-                : "Create product"}
+            {isSubmitting ? (
+              <>
+                <Save className="mr-2 h-4 w-4 animate-pulse" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                {isEdit ? "Save changes" : "Create product"}
+              </>
+            )}
           </Button>
         </div>
       </form>

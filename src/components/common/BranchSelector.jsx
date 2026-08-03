@@ -4,6 +4,8 @@ import { Building2, Check, ChevronDown, Loader2 } from "lucide-react";
 
 import api, { unwrap } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { canViewAllBranches, hasPermission } from "@/lib/permissions";
+import { getAccessibleBranches, getUserBranchId } from "@/lib/branchAccess";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,7 +36,11 @@ const normalizeBranches = (value) => {
 };
 
 export function BranchSelector() {
-  const { branchOverride, setBranchOverride } = useAuth();
+  const { user, branchOverride, setBranchOverride } = useAuth();
+
+  const viewAllBranches = canViewAllBranches(user);
+  const canSwitchBranch =
+    viewAllBranches || hasPermission(user, "branches.switch");
 
   const { data, isLoading, isFetching } = useQuery({
     /*
@@ -63,7 +69,10 @@ export function BranchSelector() {
     refetchOnWindowFocus: true,
   });
 
-  const branches = React.useMemo(() => normalizeBranches(data), [data]);
+  const branches = React.useMemo(
+    () => getAccessibleBranches(normalizeBranches(data), user),
+    [data, user],
+  );
 
   const current = React.useMemo(
     () =>
@@ -77,13 +86,45 @@ export function BranchSelector() {
    * return to All branches.
    */
   React.useEffect(() => {
+    if (!viewAllBranches) {
+      const assignedBranchId = getUserBranchId(user);
+
+      if (
+        assignedBranchId &&
+        String(branchOverride || "") !== String(assignedBranchId)
+      ) {
+        setBranchOverride(assignedBranchId);
+      }
+
+      return;
+    }
+
     if (branchOverride && !isLoading && branches.length > 0 && !current) {
       setBranchOverride(null);
     }
-  }, [branchOverride, branches, current, isLoading, setBranchOverride]);
+  }, [
+    branchOverride,
+    branches,
+    current,
+    isLoading,
+    setBranchOverride,
+    user,
+    viewAllBranches,
+  ]);
 
   const currentLabel =
-    current?.branch_code || current?.branch_name || "All branches";
+    current?.branch_code ||
+    current?.branch_name ||
+    (viewAllBranches ? "All branches" : "Assigned branch");
+
+  if (!canSwitchBranch) {
+    return (
+      <div className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 shadow-sm dark:border-white/10 dark:bg-white/[0.02] dark:text-slate-300 dark:shadow-none">
+        <Building2 className="h-3.5 w-3.5 text-slate-500" />
+        <span className="max-w-[160px] truncate">{currentLabel}</span>
+      </div>
+    );
+  }
 
   return (
     <DropdownMenu>
@@ -110,17 +151,19 @@ export function BranchSelector() {
 
         <DropdownMenuSeparator />
 
-        <DropdownMenuItem onClick={() => setBranchOverride(null)}>
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <Building2 className="h-4 w-4 shrink-0 text-slate-500" />
+        {viewAllBranches && (
+          <DropdownMenuItem onClick={() => setBranchOverride(null)}>
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <Building2 className="h-4 w-4 shrink-0 text-slate-500" />
 
-            <span className="truncate">All branches</span>
-          </div>
+              <span className="truncate">All branches</span>
+            </div>
 
-          {!branchOverride && (
-            <Check className="ml-2 h-4 w-4 shrink-0 text-blue-500" />
-          )}
-        </DropdownMenuItem>
+            {!branchOverride && (
+              <Check className="ml-2 h-4 w-4 shrink-0 text-blue-500" />
+            )}
+          </DropdownMenuItem>
+        )}
 
         {branches.map((branch) => {
           const selected = String(branchOverride) === String(branch.id);

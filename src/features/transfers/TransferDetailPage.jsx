@@ -164,7 +164,10 @@ export default function TransferDetailPage() {
     "—";
 
   return (
-    <div className="space-y-4">
+    <div
+      data-stock-module="stock-transfer-detail"
+      className="stock-module-page space-y-4"
+    >
       <PageHeader
         title={transfer.transfer_number || "Transfer details"}
         subtitle={`${fromBranch} → ${toBranch}`}

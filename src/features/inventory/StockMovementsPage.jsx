@@ -125,7 +125,10 @@ export default function StockMovementsPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div
+      data-stock-module="stock-movements"
+      className="stock-module-page space-y-6"
+    >
       <PageHeader
         title="Stock Movements"
         subtitle="History of every transaction that changed inventory levels"

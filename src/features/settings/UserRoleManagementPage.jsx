@@ -1,7 +1,9 @@
 import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  CheckCircle2,
   Edit,
+  Layers3,
   Plus,
   Search,
   ShieldCheck,
@@ -19,7 +21,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PERMISSION_GROUPS } from "@/config/permissionGroups";
+import { describeRoleAccess } from "./role_description";
 
 const normalizeList = (value) => {
   if (Array.isArray(value)) {
@@ -51,6 +61,24 @@ const normalizeList = (value) => {
  * 4. {"inventory": {"products": {"view": true}}}
  * 5. "inventory.products.view,inventory.products.create"
  */
+const PERMISSION_CODE_ALIASES = {
+  "branches.branches.view_all": "branches.view_all",
+  "branches.branch_access.view_all": "branches.view_all",
+};
+
+const canonicalPermissionCode = (code) => {
+  const normalized = String(code || "").trim();
+
+  return PERMISSION_CODE_ALIASES[normalized] || normalized;
+};
+
+const buildCatalogPermissionCode = (group, resource, action) => {
+  const prefix =
+    resource?.code_prefix || `${group?.module}.${resource?.resource}`;
+
+  return canonicalPermissionCode(`${prefix}.${action}`);
+};
+
 const normalizePermissions = (value) => {
   if (value === null || value === undefined || value === "") {
     return [];
@@ -61,14 +89,18 @@ const normalizePermissions = (value) => {
       new Set(
         value.flatMap((item) => {
           if (typeof item === "string") {
-            return item.trim() ? [item.trim()] : [];
+            const code = canonicalPermissionCode(item);
+
+            return code ? [code] : [];
           }
 
           if (item && typeof item === "object") {
             const code =
               item.code || item.permission_code || item.permission || item.name;
 
-            return typeof code === "string" && code.trim() ? [code.trim()] : [];
+            const normalizedCode = canonicalPermissionCode(code);
+
+            return normalizedCode ? [normalizedCode] : [];
           }
 
           return [];
@@ -91,7 +123,7 @@ const normalizePermissions = (value) => {
         new Set(
           trimmed
             .split(",")
-            .map((item) => item.trim())
+            .map((item) => canonicalPermissionCode(item))
             .filter(Boolean),
         ),
       );
@@ -116,7 +148,7 @@ const normalizePermissions = (value) => {
     const visit = (node, path = []) => {
       if (node === true) {
         if (path.length) {
-          codes.push(path.join("."));
+          codes.push(canonicalPermissionCode(path.join(".")));
         }
         return;
       }
@@ -128,7 +160,7 @@ const normalizePermissions = (value) => {
       if (Array.isArray(node)) {
         node.forEach((item) => {
           if (typeof item === "string" && item.trim()) {
-            codes.push(item.trim());
+            codes.push(canonicalPermissionCode(item));
           } else if (item && typeof item === "object") {
             const code =
               item.code || item.permission_code || item.permission || item.name;
@@ -200,6 +232,54 @@ const emptyRole = {
   is_active: true,
 };
 
+const ACCESS_PROFILES = {
+  REGULAR_SALES: {
+    label: "Regular Sales",
+    description:
+      "Allows normal sales of regular stock using standard sales permissions.",
+    permissions: ["sales.selling.regular"],
+  },
+  NON_VAT_SALES: {
+    label: "Non-VAT Sales",
+    description:
+      "Allows selected roles to sell regular stock using the Non-VAT option.",
+    permissions: [
+      "sales.selling.regular",
+      "sales.selling.non_vat",
+      "sales.non_vat.view",
+      "sales.non_vat.use",
+      "sales.non_vat.manage",
+    ],
+  },
+  VAT_SALES: {
+    label: "VAT Sales",
+    description:
+      "Allows selected roles to sell regular stock using standard VAT.",
+    permissions: [
+      "sales.selling.regular",
+      "sales.selling.vat",
+      "sales.vat.view",
+      "sales.vat.manage",
+    ],
+  },
+  RESTRICTED_STOCK_SALES: {
+    label: "Restricted Stock Sales",
+    description:
+      "Allows selected roles to view and sell stock classified as restricted.",
+    permissions: [
+      "sales.selling.restricted",
+      "inventory.restricted_stock.view",
+      "inventory.restricted_stock.sell",
+    ],
+  },
+  PRICE_OVERRIDE: {
+    label: "Discount & Price Override",
+    description:
+      "Allows selected roles to apply discounts and override selling prices.",
+    permissions: ["sales.selling.discount", "sales.selling.price_override"],
+  },
+};
+
 export default function UserRoleManagementPage() {
   const queryClient = useQueryClient();
 
@@ -214,6 +294,10 @@ export default function UserRoleManagementPage() {
 
   const [permissionTab, setPermissionTab] = React.useState("special");
   const [permissionSearch, setPermissionSearch] = React.useState("");
+
+  const [bulkOpen, setBulkOpen] = React.useState(false);
+  const [bulkProfile, setBulkProfile] = React.useState("NON_VAT_SALES");
+  const [bulkRoleIds, setBulkRoleIds] = React.useState([]);
 
   const { data: usersData, isLoading: usersLoading } = useQuery({
     queryKey: ["admin-users"],
@@ -289,7 +373,7 @@ export default function UserRoleManagementPage() {
     catalog.forEach((group) => {
       (group.resources || []).forEach((resource) => {
         (resource.actions || []).forEach((action) => {
-          codes.add(`${group.module}.${resource.resource}.${action}`);
+          codes.add(buildCatalogPermissionCode(group, resource, action));
         });
       });
     });
@@ -337,7 +421,7 @@ export default function UserRoleManagementPage() {
                   resource.label,
                   resource.resource,
                   action,
-                  `${group.module}.${resource.resource}.${action}`,
+                  buildCatalogPermissionCode(group, resource, action),
                 ]
                   .filter(Boolean)
                   .some((value) =>
@@ -417,9 +501,13 @@ export default function UserRoleManagementPage() {
 
   const roleMutation = useMutation({
     mutationFn: () => {
+      const permissions = normalizePermissions(roleForm.permissions).map(
+        canonicalPermissionCode,
+      );
+
       const payload = {
         ...roleForm,
-        permissions: normalizePermissions(roleForm.permissions),
+        permissions: Array.from(new Set(permissions)),
       };
 
       return editingRole
@@ -449,6 +537,61 @@ export default function UserRoleManagementPage() {
     },
 
     onError: (error) => showError(error, "Unable to save role"),
+  });
+
+  const bulkPermissionMutation = useMutation({
+    mutationFn: async () => {
+      const profile = ACCESS_PROFILES[bulkProfile];
+
+      if (!profile) {
+        throw new Error("Invalid permission profile.");
+      }
+
+      const selectedRoles = roles.filter((role) =>
+        bulkRoleIds.includes(String(role.id)),
+      );
+
+      await Promise.all(
+        selectedRoles.map((role) => {
+          const currentPermissions = normalizePermissions(role.permissions);
+
+          const permissions = Array.from(
+            new Set([...currentPermissions, ...profile.permissions]),
+          );
+
+          return api.patch(
+            `/auth/roles/${role.id}/`,
+            {
+              permissions,
+            },
+            {
+              skipGlobalErrorToast: true,
+            },
+          );
+        }),
+      );
+    },
+
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["admin-roles"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["admin-users"],
+        }),
+      ]);
+
+      toast.success(
+        `${ACCESS_PROFILES[bulkProfile].label} assigned to ${bulkRoleIds.length} role(s).`,
+      );
+
+      setBulkOpen(false);
+      setBulkRoleIds([]);
+    },
+
+    onError: (error) =>
+      showError(error, "Unable to assign permissions to selected roles"),
   });
 
   const openUser = (user = null) => {
@@ -495,21 +638,25 @@ export default function UserRoleManagementPage() {
   };
 
   const togglePermission = (code) => {
+    const normalizedCode = canonicalPermissionCode(code);
+
     setRoleForm((current) => {
       const currentPermissions = normalizePermissions(current.permissions);
 
       return {
         ...current,
-        permissions: currentPermissions.includes(code)
-          ? currentPermissions.filter((permission) => permission !== code)
-          : [...currentPermissions, code],
+        permissions: currentPermissions.includes(normalizedCode)
+          ? currentPermissions.filter(
+              (permission) => permission !== normalizedCode,
+            )
+          : Array.from(new Set([...currentPermissions, normalizedCode])),
       };
     });
   };
 
-  const toggleResource = (moduleCode, resourceCode, actions) => {
-    const permissionCodes = actions.map(
-      (action) => `${moduleCode}.${resourceCode}.${action}`,
+  const toggleResource = (group, resource, actions) => {
+    const permissionCodes = actions.map((action) =>
+      buildCatalogPermissionCode(group, resource, action),
     );
 
     setRoleForm((current) => {
@@ -529,18 +676,20 @@ export default function UserRoleManagementPage() {
   };
 
   const togglePermissionCodes = (codes) => {
+    const normalizedCodes = codes.map(canonicalPermissionCode);
+
     setRoleForm((current) => {
       const currentPermissions = normalizePermissions(current.permissions);
 
-      const allSelected = codes.every((code) =>
+      const allSelected = normalizedCodes.every((code) =>
         currentPermissions.includes(code),
       );
 
       return {
         ...current,
         permissions: allSelected
-          ? currentPermissions.filter((code) => !codes.includes(code))
-          : Array.from(new Set([...currentPermissions, ...codes])),
+          ? currentPermissions.filter((code) => !normalizedCodes.includes(code))
+          : Array.from(new Set([...currentPermissions, ...normalizedCodes])),
       };
     });
   };
@@ -710,7 +859,20 @@ export default function UserRoleManagementPage() {
         </TabsContent>
 
         <TabsContent value="roles" className="mt-4 space-y-4">
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setBulkProfile("NON_VAT_SALES");
+                setBulkRoleIds([]);
+                setBulkOpen(true);
+              }}
+            >
+              <Layers3 className="mr-2 h-4 w-4" />
+              Assign Access to Roles
+            </Button>
+
             <Button onClick={() => openRole()}>
               <Plus className="mr-2 h-4 w-4" />
               Add Role
@@ -744,6 +906,16 @@ export default function UserRoleManagementPage() {
                       {role.description || "No description"}
                     </p>
 
+                    <div className="mt-3 rounded-xl border bg-muted/25 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        What this role can do
+                      </p>
+
+                      <p className="mt-1 text-sm leading-5">
+                        {describeRoleAccess(role)}
+                      </p>
+                    </div>
+
                     <p className="mt-3 text-xs">
                       {permissions.length} permissions
                     </p>
@@ -776,6 +948,177 @@ export default function UserRoleManagementPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {bulkOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-background shadow-2xl">
+            <div className="flex items-start justify-between border-b p-5">
+              <div>
+                <h2 className="text-xl font-semibold">
+                  Assign Access to Multiple Roles
+                </h2>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Choose one access profile and assign it to several roles at
+                  once.
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                onClick={() => setBulkOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-5 p-5">
+              <div>
+                <Label>Access Profile</Label>
+
+                <Select value={bulkProfile} onValueChange={setBulkProfile}>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {Object.entries(ACCESS_PROFILES).map(([key, profile]) => (
+                      <SelectItem key={key} value={key}>
+                        {profile.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50/60 p-4 dark:border-blue-900 dark:bg-blue-950/20">
+                  <p className="font-medium text-blue-800 dark:text-blue-200">
+                    {ACCESS_PROFILES[bulkProfile].label}
+                  </p>
+
+                  <p className="mt-1 text-sm text-blue-700 dark:text-blue-300">
+                    {ACCESS_PROFILES[bulkProfile].description}
+                  </p>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {ACCESS_PROFILES[bulkProfile].permissions.map(
+                      (permission) => (
+                        <code
+                          key={permission}
+                          className="rounded bg-background px-2 py-1 text-[10px]"
+                        >
+                          {permission}
+                        </code>
+                      ),
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between">
+                  <Label>Select Roles</Label>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() =>
+                      setBulkRoleIds(
+                        roles
+                          .filter(
+                            (role) =>
+                              String(role.code || "").toUpperCase() !== "ADMIN",
+                          )
+                          .map((role) => String(role.id)),
+                      )
+                    }
+                  >
+                    Select all non-admin roles
+                  </Button>
+                </div>
+
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  {roles
+                    .filter(
+                      (role) =>
+                        String(role.code || "").toUpperCase() !== "ADMIN",
+                    )
+                    .map((role) => {
+                      const checked = bulkRoleIds.includes(String(role.id));
+
+                      return (
+                        <label
+                          key={role.id}
+                          className={`cursor-pointer rounded-xl border p-4 transition ${
+                            checked
+                              ? "border-blue-500 bg-blue-50/70"
+                              : "hover:border-blue-300"
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="checkbox"
+                              className="mt-1"
+                              checked={checked}
+                              onChange={(event) =>
+                                setBulkRoleIds((current) =>
+                                  event.target.checked
+                                    ? [...current, String(role.id)]
+                                    : current.filter(
+                                        (id) => id !== String(role.id),
+                                      ),
+                                )
+                              }
+                            />
+
+                            <div>
+                              <p className="font-medium">{role.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {role.code}
+                              </p>
+                              <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                                {describeRoleAccess(role)}
+                              </p>
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between border-t p-5">
+              <p className="text-sm text-muted-foreground">
+                {bulkRoleIds.length} role(s) selected
+              </p>
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setBulkOpen(false)}
+                >
+                  Cancel
+                </Button>
+
+                <Button
+                  type="button"
+                  disabled={
+                    !bulkRoleIds.length || bulkPermissionMutation.isPending
+                  }
+                  onClick={() => bulkPermissionMutation.mutate()}
+                >
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  Assign Access
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {userOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
@@ -1220,9 +1563,8 @@ export default function UserRoleManagementPage() {
                             ? resource.actions
                             : [];
 
-                          const codes = actions.map(
-                            (action) =>
-                              `${group.module}.${resource.resource}.${action}`,
+                          const codes = actions.map((action) =>
+                            buildCatalogPermissionCode(group, resource, action),
                           );
 
                           const checked =
@@ -1249,11 +1591,7 @@ export default function UserRoleManagementPage() {
                                   size="sm"
                                   variant={checked ? "default" : "outline"}
                                   onClick={() =>
-                                    toggleResource(
-                                      group.module,
-                                      resource.resource,
-                                      actions,
-                                    )
+                                    toggleResource(group, resource, actions)
                                   }
                                 >
                                   {checked

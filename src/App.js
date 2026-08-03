@@ -24,7 +24,6 @@ import UnauthorizedPage from "@/pages/UnauthorizedPage";
 /* -------------------------------------------------------------------------- */
 
 import DashboardPage from "@/features/dashboard/DashboardPage";
-import ModuleLandingPage from "@/features/modules/ModuleLandingPage";
 
 /* -------------------------------------------------------------------------- */
 /* Branches                                                                   */
@@ -291,7 +290,10 @@ export default function App() {
             >
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-              <Route path="/modules" element={<ModuleLandingPage />} />
+              <Route
+                path="/modules"
+                element={<Navigate to="/dashboard" replace />}
+              />
 
               <Route path="/dashboard" element={<DashboardPage />} />
 
