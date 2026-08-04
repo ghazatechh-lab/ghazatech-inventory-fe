@@ -109,6 +109,7 @@ export default function POFormPage() {
   });
 
   const [errors, setErrors] = React.useState({});
+  const [supplierSearch, setSupplierSearch] = React.useState("");
 
   React.useEffect(() => {
     if (!edit && branchId) {
@@ -173,6 +174,28 @@ export default function POFormPage() {
     () => normalizeList(supplierResponse),
     [supplierResponse],
   );
+
+  const filteredSuppliers = React.useMemo(() => {
+    const search = supplierSearch.trim().toLowerCase();
+
+    if (!search) {
+      return suppliers;
+    }
+
+    return suppliers.filter((supplier) =>
+      [
+        supplier.supplier_name,
+        supplier.contact_person,
+        supplier.email,
+        supplier.phone,
+        supplier.phone_number,
+        supplier.supplier_code,
+        supplier.tax_registration_number,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(search)),
+    );
+  }, [suppliers, supplierSearch]);
 
   const allBranches = React.useMemo(
     () => normalizeList(branchResponse),
@@ -434,7 +457,7 @@ export default function POFormPage() {
   const orderStatus = form.status === "DRAFT" ? "Draft" : form.status;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 pb-10">
+    <div className="purchase-module-page purchase-workspace mx-auto max-w-7xl space-y-5 pb-10">
       <PageHeader
         title={edit ? "Edit Purchase Order" : "New Purchase Order"}
         subtitle="Raise an order against a supplier and track it through to delivery"
@@ -462,17 +485,59 @@ export default function POFormPage() {
                 </Label>
                 <Select
                   value={form.supplier}
-                  onValueChange={(value) => updateForm("supplier", value)}
+                  onValueChange={(value) => {
+                    updateForm("supplier", value);
+                    setSupplierSearch("");
+                  }}
                 >
                   <SelectTrigger className="mt-2">
                     <SelectValue placeholder="Select supplier" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {suppliers.map((supplier) => (
-                      <SelectItem key={supplier.id} value={String(supplier.id)}>
-                        {supplier.supplier_name}
-                      </SelectItem>
-                    ))}
+                  <SelectContent className="max-h-80 p-0">
+                    <div
+                      className="sticky top-0 z-10 border-b bg-popover p-2"
+                      onKeyDown={(event) => event.stopPropagation()}
+                    >
+                      <Input
+                        autoFocus
+                        value={supplierSearch}
+                        onChange={(event) =>
+                          setSupplierSearch(event.target.value)
+                        }
+                        onClick={(event) => event.stopPropagation()}
+                        placeholder="Search supplier name, code or contact"
+                      />
+                    </div>
+
+                    <div className="max-h-64 overflow-y-auto p-1">
+                      {filteredSuppliers.length ? (
+                        filteredSuppliers.map((supplier) => (
+                          <SelectItem
+                            key={supplier.id}
+                            value={String(supplier.id)}
+                          >
+                            <div>
+                              <div>{supplier.supplier_name}</div>
+                              {(supplier.supplier_code ||
+                                supplier.contact_person) && (
+                                <div className="text-xs text-muted-foreground">
+                                  {[
+                                    supplier.supplier_code,
+                                    supplier.contact_person,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                                </div>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                          No suppliers match your search.
+                        </div>
+                      )}
+                    </div>
                   </SelectContent>
                 </Select>
                 {errors.supplier && (

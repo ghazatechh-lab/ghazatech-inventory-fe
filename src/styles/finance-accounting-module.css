@@ -1,0 +1,410 @@
+/* =========================================================
+   GHAZATECH — FINANCE & ACCOUNTING MODULE STANDARD DESIGN
+   File: src/styles/finance-accounting-module.css
+   Import this file last in src/index.css.
+   ========================================================= */
+
+.finance-module-page {
+  --finance-navy-950: #05142b;
+  --finance-navy-900: #08264b;
+  --finance-navy-800: #0b3b70;
+  --finance-blue: #2563eb;
+  --finance-cyan: #38bdf8;
+  --finance-gold: #fbbf24;
+  --finance-gold-hover: #fcd34d;
+  --finance-green: #10b981;
+  --finance-border: #dbe3ef;
+  --finance-surface: #ffffff;
+  --finance-muted: #64748b;
+  width: 100%;
+  padding-bottom: 2.5rem;
+}
+
+.dark .finance-module-page {
+  --finance-border: rgba(255, 255, 255, 0.09);
+  --finance-surface: #0f172a;
+  --finance-muted: #94a3b8;
+}
+
+/* ---------------------------------------------------------
+   PREMIUM FINANCE HERO
+   --------------------------------------------------------- */
+
+.finance-workspace > [data-testid="page-header"] {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 154px;
+  margin-bottom: 1.5rem !important;
+  padding: 1.75rem 1.8rem;
+  align-items: center;
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 92% 2%, rgba(56, 189, 248, 0.24), transparent 31%),
+    radial-gradient(circle at 78% 120%, rgba(251, 191, 36, 0.12), transparent 28%),
+    linear-gradient(135deg, #05142b 0%, #082a54 56%, #18527e 100%);
+  box-shadow:
+    0 24px 58px rgba(15, 23, 42, 0.17),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.finance-workspace > [data-testid="page-header"]::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: -92px;
+  bottom: -168px;
+  width: 270px;
+  height: 270px;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.finance-workspace > [data-testid="page-header"] > div:first-child::before {
+  content: "FINANCE & ACCOUNTING";
+  display: block;
+  margin-bottom: 0.45rem;
+  color: #7dd3fc !important;
+  -webkit-text-fill-color: #7dd3fc !important;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+}
+
+.finance-workspace > [data-testid="page-header"] h1 {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  font-size: clamp(1.8rem, 2.6vw, 2.4rem) !important;
+  font-weight: 900 !important;
+  line-height: 1.12 !important;
+  letter-spacing: -0.035em !important;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+}
+
+.finance-workspace > [data-testid="page-header"] p {
+  max-width: 790px;
+  color: #dbeafe !important;
+  -webkit-text-fill-color: #dbeafe !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 1.65 !important;
+}
+
+.finance-workspace > [data-testid="page-header"] > div:last-child {
+  position: relative;
+  z-index: 2;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* Primary hero actions. */
+.finance-workspace > [data-testid="page-header"] button:not([class*="outline"]),
+.finance-workspace > [data-testid="page-header"] a:not([class*="outline"]) {
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  background: linear-gradient(135deg, #fcd34d, #f59e0b) !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  font-weight: 800 !important;
+  box-shadow: 0 12px 26px rgba(245, 158, 11, 0.24);
+}
+
+/* Secondary hero actions. */
+.finance-workspace > [data-testid="page-header"] button[class*="outline"],
+.finance-workspace > [data-testid="page-header"] a[class*="outline"] {
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  background: rgba(255, 255, 255, 0.10) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  backdrop-filter: blur(12px);
+}
+
+.finance-workspace > [data-testid="page-header"] button:hover,
+.finance-workspace > [data-testid="page-header"] a:hover {
+  transform: translateY(-1px);
+}
+
+/* ---------------------------------------------------------
+   DASHBOARD METRICS AND CARDS
+   --------------------------------------------------------- */
+
+.finance-workspace .card-surface,
+.finance-workspace > section,
+.finance-workspace .rounded-2xl.border.bg-card {
+  border-color: var(--finance-border);
+  border-radius: 20px;
+  background: var(--finance-surface);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.055);
+}
+
+.dark .finance-workspace .card-surface,
+.dark .finance-workspace > section,
+.dark .finance-workspace .rounded-2xl.border.bg-card {
+  box-shadow: none;
+}
+
+.finance-workspace .card-surface {
+  position: relative;
+  overflow: hidden;
+}
+
+.finance-workspace .card-surface::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, #38bdf8, #2563eb, #fbbf24);
+  opacity: 0.7;
+}
+
+.finance-workspace .card-surface p:first-child {
+  font-weight: 650;
+}
+
+.finance-workspace .card-surface p:nth-child(2) {
+  letter-spacing: -0.025em;
+}
+
+/* ---------------------------------------------------------
+   TABS
+   --------------------------------------------------------- */
+
+.finance-workspace .flex.flex-wrap.gap-6.border-b {
+  gap: 0.5rem;
+  padding: 0.45rem;
+  border: 1px solid var(--finance-border);
+  border-radius: 16px;
+  background: var(--finance-surface);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.045);
+}
+
+.finance-workspace .flex.flex-wrap.gap-6.border-b > button {
+  min-height: 40px;
+  padding: 0.65rem 1rem;
+  border: 0 !important;
+  border-radius: 11px;
+}
+
+.finance-workspace .flex.flex-wrap.gap-6.border-b > button[class*="border-amber"] {
+  background: linear-gradient(135deg, #0f3d72, #18558a);
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 8px 18px rgba(14, 58, 111, 0.20);
+}
+
+/* ---------------------------------------------------------
+   FILTERS AND FORM CONTROLS
+   --------------------------------------------------------- */
+
+.finance-workspace input,
+.finance-workspace textarea,
+.finance-workspace select,
+.finance-workspace button[role="combobox"] {
+  min-height: 42px;
+  border-color: #dbe3ef;
+  border-radius: 11px;
+  background-color: #ffffff;
+}
+
+.dark .finance-workspace input,
+.dark .finance-workspace textarea,
+.dark .finance-workspace select,
+.dark .finance-workspace button[role="combobox"] {
+  border-color: rgba(255, 255, 255, 0.10);
+  background-color: rgba(15, 23, 42, 0.82);
+}
+
+.finance-workspace input:focus,
+.finance-workspace textarea:focus,
+.finance-workspace select:focus {
+  border-color: #60a5fa !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  outline: none;
+}
+
+/* ---------------------------------------------------------
+   TABLES
+   --------------------------------------------------------- */
+
+.finance-workspace .overflow-x-auto.rounded-2xl.border,
+.finance-workspace section.overflow-hidden.rounded-2xl.border {
+  overflow: hidden;
+  border-color: var(--finance-border);
+  border-radius: 20px;
+  background: var(--finance-surface);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.055);
+}
+
+.finance-workspace table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.finance-workspace thead {
+  background: #f8fafc !important;
+}
+
+.dark .finance-workspace thead {
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+
+.finance-workspace th {
+  color: #64748b !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.10em !important;
+}
+
+.finance-workspace td {
+  border-color: #e8edf5;
+}
+
+.dark .finance-workspace td {
+  border-color: rgba(255, 255, 255, 0.065);
+}
+
+.finance-workspace tbody tr {
+  transition:
+    background-color 160ms ease,
+    transform 160ms ease;
+}
+
+.finance-workspace tbody tr:hover {
+  background: #f8fbff;
+}
+
+.dark .finance-workspace tbody tr:hover {
+  background: rgba(59, 130, 246, 0.055);
+}
+
+.finance-workspace tfoot {
+  background: #f8fafc;
+}
+
+.dark .finance-workspace tfoot {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+/* ---------------------------------------------------------
+   STATUS, AGING AND SUMMARY TILES
+   --------------------------------------------------------- */
+
+.finance-workspace span.rounded-full {
+  font-weight: 750;
+  letter-spacing: 0.01em;
+}
+
+.finance-workspace .grid.gap-4.md\:grid-cols-5 > .rounded-2xl,
+.finance-workspace .grid.gap-4.md\:grid-cols-4 > .rounded-2xl,
+.finance-workspace .grid.gap-4.md\:grid-cols-3 > .rounded-2xl {
+  border-color: var(--finance-border);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.05);
+}
+
+/* ---------------------------------------------------------
+   MODALS AND FORM PANELS
+   --------------------------------------------------------- */
+
+.finance-workspace .fixed.inset-0,
+body > .fixed.inset-0 {
+  backdrop-filter: blur(5px);
+}
+
+.finance-workspace .fixed.inset-0 > form,
+.finance-workspace .fixed.inset-0 > div,
+body > .fixed.inset-0 > form,
+body > .fixed.inset-0 > div {
+  border-radius: 22px;
+}
+
+.finance-workspace .fixed.inset-0 h2,
+.finance-workspace .fixed.inset-0 h3 {
+  letter-spacing: -0.02em;
+}
+
+.finance-workspace .fixed.inset-0 section {
+  background: transparent;
+}
+
+.finance-workspace .fixed.inset-0 [class*="bg-slate-900"],
+.finance-workspace button[class*="bg-slate-900"] {
+  background: linear-gradient(135deg, #0a2f5d, #14558b) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.finance-workspace .fixed.inset-0 [class*="bg-slate-900"]:hover,
+.finance-workspace button[class*="bg-slate-900"]:hover {
+  background: linear-gradient(135deg, #0d3b70, #17649d) !important;
+}
+
+/* ---------------------------------------------------------
+   REPORT TOTALS AND HIGHLIGHTS
+   --------------------------------------------------------- */
+
+.finance-workspace .border-2.bg-card,
+.finance-workspace .border-y-2 {
+  border-color: rgba(37, 99, 235, 0.28) !important;
+  background:
+    linear-gradient(135deg, rgba(239, 246, 255, 0.92), rgba(255, 251, 235, 0.72)) !important;
+}
+
+.dark .finance-workspace .border-2.bg-card,
+.dark .finance-workspace .border-y-2 {
+  background:
+    linear-gradient(135deg, rgba(30, 64, 175, 0.12), rgba(245, 158, 11, 0.07)) !important;
+}
+
+/* ---------------------------------------------------------
+   ACCESSIBILITY AND RESPONSIVE LAYOUT
+   --------------------------------------------------------- */
+
+.finance-workspace a:focus-visible,
+.finance-workspace button:focus-visible,
+.finance-workspace input:focus-visible,
+.finance-workspace textarea:focus-visible,
+.finance-workspace select:focus-visible {
+  outline: 2px solid #fbbf24 !important;
+  outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+  .finance-workspace > [data-testid="page-header"] {
+    min-height: auto;
+    padding: 1.25rem;
+    align-items: stretch;
+    flex-direction: column;
+    border-radius: 20px;
+  }
+
+  .finance-workspace > [data-testid="page-header"] > div:last-child {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .finance-workspace > [data-testid="page-header"] > div:last-child > * {
+    flex: 1 1 auto;
+  }
+
+  .finance-workspace .flex.flex-wrap.gap-6.border-b {
+    align-items: stretch;
+  }
+
+  .finance-workspace .flex.flex-wrap.gap-6.border-b > button {
+    flex: 1 1 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .finance-workspace *,
+  .finance-workspace *::before,
+  .finance-workspace *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

@@ -55,7 +55,7 @@ export default function SalesOrderDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="sales-module-page sales-workspace mx-auto max-w-6xl space-y-5">
       <PageHeader
         title={order.order_number}
         subtitle="Sales order details, fulfillment, and invoice conversion"

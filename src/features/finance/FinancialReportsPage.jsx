@@ -201,7 +201,7 @@ export default function FinancialReportsPage() {
   );
 
   const renderIncomeStatement = () => (
-    <div className="space-y-5">
+    <div className="finance-module-page finance-workspace space-y-5">
       <h2 className="text-xl font-semibold">Revenue</h2>
 
       <AccountTable

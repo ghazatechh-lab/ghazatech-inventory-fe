@@ -3,13 +3,17 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   AlertCircle,
   ArrowLeft,
+  CheckCircle2,
   Edit3,
   Printer,
   RefreshCcw,
+  Send,
+  XCircle,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
-import api from "@/lib/api";
+import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,9 +29,10 @@ import {
 export default function SupplierReturnDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["SupplierReturnDetailPage", id],
+    queryKey: ["supplier-return", id],
     queryFn: async () =>
       normalizeApiResponse(
         await api.get(`/purchases/supplier-returns/${id}/`, {
@@ -38,6 +43,46 @@ export default function SupplierReturnDetailPage() {
     staleTime: 0,
     retry: false,
     refetchOnMount: "always",
+  });
+
+  const workflowMutation = useMutation({
+    mutationFn: async ({ action, status }) => {
+      if (action === "approve") {
+        return unwrap(
+          await api.post(
+            `/purchases/supplier-returns/${id}/approve/`,
+            {},
+            { skipGlobalErrorToast: true },
+          ),
+        );
+      }
+
+      return unwrap(
+        await api.post(
+          `/purchases/supplier-returns/${id}/update-status/`,
+          { status },
+          { skipGlobalErrorToast: true },
+        ),
+      );
+    },
+    onSuccess: async (saved) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["supplier-return", id] }),
+        queryClient.invalidateQueries({ queryKey: ["supplier-returns"] }),
+        queryClient.invalidateQueries({ queryKey: ["stock-overview"] }),
+        queryClient.invalidateQueries({ queryKey: ["vendor-credits"] }),
+      ]);
+      toast.success(
+        `Return updated to ${String(saved.status || "").replaceAll("_", " ")}.`,
+      );
+      query.refetch();
+    },
+    onError: (error) => {
+      const details = getApiErrorDetails(error);
+      toast.error(details.title || "Unable to update supplier return", {
+        description: details.summary || details.message,
+      });
+    },
   });
 
   if (query.isLoading) {
@@ -57,8 +102,7 @@ export default function SupplierReturnDetailPage() {
           variant="outline"
           onClick={() => navigate("/purchases/supplier-returns")}
         >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
           <div className="flex gap-3">
@@ -77,37 +121,92 @@ export default function SupplierReturnDetailPage() {
     );
   }
 
+  const status = record.status || "DRAFT";
+  const canEdit = ["DRAFT", "REJECTED"].includes(status);
+  const canSubmit = ["DRAFT", "REJECTED"].includes(status);
+  const canApprove = status === "PENDING_APPROVAL";
+  const canIssueCredit = status === "APPROVED";
+
   return (
-    <div className="space-y-6">
+    <div className="purchase-module-page purchase-workspace space-y-6">
       <PageHeader
         title={record.return_number || `Return ${id}`}
-        subtitle="Complete document information and related records."
+        subtitle="Review the return, complete approval, and finalize the vendor credit workflow."
         actions={
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               onClick={() => navigate("/purchases/supplier-returns")}
             >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
             <Button variant="outline" onClick={() => query.refetch()}>
-              <RefreshCcw className="mr-2 h-4 w-4" />
-              Refresh
+              <RefreshCcw className="mr-2 h-4 w-4" /> Refresh
             </Button>
             <Button variant="outline" onClick={() => window.print()}>
-              <Printer className="mr-2 h-4 w-4" />
-              Print
+              <Printer className="mr-2 h-4 w-4" /> Print
             </Button>
-            <Button asChild>
-              <Link to={`/purchases/supplier-returns/${id}/edit`}>
-                <Edit3 className="mr-2 h-4 w-4" />
-                Edit
-              </Link>
-            </Button>
+            {canEdit ? (
+              <Button asChild variant="outline">
+                <Link to={`/purchases/supplier-returns/${id}/edit`}>
+                  <Edit3 className="mr-2 h-4 w-4" /> Edit
+                </Link>
+              </Button>
+            ) : null}
+            {canSubmit ? (
+              <Button
+                onClick={() =>
+                  workflowMutation.mutate({ status: "PENDING_APPROVAL" })
+                }
+                disabled={workflowMutation.isPending}
+              >
+                <Send className="mr-2 h-4 w-4" /> Submit for Approval
+              </Button>
+            ) : null}
+            {canApprove ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    workflowMutation.mutate({ status: "REJECTED" })
+                  }
+                  disabled={workflowMutation.isPending}
+                >
+                  <XCircle className="mr-2 h-4 w-4" /> Reject
+                </Button>
+                <Button
+                  onClick={() => workflowMutation.mutate({ action: "approve" })}
+                  disabled={workflowMutation.isPending}
+                >
+                  <CheckCircle2 className="mr-2 h-4 w-4" /> Approve Return
+                </Button>
+              </>
+            ) : null}
+            {canIssueCredit ? (
+              <Button
+                onClick={() =>
+                  workflowMutation.mutate({ status: "CREDIT_ISSUED" })
+                }
+                disabled={workflowMutation.isPending}
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" /> Mark Credit Issued
+              </Button>
+            ) : null}
           </div>
         }
       />
+
+      <div className="rounded-2xl border bg-card p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm font-semibold">
+            Current workflow status:
+          </span>
+          {renderStatus(status)}
+          <span className="text-sm text-muted-foreground">
+            Draft → Pending Approval → Approved → Credit Issued
+          </span>
+        </div>
+      </div>
 
       <DetailSection title="Return Information">
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -132,22 +231,21 @@ export default function SupplierReturnDetailPage() {
             label="Total Amount"
             value={renderMoney(record.total_amount)}
           />
-          <DetailField
-            label="Status"
-            value={renderStatus(record.status || "DRAFT")}
-          />
+          <DetailField label="Status" value={renderStatus(status)} />
         </div>
       </DetailSection>
 
       <DetailSection title={`Returned Items (${record.items?.length || 0})`}>
         <div className="overflow-x-auto">
-          <table className="min-w-[900px] w-full text-sm">
+          <table className="min-w-[980px] w-full text-sm">
             <thead className="border-b bg-muted/40">
               <tr>
                 {[
                   "Product",
                   "SKU",
-                  "Quantity",
+                  "Regular Qty",
+                  "Restricted Qty",
+                  "Total Qty",
                   "Unit Price",
                   "Line Total",
                   "Reason",
@@ -162,24 +260,38 @@ export default function SupplierReturnDetailPage() {
               </tr>
             </thead>
             <tbody>
-              {(record.items || []).map((item) => (
-                <tr key={item.id} className="border-b">
-                  <td className="px-4 py-4 font-medium">
-                    {item.product_name || "—"}
-                  </td>
-                  <td className="px-4 py-4 font-mono text-xs">
-                    {item.sku || "—"}
-                  </td>
-                  <td className="px-4 py-4">{item.quantity ?? 0}</td>
-                  <td className="px-4 py-4">{renderMoney(item.unit_price)}</td>
-                  <td className="px-4 py-4">{renderMoney(item.line_total)}</td>
-                  <td className="px-4 py-4">{item.reason || "—"}</td>
-                </tr>
-              ))}
+              {(record.items || []).map((item) => {
+                const regular = Number(item.regular_quantity || 0);
+                const restricted = Number(item.restricted_quantity || 0);
+                const quantity = Number(item.quantity ?? regular + restricted);
+                return (
+                  <tr key={item.id} className="border-b">
+                    <td className="px-4 py-4 font-medium">
+                      {item.product_name || "—"}
+                    </td>
+                    <td className="px-4 py-4 font-mono text-xs">
+                      {item.sku || "—"}
+                    </td>
+                    <td className="px-4 py-4">{regular}</td>
+                    <td className="px-4 py-4">{restricted}</td>
+                    <td className="px-4 py-4 font-semibold">{quantity}</td>
+                    <td className="px-4 py-4">
+                      {renderMoney(item.unit_price)}
+                    </td>
+                    <td className="px-4 py-4">
+                      {renderMoney(
+                        item.line_total ??
+                          quantity * Number(item.unit_price || 0),
+                      )}
+                    </td>
+                    <td className="px-4 py-4">{item.reason || "—"}</td>
+                  </tr>
+                );
+              })}
               {!record.items?.length ? (
                 <tr>
                   <td
-                    colSpan="6"
+                    colSpan="8"
                     className="p-10 text-center text-muted-foreground"
                   >
                     No returned items.
@@ -194,13 +306,6 @@ export default function SupplierReturnDetailPage() {
       <DetailSection title="Attachments">
         <AttachmentList attachments={record.attachments || []} />
       </DetailSection>
-
-      <details className="rounded-2xl border bg-card p-4">
-        <summary className="cursor-pointer font-medium">Raw API data</summary>
-        <pre className="mt-4 max-h-[500px] overflow-auto rounded-xl bg-muted p-4 text-xs">
-          {JSON.stringify(record, null, 2)}
-        </pre>
-      </details>
     </div>
   );
 }

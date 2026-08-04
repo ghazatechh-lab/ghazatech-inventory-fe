@@ -3,14 +3,19 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  BadgeDollarSign,
   CheckCircle2,
+  CircleDollarSign,
+  Download,
   FileText,
   Info,
   Plus,
+  ReceiptText,
   Save,
   Send,
   Trash2,
   UploadCloud,
+  WalletCards,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -127,6 +132,22 @@ function SummaryCard({ label, value, tone = "default" }) {
 
       <div className={`mt-1 text-xl font-semibold ${toneClass}`}>{value}</div>
     </div>
+  );
+}
+
+function CreditMetricCard({ icon: Icon, label, value, detail, tone = "blue" }) {
+  return (
+    <article className={`vendor-credit-metric vendor-credit-metric--${tone}`}>
+      <span className="vendor-credit-metric__icon">
+        <Icon className="h-5 w-5" strokeWidth={2} />
+      </span>
+
+      <div className="min-w-0">
+        <p className="vendor-credit-metric__label">{label}</p>
+        <div className="vendor-credit-metric__value">{value}</div>
+        <p className="vendor-credit-metric__detail">{detail}</p>
+      </div>
+    </article>
   );
 }
 
@@ -1047,16 +1068,8 @@ export default function VendorCreditsPage() {
     const rows = payload.results || [];
 
     const tabs = [
-      {
-        value: "ALL",
-        label: "All",
-        count: summary.all_count,
-      },
-      {
-        value: "OPEN",
-        label: "Open",
-        count: summary.open_count,
-      },
+      { value: "ALL", label: "All credits", count: summary.all_count },
+      { value: "OPEN", label: "Open", count: summary.open_count },
       {
         value: "PARTIALLY_APPLIED",
         label: "Partially applied",
@@ -1067,104 +1080,171 @@ export default function VendorCreditsPage() {
         label: "Fully applied",
         count: summary.applied_count,
       },
-      {
-        value: "VOID",
-        label: "Void",
-        count: summary.void_count,
-      },
+      { value: "VOID", label: "Void", count: summary.void_count },
     ];
 
     return (
-      <div className="mx-auto max-w-7xl space-y-5">
-        <PageHeader
-          title="Vendor Credits"
-          subtitle="Credit notes received from suppliers and applied against open bills"
-          actions={
-            <div className="flex gap-2">
-              <Button type="button" variant="outline">
+      <div className="purchase-module-page purchase-workspace vendor-credit-list-page mx-auto max-w-7xl space-y-6 pb-10">
+        <section className="vendor-credit-hero">
+          <div className="vendor-credit-hero__glow" aria-hidden="true" />
+
+          <div className="vendor-credit-hero__content">
+            <div className="flex min-w-0 items-start gap-4">
+              <span className="vendor-credit-hero__icon">
+                <BadgeDollarSign className="h-6 w-6" strokeWidth={2} />
+              </span>
+
+              <div className="min-w-0">
+                <p className="vendor-credit-hero__eyebrow">
+                  Purchase Management
+                </p>
+                <h1 className="vendor-credit-hero__title">Vendor Credits</h1>
+                <p className="vendor-credit-hero__description">
+                  Record supplier credit notes, monitor remaining balances, and
+                  apply credits accurately against outstanding supplier bills.
+                </p>
+              </div>
+            </div>
+
+            <div className="vendor-credit-hero__actions">
+              <Button
+                type="button"
+                variant="outline"
+                className="vendor-credit-secondary-action"
+              >
+                <Download className="mr-2 h-4 w-4" />
                 Export
               </Button>
 
               <Button
                 type="button"
                 onClick={openNew}
-                className="bg-blue-600 text-white hover:bg-blue-700"
+                className="vendor-credit-primary-action"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 New Vendor Credit
               </Button>
             </div>
-          }
-        />
+          </div>
+        </section>
 
-        <div className="flex items-start gap-2 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
-          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+        <section className="vendor-credit-guidance">
+          <span className="vendor-credit-guidance__icon">
+            <Info className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="vendor-credit-guidance__title">
+              Accounts payable control
+            </p>
+            <p className="vendor-credit-guidance__text">
+              Vendor credits reduce supplier payable balances. Apply them to one
+              or more eligible bills while keeping the unapplied balance
+              available for future purchases.
+            </p>
+          </div>
+        </section>
 
-          <p>
-            Vendor credits reduce Accounts Payable and may be applied
-            immediately across one or more open supplier bills.
-          </p>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-4">
-          <SummaryCard
-            label="Open Credit Balance"
-            tone="success"
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <CreditMetricCard
+            icon={CircleDollarSign}
+            label="Open credit balance"
             value={<CurrencyText value={summary.open_balance} />}
+            detail="Available to offset supplier bills"
+            tone="emerald"
           />
 
-          <SummaryCard label="Open Credits" value={summary.open_count || 0} />
+          <CreditMetricCard
+            icon={WalletCards}
+            label="Open credits"
+            value={summary.open_count || 0}
+            detail="Credits with remaining value"
+            tone="blue"
+          />
 
-          <SummaryCard
-            label="Partially Applied"
-            tone="warning"
+          <CreditMetricCard
+            icon={ReceiptText}
+            label="Partially applied"
             value={summary.partial_count || 0}
+            detail="Credits used against some bills"
+            tone="amber"
           />
 
-          <SummaryCard
-            label="Fully Applied"
+          <CreditMetricCard
+            icon={CheckCircle2}
+            label="Fully applied"
             value={summary.applied_count || 0}
+            detail="Credits with no remaining balance"
+            tone="violet"
           />
-        </div>
+        </section>
 
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap gap-2">
+        <section className="vendor-credit-directory">
+          <div className="vendor-credit-directory__header">
+            <div>
+              <p className="vendor-credit-directory__eyebrow">
+                Credit register
+              </p>
+              <h2 className="vendor-credit-directory__title">
+                Vendor credit records
+              </h2>
+              <p className="vendor-credit-directory__description">
+                Review credit sources, application progress, remaining balances,
+                and document status.
+              </p>
+            </div>
+
+            <div className="vendor-credit-directory__search">
+              <SearchInput
+                value={q}
+                onChange={setQ}
+                placeholder="Search credit number, vendor or reference"
+              />
+            </div>
+          </div>
+
+          <div
+            className="vendor-credit-tabs"
+            role="tablist"
+            aria-label="Vendor credit status"
+          >
             {tabs.map((tab) => (
               <button
                 key={tab.value}
                 type="button"
-                onClick={() => setStatusFilter(tab.value)}
+                role="tab"
+                aria-selected={statusFilter === tab.value}
+                onClick={() => {
+                  setStatusFilter(tab.value);
+                  setPage(1);
+                }}
                 className={
                   statusFilter === tab.value
-                    ? "rounded-lg bg-blue-50 px-3 py-2 text-xs font-medium text-blue-600 dark:bg-blue-500/10 dark:text-blue-300"
-                    : "rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-slate-100 dark:hover:bg-white/5"
+                    ? "vendor-credit-tab vendor-credit-tab--active"
+                    : "vendor-credit-tab"
                 }
               >
-                {tab.label} <span className="ml-1">{tab.count || 0}</span>
+                <span>{tab.label}</span>
+                <span className="vendor-credit-tab__count">
+                  {tab.count || 0}
+                </span>
               </button>
             ))}
           </div>
 
-          <div className="w-full lg:max-w-sm">
-            <SearchInput
-              value={q}
-              onChange={setQ}
-              placeholder="Search credit number, vendor or reference"
+          <div className="vendor-credit-table-shell">
+            <DataTable
+              columns={columns}
+              data={rows}
+              isLoading={query.isLoading}
+              page={page}
+              pageSize={12}
+              total={payload.count || 0}
+              onPageChange={setPage}
+              emptyTitle="No vendor credits"
+              emptyDescription="Create a vendor credit for a supplier return, overbilling, price adjustment, or freight adjustment."
             />
           </div>
-        </div>
-
-        <DataTable
-          columns={columns}
-          data={rows}
-          isLoading={query.isLoading}
-          page={page}
-          pageSize={12}
-          total={payload.count || 0}
-          onPageChange={setPage}
-          emptyTitle="No vendor credits"
-          emptyDescription="Create a vendor credit for returns, overbilling, or price adjustments."
-        />
+        </section>
       </div>
     );
   }
@@ -1174,7 +1254,7 @@ export default function VendorCreditsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 pb-10">
+    <div className="purchase-module-page purchase-workspace mx-auto max-w-7xl space-y-5 pb-10">
       <PageHeader
         title={editingId ? "Edit Vendor Credit" : "New Vendor Credit"}
         subtitle="Record supplier credit and apply it against open bills"

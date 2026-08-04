@@ -61,6 +61,28 @@ const getProductPrice = (product) =>
       0,
   );
 
+const getEntityId = (value) => {
+  if (value === null || value === undefined || value === "") return "";
+  if (typeof value === "object") {
+    return String(value.id ?? value.product_id ?? value.variant_id ?? "");
+  }
+  return String(value);
+};
+
+const getQuotationItemProductName = (item) =>
+  item?.product_name ||
+  item?.product?.product_name ||
+  item?.product?.name ||
+  item?.product?.display_name ||
+  "";
+
+const getQuotationItemVariantName = (item) =>
+  item?.variant_name ||
+  item?.variant?.display_name ||
+  item?.variant?.variant_name ||
+  item?.variant?.name ||
+  "";
+
 const emptyItem = () => ({
   product: "",
   variant: "",
@@ -91,6 +113,8 @@ export default function QuotationFormPage() {
   const { branchId } = useActiveBranchFilter();
 
   const [errors, setErrors] = React.useState({});
+  const [customerSearch, setCustomerSearch] = React.useState("");
+  const [productSearches, setProductSearches] = React.useState({});
 
   const [form, setForm] = React.useState({
     branch: branchId ? String(branchId) : "",
@@ -174,14 +198,65 @@ export default function QuotationFormPage() {
 
   const branches = normalizeList(branchesResponse);
 
-  const customers = normalizeList(customersResponse);
+  const customers = React.useMemo(
+    () => normalizeList(customersResponse),
+    [customersResponse],
+  );
+
+  const filteredCustomers = React.useMemo(() => {
+    const search = customerSearch.trim().toLowerCase();
+
+    if (!search) {
+      return customers;
+    }
+
+    return customers.filter((customer) =>
+      [
+        customer.customer_name,
+        customer.customer_code,
+        customer.contact_person,
+        customer.email,
+        customer.phone,
+        customer.phone_number,
+        customer.trn_number,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(search)),
+    );
+  }, [customers, customerSearch]);
 
   const salespeople = normalizeList(
     productsResponse?.salespeople || usersResponse,
   );
 
-  const products = normalizeList(
-    productsResponse?.products || productsResponse,
+  const products = React.useMemo(
+    () => normalizeList(productsResponse?.products || productsResponse),
+    [productsResponse],
+  );
+
+  const getFilteredProducts = React.useCallback(
+    (index) => {
+      const search = String(productSearches[index] || "")
+        .trim()
+        .toLowerCase();
+
+      if (!search) {
+        return products;
+      }
+
+      return products.filter((product) =>
+        [
+          product.product_name,
+          product.variant_name,
+          product.sku,
+          product.brand_name,
+          product.category_name,
+        ]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(search)),
+      );
+    },
+    [products, productSearches],
   );
 
   React.useEffect(() => {
@@ -220,15 +295,16 @@ export default function QuotationFormPage() {
         ? existing.items.map((item) => ({
             id: item.id,
 
-            product: item.product
-              ? String(item.product?.id || item.product)
-              : "",
+            product: getEntityId(item.product_id ?? item.product),
 
-            variant: item.variant
-              ? String(item.variant?.id || item.variant)
-              : "",
+            variant: getEntityId(item.variant_id ?? item.variant),
 
-            description: item.description || "",
+            product_name: getQuotationItemProductName(item),
+
+            variant_name: getQuotationItemVariantName(item),
+
+            description:
+              item.description || getQuotationItemProductName(item) || "",
 
             quantity: number(item.quantity),
 
@@ -315,6 +391,11 @@ export default function QuotationFormPage() {
   };
 
   const selectProduct = (index, optionValue) => {
+    setProductSearches((current) => ({
+      ...current,
+      [index]: "",
+    }));
+
     const [productId, variantId = ""] = String(optionValue || "").split(":");
     const product = products.find(
       (item) =>
@@ -324,6 +405,9 @@ export default function QuotationFormPage() {
     updateItem(index, {
       product: productId,
       variant: variantId,
+
+      product_name: product?.product_name || "",
+      variant_name: product?.variant_name || "",
 
       description: product?.description || product?.product_name || "",
 
@@ -492,7 +576,7 @@ export default function QuotationFormPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 pb-10">
+    <div className="sales-module-page sales-workspace mx-auto max-w-7xl space-y-5 pb-10">
       <PageHeader
         title={isEdit ? "Edit Quotation" : "New Quotation"}
         subtitle="Prepare customer pricing, validity, items, tax, and terms"
@@ -568,18 +652,52 @@ export default function QuotationFormPage() {
 
             <Select
               value={form.customer}
-              onValueChange={(value) => updateForm("customer", value)}
+              onValueChange={(value) => {
+                updateForm("customer", value);
+                setCustomerSearch("");
+              }}
             >
               <SelectTrigger className="mt-2">
                 <SelectValue placeholder="Select existing customer" />
               </SelectTrigger>
 
-              <SelectContent className="max-h-72">
-                {customers.map((customer) => (
-                  <SelectItem key={customer.id} value={String(customer.id)}>
-                    {customer.customer_name}
-                  </SelectItem>
-                ))}
+              <SelectContent className="max-h-80 p-0">
+                <div
+                  className="sticky top-0 z-10 border-b bg-popover p-2"
+                  onKeyDown={(event) => event.stopPropagation()}
+                >
+                  <Input
+                    autoFocus
+                    value={customerSearch}
+                    onChange={(event) => setCustomerSearch(event.target.value)}
+                    onClick={(event) => event.stopPropagation()}
+                    placeholder="Search customer name, code or contact"
+                  />
+                </div>
+
+                <div className="max-h-64 overflow-y-auto p-1">
+                  {filteredCustomers.length ? (
+                    filteredCustomers.map((customer) => (
+                      <SelectItem key={customer.id} value={String(customer.id)}>
+                        <div>
+                          <div>{customer.customer_name}</div>
+                          {(customer.customer_code ||
+                            customer.contact_person) && (
+                            <div className="text-xs text-muted-foreground">
+                              {[customer.customer_code, customer.contact_person]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </div>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                      No customers match your search.
+                    </div>
+                  )}
+                </div>
               </SelectContent>
             </Select>
 
@@ -716,145 +834,212 @@ export default function QuotationFormPage() {
         </div>
 
         <div className="overflow-x-auto p-5">
-          <div className="min-w-[980px]">
-            <div className="grid grid-cols-[minmax(210px,1fr)_minmax(220px,1fr)_85px_120px_100px_140px_40px] gap-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="min-w-[1480px]">
+            <div className="grid grid-cols-[minmax(260px,1.2fr)_minmax(220px,1fr)_90px_125px_430px_145px_42px] gap-3 border-b border-slate-200 px-1 pb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:border-white/10">
               <span>Item</span>
               <span>Description</span>
               <span className="text-right">Qty</span>
               <span className="text-right">Unit Price</span>
-              <span>VAT</span>
+              <span>VAT & Stock Classification</span>
               <span className="text-right">Line Total</span>
               <span />
             </div>
 
-            <div className="space-y-2">
-              {calculatedItems.map((item, index) => (
-                <div
-                  key={item.id || index}
-                  className="grid grid-cols-[minmax(210px,1fr)_minmax(220px,1fr)_85px_120px_100px_140px_40px] items-center gap-3 border-b border-slate-100 py-2 last:border-b-0 dark:border-white/5"
-                >
-                  <Select
-                    value={
-                      item.product
-                        ? `${item.product}:${item.variant || ""}`
-                        : "__none__"
-                    }
-                    onValueChange={(value) =>
-                      selectProduct(index, value === "__none__" ? "" : value)
-                    }
+            <div className="divide-y divide-slate-100 dark:divide-white/5">
+              {calculatedItems.map((item, index) => {
+                const filteredProducts = getFilteredProducts(index);
+
+                return (
+                  <div
+                    key={item.id || index}
+                    className="grid grid-cols-[minmax(260px,1.2fr)_minmax(220px,1fr)_90px_125px_430px_145px_42px] items-start gap-3 py-4"
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select product" />
-                    </SelectTrigger>
+                    <Select
+                      value={
+                        item.product
+                          ? `${item.product}:${item.variant || ""}`
+                          : "__none__"
+                      }
+                      onValueChange={(value) =>
+                        selectProduct(index, value === "__none__" ? "" : value)
+                      }
+                    >
+                      <SelectTrigger className="h-10">
+                        <SelectValue placeholder="Select product" />
+                      </SelectTrigger>
 
-                    <SelectContent className="max-h-80 min-w-[360px] rounded-xl p-1">
-                      <SelectItem value="__none__">Select product</SelectItem>
-
-                      {products.map((product) => (
-                        <SelectItem
-                          key={`${product.product_id || product.id}:${product.variant_id || ""}`}
-                          value={`${product.product_id || product.id}:${product.variant_id || ""}`}
-                          className="my-1 cursor-pointer rounded-lg py-2.5"
+                      <SelectContent className="max-h-96 min-w-[390px] p-0">
+                        <div
+                          className="sticky top-0 z-10 border-b bg-popover p-2"
+                          onKeyDown={(event) => event.stopPropagation()}
                         >
-                          <div className="flex w-full min-w-0 items-center justify-between gap-4">
-                            <div className="min-w-0 text-left">
-                              <p className="truncate text-sm font-semibold">
-                                {product.product_name}
-                                {product.variant_name
-                                  ? ` — ${product.variant_name}`
-                                  : ""}
-                              </p>
-                              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                                {product.sku || "No SKU"} ·{" "}
-                                {product.available_stock ?? 0} available
-                              </p>
+                          <Input
+                            autoFocus
+                            value={productSearches[index] || ""}
+                            onChange={(event) =>
+                              setProductSearches((current) => ({
+                                ...current,
+                                [index]: event.target.value,
+                              }))
+                            }
+                            onClick={(event) => event.stopPropagation()}
+                            placeholder="Search product, SKU, brand or variant"
+                          />
+                        </div>
+
+                        <div className="max-h-72 overflow-y-auto p-1">
+                          <SelectItem value="__none__">
+                            Select product
+                          </SelectItem>
+
+                          {item.product &&
+                          !products.some(
+                            (product) =>
+                              String(product.product_id || product.id) ===
+                                String(item.product) &&
+                              String(product.variant_id || "") ===
+                                String(item.variant || ""),
+                          ) ? (
+                            <SelectItem
+                              value={`${item.product}:${item.variant || ""}`}
+                            >
+                              <div>
+                                <p className="text-sm font-semibold">
+                                  {item.product_name ||
+                                    `Product ${item.product}`}
+                                  {item.variant_name
+                                    ? ` — ${item.variant_name}`
+                                    : ""}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Existing quotation item
+                                </p>
+                              </div>
+                            </SelectItem>
+                          ) : null}
+
+                          {filteredProducts.length ? (
+                            filteredProducts.map((product) => (
+                              <SelectItem
+                                key={`${product.product_id || product.id}:${product.variant_id || ""}`}
+                                value={`${product.product_id || product.id}:${product.variant_id || ""}`}
+                                className="my-1 cursor-pointer rounded-lg py-2.5"
+                              >
+                                <div className="flex w-full min-w-0 items-center justify-between gap-4">
+                                  <div className="min-w-0 text-left">
+                                    <p className="truncate text-sm font-semibold">
+                                      {product.product_name}
+                                      {product.variant_name
+                                        ? ` — ${product.variant_name}`
+                                        : ""}
+                                    </p>
+
+                                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                      {product.sku || "No SKU"} ·{" "}
+                                      {product.available_stock ?? 0} available
+                                    </p>
+                                  </div>
+
+                                  <span className="shrink-0 text-sm font-semibold text-blue-600 dark:text-blue-300">
+                                    AED {getProductPrice(product).toFixed(2)}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                              No products match your search.
                             </div>
-                            <span className="shrink-0 text-sm font-semibold text-blue-600 dark:text-blue-300">
-                              AED {getProductPrice(product).toFixed(2)}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                          )}
+                        </div>
+                      </SelectContent>
+                    </Select>
 
-                  <Input
-                    value={item.description}
-                    onChange={(event) =>
-                      updateItem(index, {
-                        description: event.target.value,
-                      })
-                    }
-                    placeholder="Item description"
-                  />
-
-                  <Input
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value={item.quantity}
-                    onChange={(event) =>
-                      updateItem(index, {
-                        quantity: event.target.value,
-                      })
-                    }
-                    className="text-right"
-                  />
-
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={item.unit_price}
-                    onChange={(event) =>
-                      updateItem(index, {
-                        unit_price: event.target.value,
-                      })
-                    }
-                    className="text-right"
-                  />
-
-                  <div className="md:col-span-2">
-                    <SalesVatLineControls
-                      item={item}
-                      canManageTax={canManageTax}
-                      canUseNonVat={canUseNonVat}
-                      canManageRestricted={canManageRestricted}
-                      onChange={(patch) => updateItem(index, patch)}
+                    <Input
+                      className="h-10"
+                      value={item.description}
+                      onChange={(event) =>
+                        updateItem(index, {
+                          description: event.target.value,
+                        })
+                      }
+                      placeholder="Item description"
                     />
 
-                    {!canUseNonVat && (
-                      <p className="text-xs text-muted-foreground">
-                        Standard VAT 5%
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="text-right font-semibold">
-                    <CurrencyText
-                      value={item.line_total}
-                      currency={form.currency}
+                    <Input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={item.quantity}
+                      onChange={(event) =>
+                        updateItem(index, {
+                          quantity: event.target.value,
+                        })
+                      }
+                      className="h-10 text-right"
                     />
+
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.unit_price}
+                      onChange={(event) =>
+                        updateItem(index, {
+                          unit_price: event.target.value,
+                        })
+                      }
+                      className="h-10 text-right"
+                    />
+
+                    <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-white/10 dark:bg-white/[0.025]">
+                      <SalesVatLineControls
+                        item={item}
+                        canManageTax={canManageTax}
+                        canUseNonVat={canUseNonVat}
+                        canManageRestricted={canManageRestricted}
+                        onChange={(patch) => updateItem(index, patch)}
+                      />
+
+                      {!canUseNonVat && (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Standard VAT 5%
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex min-h-10 items-center justify-end px-2 text-right font-semibold">
+                      <CurrencyText
+                        value={item.line_total}
+                        currency={form.currency}
+                      />
+                    </div>
+
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-10 w-10"
+                      onClick={() => {
+                        setForm((current) => ({
+                          ...current,
+                          items: current.items.filter(
+                            (_, itemIndex) => itemIndex !== index,
+                          ),
+                        }));
+
+                        setProductSearches((current) => {
+                          const next = { ...current };
+                          delete next[index];
+                          return next;
+                        });
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-red-400" />
+                    </Button>
                   </div>
-
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    onClick={() =>
-                      setForm((current) => ({
-                        ...current,
-
-                        items: current.items.filter(
-                          (_, itemIndex) => itemIndex !== index,
-                        ),
-                      }))
-                    }
-                  >
-                    <Trash2 className="h-4 w-4 text-red-400" />
-                  </Button>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {errors.items && (

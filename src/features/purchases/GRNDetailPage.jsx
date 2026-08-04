@@ -75,7 +75,7 @@ export default function GRNDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="purchase-module-page purchase-workspace space-y-6">
       <PageHeader
         title={record.grn_number || `GRN ${id}`}
         subtitle="Complete document information and related records."

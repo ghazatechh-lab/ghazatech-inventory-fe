@@ -955,7 +955,7 @@ export default function SupplierBillFormPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="purchase-module-page purchase-workspace space-y-6">
       <PageHeader
         title={isEdit ? "Edit Supplier Bill" : "New Supplier Bill"}
         subtitle="Record a supplier invoice and match it against the purchase order and GRN."

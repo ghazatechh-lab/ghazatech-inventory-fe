@@ -79,7 +79,7 @@ export default function PeriodClosePage() {
   const tasks = p?.close_tasks || [],
     done = tasks.filter((t) => t.is_completed).length;
   return (
-    <div className="space-y-6">
+    <div className="finance-module-page finance-workspace space-y-6">
       <PageHeader
         title="Period Close"
         subtitle={

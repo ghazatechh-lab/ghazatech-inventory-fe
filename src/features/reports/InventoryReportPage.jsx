@@ -12,7 +12,7 @@ export default function InventoryReportPage() {
   const { data, isLoading } = useQuery({ queryKey: ["inv-val"], queryFn: async () => unwrap(await api.get("/reports/inventory-valuation/")) });
   if (isLoading) return <LoadingState />;
   return (
-    <div>
+    <div className="reports-module-page reports-workspace space-y-5">
       <PageHeader title="Inventory valuation" subtitle="Stock value by branch" actions={<ExportButtons />} />
       <div className="card-surface p-5 mb-4">
         <div className="h-64">

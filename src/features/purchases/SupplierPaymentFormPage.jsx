@@ -20,6 +20,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 
@@ -213,6 +220,8 @@ export default function SupplierPaymentFormPage() {
 
   const [errors, setErrors] = React.useState({});
 
+  const [supplierSearch, setSupplierSearch] = React.useState("");
+
   const [financeDialog, setFinanceDialog] = React.useState(null);
 
   const [bankForm, setBankForm] = React.useState({
@@ -359,7 +368,34 @@ export default function SupplierPaymentFormPage() {
     retry: false,
   });
 
-  const suppliers = suppliersQuery.data || [];
+  const suppliers = React.useMemo(
+    () => suppliersQuery.data || [],
+    [suppliersQuery.data],
+  );
+
+  const filteredSuppliers = React.useMemo(() => {
+    const search = supplierSearch.trim().toLowerCase();
+
+    if (!search) {
+      return suppliers;
+    }
+
+    return suppliers.filter((supplier) =>
+      [
+        supplier.supplier_name,
+        supplier.name,
+        supplier.supplier_code,
+        supplier.contact_person,
+        supplier.email,
+        supplier.phone,
+        supplier.phone_number,
+        supplier.trn_number,
+        supplier.tax_registration_number,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(search)),
+    );
+  }, [suppliers, supplierSearch]);
 
   const branches = branchesQuery.data || [];
 
@@ -980,7 +1016,7 @@ export default function SupplierPaymentFormPage() {
   }
 
   return (
-    <div className="space-y-6 pb-10">
+    <div className="purchase-module-page purchase-workspace space-y-6 pb-10">
       <PageHeader
         title={isEdit ? "Edit Supplier Payment" : "New Supplier Payment"}
         subtitle="Record a payment and allocate it against one or more outstanding supplier bills."
@@ -1086,13 +1122,9 @@ export default function SupplierPaymentFormPage() {
           <div>
             <Label htmlFor="supplier">Supplier *</Label>
 
-            <select
-              id="supplier"
-              className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"
+            <Select
               value={form.supplier}
-              onChange={(event) => {
-                const value = event.target.value;
-
+              onValueChange={(value) => {
                 setForm((current) => ({
                   ...current,
 
@@ -1100,16 +1132,66 @@ export default function SupplierPaymentFormPage() {
 
                   allocations: [],
                 }));
-              }}
-            >
-              <option value="">Select supplier</option>
 
-              {suppliers.map((supplier) => (
-                <option key={supplier.id} value={String(supplier.id)}>
-                  {supplier.supplier_name || supplier.name}
-                </option>
-              ))}
-            </select>
+                setSupplierSearch("");
+                setErrors((current) => ({
+                  ...current,
+                  supplier: undefined,
+                  general: undefined,
+                }));
+              }}
+              disabled={suppliersQuery.isLoading}
+            >
+              <SelectTrigger id="supplier" className="mt-2">
+                <SelectValue placeholder="Select supplier" />
+              </SelectTrigger>
+
+              <SelectContent className="max-h-80 p-0">
+                <div
+                  className="sticky top-0 z-10 border-b bg-popover p-2"
+                  onKeyDown={(event) => event.stopPropagation()}
+                >
+                  <Input
+                    autoFocus
+                    value={supplierSearch}
+                    onChange={(event) => setSupplierSearch(event.target.value)}
+                    onClick={(event) => event.stopPropagation()}
+                    placeholder="Search supplier name, code or contact"
+                  />
+                </div>
+
+                <div className="max-h-64 overflow-y-auto p-1">
+                  {filteredSuppliers.length ? (
+                    filteredSuppliers.map((supplier) => (
+                      <SelectItem key={supplier.id} value={String(supplier.id)}>
+                        <div>
+                          <div>{supplier.supplier_name || supplier.name}</div>
+
+                          {(supplier.supplier_code ||
+                            supplier.contact_person) && (
+                            <div className="text-xs text-muted-foreground">
+                              {[supplier.supplier_code, supplier.contact_person]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </div>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                      No suppliers match your search.
+                    </div>
+                  )}
+                </div>
+              </SelectContent>
+            </Select>
+
+            {suppliersQuery.isLoading ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Loading suppliers...
+              </p>
+            ) : null}
 
             <FieldError message={errors.supplier} />
           </div>

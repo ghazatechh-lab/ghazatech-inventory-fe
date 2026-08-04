@@ -39,7 +39,7 @@ export default function TaxPage() {
   const data = q.data?.data?.data || q.data?.data || {};
   const rows = Array.isArray(data.transactions) ? data.transactions : [];
   return (
-    <div className="space-y-6">
+    <div className="finance-module-page finance-workspace space-y-6">
       <PageHeader
         title="VAT / Tax"
         subtitle={

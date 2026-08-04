@@ -266,7 +266,7 @@ export default function SalesReturnsPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5">
+    <div className="sales-module-page sales-workspace mx-auto max-w-7xl space-y-5">
       <PageHeader
         title="Sales Returns"
         subtitle="Goods returned by customers pending inspection or refund"

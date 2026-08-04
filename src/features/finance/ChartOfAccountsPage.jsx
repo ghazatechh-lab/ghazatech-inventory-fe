@@ -573,7 +573,7 @@ export default function ChartOfAccountsPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="finance-module-page finance-workspace space-y-5">
       <PageHeader
         title="Chart of Accounts"
         subtitle={`Master ledger accounts grouped by type${isAllBranches ? " · All branches" : " · Selected branch"}`}

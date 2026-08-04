@@ -729,7 +729,7 @@ export default function UserRoleManagementPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="settings-module-page settings-workspace space-y-5">
       <PageHeader
         title="Users, Roles & Permissions"
         subtitle="Control employee accounts and operation-level access"

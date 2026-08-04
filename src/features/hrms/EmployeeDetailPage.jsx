@@ -132,7 +132,7 @@ export default function EmployeeDetailPage() {
   );
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5">
+    <div className="hrms-module-page hrms-workspace mx-auto max-w-7xl space-y-5">
       <PageHeader
         title={employee.full_name}
         subtitle={`${employee.employee_code} · ${employee.designation_name || "Employee"}`}

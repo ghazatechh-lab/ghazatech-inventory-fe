@@ -12,7 +12,7 @@ export default function ReportsDashboardPage() {
   if (isLoading) return <LoadingState />;
   const k = data?.kpi ?? {};
   return (
-    <div>
+    <div className="reports-module-page reports-workspace space-y-5">
       <PageHeader title="Reports overview" subtitle="High-level business metrics" actions={<ExportButtons />} />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
         {[["Sales this month", k.sales_month],["Purchases", k.purchases_month],["Receivables", k.receivables],["Payables", k.payables]].map(([label, val]) => (

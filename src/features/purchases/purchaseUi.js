@@ -64,8 +64,8 @@ export function DetailField({ label, value }) {
   const isEmpty = value === undefined || value === null || value === "";
 
   return (
-    <div>
-      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+    <div className="purchase-detail-field">
+      <p className="purchase-detail-label text-xs uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
 
@@ -78,7 +78,7 @@ export function DetailField({ label, value }) {
 
 export function DetailSection({ title, subtitle, children }) {
   return (
-    <section className="rounded-2xl border bg-card">
+    <section className="purchase-detail-section rounded-2xl border bg-card">
       <div className="border-b p-5">
         <h2 className="font-semibold">{title}</h2>
 
@@ -117,7 +117,7 @@ export function AttachmentList({ attachments = [] }) {
             href={url}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center justify-between rounded-xl border p-4 hover:bg-muted/40"
+            className="purchase-attachment flex items-center justify-between rounded-xl border p-4 hover:bg-muted/40"
           >
             <div className="flex min-w-0 items-center gap-3">
               <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />

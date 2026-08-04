@@ -18,7 +18,7 @@ export default function AccountingDashboardPage() {
   });
   const d = q.data || {};
   return (
-    <div className="space-y-5">
+    <div className="finance-module-page finance-workspace space-y-5">
       <PageHeader
         title="Accounting Dashboard"
         subtitle="Finance and accounting overview"

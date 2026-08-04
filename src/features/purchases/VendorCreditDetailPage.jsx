@@ -407,7 +407,7 @@ export default function VendorCreditDetailPage() {
                     className="border-b"
                   >
                     <td className="px-4 py-4">
-                      <div className="font-medium">
+                      <div className="purchase-module-page purchase-workspace font-medium">
                         {item.description || "—"}
                       </div>
 

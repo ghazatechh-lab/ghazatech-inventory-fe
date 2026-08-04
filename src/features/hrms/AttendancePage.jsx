@@ -48,7 +48,7 @@ export default function AttendancePage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="hrms-module-page hrms-workspace space-y-5">
       <PageHeader
         title="Attendance"
         subtitle="Daily attendance, working hours, and overtime"

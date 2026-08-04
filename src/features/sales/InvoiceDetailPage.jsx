@@ -40,7 +40,7 @@ export default function InvoiceDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="sales-module-page sales-workspace mx-auto max-w-6xl space-y-5">
       <PageHeader
         title={invoice.invoice_number}
         subtitle="Invoice details, balance, and payment status"

@@ -1,14 +1,12 @@
-import { useMemo } from "react";
 import React from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   ArrowLeft,
   CheckCircle2,
   FileText,
-  Info,
   PackageMinus,
-  Plus,
   Save,
   Send,
   UploadCloud,
@@ -18,7 +16,6 @@ import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
-import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CurrencyText, DateText } from "@/components/common/CurrencyText";
+import { CurrencyText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
 
 const normalizeList = (value) => {
@@ -44,19 +41,15 @@ const normalizeList = (value) => {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-const number = (value) => {
+const asNumber = (value) => {
   const parsed = Number(value || 0);
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
 const formatSize = (bytes) => {
   const value = Number(bytes || 0);
-
   if (value < 1024) return `${value} B`;
-  if (value < 1024 ** 2) {
-    return `${(value / 1024).toFixed(1)} KB`;
-  }
-
+  if (value < 1024 ** 2) return `${(value / 1024).toFixed(1)} KB`;
   return `${(value / 1024 ** 2).toFixed(1)} MB`;
 };
 
@@ -75,140 +68,99 @@ const createForm = (branchId) => ({
 });
 
 const reasonButtons = [
-  {
-    value: "DAMAGED_IN_TRANSIT",
-    label: "Damaged in transit",
-  },
-  {
-    value: "QUALITY_ISSUE",
-    label: "Quality issue",
-  },
-  {
-    value: "WRONG_ITEM",
-    label: "Wrong item shipped",
-  },
-  {
-    value: "EXCESS_QUANTITY",
-    label: "Excess quantity",
-  },
-  {
-    value: "OTHER",
-    label: "Other",
-  },
+  { value: "DAMAGED_IN_TRANSIT", label: "Damaged in transit" },
+  { value: "QUALITY_ISSUE", label: "Quality issue" },
+  { value: "WRONG_ITEM", label: "Wrong item shipped" },
+  { value: "EXCESS_QUANTITY", label: "Excess quantity" },
+  { value: "OTHER", label: "Other" },
 ];
 
-const getAllowedReturnStatuses = (status) => {
-  const transitions = {
-    DRAFT: [
-      { value: "DRAFT", label: "Draft" },
-      { value: "PENDING_APPROVAL", label: "Pending Approval" },
-      { value: "CANCELLED", label: "Cancelled" },
-    ],
-    PENDING_APPROVAL: [
-      { value: "PENDING_APPROVAL", label: "Pending Approval" },
-      { value: "APPROVED", label: "Approve" },
-      { value: "REJECTED", label: "Rejected" },
-      { value: "CANCELLED", label: "Cancelled" },
-    ],
-    APPROVED: [
-      { value: "APPROVED", label: "Approved" },
-      { value: "CREDIT_ISSUED", label: "Credit Issued" },
-    ],
-    CREDIT_ISSUED: [{ value: "CREDIT_ISSUED", label: "Credit Issued" }],
-    REJECTED: [{ value: "REJECTED", label: "Rejected" }],
-    CANCELLED: [{ value: "CANCELLED", label: "Cancelled" }],
-  };
-
-  return (
-    transitions[status] || [
-      { value: status, label: String(status || "").replaceAll("_", " ") },
-    ]
-  );
-};
-
 export default function SupplierReturnsPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
-
-  const { branchId, branchParams } = useActiveBranchFilter();
-
-  const [mode, setMode] = React.useState("list");
-
-  const [editingId, setEditingId] = React.useState(null);
+  const { branchId } = useActiveBranchFilter();
+  const editingId = id || null;
 
   const [form, setForm] = React.useState(() => createForm(branchId));
-
   const [files, setFiles] = React.useState([]);
-
   const [errors, setErrors] = React.useState({});
+  const [grnSearch, setGrnSearch] = React.useState("");
 
-  const { query, q, setQ, page, setPage } = useListQuery(
-    "supplier-returns",
-    "/purchases/supplier-returns/",
-    branchParams,
-  );
-
-  const {
-    data: optionsResponse,
-    isLoading: optionsLoading,
-    error: optionsError,
-  } = useQuery({
-    queryKey: ["supplier-return-form-options"],
-
+  const optionsQuery = useQuery({
+    queryKey: ["supplier-return-form-options", branchId],
     queryFn: async () => {
       const response = await api.get(
         "/purchases/supplier-returns/form-options/",
         {
+          params: branchId ? { branch: branchId } : undefined,
           skipGlobalErrorToast: true,
         },
       );
-
-      const unwrapped = unwrap(response);
-
-      console.log("Supplier Return GRN raw API response:", response?.data);
-      console.log("Supplier Return GRN unwrapped response:", unwrapped);
-
-      return unwrapped;
+      return unwrap(response);
     },
-
-    enabled: mode === "form",
     staleTime: 0,
+    retry: false,
     refetchOnMount: "always",
   });
 
-  const { data: existing, isLoading: existingLoading } = useQuery({
+  const existingQuery = useQuery({
     queryKey: ["supplier-return", editingId],
-
     queryFn: async () =>
-      unwrap(await api.get(`/purchases/supplier-returns/${editingId}/`)),
-
-    enabled: mode === "form" && Boolean(editingId),
-
+      unwrap(
+        await api.get(`/purchases/supplier-returns/${editingId}/`, {
+          skipGlobalErrorToast: true,
+        }),
+      ),
+    enabled: Boolean(editingId),
     staleTime: 0,
+    retry: false,
+    refetchOnMount: "always",
   });
 
-  const options = useMemo(() => optionsResponse || {}, [optionsResponse]);
-
+  const options = React.useMemo(
+    () => optionsQuery.data || {},
+    [optionsQuery.data],
+  );
   const grns = React.useMemo(() => {
     const candidates = [
       options?.grns,
       options?.data?.grns,
       options?.results,
       options?.data?.results,
-      optionsResponse,
+      options,
     ];
-
     for (const candidate of candidates) {
-      const normalized = normalizeList(candidate);
-      if (normalized.length) return normalized;
+      const list = normalizeList(candidate);
+      if (list.length) return list;
+    }
+    return [];
+  }, [options]);
+
+  const filteredGrns = React.useMemo(() => {
+    const search = grnSearch.trim().toLowerCase();
+
+    if (!search) {
+      return grns;
     }
 
-    return [];
-  }, [options, optionsResponse]);
+    return grns.filter((grn) =>
+      [
+        grn.grn_number,
+        grn.supplier_name,
+        grn.po_number,
+        grn.branch_name,
+        grn.received_date,
+        grn.supplier_invoice_number,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(search)),
+    );
+  }, [grns, grnSearch]);
 
   const canViewRestricted = Boolean(
     options?.can_view_restricted ?? options?.data?.can_view_restricted ?? false,
   );
-
   const canReturnRestricted = Boolean(
     options?.can_return_restricted ??
     options?.data?.can_return_restricted ??
@@ -216,337 +168,195 @@ export default function SupplierReturnsPage() {
   );
 
   React.useEffect(() => {
-    console.log("Supplier Return normalized GRNs:", grns);
-
-    if (optionsError) {
-      console.error(
-        "Supplier Return GRN options error:",
-        optionsError?.response?.data || optionsError,
-      );
-    }
-  }, [grns, optionsError]);
-
-  React.useEffect(() => {
-    if (!existing) return;
+    if (!existingQuery.data) return;
+    const existing = existingQuery.data;
 
     setForm({
       return_number: existing.return_number || "",
-
       grn: String(existing.grn?.id || existing.grn || ""),
-
       supplier: String(existing.supplier?.id || existing.supplier || ""),
-
       branch: String(existing.branch?.id || existing.branch || ""),
-
       return_date: existing.return_date || today(),
-
       reason: existing.reason || "DAMAGED_IN_TRANSIT",
-
       details: existing.details || "",
-
       resolution: existing.resolution || "SUPPLIER_CREDIT_NOTE",
-
       status: existing.status || "DRAFT",
-
       notes: existing.notes || "",
-
       items: (existing.items || []).map((item) => ({
         id: item.id,
-
-        grn_item: item.grn_item
-          ? String(item.grn_item?.id || item.grn_item)
-          : "",
-
+        grn_item: String(item.grn_item?.id || item.grn_item || ""),
         product: String(item.product?.id || item.product || ""),
-
         variant: item.variant ? String(item.variant?.id || item.variant) : "",
-
         product_name: item.product_name || "",
-
         sku: item.sku || "",
-
-        received_quantity: number(item.received_quantity),
-        available_regular_quantity: number(
+        available_regular_quantity: asNumber(
           item.available_regular_quantity ?? item.regular_quantity,
         ),
-        available_restricted_quantity: number(
+        available_restricted_quantity: asNumber(
           item.available_restricted_quantity ?? item.restricted_quantity,
         ),
-        regular_quantity: number(item.regular_quantity),
-        restricted_quantity: number(item.restricted_quantity),
+        regular_quantity: asNumber(item.regular_quantity),
+        restricted_quantity: asNumber(item.restricted_quantity),
         quantity:
-          number(item.regular_quantity) + number(item.restricted_quantity),
-
-        unit_price: number(item.unit_price),
-
+          asNumber(item.regular_quantity) + asNumber(item.restricted_quantity),
+        unit_price: asNumber(item.unit_price),
         selected:
-          number(item.regular_quantity) + number(item.restricted_quantity) > 0,
-
+          asNumber(item.regular_quantity) + asNumber(item.restricted_quantity) >
+          0,
         reason: item.reason || "",
       })),
     });
-  }, [existing]);
+  }, [existingQuery.data]);
 
   const selectedGRN = React.useMemo(
     () => grns.find((item) => String(item.id) === String(form.grn)),
     [grns, form.grn],
   );
 
-  const selectedItems = form.items.filter(
-    (item) =>
-      item.selected &&
-      number(item.regular_quantity) + number(item.restricted_quantity) > 0,
+  const selectedItems = React.useMemo(
+    () =>
+      form.items.filter(
+        (item) =>
+          item.selected &&
+          asNumber(item.regular_quantity) + asNumber(item.restricted_quantity) >
+            0,
+      ),
+    [form.items],
   );
 
-  const totalAmount = selectedItems.reduce(
-    (sum, item) => sum + number(item.quantity) * number(item.unit_price),
-    0,
+  const totalAmount = React.useMemo(
+    () =>
+      selectedItems.reduce(
+        (sum, item) =>
+          sum +
+          (asNumber(item.regular_quantity) +
+            asNumber(item.restricted_quantity)) *
+            asNumber(item.unit_price),
+        0,
+      ),
+    [selectedItems],
   );
 
   const updateForm = (field, value) => {
-    setForm((current) => ({
-      ...current,
-      [field]: value,
-    }));
-
-    setErrors((current) => ({
-      ...current,
-      [field]: "",
-    }));
+    setForm((current) => ({ ...current, [field]: value }));
+    setErrors((current) => ({ ...current, [field]: "" }));
   };
 
   const updateItem = (index, patch) => {
     setForm((current) => ({
       ...current,
-
       items: current.items.map((item, itemIndex) =>
-        itemIndex === index
-          ? {
-              ...item,
-              ...patch,
-            }
-          : item,
+        itemIndex === index ? { ...item, ...patch } : item,
       ),
     }));
-
-    setErrors((current) => ({
-      ...current,
-      items: "",
-    }));
+    setErrors((current) => ({ ...current, items: "" }));
   };
 
   const selectGRN = (value) => {
-    const grn = grns.find((item) => String(item.id) === String(value));
+    setGrnSearch("");
 
+    const grn = grns.find((item) => String(item.id) === String(value));
     if (!grn) return;
 
     setForm((current) => ({
       ...current,
-
       grn: String(grn.id),
-
-      supplier: String(grn.supplier_id),
-
-      branch: String(grn.branch_id),
-
+      supplier: String(
+        grn.supplier_id || grn.supplier?.id || grn.supplier || "",
+      ),
+      branch: String(grn.branch_id || grn.branch?.id || grn.branch || ""),
       items: (grn.items || []).map((item) => ({
         grn_item: String(item.id),
-
-        product: String(item.product_id),
-
-        variant: item.variant_id ? String(item.variant_id) : "",
-
+        product: String(
+          item.product_id || item.product?.id || item.product || "",
+        ),
+        variant: item.variant_id
+          ? String(item.variant_id)
+          : item.variant
+            ? String(item.variant?.id || item.variant)
+            : "",
         product_name: item.product_name || "",
-
         sku: item.sku || "",
-
-        received_quantity: number(item.accepted_quantity),
-        available_regular_quantity: number(
+        available_regular_quantity: asNumber(
           item.available_regular_quantity ?? item.accepted_regular_quantity,
         ),
-        available_restricted_quantity: number(
+        available_restricted_quantity: asNumber(
           item.available_restricted_quantity ??
             item.accepted_restricted_quantity,
         ),
         regular_quantity: 0,
         restricted_quantity: 0,
         quantity: 0,
-
-        unit_price: number(item.unit_price),
-
+        unit_price: asNumber(item.unit_price),
         selected: false,
         reason: "",
       })),
     }));
-  };
-
-  const openNew = () => {
-    setEditingId(null);
-    setForm(createForm(branchId));
-    setFiles([]);
-    setErrors({});
-    setMode("form");
-  };
-
-  const openExisting = (row) => {
-    setEditingId(row.id);
-    setFiles([]);
-    setErrors({});
-    setMode("form");
-  };
-
-  const closeForm = () => {
-    setMode("list");
-    setEditingId(null);
-    setFiles([]);
-    setErrors({});
+    setErrors((current) => ({ ...current, grn: "", items: "" }));
   };
 
   const validate = () => {
     const next = {};
-
-    if (!form.grn) {
-      next.grn = "Confirmed GRN is required.";
-    }
-
-    if (!form.reason) {
-      next.reason = "Return reason is required.";
-    }
-
-    if (!form.resolution) {
-      next.resolution = "Resolution is required.";
-    }
-
-    if (!selectedItems.length) {
+    if (!form.grn) next.grn = "Confirmed GRN is required.";
+    if (!form.reason) next.reason = "Return reason is required.";
+    if (!form.resolution) next.resolution = "Resolution is required.";
+    if (!selectedItems.length)
       next.items = "Select at least one item to return.";
-    }
 
     const invalid = selectedItems.some((item) => {
-      const regular = number(item.regular_quantity);
-      const restricted = number(item.restricted_quantity);
+      const regular = asNumber(item.regular_quantity);
+      const restricted = asNumber(item.restricted_quantity);
       return (
         regular + restricted <= 0 ||
-        regular > number(item.available_regular_quantity) ||
-        restricted > number(item.available_restricted_quantity) ||
+        regular > asNumber(item.available_regular_quantity) ||
+        restricted > asNumber(item.available_restricted_quantity) ||
         (restricted > 0 && !canReturnRestricted)
       );
     });
 
     if (invalid) {
       next.items =
-        "Return quantities must be within the available regular and restricted balances.";
+        "Return quantities must stay within the available regular and restricted balances.";
     }
 
     setErrors(next);
-
     return Object.keys(next).length === 0;
   };
 
-  const updateStatus = useMutation({
-    mutationFn: async ({ row, nextStatus }) => {
-      if (nextStatus === row.status) {
-        return row;
-      }
-
-      if (nextStatus === "APPROVED") {
-        return unwrap(
-          await api.post(
-            `/purchases/supplier-returns/${row.id}/approve/`,
-            {},
-            { skipGlobalErrorToast: true },
-          ),
-        );
-      }
-
-      return unwrap(
-        await api.post(
-          `/purchases/supplier-returns/${row.id}/update-status/`,
-          { status: nextStatus },
-          { skipGlobalErrorToast: true },
-        ),
-      );
-    },
-
-    onSuccess: async (saved) => {
-      await queryClient.invalidateQueries({
-        queryKey: ["supplier-returns"],
-      });
-
-      toast.success(
-        `Return status updated to ${String(saved.status || "")
-          .replaceAll("_", " ")
-          .toLowerCase()
-          .replace(/\b\w/g, (letter) => letter.toUpperCase())}.`,
-      );
-    },
-
-    onError: (error) => {
-      const details = getApiErrorDetails(error);
-
-      toast.error(details.title || "Unable to update return status", {
-        description:
-          details.summary ||
-          details.message ||
-          "The selected status transition is not allowed.",
-      });
-    },
-  });
-
-  const save = useMutation({
+  const saveMutation = useMutation({
     mutationFn: async ({ submitForApproval }) => {
       const payload = {
         ...form,
-
         return_number: form.return_number || undefined,
-
         grn: Number(form.grn),
-
         supplier: Number(form.supplier),
-
         branch: Number(form.branch),
-
         total_amount: totalAmount,
-
         status: submitForApproval ? "PENDING_APPROVAL" : "DRAFT",
-
         items: selectedItems.map((item) => ({
-          ...(item.id
-            ? {
-                id: item.id,
-              }
-            : {}),
-
+          ...(item.id ? { id: item.id } : {}),
           grn_item: item.grn_item ? Number(item.grn_item) : null,
-
           product: Number(item.product),
-
           variant: item.variant ? Number(item.variant) : null,
-
           received_quantity:
-            number(item.regular_quantity) + number(item.restricted_quantity),
-
-          regular_quantity: number(item.regular_quantity),
-          restricted_quantity: number(item.restricted_quantity),
+            asNumber(item.regular_quantity) +
+            asNumber(item.restricted_quantity),
+          regular_quantity: asNumber(item.regular_quantity),
+          restricted_quantity: asNumber(item.restricted_quantity),
           quantity:
-            number(item.regular_quantity) + number(item.restricted_quantity),
-
-          unit_price: number(item.unit_price),
-
+            asNumber(item.regular_quantity) +
+            asNumber(item.restricted_quantity),
+          unit_price: asNumber(item.unit_price),
           reason: item.reason || form.details || "",
         })),
       };
 
       const data = new FormData();
-
       data.append("payload", JSON.stringify(payload));
-
       files.forEach((file) => data.append("attachments", file));
 
       const config = {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-
+        headers: { "Content-Type": "multipart/form-data" },
         skipGlobalErrorToast: true,
       };
 
@@ -554,18 +364,14 @@ export default function SupplierReturnsPage() {
         ? api.patch(`/purchases/supplier-returns/${editingId}/`, data, config)
         : api.post("/purchases/supplier-returns/", data, config);
     },
-
     onSuccess: async (response) => {
       const saved = unwrap(response);
-
       await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["supplier-returns"] }),
         queryClient.invalidateQueries({
-          queryKey: ["supplier-returns"],
+          queryKey: ["/purchases/supplier-returns/"],
         }),
-
-        queryClient.invalidateQueries({
-          queryKey: ["stock-overview"],
-        }),
+        queryClient.invalidateQueries({ queryKey: ["stock-overview"] }),
       ]);
 
       toast.success(
@@ -573,13 +379,10 @@ export default function SupplierReturnsPage() {
           ? "Supplier return submitted for approval."
           : "Supplier return saved as draft.",
       );
-
-      closeForm();
+      navigate(`/purchases/supplier-returns/${saved.id || editingId}`);
     },
-
     onError: (error) => {
       const details = getApiErrorDetails(error);
-
       toast.error(details.title || "Unable to save supplier return", {
         description:
           details.summary ||
@@ -591,15 +394,11 @@ export default function SupplierReturnsPage() {
 
   const submit = (submitForApproval) => {
     if (!validate()) return;
-
-    save.mutate({
-      submitForApproval,
-    });
+    saveMutation.mutate({ submitForApproval });
   };
 
   const addFiles = (event) => {
     const incoming = Array.from(event.target.files || []);
-
     const valid = incoming.filter(
       (file) =>
         file.size <= 10 * 1024 * 1024 &&
@@ -611,279 +410,161 @@ export default function SupplierReturnsPage() {
     if (valid.length !== incoming.length) {
       toast.error("Only PDF, JPG and PNG files up to 10 MB are allowed.");
     }
-
     setFiles((current) => [...current, ...valid]);
-
     event.target.value = "";
   };
 
-  const columns = React.useMemo(
-    () => [
-      {
-        key: "return_number",
-        header: "Return No.",
-        sortKey: "return_number",
-        sortType: "text",
-
-        cell: (row) => (
-          <button
-            type="button"
-            onClick={() => openExisting(row)}
-            className="font-medium text-blue-600 hover:underline dark:text-blue-400"
-          >
-            {row.return_number || "—"}
-          </button>
-        ),
-      },
-      {
-        key: "supplier_name",
-        header: "Supplier",
-        sortKey: "supplier__supplier_name",
-        sortType: "text",
-      },
-      {
-        key: "grn_number",
-        header: "GRN Ref",
-        sortKey: "grn__grn_number",
-        sortType: "text",
-      },
-      {
-        key: "return_date",
-        header: "Date",
-        sortKey: "return_date",
-        sortType: "date",
-
-        cell: (row) =>
-          row.return_date ? <DateText value={row.return_date} /> : "—",
-      },
-      {
-        key: "reason_display",
-        header: "Reason",
-        sortKey: "reason",
-        sortType: "text",
-
-        cell: (row) =>
-          row.reason_display ||
-          String(row.reason || "")
-            .replace(/_/g, " ")
-            .toLowerCase()
-            .replace(/\b\w/g, (letter) => letter.toUpperCase()),
-      },
-      {
-        key: "item_count",
-        header: "Items",
-        sortType: "quantity",
-        align: "right",
-      },
-      {
-        key: "total_amount",
-        header: "Value",
-        sortKey: "total_amount",
-        sortType: "currency",
-        align: "right",
-
-        cell: (row) => <CurrencyText value={row.total_amount} />,
-      },
-      {
-        key: "status",
-        header: "Status",
-        sortKey: "status",
-        sortType: "status",
-
-        cell: (row) => {
-          const statusOptions = getAllowedReturnStatuses(row.status);
-          const isLocked = statusOptions.length <= 1;
-
-          return (
-            <div
-              className="min-w-[180px]"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <Select
-                value={row.status}
-                disabled={
-                  isLocked ||
-                  (updateStatus.isPending &&
-                    updateStatus.variables?.row?.id === row.id)
-                }
-                onValueChange={(nextStatus) =>
-                  updateStatus.mutate({
-                    row,
-                    nextStatus,
-                  })
-                }
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue>
-                    <StatusBadge status={row.status} />
-                  </SelectValue>
-                </SelectTrigger>
-
-                <SelectContent>
-                  {statusOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          );
-        },
-      },
-    ],
-    [updateStatus],
-  );
-
-  if (mode === "list") {
-    const payload = query.data || {
-      results: [],
-      count: 0,
-    };
-
-    const rows = payload.results || [];
-
+  if (existingQuery.isLoading) {
     return (
-      <div className="mx-auto max-w-7xl space-y-5">
-        <PageHeader
-          title="Supplier Returns"
-          subtitle="Goods sent back to suppliers — damaged, wrong, or rejected items"
-          actions={
-            <Button
-              type="button"
-              onClick={openNew}
-              className="bg-blue-600 text-white hover:bg-blue-700"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              New Return
-            </Button>
-          }
-        />
-
-        <div className="flex items-start gap-2 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
-          <Info className="mt-0.5 h-4 w-4 shrink-0" />
-
-          <p>
-            Linked to the original GRN. On approval, accepted return quantities
-            create a stock OUT movement and generate a supplier credit or
-            next-bill adjustment.
-          </p>
+      <div className="purchase-module-page purchase-workspace">
+        <div className="rounded-2xl border bg-card p-12 text-center text-muted-foreground">
+          Loading supplier return...
         </div>
-
-        <SearchInput
-          value={q}
-          onChange={setQ}
-          placeholder="Search return number, supplier, GRN or reason"
-        />
-
-        <DataTable
-          columns={columns}
-          data={rows}
-          isLoading={query.isLoading}
-          page={page}
-          pageSize={12}
-          total={payload.count || 0}
-          onPageChange={setPage}
-          emptyTitle="No supplier returns"
-          emptyDescription="Create a return for damaged, incorrect, or excess received goods."
-        />
       </div>
     );
   }
 
-  if (editingId && existingLoading) {
-    return <div className="card-surface p-6">Loading supplier return...</div>;
+  if (editingId && (existingQuery.isError || !existingQuery.data)) {
+    return (
+      <div className="purchase-module-page purchase-workspace space-y-4">
+        <Button
+          variant="outline"
+          onClick={() => navigate("/purchases/supplier-returns")}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Returns
+        </Button>
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+          Unable to load this supplier return.
+        </div>
+      </div>
+    );
   }
 
+  const isEditable = !editingId || ["DRAFT", "REJECTED"].includes(form.status);
+
   return (
-    <div className="mx-auto max-w-7xl space-y-5 pb-10">
+    <div className="purchase-module-page purchase-workspace mx-auto max-w-7xl space-y-5 pb-10">
       <PageHeader
-        title={editingId ? "Edit Return" : "New Return"}
-        subtitle="Send goods back to a supplier — damaged, wrong, or rejected items"
+        title={editingId ? "Edit Supplier Return" : "New Supplier Return"}
+        subtitle="Link the return to a confirmed GRN, select quantities, and submit it for approval."
         actions={
-          <Button type="button" variant="outline" onClick={closeForm}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => navigate("/purchases/supplier-returns")}
+          >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Returns
           </Button>
         }
       />
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_290px]">
+      {!isEditable ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          This return is currently{" "}
+          <strong>{form.status.replaceAll("_", " ")}</strong> and can no longer
+          be edited. Open its detail page to continue the workflow.
+        </div>
+      ) : null}
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="space-y-5">
           <section className="card-surface p-5">
             <h2 className="font-semibold">Linked GRN</h2>
-
             <p className="mt-1 text-xs text-muted-foreground">
-              Returns must reference the original goods received note.
+              Returns must reference the original confirmed goods received note.
             </p>
 
             <div className="mt-4">
               <Label>GRN reference *</Label>
-
               <Select
                 value={form.grn}
                 onValueChange={selectGRN}
-                disabled={optionsLoading}
+                disabled={
+                  !isEditable || optionsQuery.isLoading || Boolean(editingId)
+                }
               >
                 <SelectTrigger className="mt-2">
                   <SelectValue placeholder="Select confirmed GRN" />
                 </SelectTrigger>
+                <SelectContent className="max-h-80 p-0">
+                  <div
+                    className="sticky top-0 z-10 border-b bg-popover p-2"
+                    onKeyDown={(event) => event.stopPropagation()}
+                  >
+                    <Input
+                      autoFocus
+                      value={grnSearch}
+                      onChange={(event) => setGrnSearch(event.target.value)}
+                      onClick={(event) => event.stopPropagation()}
+                      placeholder="Search GRN, supplier, PO or branch"
+                    />
+                  </div>
 
-                <SelectContent className="max-h-72">
-                  {grns.map((grn) => (
-                    <SelectItem key={grn.id} value={String(grn.id)}>
-                      {grn.grn_number}
-                      {" — "}
-                      {grn.supplier_name}
-                      {" — "}
-                      {grn.received_date}
-                    </SelectItem>
-                  ))}
+                  <div className="max-h-64 overflow-y-auto p-1">
+                    {filteredGrns.length ? (
+                      filteredGrns.map((grn) => (
+                        <SelectItem key={grn.id} value={String(grn.id)}>
+                          <div>
+                            <div className="font-medium">{grn.grn_number}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {[
+                                grn.supplier_name,
+                                grn.po_number,
+                                grn.branch_name,
+                                grn.received_date,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </div>
+                          </div>
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                        No GRNs match your search.
+                      </div>
+                    )}
+                  </div>
                 </SelectContent>
               </Select>
 
-              {optionsError && (
+              {optionsQuery.isError ? (
                 <p className="mt-2 text-xs text-red-500">
-                  Unable to load confirmed GRNs. Check the browser console and
-                  backend logs.
+                  Unable to load confirmed GRNs.
                 </p>
-              )}
-
-              {!optionsLoading && !optionsError && grns.length === 0 && (
-                <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+              ) : null}
+              {!optionsQuery.isLoading &&
+              !optionsQuery.isError &&
+              !grns.length &&
+              !editingId ? (
+                <p className="mt-2 text-xs text-amber-600">
                   No confirmed GRNs with returnable quantities are available.
                 </p>
-              )}
-
-              {errors.grn && (
+              ) : null}
+              {errors.grn ? (
                 <p className="mt-1 text-xs text-red-500">{errors.grn}</p>
-              )}
+              ) : null}
 
-              {selectedGRN && (
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-xs dark:border-white/10 dark:bg-white/[0.025]">
+              {selectedGRN ? (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/35 px-4 py-3 text-xs">
                   <span className="font-medium">
-                    {selectedGRN.grn_number}
-                    {" · "}
-                    {selectedGRN.supplier_name}
-                    {" · "}
+                    {selectedGRN.grn_number} · {selectedGRN.supplier_name} ·{" "}
                     {selectedGRN.branch_name}
-                    {" · "}
-                    {selectedGRN.receipt_status}
                   </span>
-
-                  <span className="text-blue-600 dark:text-blue-400">
-                    Linked PO: {selectedGRN.po_number}
+                  <span className="text-blue-600">
+                    Linked PO: {selectedGRN.po_number || "—"}
                   </span>
                 </div>
-              )}
+              ) : null}
             </div>
           </section>
 
           <section className="card-surface p-5">
             <h2 className="font-semibold">Reason for return</h2>
-
             <p className="mt-1 text-xs text-muted-foreground">
-              Why these items are going back.
+              Record why the goods are being returned.
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
@@ -891,11 +572,12 @@ export default function SupplierReturnsPage() {
                 <button
                   key={reason.value}
                   type="button"
+                  disabled={!isEditable}
                   onClick={() => updateForm("reason", reason.value)}
                   className={
                     form.reason === reason.value
-                      ? "rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-xs font-medium text-violet-600 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-300"
-                      : "rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:bg-slate-950 dark:text-slate-300"
+                      ? "rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-xs font-medium text-violet-700"
+                      : "rounded-full border bg-card px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
                   }
                 >
                   {reason.label}
@@ -908,28 +590,28 @@ export default function SupplierReturnsPage() {
                 Details{" "}
                 <span className="text-muted-foreground">(optional)</span>
               </Label>
-
               <Textarea
                 rows={4}
                 value={form.details}
+                disabled={!isEditable}
                 onChange={(event) => updateForm("details", event.target.value)}
-                placeholder="e.g. Outer casing on 2 units cracked, likely from rough handling during transit"
+                placeholder="Describe the damage, defect, incorrect item, or excess quantity."
                 className="mt-2"
               />
             </div>
           </section>
 
           <section className="card-surface overflow-hidden">
-            <div className="border-b border-slate-200 px-5 py-4 dark:border-white/10">
+            <div className="border-b px-5 py-4">
               <h2 className="font-semibold">Items to return</h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Enter regular and restricted quantities separately. Approval
-                deducts each quantity from its matching stock balance.
+                Return quantities cannot exceed the remaining returnable balance
+                on the GRN.
               </p>
             </div>
 
             <div className="overflow-x-auto p-5">
-              <div className="min-w-[980px]">
+              <div className="min-w-[900px]">
                 <div
                   className={`grid gap-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground ${
                     canViewRestricted
@@ -939,28 +621,28 @@ export default function SupplierReturnsPage() {
                 >
                   <span />
                   <span>Item</span>
-                  <span className="text-right">Available Regular</span>
-                  <span className="text-right">Return Regular</span>
-                  {canViewRestricted && (
+                  <span className="text-right">Available regular</span>
+                  <span className="text-right">Return regular</span>
+                  {canViewRestricted ? (
                     <>
-                      <span className="text-right">Available Restricted</span>
-                      <span className="text-right">Return Restricted</span>
+                      <span className="text-right">Available restricted</span>
+                      <span className="text-right">Return restricted</span>
                     </>
-                  )}
+                  ) : null}
                   <span className="text-right">Value</span>
                 </div>
 
                 <div className="space-y-1">
                   {form.items.map((item, index) => {
                     const totalReturn =
-                      number(item.regular_quantity) +
-                      number(item.restricted_quantity);
-                    const lineValue = totalReturn * number(item.unit_price);
+                      asNumber(item.regular_quantity) +
+                      asNumber(item.restricted_quantity);
+                    const lineValue = totalReturn * asNumber(item.unit_price);
 
                     return (
                       <div
-                        key={item.grn_item || index}
-                        className={`grid items-center gap-3 border-b border-slate-100 py-2 last:border-b-0 dark:border-white/5 ${
+                        key={item.grn_item || item.id || index}
+                        className={`grid items-center gap-3 border-b py-2 last:border-b-0 ${
                           canViewRestricted
                             ? "grid-cols-[36px_minmax(240px,1fr)_110px_110px_110px_110px_120px]"
                             : "grid-cols-[36px_minmax(300px,1fr)_130px_130px_120px]"
@@ -969,24 +651,21 @@ export default function SupplierReturnsPage() {
                         <input
                           type="checkbox"
                           checked={Boolean(item.selected)}
-                          onChange={(event) =>
+                          disabled={!isEditable}
+                          onChange={(event) => {
+                            const defaultRegular = event.target.checked
+                              ? Math.min(
+                                  1,
+                                  asNumber(item.available_regular_quantity),
+                                )
+                              : 0;
                             updateItem(index, {
                               selected: event.target.checked,
-                              regular_quantity: event.target.checked
-                                ? Math.min(
-                                    1,
-                                    number(item.available_regular_quantity),
-                                  )
-                                : 0,
+                              regular_quantity: defaultRegular,
                               restricted_quantity: 0,
-                              quantity: event.target.checked
-                                ? Math.min(
-                                    1,
-                                    number(item.available_regular_quantity),
-                                  )
-                                : 0,
-                            })
-                          }
+                              quantity: defaultRegular,
+                            });
+                          }}
                           className="h-4 w-4 rounded border-slate-300"
                         />
 
@@ -1005,65 +684,65 @@ export default function SupplierReturnsPage() {
                         <div className="text-right text-sm">
                           {item.available_regular_quantity}
                         </div>
-
                         <Input
                           type="number"
                           min="0"
                           max={item.available_regular_quantity}
                           value={item.regular_quantity}
-                          disabled={!item.selected}
+                          disabled={!isEditable || !item.selected}
                           onChange={(event) => {
                             const regular = Math.max(
                               0,
                               Math.min(
-                                number(event.target.value),
-                                number(item.available_regular_quantity),
+                                asNumber(event.target.value),
+                                asNumber(item.available_regular_quantity),
                               ),
                             );
                             updateItem(index, {
                               regular_quantity: regular,
                               quantity:
-                                regular + number(item.restricted_quantity),
+                                regular + asNumber(item.restricted_quantity),
                             });
                           }}
                           className="text-right"
                         />
 
-                        {canViewRestricted && (
+                        {canViewRestricted ? (
                           <>
                             <div className="text-right text-sm">
                               {item.available_restricted_quantity}
                             </div>
-
                             <Input
                               type="number"
                               min="0"
                               max={item.available_restricted_quantity}
                               value={item.restricted_quantity}
-                              disabled={!item.selected || !canReturnRestricted}
+                              disabled={
+                                !isEditable ||
+                                !item.selected ||
+                                !canReturnRestricted
+                              }
                               onChange={(event) => {
                                 const restricted = Math.max(
                                   0,
                                   Math.min(
-                                    number(event.target.value),
-                                    number(item.available_restricted_quantity),
+                                    asNumber(event.target.value),
+                                    asNumber(
+                                      item.available_restricted_quantity,
+                                    ),
                                   ),
                                 );
                                 updateItem(index, {
                                   restricted_quantity: restricted,
                                   quantity:
-                                    number(item.regular_quantity) + restricted,
+                                    asNumber(item.regular_quantity) +
+                                    restricted,
                                 });
                               }}
                               className="text-right"
-                              title={
-                                canReturnRestricted
-                                  ? "Restricted quantity to return"
-                                  : "You do not have permission to return restricted stock"
-                              }
                             />
                           </>
-                        )}
+                        ) : null}
 
                         <div className="text-right font-medium">
                           <CurrencyText value={lineValue} />
@@ -1073,15 +752,14 @@ export default function SupplierReturnsPage() {
                   })}
                 </div>
 
-                {!form.items.length && (
+                {!form.items.length ? (
                   <p className="py-10 text-center text-sm text-muted-foreground">
-                    Select a confirmed GRN to load received items.
+                    Select a confirmed GRN to load returnable items.
                   </p>
-                )}
-
-                {errors.items && (
+                ) : null}
+                {errors.items ? (
                   <p className="mt-3 text-sm text-red-500">{errors.items}</p>
-                )}
+                ) : null}
 
                 <div className="mt-5 flex justify-end gap-8 border-t pt-4 font-semibold">
                   <span>Return value</span>
@@ -1093,95 +771,82 @@ export default function SupplierReturnsPage() {
 
           <section className="card-surface p-5">
             <h2 className="font-semibold">Resolution</h2>
-
             <p className="mt-1 text-xs text-muted-foreground">
-              How this return will be settled once approved.
+              Select how the approved return should be financially settled.
             </p>
 
             <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => updateForm("resolution", "SUPPLIER_CREDIT_NOTE")}
-                className={
-                  form.resolution === "SUPPLIER_CREDIT_NOTE"
-                    ? "rounded-lg border border-violet-400 bg-violet-50 p-4 text-left dark:bg-violet-500/10"
-                    : "rounded-lg border p-4 text-left"
-                }
-              >
-                <p className="text-sm font-semibold">Supplier credit note</p>
-
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Reduces this supplier's outstanding balance by the return
-                  value.
-                </p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => updateForm("resolution", "ADJUST_NEXT_BILL")}
-                className={
-                  form.resolution === "ADJUST_NEXT_BILL"
-                    ? "rounded-lg border border-violet-400 bg-violet-50 p-4 text-left dark:bg-violet-500/10"
-                    : "rounded-lg border p-4 text-left"
-                }
-              >
-                <p className="text-sm font-semibold">Adjust next bill</p>
-
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Deducts the return value from the next bill raised for this
-                  supplier.
-                </p>
-              </button>
+              {[
+                {
+                  value: "SUPPLIER_CREDIT_NOTE",
+                  title: "Supplier credit note",
+                  description:
+                    "Create vendor credit that can reduce outstanding supplier bills.",
+                },
+                {
+                  value: "ADJUST_NEXT_BILL",
+                  title: "Adjust next bill",
+                  description:
+                    "Carry the approved return value forward to the supplier's next bill.",
+                },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  disabled={!isEditable}
+                  onClick={() => updateForm("resolution", option.value)}
+                  className={
+                    form.resolution === option.value
+                      ? "rounded-lg border border-violet-400 bg-violet-50 p-4 text-left"
+                      : "rounded-lg border p-4 text-left hover:bg-muted/40"
+                  }
+                >
+                  <p className="text-sm font-semibold">{option.title}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {option.description}
+                  </p>
+                </button>
+              ))}
             </div>
           </section>
 
           <section className="card-surface p-5">
             <Label>Attachments</Label>
-
             <p className="mt-1 text-xs text-muted-foreground">
-              Photos of damage or defect — required for approval when
-              applicable.
+              Add photos or documents supporting the return request.
             </p>
-
-            <label className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-7 text-center hover:border-blue-400 dark:border-white/15 dark:bg-white/[0.025]">
+            <label className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed bg-muted/25 px-6 py-7 text-center hover:border-blue-400">
               <UploadCloud className="h-7 w-7 text-blue-500" />
-
-              <span className="mt-2 text-sm font-medium">
-                Drag files here or browse to upload
-              </span>
-
+              <span className="mt-2 text-sm font-medium">Browse to upload</span>
               <span className="mt-1 text-xs text-muted-foreground">
                 PDF, JPG, PNG up to 10 MB
               </span>
-
               <input
                 type="file"
                 multiple
+                disabled={!isEditable}
                 accept=".pdf,.jpg,.jpeg,.png"
                 className="sr-only"
                 onChange={addFiles}
               />
             </label>
 
-            {files.length > 0 && (
+            {files.length ? (
               <div className="mt-3 space-y-2">
                 {files.map((file, index) => (
                   <div
-                    key={`${file.name}-${file.size}`}
+                    key={`${file.name}-${file.size}-${index}`}
                     className="flex items-center gap-3 rounded-lg border p-3"
                   >
                     <FileText className="h-5 w-5 text-blue-500" />
-
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">
                         {file.name}
                       </p>
-
                       <p className="text-xs text-muted-foreground">
                         {formatSize(file.size)}
                       </p>
                     </div>
-
                     <Button
                       type="button"
                       variant="ghost"
@@ -1197,154 +862,139 @@ export default function SupplierReturnsPage() {
                   </div>
                 ))}
               </div>
-            )}
+            ) : null}
           </section>
 
           <section className="card-surface p-5">
             <Label>Additional notes</Label>
-
             <Textarea
               rows={4}
               value={form.notes}
+              disabled={!isEditable}
               onChange={(event) => updateForm("notes", event.target.value)}
               placeholder="Internal notes for procurement or warehouse"
               className="mt-3"
             />
           </section>
 
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button
               type="button"
               variant="ghost"
-              onClick={closeForm}
-              disabled={save.isPending}
+              onClick={() => navigate("/purchases/supplier-returns")}
+              disabled={saveMutation.isPending}
             >
               Cancel
             </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => submit(false)}
-              disabled={save.isPending}
-            >
-              <Save className="mr-2 h-4 w-4" />
-              Save as Draft
-            </Button>
-
-            <Button
-              type="button"
-              className="bg-violet-600 text-white hover:bg-violet-700"
-              onClick={() => submit(true)}
-              disabled={save.isPending}
-            >
-              <Send className="mr-2 h-4 w-4" />
-              Submit for Approval
-            </Button>
+            {isEditable ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => submit(false)}
+                  disabled={saveMutation.isPending}
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  Save as Draft
+                </Button>
+                <Button
+                  type="button"
+                  className="bg-violet-600 text-white hover:bg-violet-700"
+                  onClick={() => submit(true)}
+                  disabled={saveMutation.isPending}
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  Submit for Approval
+                </Button>
+              </>
+            ) : (
+              <Button
+                type="button"
+                onClick={() =>
+                  navigate(`/purchases/supplier-returns/${editingId}`)
+                }
+              >
+                Open Return Details
+              </Button>
+            )}
           </div>
         </div>
 
         <aside className="space-y-5">
           <section className="card-surface p-5">
             <h2 className="font-semibold">Return summary</h2>
-
             <p className="mt-1 text-xs text-muted-foreground">
-              {form.return_number || "Auto Return"}
-              {" · "}
-              {form.status}
+              {form.return_number || "Auto-generated number"}
             </p>
-
             <div className="mt-5 space-y-3 text-sm">
               <div className="flex justify-between gap-3">
                 <span className="text-muted-foreground">Supplier</span>
-
                 <span className="text-right font-medium">
-                  {selectedGRN?.supplier_name || "—"}
+                  {selectedGRN?.supplier_name ||
+                    existingQuery.data?.supplier_name ||
+                    "—"}
                 </span>
               </div>
-
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <span className="text-muted-foreground">Linked GRN</span>
-
                 <span className="font-medium">
-                  {selectedGRN?.grn_number || "—"}
+                  {selectedGRN?.grn_number ||
+                    existingQuery.data?.grn_number ||
+                    "—"}
                 </span>
               </div>
-
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Reason</span>
-
-                <span className="text-right font-medium">
-                  {reasonButtons.find((item) => item.value === form.reason)
-                    ?.label || "—"}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <span className="text-muted-foreground">Items</span>
-
                 <span className="font-medium">{selectedItems.length}</span>
               </div>
-
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <span className="text-muted-foreground">Return value</span>
-
                 <CurrencyText value={totalAmount} />
               </div>
-
               <div className="flex justify-between border-t pt-3">
                 <span className="text-muted-foreground">Status</span>
-
-                <StatusBadge
-                  status={
-                    form.status === "DRAFT" ? "PENDING_APPROVAL" : form.status
-                  }
-                />
+                <StatusBadge status={form.status || "DRAFT"} />
               </div>
             </div>
           </section>
 
           <section className="card-surface p-5">
-            <h2 className="font-semibold">What happens next</h2>
-
-            <p className="mt-1 text-xs text-muted-foreground">
-              Runs automatically once approved.
-            </p>
-
+            <h2 className="font-semibold">Correct workflow</h2>
             <div className="mt-4 space-y-4">
               {[
                 {
-                  icon: CheckCircle2,
-                  title: "Return created",
-                  detail: "Draft or approval request recorded",
+                  icon: Save,
+                  title: "Draft",
+                  detail: "Return request is prepared and can still be edited.",
                 },
                 {
-                  icon: AlertTriangle,
+                  icon: Send,
                   title: "Pending approval",
-                  detail: "Warehouse or procurement sign-off",
+                  detail: "Warehouse or procurement reviews the request.",
                 },
                 {
                   icon: PackageMinus,
-                  title: "Stock OUT movement",
-                  detail: "Returned quantity removed from branch inventory",
+                  title: "Approved",
+                  detail:
+                    "Stock OUT movement is created for approved quantities.",
                 },
                 {
                   icon: CheckCircle2,
-                  title: "Credit issued / adjusted",
-                  detail: "Based on the selected resolution",
+                  title: "Credit issued",
+                  detail:
+                    "Vendor credit or next-bill adjustment completes the return.",
                 },
               ].map((step, index) => {
                 const Icon = step.icon;
-
                 return (
                   <div key={step.title} className="flex gap-3">
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-50 text-xs font-semibold text-violet-600 dark:bg-violet-500/10 dark:text-violet-300">
-                      {index === 0 ? <Icon className="h-4 w-4" /> : index + 1}
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-50 text-violet-600">
+                      <Icon className="h-4 w-4" />
                     </div>
-
                     <div>
-                      <p className="text-sm font-medium">{step.title}</p>
-
+                      <p className="text-sm font-medium">
+                        {index + 1}. {step.title}
+                      </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {step.detail}
                       </p>

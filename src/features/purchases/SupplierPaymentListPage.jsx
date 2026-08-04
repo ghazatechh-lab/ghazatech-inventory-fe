@@ -118,7 +118,7 @@ export default function SupplierPaymentListPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="purchase-module-page purchase-workspace space-y-6">
       <PageHeader
         title="Supplier Payments"
         subtitle="Track supplier payments, allocations, payment methods, and supporting files."

@@ -393,7 +393,7 @@ export default function SalesReportsPage() {
   );
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5">
+    <div className="reports-module-page reports-workspace mx-auto max-w-7xl space-y-5">
       <PageHeader
         title="Sales Reports"
         subtitle="Performance summaries across the sales cycle"

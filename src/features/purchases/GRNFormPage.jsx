@@ -697,7 +697,7 @@ export default function GRNFormPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 pb-10">
+    <div className="purchase-module-page purchase-workspace mx-auto max-w-7xl space-y-5 pb-10">
       <PageHeader
         title={edit ? "Edit GRN" : "New GRN"}
         subtitle="Confirm physical receipt of stock against a purchase order"

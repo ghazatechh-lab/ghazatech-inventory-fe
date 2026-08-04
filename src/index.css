@@ -429,3 +429,9 @@ html.light .sidebar-always-blue .hover\:text-white:hover {
 @import "./styles/layout-scroll-fix.css";
 @import "./styles/stock-operations.css";
 @import "./styles/supplier-module.css";
+@import "./styles/purchase-operations.css";
+@import "./styles/sales-customer-module.css";
+@import "./styles/finance-accounting-module.css";
+@import "./styles/hrms-module.css";
+@import "./styles/reports-module.css";
+@import "./styles/settings-module.css";

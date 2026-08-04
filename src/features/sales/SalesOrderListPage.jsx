@@ -119,7 +119,7 @@ export default function SalesOrderListPage() {
   );
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5">
+    <div className="sales-module-page sales-workspace mx-auto max-w-7xl space-y-5">
       <PageHeader
         title="Sales Orders"
         subtitle="Confirmed orders moving toward fulfillment and invoicing"

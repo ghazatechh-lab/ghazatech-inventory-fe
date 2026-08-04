@@ -76,7 +76,7 @@ export default function GeneralLedgerPage() {
   const entries = Array.isArray(payload.entries) ? payload.entries : [];
 
   return (
-    <div className="space-y-6">
+    <div className="finance-module-page finance-workspace space-y-6">
       <PageHeader
         title="General Ledger"
         subtitle="Transaction history and running balance for each ledger account."

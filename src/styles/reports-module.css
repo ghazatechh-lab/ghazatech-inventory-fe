@@ -1,0 +1,631 @@
+/* =========================================================
+   GHAZATECH — REPORTS MODULE STANDARD DESIGN
+   File: src/styles/reports-module.css
+
+   IMPORTANT:
+   Import this file LAST in src/index.css:
+
+   @import "./styles/reports-module.css";
+   ========================================================= */
+
+.reports-module-page {
+  --reports-navy-950: #06142c;
+  --reports-navy-900: #08264a;
+  --reports-navy-800: #104879;
+  --reports-blue: #2563eb;
+  --reports-cyan: #38bdf8;
+  --reports-gold: #fbbf24;
+  --reports-green: #10b981;
+  --reports-red: #dc2626;
+  --reports-amber: #d97706;
+  --reports-border: #dbe3ef;
+  --reports-surface: #ffffff;
+  --reports-surface-soft: #f8fafc;
+  --reports-text: #0f172a;
+  --reports-muted: #64748b;
+
+  width: 100%;
+  padding-bottom: 2.5rem;
+  color: var(--reports-text);
+}
+
+.dark .reports-module-page {
+  --reports-border: rgba(255, 255, 255, 0.09);
+  --reports-surface: #0f172a;
+  --reports-surface-soft: rgba(255, 255, 255, 0.035);
+  --reports-text: #f8fafc;
+  --reports-muted: #94a3b8;
+}
+
+/* =========================================================
+   PREMIUM REPORTS HERO
+   ========================================================= */
+
+.reports-module-page.reports-workspace > [data-testid="page-header"] {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+
+  min-height: 154px;
+  margin-bottom: 1.5rem !important;
+  padding: 1.75rem 1.8rem;
+
+  align-items: center;
+
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  border-radius: 24px;
+
+  background:
+    radial-gradient(
+      circle at 92% 0%,
+      rgba(56, 189, 248, 0.24),
+      transparent 31%
+    ),
+    radial-gradient(
+      circle at 78% 120%,
+      rgba(251, 191, 36, 0.13),
+      transparent 29%
+    ),
+    linear-gradient(135deg, #06142c 0%, #092b55 55%, #18537f 100%);
+
+  box-shadow:
+    0 24px 58px rgba(15, 23, 42, 0.17),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.reports-module-page.reports-workspace > [data-testid="page-header"]::before {
+  content: "";
+
+  position: absolute;
+  z-index: -1;
+  right: -92px;
+  bottom: -168px;
+
+  width: 270px;
+  height: 270px;
+
+  border-radius: 999px;
+
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.reports-module-page.reports-workspace > [data-testid="page-header"]::after {
+  content: "";
+
+  position: absolute;
+  z-index: -1;
+  top: -100px;
+  left: 44%;
+
+  width: 240px;
+  height: 240px;
+
+  border-radius: 999px;
+
+  background: rgba(37, 99, 235, 0.12);
+  filter: blur(20px);
+}
+
+/* Eyebrow label */
+.reports-module-page.reports-workspace
+  > [data-testid="page-header"]
+  > div:first-child::before {
+  content: "BUSINESS INTELLIGENCE";
+
+  display: block;
+  margin-bottom: 0.45rem;
+
+  color: #7dd3fc !important;
+  -webkit-text-fill-color: #7dd3fc !important;
+
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+}
+
+/* =========================================================
+   CRITICAL LIGHT-MODE TITLE VISIBILITY FIX
+   ========================================================= */
+
+/*
+ * PageHeader may apply:
+ * - text-transparent
+ * - bg-clip-text
+ * - gradient background
+ * - text-foreground
+ *
+ * These rules reset all of those effects inside the Reports hero.
+ */
+.reports-module-page.reports-workspace > [data-testid="page-header"] h1,
+.reports-module-page.reports-workspace
+  > [data-testid="page-header"]
+  [data-testid="page-title"],
+.reports-module-page.reports-workspace
+  > [data-testid="page-header"]
+  .page-title,
+.reports-module-page.reports-workspace
+  > [data-testid="page-header"]
+  .text-transparent,
+.reports-module-page.reports-workspace
+  > [data-testid="page-header"]
+  .bg-clip-text,
+.reports-module-page.reports-workspace
+  > [data-testid="page-header"]
+  [class*="text-3xl"],
+.reports-module-page.reports-workspace
+  > [data-testid="page-header"]
+  [class*="text-2xl"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+
+  background: none !important;
+  background-image: none !important;
+
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
+
+  opacity: 1 !important;
+  visibility: visible !important;
+
+  font-size: clamp(1.8rem, 2.6vw, 2.4rem) !important;
+  font-weight: 900 !important;
+  line-height: 1.12 !important;
+  letter-spacing: -0.035em !important;
+
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+}
+
+/* Extra protection for title classes applied by global light-mode styles */
+html:not(.dark)
+  .reports-module-page.reports-workspace
+  > [data-testid="page-header"]
+  h1,
+html:not(.dark)
+  .reports-module-page.reports-workspace
+  > [data-testid="page-header"]
+  h2,
+html:not(.dark)
+  .reports-module-page.reports-workspace
+  > [data-testid="page-header"]
+  .text-foreground,
+html:not(.dark)
+  .reports-module-page.reports-workspace
+  > [data-testid="page-header"]
+  .text-slate-950,
+html:not(.dark)
+  .reports-module-page.reports-workspace
+  > [data-testid="page-header"]
+  .text-slate-900 {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Hero subtitle */
+.reports-module-page.reports-workspace > [data-testid="page-header"] p,
+.reports-module-page.reports-workspace
+  > [data-testid="page-header"]
+  [data-testid="page-subtitle"] {
+  max-width: 800px;
+
+  color: #dbeafe !important;
+  -webkit-text-fill-color: #dbeafe !important;
+
+  opacity: 1 !important;
+  visibility: visible !important;
+
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 1.65 !important;
+}
+
+/* Hero action container */
+.reports-module-page.reports-workspace
+  > [data-testid="page-header"]
+  > div:last-child {
+  position: relative;
+  z-index: 2;
+
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* Primary hero actions */
+.reports-module-page.reports-workspace
+  > [data-testid="page-header"]
+  button:not([class*="outline"]),
+.reports-module-page.reports-workspace
+  > [data-testid="page-header"]
+  a:not([class*="outline"]) {
+  border-color: rgba(255, 255, 255, 0.25) !important;
+
+  background: linear-gradient(135deg, #fcd34d, #f59e0b) !important;
+
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+
+  font-weight: 800 !important;
+
+  box-shadow: 0 12px 26px rgba(245, 158, 11, 0.24);
+
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+/* Secondary hero actions */
+.reports-module-page.reports-workspace
+  > [data-testid="page-header"]
+  button[class*="outline"],
+.reports-module-page.reports-workspace
+  > [data-testid="page-header"]
+  a[class*="outline"] {
+  border-color: rgba(255, 255, 255, 0.22) !important;
+
+  background: rgba(255, 255, 255, 0.1) !important;
+
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+
+  backdrop-filter: blur(12px);
+}
+
+.reports-module-page.reports-workspace
+  > [data-testid="page-header"]
+  button:hover,
+.reports-module-page.reports-workspace > [data-testid="page-header"] a:hover {
+  transform: translateY(-1px);
+}
+
+/* Keep icons visible inside hero buttons */
+.reports-module-page.reports-workspace > [data-testid="page-header"] button svg,
+.reports-module-page.reports-workspace > [data-testid="page-header"] a svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* =========================================================
+   REPORT CARDS AND METRICS
+   ========================================================= */
+
+.reports-module-page.reports-workspace .card-surface,
+.reports-module-page.reports-workspace > section,
+.reports-module-page.reports-workspace .rounded-2xl.border.bg-card {
+  border-color: var(--reports-border);
+  border-radius: 20px;
+
+  background: var(--reports-surface);
+
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.055);
+}
+
+.dark .reports-module-page.reports-workspace .card-surface,
+.dark .reports-module-page.reports-workspace > section,
+.dark .reports-module-page.reports-workspace .rounded-2xl.border.bg-card {
+  box-shadow: none;
+}
+
+.reports-module-page.reports-workspace .card-surface {
+  position: relative;
+  overflow: hidden;
+}
+
+.reports-module-page.reports-workspace .card-surface::after {
+  content: "";
+
+  position: absolute;
+  inset: 0 auto auto 0;
+
+  width: 100%;
+  height: 2px;
+
+  background: linear-gradient(90deg, #38bdf8, #2563eb, #10b981, #fbbf24);
+
+  opacity: 0.72;
+}
+
+/* Dashboard KPI cards */
+.reports-module-page.reports-workspace
+  .grid.grid-cols-2.md\:grid-cols-4.gap-4
+  > .card-surface,
+.reports-module-page.reports-workspace
+  .grid.grid-cols-1.md\:grid-cols-3.gap-4
+  > .card-surface,
+.reports-module-page.reports-workspace
+  .grid.gap-4.md\:grid-cols-2.xl\:grid-cols-4
+  > * {
+  min-height: 88px;
+
+  border: 1px solid var(--reports-border);
+  border-radius: 18px;
+
+  background: var(--reports-surface);
+
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.055);
+}
+
+/* KPI labels */
+.reports-module-page.reports-workspace .card-surface .text-\[10px\] {
+  color: var(--reports-muted) !important;
+
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+/* KPI values */
+.reports-module-page.reports-workspace .card-surface .font-numeric {
+  color: var(--reports-text) !important;
+  -webkit-text-fill-color: var(--reports-text) !important;
+}
+
+/* =========================================================
+   LIGHT-MODE LEGACY TEXT FIXES
+   ========================================================= */
+
+html:not(.dark) .reports-module-page.reports-workspace .text-white,
+html:not(.dark)
+  .reports-module-page.reports-workspace
+  .font-numeric.text-white {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+html:not(.dark) .reports-module-page.reports-workspace .text-slate-200 {
+  color: #334155 !important;
+}
+
+html:not(.dark) .reports-module-page.reports-workspace .text-red-300 {
+  color: #dc2626 !important;
+}
+
+html:not(.dark) .reports-module-page.reports-workspace .text-amber-300 {
+  color: #d97706 !important;
+}
+
+/*
+ * Do not apply the generic light-mode fixes inside the hero.
+ * Hero title and buttons must keep their white/gold colors.
+ */
+html:not(.dark)
+  .reports-module-page.reports-workspace
+  > [data-testid="page-header"]
+  .text-white {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* =========================================================
+   CHART PANELS
+   ========================================================= */
+
+.reports-module-page.reports-workspace .card-surface .h-64,
+.reports-module-page.reports-workspace .card-surface .h-72 {
+  min-height: 260px;
+}
+
+.reports-module-page.reports-workspace .recharts-responsive-container {
+  min-height: 260px;
+}
+
+.reports-module-page.reports-workspace .recharts-cartesian-grid line {
+  stroke: rgba(100, 116, 139, 0.18);
+}
+
+.reports-module-page.reports-workspace .recharts-text {
+  fill: #64748b;
+}
+
+.dark .reports-module-page.reports-workspace .recharts-text {
+  fill: #94a3b8;
+}
+
+.reports-module-page.reports-workspace .recharts-tooltip-wrapper {
+  outline: none;
+}
+
+/* Chart heading */
+.reports-module-page.reports-workspace .card-surface > .text-sm.font-semibold,
+.reports-module-page.reports-workspace .card-surface h2,
+.reports-module-page.reports-workspace .card-surface h3 {
+  color: var(--reports-text) !important;
+  -webkit-text-fill-color: var(--reports-text) !important;
+}
+
+/* =========================================================
+   TABLES
+   ========================================================= */
+
+.reports-module-page.reports-workspace table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.reports-module-page.reports-workspace thead {
+  background: #f8fafc !important;
+}
+
+.dark .reports-module-page.reports-workspace thead {
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+
+.reports-module-page.reports-workspace th {
+  color: #64748b !important;
+
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.1em !important;
+}
+
+.reports-module-page.reports-workspace td {
+  color: var(--reports-text);
+  border-color: #e8edf5;
+}
+
+.dark .reports-module-page.reports-workspace td {
+  border-color: rgba(255, 255, 255, 0.065);
+}
+
+.reports-module-page.reports-workspace tbody tr {
+  transition: background-color 160ms ease;
+}
+
+.reports-module-page.reports-workspace tbody tr:hover {
+  background: #f8fbff;
+}
+
+.dark .reports-module-page.reports-workspace tbody tr:hover {
+  background: rgba(59, 130, 246, 0.055);
+}
+
+/* =========================================================
+   FILTERS AND FORM CONTROLS
+   ========================================================= */
+
+.reports-module-page.reports-workspace input,
+.reports-module-page.reports-workspace textarea,
+.reports-module-page.reports-workspace select,
+.reports-module-page.reports-workspace button[role="combobox"] {
+  min-height: 42px;
+
+  border-color: #dbe3ef;
+  border-radius: 11px;
+
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+.dark .reports-module-page.reports-workspace input,
+.dark .reports-module-page.reports-workspace textarea,
+.dark .reports-module-page.reports-workspace select,
+.dark .reports-module-page.reports-workspace button[role="combobox"] {
+  border-color: rgba(255, 255, 255, 0.1);
+
+  background-color: rgba(15, 23, 42, 0.82);
+  color: #f8fafc;
+}
+
+.reports-module-page.reports-workspace input:focus,
+.reports-module-page.reports-workspace textarea:focus,
+.reports-module-page.reports-workspace select:focus,
+.reports-module-page.reports-workspace button[role="combobox"]:focus {
+  border-color: #60a5fa !important;
+
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+
+  outline: none;
+}
+
+/* =========================================================
+   HRMS REPORT CARDS
+   ========================================================= */
+
+.reports-module-page.reports-workspace
+  .grid.gap-4.md\:grid-cols-2
+  > section.card-surface {
+  min-height: 170px;
+
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.reports-module-page.reports-workspace
+  .grid.gap-4.md\:grid-cols-2
+  > section.card-surface:hover {
+  transform: translateY(-2px);
+
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.09);
+}
+
+/* =========================================================
+   SALES REPORT DRAWER
+   ========================================================= */
+
+.reports-module-page.reports-workspace .fixed.inset-0 {
+  backdrop-filter: blur(5px);
+}
+
+.reports-module-page.reports-workspace .fixed.inset-0 > div {
+  border-left: 1px solid var(--reports-border);
+
+  box-shadow: -24px 0 70px rgba(2, 8, 23, 0.28);
+}
+
+.reports-module-page.reports-workspace button[class*="bg-blue-600"] {
+  background: linear-gradient(135deg, #0a2f5d, #14558b) !important;
+
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.reports-module-page.reports-workspace button[class*="bg-blue-600"]:hover {
+  background: linear-gradient(135deg, #0d3b70, #17649d) !important;
+}
+
+/* =========================================================
+   EXPORT BUTTONS
+   ========================================================= */
+
+.reports-module-page.reports-workspace > [data-testid="page-header"] button {
+  min-height: 38px;
+  border-radius: 11px;
+}
+
+/* =========================================================
+   ACCESSIBILITY
+   ========================================================= */
+
+.reports-module-page.reports-workspace a:focus-visible,
+.reports-module-page.reports-workspace button:focus-visible,
+.reports-module-page.reports-workspace input:focus-visible,
+.reports-module-page.reports-workspace textarea:focus-visible,
+.reports-module-page.reports-workspace select:focus-visible {
+  outline: 2px solid #fbbf24 !important;
+  outline-offset: 2px;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 767px) {
+  .reports-module-page.reports-workspace > [data-testid="page-header"] {
+    min-height: auto;
+    padding: 1.25rem;
+
+    align-items: stretch;
+    flex-direction: column;
+
+    border-radius: 20px;
+  }
+
+  .reports-module-page.reports-workspace
+    > [data-testid="page-header"]
+    > div:last-child {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .reports-module-page.reports-workspace
+    > [data-testid="page-header"]
+    > div:last-child
+    > * {
+    flex: 1 1 auto;
+  }
+
+  .reports-module-page.reports-workspace > [data-testid="page-header"] h1 {
+    font-size: 1.75rem !important;
+  }
+}
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  .reports-module-page.reports-workspace *,
+  .reports-module-page.reports-workspace *::before,
+  .reports-module-page.reports-workspace *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

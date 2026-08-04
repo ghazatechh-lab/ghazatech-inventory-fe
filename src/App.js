@@ -113,6 +113,7 @@ import VendorCreditsPage from "@/features/purchases/VendorCreditsPage";
 import VendorCreditDetailPage from "@/features/purchases/VendorCreditDetailPage";
 
 import PurchaseExpensesPage from "@/features/purchases/PurchaseExpensesPage";
+import PurchaseExpenseFormPage from "@/features/purchases/PurchaseExpenseFormPage";
 import PurchaseExpenseDetailPage from "@/features/purchases/PurchaseExpenseDetailPage";
 
 /* -------------------------------------------------------------------------- */
@@ -574,7 +575,7 @@ export default function App() {
 
               <Route
                 path="/purchases/purchase-expenses/new"
-                element={<PurchaseExpensesPage />}
+                element={<PurchaseExpenseFormPage />}
               />
 
               <Route
@@ -584,7 +585,7 @@ export default function App() {
 
               <Route
                 path="/purchases/purchase-expenses/:id/edit"
-                element={<PurchaseExpensesPage />}
+                element={<PurchaseExpenseFormPage />}
               />
 
               {/* Compatibility routes for old expense links */}

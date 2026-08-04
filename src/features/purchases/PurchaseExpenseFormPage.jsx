@@ -499,7 +499,7 @@ export default function PurchaseExpenseFormPage() {
   }
 
   return (
-    <div className="space-y-6 pb-10">
+    <div className="purchase-module-page purchase-workspace space-y-6 pb-10">
       <PageHeader
         title={isEdit ? "Edit Purchase Expense" : "New Purchase Expense"}
         subtitle="Record purchase-related expenses and payment information."

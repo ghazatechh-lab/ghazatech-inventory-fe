@@ -63,7 +63,7 @@ export default function HRMSReportPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="reports-module-page reports-workspace space-y-5">
       <PageHeader
         title="HRMS Reports"
         subtitle="Employee, attendance, leave, and payroll reports"

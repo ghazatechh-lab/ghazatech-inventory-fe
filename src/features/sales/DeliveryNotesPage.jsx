@@ -343,7 +343,7 @@ export default function DeliveryNotesPage() {
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="sales-module-page sales-workspace mx-auto max-w-7xl space-y-5">
       <PageHeader
         title="Delivery Notes"
         subtitle="Create and track deliveries against sales orders"

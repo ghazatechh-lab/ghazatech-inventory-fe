@@ -57,6 +57,15 @@ const isPathActive = (target, pathname) => {
   return currentPath === itemPath || currentPath.startsWith(`${itemPath}/`);
 };
 
+const getBestActiveTarget = (items, pathname) => {
+  const matches = (Array.isArray(items) ? items : [])
+    .map((item) => normalizePath(safePath(item)))
+    .filter((target) => target && isPathActive(target, pathname))
+    .sort((first, second) => second.length - first.length);
+
+  return matches[0] || "";
+};
+
 const isDirectModule = (module, items) => {
   if (module?.externalUrl) return true;
   if (!Array.isArray(items) || items.length !== 1) return false;
@@ -86,22 +95,23 @@ export function Sidebar({ collapsed, onToggle, onNavigate, mobile = false }) {
   const { user, logout } = useAuth();
 
   const [search, setSearch] = React.useState("");
+  const navRef = React.useRef(null);
   const visibleModules = React.useMemo(() => getVisibleModules(user), [user]);
   const activeModule = React.useMemo(
     () => getModuleByPath(location.pathname),
     [location.pathname],
   );
-  const [expandedModules, setExpandedModules] = React.useState(() => new Set());
+  /*
+   * Keep only one sidebar module expanded at a time.
+   * The module containing the current route opens automatically.
+   */
+  const [expandedModuleId, setExpandedModuleId] = React.useState(
+    () => activeModule?.id || null,
+  );
 
   React.useEffect(() => {
     if (!activeModule?.id) return;
-
-    setExpandedModules((current) => {
-      if (current.has(activeModule.id)) return current;
-      const next = new Set(current);
-      next.add(activeModule.id);
-      return next;
-    });
+    setExpandedModuleId(activeModule.id);
   }, [activeModule?.id]);
 
   const filteredModules = React.useMemo(() => {
@@ -128,7 +138,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate, mobile = false }) {
       .filter(Boolean);
   }, [search, user, visibleModules]);
 
-  const handleModuleClick = (module, items = []) => {
+  const handleModuleClick = (module, items = [], event) => {
     if (module.externalUrl) {
       window.open(module.externalUrl, "_blank", "noopener,noreferrer");
       return;
@@ -148,11 +158,20 @@ export function Sidebar({ collapsed, onToggle, onNavigate, mobile = false }) {
       return;
     }
 
-    setExpandedModules((current) => {
-      const next = new Set(current);
-      next.has(module.id) ? next.delete(module.id) : next.add(module.id);
-      return next;
-    });
+    const opening = expandedModuleId !== module.id;
+
+    setExpandedModuleId(opening ? module.id : null);
+
+    if (opening) {
+      window.requestAnimationFrame(() => {
+        window.setTimeout(() => {
+          event?.currentTarget?.scrollIntoView?.({
+            behavior: "smooth",
+            block: "start",
+          });
+        }, 180);
+      });
+    }
   };
 
   const handleLogout = async () => {
@@ -172,11 +191,13 @@ export function Sidebar({ collapsed, onToggle, onNavigate, mobile = false }) {
     <aside
       data-testid="app-sidebar"
       data-app-sidebar="true"
+      data-collapsed={collapsed && !mobile ? "true" : "false"}
+      data-mobile={mobile ? "true" : "false"}
       className={cn(
-        "relative z-30 flex h-screen shrink-0 flex-col overflow-hidden text-white",
+        "relative z-30 flex h-full min-h-0 shrink-0 flex-col overflow-hidden text-white",
         "border-r border-white/[0.08] bg-[#07162f]",
         "shadow-[18px_0_48px_rgba(2,12,30,0.20)]",
-        "transition-[width] duration-300 ease-out",
+        "sidebar-shell transition-[width,transform,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width,transform]",
         mobile ? "w-full" : collapsed ? "w-[84px]" : "w-[304px]",
       )}
     >
@@ -207,7 +228,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate, mobile = false }) {
         </button>
 
         {(!collapsed || mobile) && (
-          <div className="min-w-0 flex-1">
+          <div className="sidebar-brand-copy min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <p className="sidebar-user-label truncate text-[15px] font-extrabold tracking-[0.02em]">
                 {APP_NAME}
@@ -236,7 +257,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate, mobile = false }) {
 
       {(!collapsed || mobile) && (
         <div className="relative px-4 pb-2 pt-4">
-          <div className="group flex items-center gap-2.5 rounded-2xl border border-white/[0.09] bg-white/[0.055] px-3.5 py-3 shadow-inner shadow-black/10 backdrop-blur-xl transition focus-within:border-amber-200/35 focus-within:bg-white/[0.08]">
+          <div className="sidebar-search group flex items-center gap-2.5 rounded-2xl border border-white/[0.09] bg-white/[0.055] px-3.5 py-3 shadow-inner shadow-black/10 backdrop-blur-xl transition focus-within:border-amber-200/35 focus-within:bg-white/[0.08]">
             <Search className="h-4 w-4 shrink-0 !text-white/80" />
             <input
               value={search}
@@ -258,7 +279,10 @@ export function Sidebar({ collapsed, onToggle, onNavigate, mobile = false }) {
         </div>
       )}
 
-      <nav className="relative flex-1 overflow-y-auto px-3 py-3 [scrollbar-color:rgba(255,255,255,0.14)_transparent] [scrollbar-width:thin]">
+      <nav
+        ref={navRef}
+        className="sidebar-nav relative flex-1 overflow-y-auto px-3 py-3 [scrollbar-color:rgba(255,255,255,0.14)_transparent] [scrollbar-width:thin]"
+      >
         {(!collapsed || mobile) && (
           <div className="mb-2 flex items-center justify-between px-2.5 py-1.5">
             <p className="sidebar-section-label text-[11px] font-extrabold uppercase tracking-[0.16em]">
@@ -271,43 +295,52 @@ export function Sidebar({ collapsed, onToggle, onNavigate, mobile = false }) {
         <div className="space-y-1.5">
           {filteredModules.map((module) => {
             const ModuleIcon = module.icon || Grid2X2;
-            const moduleActive = activeModule?.id === module.id;
+            const routeActive = activeModule?.id === module.id;
             const expanded =
               (!collapsed || mobile) &&
-              (expandedModules.has(module.id) || Boolean(search.trim()));
+              (expandedModuleId === module.id || Boolean(search.trim()));
             const items = (module.items || []).filter((item) =>
               canAccessNavigationItem(item, user),
             );
             const directModule = isDirectModule(module, items);
 
+            /*
+             * Accordion modules must highlight the module the user opened,
+             * even before a submenu route is selected. Direct modules still
+             * follow the current URL.
+             */
+            const moduleSelected = directModule
+              ? routeActive
+              : expandedModuleId === module.id;
+
             return (
-              <div key={module.id} className="space-y-1">
+              <div key={module.id} className="sidebar-module space-y-1">
                 <button
                   type="button"
-                  onClick={() => handleModuleClick(module, items)}
+                  onClick={(event) => handleModuleClick(module, items, event)}
                   title={
                     collapsed && !mobile
                       ? module.shortTitle || module.title
                       : undefined
                   }
                   className={cn(
-                    "group relative flex w-full items-center overflow-hidden rounded-2xl border !text-white transition-all duration-200",
+                    "sidebar-module-button group relative flex w-full items-center overflow-hidden rounded-2xl border !text-white transition-all duration-200",
                     collapsed && !mobile
                       ? "h-12 justify-center border-transparent px-2"
                       : "gap-3 px-3.5 py-3",
-                    moduleActive
+                    moduleSelected
                       ? "sidebar-module-active border-amber-200/20 bg-gradient-to-r from-amber-300/[0.14] via-white/[0.07] to-cyan-300/[0.05] shadow-[0_12px_28px_rgba(1,9,24,0.24)]"
                       : "border-transparent hover:border-white/[0.10] hover:bg-white/[0.065]",
                   )}
                 >
-                  {moduleActive && (
+                  {moduleSelected && (
                     <span className="absolute inset-y-2 left-0 w-[3px] rounded-r-full bg-gradient-to-b from-amber-200 via-amber-400 to-amber-500 shadow-[0_0_14px_rgba(251,191,36,0.55)]" />
                   )}
 
                   <span
                     className={cn(
                       "flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] border transition-all",
-                      moduleActive
+                      moduleSelected
                         ? "border-amber-100/20 bg-amber-300/[0.14] !text-amber-200"
                         : "border-white/[0.07] bg-white/[0.045] !text-white/90 group-hover:bg-white/[0.09] group-hover:!text-white",
                     )}
@@ -341,20 +374,41 @@ export function Sidebar({ collapsed, onToggle, onNavigate, mobile = false }) {
                 </button>
 
                 {expanded && !module.externalUrl && !directModule && (
-                  <div className="relative ml-[27px] space-y-1 border-l border-white/[0.12] py-1 pl-4">
+                  <div className="sidebar-submenu relative ml-[27px] space-y-1 border-l border-white/[0.12] py-1 pl-4">
                     {items.map((item) => {
                       const target = normalizePath(safePath(item));
+                      const bestActiveTarget = getBestActiveTarget(
+                        items,
+                        location.pathname,
+                      );
                       const Icon = item.icon || Grid2X2;
-                      const active = isPathActive(target, location.pathname);
+                      const active = target === bestActiveTarget;
+
+                      /*
+                       * React Router NavLink uses prefix matching unless `end`
+                       * is enabled. For example, `/settings` also matches
+                       * `/settings/users-roles`. Enable exact matching whenever
+                       * an item is the parent path of another sibling item.
+                       */
+                      const requiresExactMatch = items.some((otherItem) => {
+                        const otherTarget = normalizePath(safePath(otherItem));
+
+                        return (
+                          otherTarget &&
+                          otherTarget !== target &&
+                          otherTarget.startsWith(`${target}/`)
+                        );
+                      });
 
                       return (
                         <NavLink
                           key={item.id || target}
                           to={target}
+                          end={requiresExactMatch}
                           onClick={() => onNavigate?.()}
                           data-testid={createTestId(item)}
                           className={cn(
-                            "group relative flex items-center gap-3 rounded-xl border px-3.5 py-3 text-[13px] !text-white transition-all duration-200",
+                            "sidebar-submenu-item group relative flex items-center gap-3 rounded-xl border px-3.5 py-3 text-[13px] !text-white transition-all duration-200",
                             active
                               ? "border-amber-200/30 bg-gradient-to-r from-[#123d73] to-[#0d315f] font-bold shadow-[0_8px_24px_rgba(1,9,24,0.28)]"
                               : "border-transparent font-semibold hover:translate-x-0.5 hover:border-white/[0.06] hover:bg-white/[0.06]",
@@ -404,7 +458,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate, mobile = false }) {
         </div>
       </nav>
 
-      <div className="relative border-t border-white/[0.08] bg-black/[0.08] p-3 backdrop-blur-xl">
+      <div className="sidebar-footer relative border-t border-white/[0.08] bg-black/[0.08] p-3 backdrop-blur-xl">
         {(!collapsed || mobile) && (
           <div className="mb-2.5 flex items-center gap-3 rounded-2xl border border-white/[0.09] bg-white/[0.045] p-2.5">
             <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 text-xs font-extrabold text-[#08214a] shadow-lg shadow-black/20">
@@ -447,7 +501,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate, mobile = false }) {
             type="button"
             onClick={onToggle}
             data-testid="sidebar-toggle-btn"
-            className="mt-2 flex h-9 w-full items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.035] !text-white/80 transition duration-200 hover:border-amber-200/15 hover:bg-white/[0.07] hover:!text-amber-200"
+            className="sidebar-toggle mt-2 flex h-9 w-full items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.035] !text-white/80 transition duration-200 hover:border-amber-200/15 hover:bg-white/[0.07] hover:!text-amber-200"
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? (

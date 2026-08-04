@@ -104,6 +104,8 @@ export default function ShipmentFormPage() {
   });
 
   const [errors, setErrors] = React.useState({});
+  const [purchaseOrderSearch, setPurchaseOrderSearch] = React.useState("");
+  const [supplierSearch, setSupplierSearch] = React.useState("");
 
   React.useEffect(() => {
     if (!edit && branchId) {
@@ -134,6 +136,49 @@ export default function ShipmentFormPage() {
   const purchaseOrders = normalizeList(options.purchase_orders);
 
   const suppliers = normalizeList(options.suppliers);
+
+  const filteredPurchaseOrders = React.useMemo(() => {
+    const search = purchaseOrderSearch.trim().toLowerCase();
+
+    if (!search) {
+      return purchaseOrders;
+    }
+
+    return purchaseOrders.filter((order) =>
+      [
+        order.po_number,
+        order.supplier_name,
+        order.branch_name,
+        order.branch_code,
+        order.status,
+        order.reference_number,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(search)),
+    );
+  }, [purchaseOrders, purchaseOrderSearch]);
+
+  const filteredSuppliers = React.useMemo(() => {
+    const search = supplierSearch.trim().toLowerCase();
+
+    if (!search) {
+      return suppliers;
+    }
+
+    return suppliers.filter((supplier) =>
+      [
+        supplier.supplier_name,
+        supplier.supplier_code,
+        supplier.contact_person,
+        supplier.email,
+        supplier.phone,
+        supplier.phone_number,
+        supplier.tax_registration_number,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(search)),
+    );
+  }, [suppliers, supplierSearch]);
 
   const allBranches = normalizeList(options.branches);
 
@@ -299,6 +344,8 @@ export default function ShipmentFormPage() {
   };
 
   const selectPurchaseOrder = (value) => {
+    setPurchaseOrderSearch("");
+
     const order = purchaseOrders.find(
       (item) => String(item.id) === String(value),
     );
@@ -360,6 +407,7 @@ export default function ShipmentFormPage() {
   };
 
   const selectSupplier = (value) => {
+    setSupplierSearch("");
     updateForm("supplier", value);
 
     setForm((current) => ({
@@ -636,7 +684,7 @@ export default function ShipmentFormPage() {
   }
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-5 pb-10">
+    <div className="purchase-module-page purchase-workspace mx-auto max-w-[1500px] space-y-5 pb-10">
       <PageHeader
         title={edit ? "Edit Shipment" : "New Shipment"}
         subtitle="Receive purchased items and add accepted quantities to branch stock"
@@ -702,14 +750,45 @@ export default function ShipmentFormPage() {
                 <SelectValue placeholder="Select Purchase Order" />
               </SelectTrigger>
 
-              <SelectContent className="max-h-72">
-                {purchaseOrders.map((order) => (
-                  <SelectItem key={order.id} value={String(order.id)}>
-                    {order.po_number}
-                    {" · "}
-                    {order.supplier_name}
-                  </SelectItem>
-                ))}
+              <SelectContent className="max-h-80 p-0">
+                <div
+                  className="sticky top-0 z-10 border-b bg-popover p-2"
+                  onKeyDown={(event) => event.stopPropagation()}
+                >
+                  <Input
+                    autoFocus
+                    value={purchaseOrderSearch}
+                    onChange={(event) =>
+                      setPurchaseOrderSearch(event.target.value)
+                    }
+                    onClick={(event) => event.stopPropagation()}
+                    placeholder="Search PO number, supplier or branch"
+                  />
+                </div>
+
+                <div className="max-h-64 overflow-y-auto p-1">
+                  {filteredPurchaseOrders.length ? (
+                    filteredPurchaseOrders.map((order) => (
+                      <SelectItem key={order.id} value={String(order.id)}>
+                        <div>
+                          <div className="font-medium">{order.po_number}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {[
+                              order.supplier_name,
+                              order.branch_code || order.branch_name,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </div>
+                        </div>
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                      No purchase orders match your search.
+                    </div>
+                  )}
+                </div>
               </SelectContent>
             </Select>
 
@@ -732,12 +811,43 @@ export default function ShipmentFormPage() {
                 <SelectValue placeholder="Select supplier" />
               </SelectTrigger>
 
-              <SelectContent className="max-h-72">
-                {suppliers.map((supplier) => (
-                  <SelectItem key={supplier.id} value={String(supplier.id)}>
-                    {supplier.supplier_name}
-                  </SelectItem>
-                ))}
+              <SelectContent className="max-h-80 p-0">
+                <div
+                  className="sticky top-0 z-10 border-b bg-popover p-2"
+                  onKeyDown={(event) => event.stopPropagation()}
+                >
+                  <Input
+                    autoFocus
+                    value={supplierSearch}
+                    onChange={(event) => setSupplierSearch(event.target.value)}
+                    onClick={(event) => event.stopPropagation()}
+                    placeholder="Search supplier name, code or contact"
+                  />
+                </div>
+
+                <div className="max-h-64 overflow-y-auto p-1">
+                  {filteredSuppliers.length ? (
+                    filteredSuppliers.map((supplier) => (
+                      <SelectItem key={supplier.id} value={String(supplier.id)}>
+                        <div>
+                          <div>{supplier.supplier_name}</div>
+                          {(supplier.supplier_code ||
+                            supplier.contact_person) && (
+                            <div className="text-xs text-muted-foreground">
+                              {[supplier.supplier_code, supplier.contact_person]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </div>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                      No suppliers match your search.
+                    </div>
+                  )}
+                </div>
               </SelectContent>
             </Select>
 

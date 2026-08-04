@@ -343,7 +343,7 @@ export default function BudgetingPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="finance-module-page finance-workspace space-y-6">
       <PageHeader
         title="Budgeting"
         subtitle={

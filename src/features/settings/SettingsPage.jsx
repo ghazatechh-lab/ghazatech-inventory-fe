@@ -195,7 +195,7 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="settings-module-page settings-workspace space-y-6">
       <PageHeader
         title="Settings"
         subtitle="Manage your account, security, preferences, users, roles, and permissions"

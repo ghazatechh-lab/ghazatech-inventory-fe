@@ -122,7 +122,7 @@ export default function GRNListPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="purchase-module-page purchase-workspace space-y-6">
       <PageHeader
         title="Goods Received Notes"
         subtitle="Manage purchase receipts, QC, accepted quantities, and uploaded documents."

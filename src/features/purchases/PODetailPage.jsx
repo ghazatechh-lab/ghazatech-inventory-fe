@@ -377,7 +377,7 @@ export default function PODetailPage() {
                         className="border-b"
                       >
                         <td className="px-4 py-4">
-                          <div className="flex items-center gap-3">
+                          <div className="purchase-module-page purchase-workspace flex items-center gap-3">
                             <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted">
                               {item.product_image ? (
                                 <img

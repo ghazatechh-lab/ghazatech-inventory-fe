@@ -77,7 +77,7 @@ export default function PayslipPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6 print:max-w-none print:p-0">
+    <div className="hrms-module-page hrms-payslip-page mx-auto max-w-4xl space-y-4 p-4 sm:p-6 print:max-w-none print:p-0">
       <div className="flex items-center justify-between gap-3 print:hidden">
         <Button variant="outline" onClick={() => navigate("/hrms/payroll")}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Payroll

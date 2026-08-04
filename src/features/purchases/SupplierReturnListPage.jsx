@@ -1,13 +1,12 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { AlertCircle, Plus, RefreshCcw } from "lucide-react";
+import { AlertCircle, Eye, Plus, RefreshCcw } from "lucide-react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import api from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ListingRowActions } from "@/components/common/ListingRowActions";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { normalizeApiResponse, rowsFromPayload } from "./purchaseUi";
@@ -37,7 +36,7 @@ export default function SupplierReturnListPage() {
   );
 
   const query = useQuery({
-    queryKey: ["/purchases/supplier-returns/", params],
+    queryKey: ["supplier-returns", params],
     queryFn: async () => {
       const response = await api.get("/purchases/supplier-returns/", {
         params,
@@ -56,70 +55,13 @@ export default function SupplierReturnListPage() {
   const total = Number(payload.count || payload.total || rows.length);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const columns = [
-    {
-      key: "return_number",
-      header: "Return #",
-      cell: (row) => (
-        <Link
-          className="font-medium text-blue-600 hover:underline"
-          to={`/purchases/supplier-returns/${row.id}`}
-        >
-          {row.return_number || `Return ${row.id}`}
-        </Link>
-      ),
-    },
-    { key: "grn_number", header: "GRN", cell: (row) => row.grn_number || "—" },
-    {
-      key: "supplier_name",
-      header: "Supplier",
-      cell: (row) => row.supplier_name || "—",
-    },
-    {
-      key: "return_date",
-      header: "Date",
-      cell: (row) =>
-        row.return_date ? <DateText value={row.return_date} /> : "—",
-    },
-    {
-      key: "reason",
-      header: "Reason",
-      cell: (row) => row.reason_display || row.reason || "—",
-    },
-    {
-      key: "total_amount",
-      header: "Amount",
-      align: "right",
-      cell: (row) => <CurrencyText value={row.total_amount} />,
-    },
-    {
-      key: "status",
-      header: "Status",
-      cell: (row) => <StatusBadge status={row.status || "DRAFT"} />,
-    },
-    {
-      key: "actions",
-      header: "Actions",
-      align: "right",
-      cell: (row) => (
-        <ListingRowActions
-          viewTo={`/purchases/supplier-returns/${row.id}`}
-          editTo={`/purchases/supplier-returns/${row.id}/edit`}
-          deleteUrl={`/purchases/supplier-returns/${row.id}/`}
-          queryKey="supplier-returns"
-          itemLabel={row.return_number || "return"}
-        />
-      ),
-    },
-  ];
-
   return (
-    <div className="space-y-6">
+    <div className="purchase-module-page purchase-workspace space-y-6">
       <PageHeader
         title="Supplier Returns"
-        subtitle="Manage products returned against confirmed GRNs and vendor resolutions."
+        subtitle="Create returns from confirmed GRNs, approve stock deductions, and complete vendor credit settlement."
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               type="button"
               variant="outline"
@@ -132,18 +74,23 @@ export default function SupplierReturnListPage() {
             <Button asChild>
               <Link to="/purchases/supplier-returns/new">
                 <Plus className="mr-2 h-4 w-4" />
-                New
+                New Return
               </Link>
             </Button>
           </div>
         }
       />
 
+      <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+        Correct flow: create from a confirmed GRN → submit for approval →
+        approve stock OUT → issue vendor credit or adjust the next bill.
+      </div>
+
       <div className="rounded-2xl border bg-card p-4">
         <Input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search supplier returns"
+          placeholder="Search return number, supplier, GRN, reason or status"
         />
       </div>
 
@@ -165,53 +112,92 @@ export default function SupplierReturnListPage() {
 
       <div className="overflow-hidden rounded-2xl border bg-card">
         <div className="overflow-x-auto">
-          <table className="min-w-[1200px] w-full text-sm">
+          <table className="min-w-[1120px] w-full text-sm">
             <thead className="border-b bg-muted/40">
               <tr>
-                {columns.map((column) => (
+                {[
+                  "Return #",
+                  "GRN",
+                  "Supplier",
+                  "Date",
+                  "Reason",
+                  "Items",
+                  "Amount",
+                  "Status",
+                  "Action",
+                ].map((label) => (
                   <th
-                    key={column.key}
-                    className={`px-4 py-3 text-xs font-semibold uppercase tracking-wide ${column.align === "right" ? "text-right" : "text-left"}`}
+                    key={label}
+                    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
                   >
-                    {column.header}
+                    {label}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.id} className="border-b last:border-b-0">
-                  {columns.map((column) => (
-                    <td
-                      key={column.key}
-                      className={`px-4 py-4 ${column.align === "right" ? "text-right" : "text-left"}`}
+                <tr
+                  key={row.id}
+                  className="border-b last:border-b-0 hover:bg-muted/25"
+                >
+                  <td className="px-4 py-4">
+                    <Link
+                      className="font-semibold text-blue-600 hover:underline"
+                      to={`/purchases/supplier-returns/${row.id}`}
                     >
-                      {column.cell
-                        ? column.cell(row)
-                        : (row[column.key] ?? "—")}
-                    </td>
-                  ))}
+                      {row.return_number || `Return ${row.id}`}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-4">{row.grn_number || "—"}</td>
+                  <td className="px-4 py-4">{row.supplier_name || "—"}</td>
+                  <td className="px-4 py-4">
+                    {row.return_date ? (
+                      <DateText value={row.return_date} />
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="px-4 py-4">
+                    {row.reason_display || row.reason || "—"}
+                  </td>
+                  <td className="px-4 py-4">
+                    {row.item_count ?? row.items?.length ?? 0}
+                  </td>
+                  <td className="px-4 py-4">
+                    <CurrencyText value={row.total_amount} />
+                  </td>
+                  <td className="px-4 py-4">
+                    <StatusBadge status={row.status || "DRAFT"} />
+                  </td>
+                  <td className="px-4 py-4">
+                    <Button asChild variant="outline" size="sm">
+                      <Link to={`/purchases/supplier-returns/${row.id}`}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        Open
+                      </Link>
+                    </Button>
+                  </td>
                 </tr>
               ))}
 
               {query.isLoading ? (
                 <tr>
                   <td
-                    colSpan={columns.length}
+                    colSpan="9"
                     className="p-12 text-center text-muted-foreground"
                   >
                     Loading...
                   </td>
                 </tr>
               ) : null}
-
               {!query.isLoading && !query.isError && !rows.length ? (
                 <tr>
                   <td
-                    colSpan={columns.length}
+                    colSpan="9"
                     className="p-12 text-center text-muted-foreground"
                   >
-                    No records found.
+                    No supplier returns found.
                   </td>
                 </tr>
               ) : null}

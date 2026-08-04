@@ -22,7 +22,7 @@ export default function DocumentExpiryPage() {
   const rows = Array.isArray(response) ? response : response?.results || [];
 
   return (
-    <div className="space-y-5">
+    <div className="hrms-module-page hrms-workspace space-y-5">
       <PageHeader
         title="Document Expiry"
         subtitle="Passport, visa, Emirates ID, contract, and employee document alerts"

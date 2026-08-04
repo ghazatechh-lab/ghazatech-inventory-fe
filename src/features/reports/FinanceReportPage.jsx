@@ -13,7 +13,7 @@ export default function FinanceReportPage() {
   const expTotal = (expenses.results || []).reduce((s, e) => s + e.amount, 0);
   const recvTotal = (receivables || []).reduce((s, r) => s + r.total, 0);
   return (
-    <div>
+    <div className="reports-module-page reports-workspace space-y-5">
       <PageHeader title="Finance report" subtitle="Aggregated financial summary" actions={<ExportButtons />} />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="card-surface p-5"><div className="text-[10px] uppercase tracking-widest text-slate-500">Total expenses</div><div className="mt-1 text-2xl font-semibold font-numeric text-red-300">{formatAED(expTotal)}</div></div>

@@ -23,7 +23,7 @@ export default function BranchConsolidationPage() {
   const branches = Array.isArray(d.branches) ? d.branches : [];
   const rows = Array.isArray(d.rows) ? d.rows : [];
   return (
-    <div className="space-y-6">
+    <div className="finance-module-page finance-workspace space-y-6">
       <PageHeader
         title="Branch Consolidation"
         subtitle="Combined view across Head Office and all branches, with inter-branch balances eliminated."

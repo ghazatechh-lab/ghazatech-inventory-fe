@@ -166,7 +166,7 @@ export default function LeavesPage() {
   });
 
   return (
-    <div className="space-y-5">
+    <div className="hrms-module-page hrms-workspace space-y-5">
       <PageHeader
         title="Leave Requests"
         subtitle="Pending and historical leave applications"

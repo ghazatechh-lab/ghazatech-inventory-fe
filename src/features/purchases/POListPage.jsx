@@ -197,7 +197,7 @@ export default function POListPage() {
   );
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5">
+    <div className="purchase-module-page purchase-workspace mx-auto max-w-7xl space-y-5">
       <PageHeader
         title="Purchase Orders"
         subtitle="Orders raised against suppliers, tracked to delivery"

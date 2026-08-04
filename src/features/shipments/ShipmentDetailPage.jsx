@@ -156,7 +156,7 @@ export default function ShipmentDetailPage() {
     : [];
 
   return (
-    <div className="space-y-6">
+    <div className="purchase-module-page purchase-workspace space-y-6">
       <PageHeader
         title={shipment.shipment_number || `Shipment ${id}`}
         subtitle="Complete shipment and received-product information."

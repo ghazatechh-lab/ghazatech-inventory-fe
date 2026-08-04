@@ -208,7 +208,7 @@ export default function PurchaseExpensesPage() {
   const total = Number(payload.count ?? payload.data?.count ?? rows.length);
 
   return (
-    <div className="space-y-5">
+    <div className="purchase-module-page purchase-workspace space-y-5">
       <PageHeader
         title="Purchase Expenses"
         subtitle="Non-stock operating costs across branches"

@@ -223,7 +223,7 @@ export default function AccountingCrudPage({
   };
 
   return (
-    <div className="space-y-5">
+    <div className="finance-module-page finance-workspace space-y-5">
       <PageHeader
         title={title}
         subtitle={`${subtitle}${

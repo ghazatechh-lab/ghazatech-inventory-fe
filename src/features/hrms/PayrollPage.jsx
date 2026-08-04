@@ -24,7 +24,16 @@ import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { MetricCard } from "@/components/sales/MetricCard";
 import { normalizeList } from "./hrmsUtils";
 
-const today = new Date().toISOString().slice(0, 10);
+const getLocalDateValue = () => {
+  const date = new Date();
+  const timezoneOffset = date.getTimezoneOffset();
+
+  return new Date(date.getTime() - timezoneOffset * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+};
+
+const today = getLocalDateValue();
 const currentPeriod = today.slice(0, 7);
 
 const numberValue = (value) => {
@@ -50,6 +59,8 @@ export default function PayrollPage() {
   const [period, setPeriod] = React.useState(currentPeriod);
   const [advancePeriod, setAdvancePeriod] = React.useState(currentPeriod);
   const [advanceSearch, setAdvanceSearch] = React.useState("");
+  const [payrollEmployeeSearch, setPayrollEmployeeSearch] = React.useState("");
+  const [advanceEmployeeSearch, setAdvanceEmployeeSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("");
 
   const [payrollOpen, setPayrollOpen] = React.useState(false);
@@ -150,6 +161,46 @@ export default function PayrollPage() {
   const eligible = normalizeList(eligibleResponse);
   const advanceEmployees = normalizeList(advanceOptions.employees);
 
+  const filteredEligibleEmployees = React.useMemo(() => {
+    const search = payrollEmployeeSearch.trim().toLowerCase();
+
+    if (!search) {
+      return eligible;
+    }
+
+    return eligible.filter((employee) =>
+      [
+        employee.full_name,
+        employee.employee_code,
+        employee.branch_name,
+        employee.designation_name,
+        employee.department_name,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(search)),
+    );
+  }, [eligible, payrollEmployeeSearch]);
+
+  const filteredAdvanceEmployees = React.useMemo(() => {
+    const search = advanceEmployeeSearch.trim().toLowerCase();
+
+    if (!search) {
+      return advanceEmployees;
+    }
+
+    return advanceEmployees.filter((employee) =>
+      [
+        employee.full_name,
+        employee.employee_code,
+        employee.branch_name,
+        employee.designation_name,
+        employee.department_name,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(search)),
+    );
+  }, [advanceEmployees, advanceEmployeeSearch]);
+
   const selectedAdvanceEmployee = advanceEmployees.find(
     (employee) => String(employee.id) === String(advanceForm.employee),
   );
@@ -188,6 +239,7 @@ export default function PayrollPage() {
   const openPayrollModal = () => {
     setPayrollDate(today);
     setPaidBy("");
+    setPayrollEmployeeSearch("");
     setSelectedBranch(branchId ? String(branchId) : "");
     setSelectedEmployees([]);
     setPayableDays({});
@@ -195,6 +247,7 @@ export default function PayrollPage() {
   };
 
   const openAdvanceModal = () => {
+    setAdvanceEmployeeSearch("");
     setAdvanceForm({
       ...emptyAdvance,
       period,
@@ -303,6 +356,28 @@ export default function PayrollPage() {
 
     if (numberValue(advanceForm.amount) <= 0) {
       toast.error("Enter a valid advance amount.");
+      return;
+    }
+
+    if (!advanceForm.period) {
+      toast.error("Select a deduction period.");
+      return;
+    }
+
+    if (advanceForm.period < currentPeriod) {
+      toast.error(
+        "Previous months cannot be selected as the deduction period.",
+      );
+      return;
+    }
+
+    if (!advanceForm.advance_date) {
+      toast.error("Select an advance date.");
+      return;
+    }
+
+    if (advanceForm.advance_date < today) {
+      toast.error("Previous dates cannot be selected for advance salary.");
       return;
     }
 
@@ -451,7 +526,7 @@ export default function PayrollPage() {
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="hrms-module-page hrms-workspace space-y-5">
       <PageHeader
         title="Payroll"
         subtitle="Review previous salaries, manage advance salary, and generate payroll from the action button"
@@ -685,7 +760,7 @@ export default function PayrollPage() {
                   variant="outline"
                   onClick={() =>
                     setSelectedEmployees(
-                      eligible
+                      filteredEligibleEmployees
                         .filter((item) => !item.already_generated)
                         .map((item) => item.id),
                     )
@@ -695,13 +770,21 @@ export default function PayrollPage() {
                 </Button>
               </div>
 
+              <div className="mt-3">
+                <SearchInput
+                  value={payrollEmployeeSearch}
+                  onChange={setPayrollEmployeeSearch}
+                  placeholder="Search employee name, code, branch or designation"
+                />
+              </div>
+
               <div className="mt-3 max-h-[430px] divide-y overflow-y-auto rounded-xl border">
                 {eligibleLoading ? (
                   <p className="p-8 text-center text-muted-foreground">
                     Loading employees...
                   </p>
-                ) : eligible.length ? (
-                  eligible.map((employee) => {
+                ) : filteredEligibleEmployees.length ? (
+                  filteredEligibleEmployees.map((employee) => {
                     const totalDays =
                       numberValue(employee.total_period_days) || 30;
                     const days = numberValue(
@@ -791,7 +874,9 @@ export default function PayrollPage() {
                   })
                 ) : (
                   <p className="p-8 text-center text-muted-foreground">
-                    No eligible employees found.
+                    {payrollEmployeeSearch
+                      ? "No employees match your search."
+                      : "No eligible employees found."}
                   </p>
                 )}
               </div>
@@ -969,22 +1054,48 @@ export default function PayrollPage() {
                 <Label>Employee *</Label>
                 <Select
                   value={advanceForm.employee}
-                  onValueChange={(value) =>
+                  onValueChange={(value) => {
                     setAdvanceForm((current) => ({
                       ...current,
                       employee: value,
-                    }))
-                  }
+                    }));
+                    setAdvanceEmployeeSearch("");
+                  }}
                 >
                   <SelectTrigger className="mt-2">
                     <SelectValue placeholder="Select employee" />
                   </SelectTrigger>
-                  <SelectContent className="max-h-72">
-                    {advanceEmployees.map((employee) => (
-                      <SelectItem key={employee.id} value={String(employee.id)}>
-                        {employee.employee_code} — {employee.full_name}
-                      </SelectItem>
-                    ))}
+                  <SelectContent className="max-h-72 p-0">
+                    <div
+                      className="sticky top-0 z-10 border-b bg-popover p-2"
+                      onKeyDown={(event) => event.stopPropagation()}
+                    >
+                      <Input
+                        value={advanceEmployeeSearch}
+                        onChange={(event) =>
+                          setAdvanceEmployeeSearch(event.target.value)
+                        }
+                        placeholder="Search employee name or code"
+                        onClick={(event) => event.stopPropagation()}
+                      />
+                    </div>
+
+                    <div className="max-h-60 overflow-y-auto p-1">
+                      {filteredAdvanceEmployees.length ? (
+                        filteredAdvanceEmployees.map((employee) => (
+                          <SelectItem
+                            key={employee.id}
+                            value={String(employee.id)}
+                          >
+                            {employee.employee_code} — {employee.full_name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                          No employees match your search.
+                        </div>
+                      )}
+                    </div>
                   </SelectContent>
                 </Select>
               </div>
@@ -1026,6 +1137,7 @@ export default function PayrollPage() {
                 <Label>Deduction Period *</Label>
                 <Input
                   type="month"
+                  min={currentPeriod}
                   className="mt-2"
                   value={advanceForm.period}
                   onChange={(event) =>
@@ -1041,6 +1153,7 @@ export default function PayrollPage() {
                 <Label>Advance Date *</Label>
                 <Input
                   type="date"
+                  min={today}
                   className="mt-2"
                   value={advanceForm.advance_date}
                   onChange={(event) =>

@@ -609,7 +609,7 @@ export default function InvoiceFormPage() {
     sourceOrder?.order_number || existing?.sales_order_number || "";
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 pb-10">
+    <div className="sales-module-page sales-workspace mx-auto max-w-7xl space-y-5 pb-10">
       <PageHeader
         title={isEdit ? "Edit Invoice" : "New Invoice"}
         subtitle="Bill against a confirmed Sales Order or raise a standalone invoice"

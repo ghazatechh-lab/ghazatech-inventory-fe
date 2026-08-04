@@ -214,7 +214,7 @@ export default function EmployeeListPage() {
   );
 
   return (
-    <div className="space-y-5">
+    <div className="hrms-module-page hrms-workspace space-y-5">
       <PageHeader
         title="Employees"
         subtitle={

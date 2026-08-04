@@ -1,0 +1,289 @@
+/* =========================================================
+   GHAZATECH — SETTINGS MODULE STANDARD DESIGN
+   File: src/styles/settings-module.css
+   Import this file LAST in src/index.css.
+   ========================================================= */
+
+.settings-module-page {
+  --settings-navy-950: #06142c;
+  --settings-navy-900: #08264a;
+  --settings-navy-800: #104879;
+  --settings-blue: #2563eb;
+  --settings-cyan: #38bdf8;
+  --settings-gold: #fbbf24;
+  --settings-green: #10b981;
+  --settings-border: #dbe3ef;
+  --settings-surface: #ffffff;
+  --settings-muted: #64748b;
+  width: 100%;
+  padding-bottom: 2.5rem;
+}
+
+.dark .settings-module-page {
+  --settings-border: rgba(255, 255, 255, 0.09);
+  --settings-surface: #0f172a;
+  --settings-muted: #94a3b8;
+}
+
+/* Premium settings hero */
+.settings-workspace > [data-testid="page-header"] {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 154px;
+  margin-bottom: 1.5rem !important;
+  padding: 1.75rem 1.8rem;
+  align-items: center;
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  border-radius: 24px;
+  background:
+    radial-gradient(
+      circle at 92% 0%,
+      rgba(56, 189, 248, 0.24),
+      transparent 31%
+    ),
+    radial-gradient(
+      circle at 78% 120%,
+      rgba(251, 191, 36, 0.13),
+      transparent 29%
+    ),
+    linear-gradient(135deg, #06142c 0%, #092b55 55%, #18537f 100%);
+  box-shadow:
+    0 24px 58px rgba(15, 23, 42, 0.17),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.settings-workspace > [data-testid="page-header"]::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: -92px;
+  bottom: -168px;
+  width: 270px;
+  height: 270px;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.settings-workspace > [data-testid="page-header"] > div:first-child::before {
+  content: "SYSTEM ADMINISTRATION";
+  display: block;
+  margin-bottom: 0.45rem;
+  color: #7dd3fc !important;
+  -webkit-text-fill-color: #7dd3fc !important;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+}
+
+.settings-workspace > [data-testid="page-header"] h1,
+.settings-workspace > [data-testid="page-header"] .text-transparent,
+.settings-workspace > [data-testid="page-header"] .bg-clip-text {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: none !important;
+  background-image: none !important;
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  font-size: clamp(1.8rem, 2.6vw, 2.4rem) !important;
+  font-weight: 900 !important;
+  line-height: 1.12 !important;
+  letter-spacing: -0.035em !important;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+}
+
+.settings-workspace > [data-testid="page-header"] p {
+  max-width: 810px;
+  color: #dbeafe !important;
+  -webkit-text-fill-color: #dbeafe !important;
+  opacity: 1 !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 1.65 !important;
+}
+
+/* Tabs */
+.settings-workspace [role="tablist"] {
+  min-height: 48px;
+  padding: 0.4rem;
+  gap: 0.35rem;
+  border: 1px solid var(--settings-border);
+  border-radius: 16px;
+  background: var(--settings-surface);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.045);
+}
+
+.settings-workspace [role="tab"] {
+  min-height: 40px;
+  border-radius: 11px;
+  font-weight: 700;
+}
+
+.settings-workspace [role="tab"][data-state="active"] {
+  background: linear-gradient(135deg, #0f3d72, #18558a) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 18px rgba(14, 58, 111, 0.2);
+}
+
+/* Cards */
+.settings-workspace .card-surface,
+.settings-workspace > section {
+  position: relative;
+  overflow: hidden;
+  border-color: var(--settings-border);
+  border-radius: 20px;
+  background: var(--settings-surface);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.055);
+}
+
+.settings-workspace .card-surface::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, #38bdf8, #2563eb, #10b981, #fbbf24);
+  opacity: 0.7;
+}
+
+.dark .settings-workspace .card-surface {
+  box-shadow: none;
+}
+
+/* Inputs and selects */
+.settings-workspace input,
+.settings-workspace textarea,
+.settings-workspace select,
+.settings-workspace button[role="combobox"] {
+  min-height: 42px;
+  border-color: #dbe3ef;
+  border-radius: 11px;
+}
+
+.dark .settings-workspace input,
+.dark .settings-workspace textarea,
+.dark .settings-workspace select,
+.dark .settings-workspace button[role="combobox"] {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.settings-workspace input:focus,
+.settings-workspace textarea:focus,
+.settings-workspace select:focus {
+  border-color: #60a5fa !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  outline: none;
+}
+
+/* Tables */
+.settings-workspace table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.settings-workspace thead {
+  background: #f8fafc !important;
+}
+
+.dark .settings-workspace thead {
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+
+.settings-workspace th {
+  color: #64748b !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.1em !important;
+}
+
+.settings-workspace tbody tr:hover {
+  background: #f8fbff;
+}
+
+.dark .settings-workspace tbody tr:hover {
+  background: rgba(59, 130, 246, 0.055);
+}
+
+/* Administration cards */
+.settings-workspace a.card-surface {
+  min-height: 220px;
+}
+
+.settings-workspace a.card-surface:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.1);
+}
+
+/* Permission cards and dialogs */
+.settings-workspace .fixed.inset-0 {
+  backdrop-filter: blur(5px);
+}
+
+.settings-workspace .fixed.inset-0 > form,
+.settings-workspace .fixed.inset-0 > div {
+  border: 1px solid var(--settings-border);
+  border-radius: 22px !important;
+  box-shadow: 0 30px 90px rgba(2, 8, 23, 0.32);
+}
+
+.settings-workspace button:not([class*="outline"])[class*="bg-blue-600"],
+.settings-workspace button:not([class*="outline"]):not([variant="ghost"]) {
+  font-weight: 700;
+}
+
+.settings-workspace button[class*="bg-blue-600"] {
+  background: linear-gradient(135deg, #0a2f5d, #14558b) !important;
+  color: #ffffff !important;
+}
+
+/* Permission selection cards */
+.settings-workspace label[class*="cursor-pointer"][class*="rounded-xl"] {
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+.settings-workspace label[class*="cursor-pointer"][class*="rounded-xl"]:hover {
+  transform: translateY(-1px);
+}
+
+/* Focus */
+.settings-workspace a:focus-visible,
+.settings-workspace button:focus-visible,
+.settings-workspace input:focus-visible,
+.settings-workspace textarea:focus-visible,
+.settings-workspace select:focus-visible {
+  outline: 2px solid #fbbf24 !important;
+  outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+  .settings-workspace > [data-testid="page-header"] {
+    min-height: auto;
+    padding: 1.25rem;
+    align-items: stretch;
+    flex-direction: column;
+    border-radius: 20px;
+  }
+
+  .settings-workspace [role="tablist"] {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .settings-workspace [role="tab"] {
+    flex: 1 1 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-workspace *,
+  .settings-workspace *::before,
+  .settings-workspace *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

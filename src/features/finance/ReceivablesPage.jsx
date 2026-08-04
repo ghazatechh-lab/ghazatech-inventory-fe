@@ -262,7 +262,7 @@ export default function ReceivablesPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="finance-module-page finance-workspace space-y-6">
       <PageHeader
         title="Accounts Receivable"
         subtitle="Customer invoices, receipts, aging, statements, credit limits, and collection controls."

@@ -9,7 +9,7 @@ export default function PurchaseReportPage() {
   const { query, page, setPage } = useListQuery("purchase-report", "/purchases/orders/");
   const data = query.data || { results: [], count: 0 };
   return (
-    <div>
+    <div className="reports-module-page reports-workspace space-y-5">
       <PageHeader title="Purchase report" subtitle="Purchase orders by supplier" actions={<ExportButtons />} />
       <DataTable
         columns={[

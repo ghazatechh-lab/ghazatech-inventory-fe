@@ -394,7 +394,7 @@ export default function SalesOrderFormPage() {
     sourceQuotation?.quote_number || existing?.quotation_number || "";
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 pb-10">
+    <div className="sales-module-page sales-workspace mx-auto max-w-7xl space-y-5 pb-10">
       <PageHeader
         title={isEdit ? "Edit Sales Order" : "New Sales Order"}
         subtitle="Create from an accepted quotation or start a fresh order"

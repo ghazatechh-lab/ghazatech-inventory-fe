@@ -51,6 +51,7 @@ export default function SalaryHistoryPage() {
   const { branchParams } = useActiveBranchFilter();
 
   const [employeeId, setEmployeeId] = React.useState("");
+  const [employeeSearch, setEmployeeSearch] = React.useState("");
   const [revisionOpen, setRevisionOpen] = React.useState(false);
   const [revisionMode, setRevisionMode] = React.useState("CURRENT");
   const [revision, setRevision] = React.useState(emptyRevision);
@@ -72,6 +73,28 @@ export default function SalaryHistoryPage() {
   });
 
   const employees = normalizeList(employeesResponse);
+
+  const filteredEmployees = React.useMemo(() => {
+    const search = employeeSearch.trim().toLowerCase();
+
+    if (!search) {
+      return employees;
+    }
+
+    return employees.filter((employee) =>
+      [
+        employee.full_name,
+        employee.employee_code,
+        employee.designation_name,
+        employee.department_name,
+        employee.branch_name,
+        employee.email,
+        employee.phone_number,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(search)),
+    );
+  }, [employees, employeeSearch]);
 
   React.useEffect(() => {
     if (!employeeId && employees.length) {
@@ -316,7 +339,7 @@ export default function SalaryHistoryPage() {
   const isLoading = employeesLoading || employeeLoading || historyLoading;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5">
+    <div className="hrms-module-page hrms-workspace mx-auto max-w-7xl space-y-5">
       <PageHeader
         title="Salary History"
         subtitle="Effective-dated salary ledger, from joining to today"
@@ -350,17 +373,44 @@ export default function SalaryHistoryPage() {
           <div className="w-full lg:max-w-sm">
             <Label>Employee</Label>
 
-            <Select value={employeeId} onValueChange={setEmployeeId}>
+            <Select
+              value={employeeId}
+              onValueChange={(value) => {
+                setEmployeeId(value);
+                setEmployeeSearch("");
+              }}
+            >
               <SelectTrigger className="mt-2">
                 <SelectValue placeholder="Select employee" />
               </SelectTrigger>
 
-              <SelectContent className="max-h-80">
-                {employees.map((item) => (
-                  <SelectItem key={item.id} value={String(item.id)}>
-                    {item.full_name} — {item.designation_name || "Employee"}
-                  </SelectItem>
-                ))}
+              <SelectContent className="max-h-80 p-0">
+                <div
+                  className="sticky top-0 z-10 border-b bg-popover p-2"
+                  onKeyDown={(event) => event.stopPropagation()}
+                >
+                  <Input
+                    autoFocus
+                    value={employeeSearch}
+                    onChange={(event) => setEmployeeSearch(event.target.value)}
+                    onClick={(event) => event.stopPropagation()}
+                    placeholder="Search employee name, code or designation"
+                  />
+                </div>
+
+                <div className="max-h-64 overflow-y-auto p-1">
+                  {filteredEmployees.length ? (
+                    filteredEmployees.map((item) => (
+                      <SelectItem key={item.id} value={String(item.id)}>
+                        {item.full_name} — {item.designation_name || "Employee"}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                      No employees match your search.
+                    </div>
+                  )}
+                </div>
               </SelectContent>
             </Select>
           </div>

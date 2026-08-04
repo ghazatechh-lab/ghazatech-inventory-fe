@@ -135,7 +135,7 @@ export default function QuotationListPage() {
   );
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5">
+    <div className="sales-module-page sales-workspace mx-auto max-w-7xl space-y-5">
       <PageHeader
         title="Quotations"
         subtitle="Create, send, and convert customer quotations"

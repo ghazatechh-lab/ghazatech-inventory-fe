@@ -248,7 +248,7 @@ export default function SalesPaymentsPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5">
+    <div className="sales-module-page sales-workspace mx-auto max-w-7xl space-y-5">
       <PageHeader
         title="Sales Payments"
         subtitle="Payments received against invoices and direct sales"

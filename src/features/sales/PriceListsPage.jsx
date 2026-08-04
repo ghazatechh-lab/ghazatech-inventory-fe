@@ -295,7 +295,7 @@ export default function PriceListsPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5">
+    <div className="sales-module-page sales-workspace mx-auto max-w-7xl space-y-5">
       <PageHeader
         title="Price Lists & Discounts"
         subtitle="Branch-specific or customer-tier pricing, bulk discount rules, and promotional periods."

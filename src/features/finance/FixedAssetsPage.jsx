@@ -204,7 +204,7 @@ export default function FixedAssetsPage() {
     },
   });
   return (
-    <div className="space-y-6">
+    <div className="finance-module-page finance-workspace space-y-6">
       <PageHeader
         title="Fixed Assets"
         subtitle="Asset register, depreciation schedule, and disposals."

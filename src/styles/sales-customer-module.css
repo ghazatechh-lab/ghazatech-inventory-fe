@@ -1,0 +1,292 @@
+/* =========================================================
+   GHAZATECH — SALES & CUSTOMER MODULE STANDARD DESIGN
+   File: src/styles/sales-customer-module.css
+   Import after other module styles in src/index.css.
+   ========================================================= */
+
+.sales-module-page,
+.customer-module-page {
+  --module-navy-950: #06152d;
+  --module-navy-900: #082348;
+  --module-navy-800: #0d3b70;
+  --module-blue: #2563eb;
+  --module-cyan: #38bdf8;
+  --module-gold: #fbbf24;
+  --module-gold-hover: #fcd34d;
+  --module-border: #dbe3ef;
+  --module-surface: #ffffff;
+  --module-muted: #64748b;
+  width: 100%;
+  padding-bottom: 2.5rem;
+}
+
+.dark .sales-module-page,
+.dark .customer-module-page {
+  --module-border: rgba(255, 255, 255, 0.09);
+  --module-surface: #0f172a;
+  --module-muted: #94a3b8;
+}
+
+/* Premium hero applied to the shared PageHeader component. */
+.sales-workspace > [data-testid="page-header"],
+.customer-workspace > [data-testid="page-header"] {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 150px;
+  margin-bottom: 1.5rem !important;
+  padding: 1.7rem 1.75rem;
+  align-items: center;
+  border: 1px solid rgba(125, 211, 252, 0.12);
+  border-radius: 24px;
+  background:
+    radial-gradient(
+      circle at 91% 2%,
+      rgba(56, 189, 248, 0.24),
+      transparent 31%
+    ),
+    radial-gradient(
+      circle at 78% 120%,
+      rgba(251, 191, 36, 0.1),
+      transparent 29%
+    ),
+    linear-gradient(135deg, #06152d 0%, #0a2b56 57%, #174c7a 100%);
+  box-shadow: 0 24px 58px rgba(15, 23, 42, 0.17);
+}
+
+.sales-workspace > [data-testid="page-header"]::before,
+.customer-workspace > [data-testid="page-header"]::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: 260px;
+  height: 260px;
+  right: -100px;
+  bottom: -165px;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.12);
+  filter: blur(6px);
+}
+
+.sales-workspace > [data-testid="page-header"] > div:first-child::before {
+  content: "SALES OPERATIONS";
+  display: block;
+  margin-bottom: 0.45rem;
+  color: #7dd3fc !important;
+  -webkit-text-fill-color: #7dd3fc !important;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+}
+
+.customer-workspace > [data-testid="page-header"] > div:first-child::before {
+  content: "CUSTOMER MANAGEMENT";
+  display: block;
+  margin-bottom: 0.45rem;
+  color: #7dd3fc !important;
+  -webkit-text-fill-color: #7dd3fc !important;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+}
+
+.sales-workspace > [data-testid="page-header"] h1,
+.customer-workspace > [data-testid="page-header"] h1 {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  font-size: clamp(1.75rem, 2.6vw, 2.35rem) !important;
+  font-weight: 900 !important;
+  line-height: 1.12 !important;
+  letter-spacing: -0.035em !important;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.26);
+}
+
+.sales-workspace > [data-testid="page-header"] p,
+.customer-workspace > [data-testid="page-header"] p {
+  max-width: 780px;
+  color: #dbeafe !important;
+  -webkit-text-fill-color: #dbeafe !important;
+  opacity: 1 !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 1.65 !important;
+}
+
+.sales-workspace > [data-testid="page-header"] > div:last-child,
+.customer-workspace > [data-testid="page-header"] > div:last-child {
+  position: relative;
+  z-index: 2;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* Primary actions inside module heroes. */
+.sales-workspace
+  > [data-testid="page-header"]
+  button:not([data-variant="outline"]),
+.sales-workspace > [data-testid="page-header"] a[class*="bg-blue"],
+.customer-workspace
+  > [data-testid="page-header"]
+  button:not([data-variant="outline"]),
+.customer-workspace > [data-testid="page-header"] a[class*="bg-blue"] {
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  background: linear-gradient(135deg, #fcd34d, #f59e0b) !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  font-weight: 800 !important;
+  box-shadow: 0 12px 26px rgba(245, 158, 11, 0.24);
+}
+
+.sales-workspace > [data-testid="page-header"] button:hover,
+.customer-workspace > [data-testid="page-header"] button:hover {
+  transform: translateY(-1px);
+}
+
+/* Secondary hero actions stay readable on the dark surface. */
+.sales-workspace > [data-testid="page-header"] button[class*="outline"],
+.sales-workspace > [data-testid="page-header"] a[class*="outline"],
+.customer-workspace > [data-testid="page-header"] button[class*="outline"],
+.customer-workspace > [data-testid="page-header"] a[class*="outline"] {
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  backdrop-filter: blur(12px);
+}
+
+/* Standard cards and form sections. */
+.sales-workspace .card-surface,
+.customer-workspace .card-surface,
+.sales-workspace > section,
+.customer-workspace > section {
+  border-color: var(--module-border);
+  border-radius: 20px;
+  background: var(--module-surface);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.055);
+}
+
+.dark .sales-workspace .card-surface,
+.dark .customer-workspace .card-surface {
+  box-shadow: none;
+}
+
+/* Search/filter containers and information strips. */
+.sales-workspace input,
+.sales-workspace textarea,
+.sales-workspace button[role="combobox"],
+.customer-workspace input,
+.customer-workspace textarea,
+.customer-workspace button[role="combobox"] {
+  min-height: 42px;
+  border-color: #dbe3ef;
+  border-radius: 11px;
+}
+
+.dark .sales-workspace input,
+.dark .sales-workspace textarea,
+.dark .sales-workspace button[role="combobox"],
+.dark .customer-workspace input,
+.dark .customer-workspace textarea,
+.dark .customer-workspace button[role="combobox"] {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Tables. */
+.sales-workspace table,
+.customer-workspace table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.sales-workspace thead,
+.customer-workspace thead {
+  background: #f8fafc !important;
+}
+
+.dark .sales-workspace thead,
+.dark .customer-workspace thead {
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+
+.sales-workspace th,
+.customer-workspace th {
+  color: #64748b !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.1em !important;
+}
+
+.sales-workspace tbody tr,
+.customer-workspace tbody tr {
+  transition:
+    background-color 160ms ease,
+    transform 160ms ease;
+}
+
+.sales-workspace tbody tr:hover,
+.customer-workspace tbody tr:hover {
+  background: #f8fbff;
+}
+
+.dark .sales-workspace tbody tr:hover,
+.dark .customer-workspace tbody tr:hover {
+  background: rgba(59, 130, 246, 0.055);
+}
+
+/* Modal and drawer consistency. */
+.sales-workspace [class*="fixed"][class*="inset-0"] > div,
+.customer-workspace [class*="fixed"][class*="inset-0"] > div {
+  border-radius: 22px;
+  box-shadow: 0 28px 80px rgba(2, 8, 23, 0.3);
+}
+
+/* Detail totals and highlighted financial panels. */
+.sales-workspace [class*="from-blue-600"],
+.customer-workspace [class*="from-blue-600"] {
+  border-radius: 18px;
+  box-shadow: 0 18px 38px rgba(37, 99, 235, 0.18);
+}
+
+/* Better focus visibility. */
+.sales-workspace a:focus-visible,
+.sales-workspace button:focus-visible,
+.sales-workspace input:focus-visible,
+.sales-workspace textarea:focus-visible,
+.customer-workspace a:focus-visible,
+.customer-workspace button:focus-visible,
+.customer-workspace input:focus-visible,
+.customer-workspace textarea:focus-visible {
+  outline: 2px solid #fbbf24 !important;
+  outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+  .sales-workspace > [data-testid="page-header"],
+  .customer-workspace > [data-testid="page-header"] {
+    min-height: auto;
+    padding: 1.25rem;
+    align-items: stretch;
+    flex-direction: column;
+    border-radius: 20px;
+  }
+
+  .sales-workspace > [data-testid="page-header"] > div:last-child,
+  .customer-workspace > [data-testid="page-header"] > div:last-child {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .sales-workspace > [data-testid="page-header"] > div:last-child > *,
+  .customer-workspace > [data-testid="page-header"] > div:last-child > * {
+    flex: 1 1 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sales-workspace *,
+  .customer-workspace * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

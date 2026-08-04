@@ -320,7 +320,7 @@ export default function ShipmentListPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="purchase-module-page purchase-workspace space-y-6">
       <PageHeader
         title="Purchase Shipments"
         subtitle="Inbound supplier shipments and received product details."

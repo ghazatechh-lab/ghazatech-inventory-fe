@@ -162,7 +162,7 @@ export default function PayablesPage() {
       lines: x.lines.map((l, j) => (j === i ? { ...l, [k]: v } : l)),
     }));
   return (
-    <div className="space-y-6">
+    <div className="finance-module-page finance-workspace space-y-6">
       <PageHeader
         title="Accounts Payable"
         subtitle="Supplier bills, payments, aging, three-way matching, withholding tax, and approvals."

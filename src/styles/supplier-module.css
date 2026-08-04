@@ -366,15 +366,17 @@
     width: 100%;
   }
 }
+
 /* =========================================================
-   GHAZATECH — SUPPLIER LIST HEADER VISIBILITY FIX
-   Paste at the VERY END of src/styles/supplier-module.css
+   GHAZATECH — SUPPLIER LIST HERO
+   Matches the Add/Edit Supplier hero section.
    ========================================================= */
 
 .supplier-list-hero {
   position: relative;
   isolation: isolate;
   overflow: hidden;
+  min-height: 164px;
 }
 
 .supplier-list-hero > * {
@@ -382,60 +384,59 @@
   z-index: 2;
 }
 
+/* Remove the old white copy panel styling if it still exists in cached markup. */
 .supplier-list-hero .supplier-hero-copy-panel {
-  max-width: 52rem;
-  padding: 1rem 1.125rem;
-  border: 1px solid rgba(255, 255, 255, 0.82);
-  border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.95) !important;
-  box-shadow:
-    0 14px 32px rgba(2, 8, 23, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  max-width: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
-html.light body .supplier-list-hero .supplier-eyebrow,
-html.dark body .supplier-list-hero .supplier-eyebrow,
-body .supplier-list-hero .supplier-eyebrow {
-  color: #0369a1 !important;
-  -webkit-text-fill-color: #0369a1 !important;
+html.light body .supplier-list-hero .supplier-list-eyebrow,
+html.dark body .supplier-list-hero .supplier-list-eyebrow,
+body .supplier-list-hero .supplier-list-eyebrow {
+  color: #7dd3fc !important;
+  -webkit-text-fill-color: #7dd3fc !important;
   opacity: 1 !important;
   visibility: visible !important;
   filter: none !important;
   font-size: 11px !important;
   font-weight: 900 !important;
   letter-spacing: 0.16em !important;
-  text-shadow: none !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.22) !important;
 }
 
-html.light body .supplier-list-hero .supplier-hero-title,
-html.dark body .supplier-list-hero .supplier-hero-title,
-body .supplier-list-hero .supplier-hero-title {
-  color: #0f172a !important;
-  -webkit-text-fill-color: #0f172a !important;
+html.light body .supplier-list-hero .supplier-list-title,
+html.dark body .supplier-list-hero .supplier-list-title,
+body .supplier-list-hero .supplier-list-title {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
   opacity: 1 !important;
   visibility: visible !important;
   filter: none !important;
-  font-size: clamp(1.8rem, 2.6vw, 2.35rem) !important;
+  font-size: clamp(1.9rem, 2.8vw, 2.4rem) !important;
   font-weight: 900 !important;
-  line-height: 1.12 !important;
-  letter-spacing: -0.03em !important;
-  text-shadow: none !important;
+  line-height: 1.08 !important;
+  letter-spacing: -0.035em !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.28) !important;
 }
 
-html.light body .supplier-list-hero .supplier-hero-description,
-html.dark body .supplier-list-hero .supplier-hero-description,
-body .supplier-list-hero .supplier-hero-description {
-  color: #475569 !important;
-  -webkit-text-fill-color: #475569 !important;
+html.light body .supplier-list-hero .supplier-list-description,
+html.dark body .supplier-list-hero .supplier-list-description,
+body .supplier-list-hero .supplier-list-description {
+  color: #e2e8f0 !important;
+  -webkit-text-fill-color: #e2e8f0 !important;
   opacity: 1 !important;
   visibility: visible !important;
   filter: none !important;
   font-size: 14px !important;
   font-weight: 600 !important;
   line-height: 1.65 !important;
-  text-shadow: none !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25) !important;
 }
 
 html.light body .supplier-list-hero .supplier-hero-action,
@@ -445,20 +446,38 @@ body .supplier-list-hero .supplier-hero-action {
   -webkit-text-fill-color: #0f172a !important;
   opacity: 1 !important;
   background: #fbbf24 !important;
-  border-color: rgba(255, 255, 255, 0.35) !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  box-shadow: 0 12px 26px rgba(2, 8, 23, 0.24) !important;
 }
 
 body .supplier-list-hero .supplier-hero-action:hover {
   background: #fcd34d !important;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 1023px) {
+  .supplier-list-hero .supplier-hero-content {
+    width: 100%;
+  }
+
+  .supplier-list-hero .supplier-hero-action {
+    align-self: flex-start;
+  }
 }
 
 @media (max-width: 640px) {
-  .supplier-list-hero .supplier-hero-content {
-    align-items: stretch;
+  .supplier-list-hero {
+    min-height: auto;
   }
 
-  .supplier-list-hero .supplier-hero-copy-panel {
-    padding: 0.875rem;
+  .supplier-list-hero .supplier-hero-content {
+    align-items: flex-start;
+  }
+
+  .supplier-list-hero .supplier-hero-icon {
+    height: 44px;
+    width: 44px;
+    border-radius: 14px;
   }
 
   .supplier-list-hero .supplier-hero-action {

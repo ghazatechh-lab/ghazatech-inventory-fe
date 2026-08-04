@@ -111,18 +111,18 @@ export const modules = [
         permission: "inventory.stock.view",
       },
       {
-        id: "inventory-movements",
-        label: "Stock Movements",
-        to: "/inventory/movements",
-        icon: GitBranch,
-        permission: "inventory.movements.view",
-      },
-      {
         id: "inventory-adjustments",
         label: "Stock Adjustments",
         to: "/inventory/adjustments",
         icon: FileText,
         permission: "inventory.adjustments.view",
+      },
+      {
+        id: "inventory-movements",
+        label: "Stock Movements",
+        to: "/inventory/movements",
+        icon: GitBranch,
+        permission: "inventory.movements.view",
       },
       {
         id: "inventory-low-stock",
@@ -229,13 +229,20 @@ export const modules = [
     title: "Sales",
     shortTitle: "Sales",
     description:
-      "Manage quotations, invoices, direct sales, payments, credit notes, reports, and customers.",
+      "Manage quotations, invoices, direct sales, payments, credit notes, and customers.",
     icon: BarChart3,
     path: "/sales",
     landingPath: "/sales/quotations",
     color: "amber",
     permissionModule: "sales",
     items: [
+      {
+        id: "sales-customers",
+        label: "Customers",
+        to: "/customers",
+        icon: Users,
+        permission: "sales.customers.view",
+      },
       {
         id: "sales-quotations",
         label: "Quotations",
@@ -298,20 +305,6 @@ export const modules = [
         to: "/sales/credit-notes",
         icon: RotateCcw,
         permission: "sales.credit_notes.view",
-      },
-      {
-        id: "sales-reports",
-        label: "Sales Reports",
-        to: "/reports/sales",
-        icon: BarChart3,
-        permission: "reports.sales.view",
-      },
-      {
-        id: "sales-customers",
-        label: "Customers",
-        to: "/customers",
-        icon: Users,
-        permission: "sales.customers.view",
       },
     ],
   },
@@ -569,22 +562,9 @@ export const modules = [
   },
 
   {
-    id: "website",
-    key: "website",
-    order: 8,
-    title: "Website",
-    shortTitle: "Website",
-    description: "Open the official Ghazatech website in a new browser tab.",
-    icon: Globe2,
-    externalUrl: "https://www.ghazatech.com/",
-    color: "teal",
-    items: [],
-  },
-
-  {
     id: "settings",
     key: "settings",
-    order: 9,
+    order: 8,
     title: "Settings",
     shortTitle: "Settings",
     description:
@@ -624,6 +604,19 @@ export const modules = [
         permission: "settings.settings.view",
       },
     ],
+  },
+
+  {
+    id: "website",
+    key: "website",
+    order: 9,
+    title: "Website",
+    shortTitle: "Website",
+    description: "Open the official Ghazatech website in a new browser tab.",
+    icon: Globe2,
+    externalUrl: "https://www.ghazatech.com/",
+    color: "teal",
+    items: [],
   },
 ];
 
@@ -760,8 +753,7 @@ export const getModuleByPath = (pathname = "") => {
   if (
     safePath === "/customers" ||
     safePath.startsWith("/customers/") ||
-    safePath.startsWith("/sales/") ||
-    safePath === "/reports/sales"
+    safePath.startsWith("/sales/")
   ) {
     return getModuleById("sales");
   }

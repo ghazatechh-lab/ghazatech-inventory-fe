@@ -1,0 +1,453 @@
+/* =========================================================
+   GHAZATECH — HRMS MODULE STANDARD DESIGN
+   File: src/styles/hrms-module.css
+   Import this file LAST in src/index.css.
+   ========================================================= */
+
+.hrms-module-page {
+  --hrms-navy-950: #07162f;
+  --hrms-navy-900: #0a274d;
+  --hrms-navy-800: #104579;
+  --hrms-blue: #2563eb;
+  --hrms-cyan: #38bdf8;
+  --hrms-gold: #fbbf24;
+  --hrms-green: #10b981;
+  --hrms-border: #dbe3ef;
+  --hrms-surface: #ffffff;
+  --hrms-muted: #64748b;
+  width: 100%;
+  padding-bottom: 2.5rem;
+}
+
+.dark .hrms-module-page {
+  --hrms-border: rgba(255, 255, 255, 0.09);
+  --hrms-surface: #0f172a;
+  --hrms-muted: #94a3b8;
+}
+
+/* ---------------------------------------------------------
+   PREMIUM HRMS HERO
+   --------------------------------------------------------- */
+
+.hrms-workspace > [data-testid="page-header"] {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 154px;
+  margin-bottom: 1.5rem !important;
+  padding: 1.75rem 1.8rem;
+  align-items: center;
+  border: 1px solid rgba(125, 211, 252, 0.14);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 92% 0%, rgba(56, 189, 248, 0.24), transparent 31%),
+    radial-gradient(circle at 79% 120%, rgba(251, 191, 36, 0.12), transparent 29%),
+    linear-gradient(135deg, #07162f 0%, #0a2a55 56%, #17527f 100%);
+  box-shadow:
+    0 24px 58px rgba(15, 23, 42, 0.17),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.hrms-workspace > [data-testid="page-header"]::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: -90px;
+  bottom: -170px;
+  width: 270px;
+  height: 270px;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.hrms-workspace > [data-testid="page-header"] > div:first-child::before {
+  content: "HUMAN RESOURCES";
+  display: block;
+  margin-bottom: 0.45rem;
+  color: #7dd3fc !important;
+  -webkit-text-fill-color: #7dd3fc !important;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+}
+
+.hrms-workspace > [data-testid="page-header"] h1 {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  font-size: clamp(1.8rem, 2.6vw, 2.4rem) !important;
+  font-weight: 900 !important;
+  line-height: 1.12 !important;
+  letter-spacing: -0.035em !important;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+}
+
+.hrms-workspace > [data-testid="page-header"] p {
+  max-width: 800px;
+  color: #dbeafe !important;
+  -webkit-text-fill-color: #dbeafe !important;
+  opacity: 1 !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 1.65 !important;
+}
+
+.hrms-workspace > [data-testid="page-header"] > div:last-child {
+  position: relative;
+  z-index: 2;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* Primary and secondary hero actions. */
+.hrms-workspace > [data-testid="page-header"] button:not([class*="outline"]),
+.hrms-workspace > [data-testid="page-header"] a:not([class*="outline"]) {
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  background: linear-gradient(135deg, #fcd34d, #f59e0b) !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  font-weight: 800 !important;
+  box-shadow: 0 12px 26px rgba(245, 158, 11, 0.24);
+}
+
+.hrms-workspace > [data-testid="page-header"] button[class*="outline"],
+.hrms-workspace > [data-testid="page-header"] a[class*="outline"] {
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  background: rgba(255, 255, 255, 0.10) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  backdrop-filter: blur(12px);
+}
+
+.hrms-workspace > [data-testid="page-header"] button:hover,
+.hrms-workspace > [data-testid="page-header"] a:hover {
+  transform: translateY(-1px);
+}
+
+/* ---------------------------------------------------------
+   CARDS, METRICS AND PROFILE PANELS
+   --------------------------------------------------------- */
+
+.hrms-workspace .card-surface,
+.hrms-workspace > section,
+.hrms-workspace .rounded-2xl.border.bg-card {
+  border-color: var(--hrms-border);
+  border-radius: 20px;
+  background: var(--hrms-surface);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.055);
+}
+
+.dark .hrms-workspace .card-surface,
+.dark .hrms-workspace > section,
+.dark .hrms-workspace .rounded-2xl.border.bg-card {
+  box-shadow: none;
+}
+
+.hrms-workspace .card-surface {
+  position: relative;
+  overflow: hidden;
+}
+
+.hrms-workspace .card-surface::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, #38bdf8, #2563eb, #fbbf24);
+  opacity: 0.68;
+}
+
+/* Employee profile image and compact information blocks. */
+.hrms-workspace img[class*="rounded"] {
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.14);
+}
+
+.hrms-workspace .grid > .rounded-xl.border {
+  border-color: var(--hrms-border);
+  background: var(--hrms-surface);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+}
+
+/* ---------------------------------------------------------
+   METRIC CARDS
+   --------------------------------------------------------- */
+
+.hrms-workspace .grid.gap-4.md\:grid-cols-2.xl\:grid-cols-5 > *,
+.hrms-workspace .grid.gap-4.md\:grid-cols-2 > *,
+.hrms-workspace .grid.gap-4.md\:grid-cols-5 > * {
+  border-color: var(--hrms-border);
+  border-radius: 18px;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.05);
+}
+
+/* ---------------------------------------------------------
+   TABS AND FILTER PILLS
+   --------------------------------------------------------- */
+
+.hrms-workspace [role="tablist"] {
+  padding: 0.4rem;
+  border: 1px solid var(--hrms-border);
+  border-radius: 15px;
+  background: var(--hrms-surface);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.045);
+}
+
+.hrms-workspace [role="tab"] {
+  min-height: 40px;
+  border-radius: 10px;
+}
+
+.hrms-workspace [role="tab"][data-state="active"] {
+  background: linear-gradient(135deg, #0f3d72, #18558a) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 18px rgba(14, 58, 111, 0.20);
+}
+
+.hrms-workspace > .flex.gap-2 {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.45rem;
+  border: 1px solid var(--hrms-border);
+  border-radius: 15px;
+  background: var(--hrms-surface);
+}
+
+.hrms-workspace > .flex.gap-2 > button {
+  min-height: 39px;
+  border-radius: 10px;
+}
+
+/* Employee-detail custom tabs. */
+.hrms-workspace .card-surface .flex.min-w-max.gap-1 > button {
+  min-height: 46px;
+  border-radius: 10px 10px 0 0;
+}
+
+/* ---------------------------------------------------------
+   SEARCH, FILTERS AND FORM CONTROLS
+   --------------------------------------------------------- */
+
+.hrms-workspace input,
+.hrms-workspace textarea,
+.hrms-workspace select,
+.hrms-workspace button[role="combobox"] {
+  min-height: 42px;
+  border-color: #dbe3ef;
+  border-radius: 11px;
+  background-color: #ffffff;
+}
+
+.dark .hrms-workspace input,
+.dark .hrms-workspace textarea,
+.dark .hrms-workspace select,
+.dark .hrms-workspace button[role="combobox"] {
+  border-color: rgba(255, 255, 255, 0.10);
+  background-color: rgba(15, 23, 42, 0.82);
+}
+
+.hrms-workspace input:focus,
+.hrms-workspace textarea:focus,
+.hrms-workspace select:focus {
+  border-color: #60a5fa !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  outline: none;
+}
+
+/* ---------------------------------------------------------
+   TABLES
+   --------------------------------------------------------- */
+
+.hrms-workspace table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.hrms-workspace thead {
+  background: #f8fafc !important;
+}
+
+.dark .hrms-workspace thead {
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+
+.hrms-workspace th {
+  color: #64748b !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.10em !important;
+}
+
+.hrms-workspace tbody tr {
+  transition: background-color 160ms ease;
+}
+
+.hrms-workspace tbody tr:hover {
+  background: #f8fbff;
+}
+
+.dark .hrms-workspace tbody tr:hover {
+  background: rgba(59, 130, 246, 0.055);
+}
+
+/* Fix employee-code text that was too light in light mode. */
+html.light .hrms-workspace td .text-slate-200,
+.hrms-workspace td .text-slate-200 {
+  color: #334155 !important;
+}
+
+/* ---------------------------------------------------------
+   MODALS
+   --------------------------------------------------------- */
+
+.hrms-workspace .fixed.inset-0 {
+  backdrop-filter: blur(5px);
+}
+
+.hrms-workspace .fixed.inset-0 > div {
+  border: 1px solid var(--hrms-border);
+  border-radius: 22px !important;
+  box-shadow: 0 30px 90px rgba(2, 8, 23, 0.32);
+}
+
+.hrms-workspace .fixed.inset-0 h2,
+.hrms-workspace .fixed.inset-0 h3 {
+  letter-spacing: -0.02em;
+}
+
+.hrms-workspace .fixed.inset-0 button[class*="bg-blue-600"],
+.hrms-workspace button[class*="bg-blue-600"] {
+  background: linear-gradient(135deg, #0a2f5d, #14558b) !important;
+  color: #ffffff !important;
+}
+
+.hrms-workspace .fixed.inset-0 button[class*="bg-blue-600"]:hover,
+.hrms-workspace button[class*="bg-blue-600"]:hover {
+  background: linear-gradient(135deg, #0d3b70, #17649d) !important;
+}
+
+/* ---------------------------------------------------------
+   SALARY HISTORY AND TIMELINE
+   --------------------------------------------------------- */
+
+.hrms-workspace .relative.flex.gap-4.pb-7 {
+  padding: 1rem 0 1.65rem;
+}
+
+.hrms-workspace .relative.flex.gap-4.pb-7:hover {
+  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.035));
+}
+
+.hrms-workspace [style*="height"] {
+  transition: height 220ms ease;
+}
+
+/* ---------------------------------------------------------
+   DOCUMENT EXPIRY
+   --------------------------------------------------------- */
+
+.hrms-workspace [data-testid="page-header"] + div,
+.hrms-workspace [data-testid="page-header"] + section {
+  position: relative;
+}
+
+/* ---------------------------------------------------------
+   PAYSLIP
+   --------------------------------------------------------- */
+
+.hrms-payslip-page {
+  padding-bottom: 2rem;
+}
+
+.hrms-payslip-page > section {
+  overflow: hidden;
+  border-radius: 24px;
+  border-color: #dbe3ef;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+}
+
+.hrms-payslip-page > section > header {
+  position: relative;
+  margin: -2.25rem -2.25rem 0;
+  padding: 2rem 2.25rem 1.6rem;
+  border-bottom: 0;
+  background:
+    radial-gradient(circle at 90% 5%, rgba(56, 189, 248, 0.24), transparent 33%),
+    linear-gradient(135deg, #07162f 0%, #0b3564 100%);
+}
+
+.hrms-payslip-page > section > header h1,
+.hrms-payslip-page > section > header p {
+  color: #ffffff !important;
+}
+
+.hrms-payslip-page > section > header p:first-child {
+  color: #7dd3fc !important;
+}
+
+.hrms-payslip-page .bg-slate-950 {
+  background: linear-gradient(135deg, #07162f, #14558b) !important;
+  box-shadow: 0 15px 32px rgba(15, 23, 42, 0.18);
+}
+
+/* ---------------------------------------------------------
+   ACCESSIBILITY AND RESPONSIVE
+   --------------------------------------------------------- */
+
+.hrms-workspace a:focus-visible,
+.hrms-workspace button:focus-visible,
+.hrms-workspace input:focus-visible,
+.hrms-workspace textarea:focus-visible,
+.hrms-workspace select:focus-visible {
+  outline: 2px solid #fbbf24 !important;
+  outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+  .hrms-workspace > [data-testid="page-header"] {
+    min-height: auto;
+    padding: 1.25rem;
+    align-items: stretch;
+    flex-direction: column;
+    border-radius: 20px;
+  }
+
+  .hrms-workspace > [data-testid="page-header"] > div:last-child {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .hrms-workspace > [data-testid="page-header"] > div:last-child > * {
+    flex: 1 1 auto;
+  }
+
+  .hrms-payslip-page > section > header {
+    margin: -1.5rem -1.5rem 0;
+    padding: 1.5rem;
+  }
+}
+
+@media print {
+  .hrms-payslip-page {
+    padding: 0 !important;
+  }
+
+  .hrms-payslip-page > section {
+    box-shadow: none !important;
+  }
+
+  .hrms-payslip-page > section > header {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hrms-workspace *,
+  .hrms-workspace *::before,
+  .hrms-workspace *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

@@ -171,7 +171,7 @@ export default function PurchaseExpenseDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="purchase-module-page purchase-workspace space-y-6">
       <PageHeader
         title={record.expense_number || `Expense ${id}`}
         subtitle="Complete document information and related records."

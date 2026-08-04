@@ -585,7 +585,7 @@ export default function POSPage() {
   );
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5">
+    <div className="sales-module-page sales-workspace mx-auto max-w-7xl space-y-5">
       <PageHeader
         title="Direct Sale / POS"
         subtitle="Walk-in and counter sales processed without a quotation"

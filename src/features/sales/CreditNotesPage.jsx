@@ -518,7 +518,7 @@ export default function CreditNotesPage() {
   );
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5">
+    <div className="sales-module-page sales-workspace mx-auto max-w-7xl space-y-5">
       <PageHeader
         title="Credit Notes"
         subtitle="Adjustments and refunds issued against invoices"

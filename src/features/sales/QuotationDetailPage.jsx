@@ -47,7 +47,7 @@ export default function QuotationDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="sales-module-page sales-workspace mx-auto max-w-6xl space-y-5">
       <PageHeader
         title={quotation.quote_number}
         subtitle="Quotation details and customer pricing"

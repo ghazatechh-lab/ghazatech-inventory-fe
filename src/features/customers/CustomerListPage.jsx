@@ -158,7 +158,7 @@ export default function CustomerListPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5">
+    <div className="customer-module-page customer-workspace mx-auto max-w-7xl space-y-5">
       <PageHeader
         title="Customers"
         subtitle="Customer records, balances, and contact details"

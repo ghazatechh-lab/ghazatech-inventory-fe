@@ -104,7 +104,7 @@ export default function BankAccountsPage() {
     0,
   );
   return (
-    <div className="space-y-6">
+    <div className="finance-module-page finance-workspace space-y-6">
       <PageHeader
         title="Bank & Cash"
         subtitle="Bank accounts, cashbook, reconciliation, and internal fund transfers."

@@ -729,7 +729,7 @@ export default function SupplierBillsPage() {
 
   if (mode === "list") {
     return (
-      <div className="mx-auto max-w-7xl space-y-5">
+      <div className="purchase-module-page purchase-workspace mx-auto max-w-7xl space-y-5 pb-10">
         <PageHeader
           title="Supplier Bills"
           subtitle="Invoices received from suppliers, matched to GRNs"
@@ -798,7 +798,7 @@ export default function SupplierBillsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 pb-10">
+    <div className="purchase-module-page purchase-workspace mx-auto max-w-7xl space-y-5 pb-10">
       <PageHeader
         title={editingId ? "Edit Bill" : "Record Bill"}
         subtitle="Log a supplier invoice and match it against the PO and GRN before approval"
