@@ -150,6 +150,7 @@ export default function SupplierFormPage() {
   const { id } = useParams();
   const edit = Boolean(id);
   const navigate = useNavigate();
+  const backTarget = edit ? `/suppliers/${id}` : "/suppliers";
   const queryClient = useQueryClient();
 
   const [selectedFiles, setSelectedFiles] = React.useState([]);
@@ -224,20 +225,35 @@ export default function SupplierFormPage() {
         : api.post("/suppliers/", formData, config);
     },
 
-    onSuccess: async () => {
+    onSuccess: async (response) => {
+      const savedSupplier = unwrap(response);
+      const supplierId = savedSupplier?.id || id;
+
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["suppliers"],
         }),
 
         queryClient.invalidateQueries({
-          queryKey: ["supplier", id],
+          queryKey: ["supplier", supplierId],
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: ["supplier-detail-bills", supplierId],
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: ["supplier-detail-payments", supplierId],
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: ["supplier-detail-returns", supplierId],
         }),
       ]);
 
       toast.success(edit ? "Supplier updated." : "Supplier created.");
 
-      navigate("/suppliers");
+      navigate(supplierId ? `/suppliers/${supplierId}` : "/suppliers");
     },
 
     onError: (error) => {
@@ -333,10 +349,11 @@ export default function SupplierFormPage() {
         <div className="supplier-form-hero">
           <button
             type="button"
-            onClick={() => navigate("/suppliers")}
+            onClick={() => navigate(backTarget)}
             className="supplier-back-button"
           >
-            <ArrowLeft className="h-4 w-4" /> Back to suppliers
+            <ArrowLeft className="h-4 w-4" />
+            {edit ? "Back to supplier" : "Back to suppliers"}
           </button>
           <div className="supplier-hero-content mt-5 flex items-start gap-4">
             <span className="supplier-hero-icon">
@@ -355,7 +372,7 @@ export default function SupplierFormPage() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit(submit)} className="space-y-5">
+        <form onSubmit={handleSubmit(submit)} className="space-y-5" noValidate>
           <Section
             title="Company identity"
             icon={Building2}
@@ -537,16 +554,39 @@ export default function SupplierFormPage() {
                 <Input
                   type="number"
                   min="0"
+                  max="999999999999.99"
                   step="0.01"
-                  {...register("credit_limit")}
+                  {...register("credit_limit", {
+                    min: {
+                      value: 0,
+                      message: "Credit limit cannot be negative.",
+                    },
+                    max: {
+                      value: 999999999999.99,
+                      message: "Credit limit cannot exceed 14 digits in total.",
+                    },
+                  })}
                 />
               </Field>
 
               <Field label="Opening balance">
                 <Input
                   type="number"
+                  min="-999999999999.99"
+                  max="999999999999.99"
                   step="0.01"
-                  {...register("opening_balance")}
+                  {...register("opening_balance", {
+                    min: {
+                      value: -999999999999.99,
+                      message:
+                        "Opening balance cannot exceed 14 digits in total.",
+                    },
+                    max: {
+                      value: 999999999999.99,
+                      message:
+                        "Opening balance cannot exceed 14 digits in total.",
+                    },
+                  })}
                 />
               </Field>
             </div>
@@ -761,7 +801,7 @@ export default function SupplierFormPage() {
               type="button"
               variant="ghost"
               disabled={save.isPending}
-              onClick={() => navigate("/suppliers")}
+              onClick={() => navigate(backTarget)}
             >
               Cancel
             </Button>

@@ -100,6 +100,8 @@ import GRNFormPage from "@/features/purchases/GRNFormPage";
 import GRNDetailPage from "@/features/purchases/GRNDetailPage";
 
 import SupplierBillsPage from "@/features/purchases/SupplierBillsPage";
+import SupplierBillDetailPage from "@/features/purchases/SupplierBillDetailPage";
+import SupplierBillFormPage from "@/features/purchases/SupplierBillFormPage";
 
 import SupplierPaymentListPage from "@/features/purchases/SupplierPaymentListPage";
 import SupplierPaymentDetailPage from "@/features/purchases/SupplierPaymentDetailPage";
@@ -498,6 +500,21 @@ export default function App() {
               <Route
                 path="/purchases/supplier-bills"
                 element={<SupplierBillsPage />}
+              />
+
+              <Route
+                path="/purchases/supplier-bills"
+                element={<SupplierBillsPage />}
+              />
+
+              <Route
+                path="/purchases/supplier-bills/:id"
+                element={<SupplierBillDetailPage />}
+              />
+
+              <Route
+                path="/purchases/supplier-bills/new"
+                element={<SupplierBillFormPage />}
               />
 
               {/* Supplier Payments */}

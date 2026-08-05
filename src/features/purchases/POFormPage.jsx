@@ -110,6 +110,7 @@ export default function POFormPage() {
 
   const [errors, setErrors] = React.useState({});
   const [supplierSearch, setSupplierSearch] = React.useState("");
+  const [supplierSearchOpen, setSupplierSearchOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (!edit && branchId) {
@@ -222,6 +223,14 @@ export default function POFormPage() {
       ),
     [suppliers, form.supplier],
   );
+
+  React.useEffect(() => {
+    if (!selectedSupplier) {
+      return;
+    }
+
+    setSupplierSearch(selectedSupplier.supplier_name || "");
+  }, [selectedSupplier]);
 
   React.useEffect(() => {
     if (!existing) return;
@@ -479,67 +488,82 @@ export default function POFormPage() {
             </p>
 
             <div className="mt-5 grid gap-4 md:grid-cols-3">
-              <div>
-                <Label>
+              <div className="relative">
+                <Label htmlFor="supplier_search">
                   Supplier <span className="text-red-500">*</span>
                 </Label>
-                <Select
-                  value={form.supplier}
-                  onValueChange={(value) => {
-                    updateForm("supplier", value);
-                    setSupplierSearch("");
-                  }}
-                >
-                  <SelectTrigger className="mt-2">
-                    <SelectValue placeholder="Select supplier" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-80 p-0">
-                    <div
-                      className="sticky top-0 z-10 border-b bg-popover p-2"
-                      onKeyDown={(event) => event.stopPropagation()}
-                    >
-                      <Input
-                        autoFocus
-                        value={supplierSearch}
-                        onChange={(event) =>
-                          setSupplierSearch(event.target.value)
-                        }
-                        onClick={(event) => event.stopPropagation()}
-                        placeholder="Search supplier name, code or contact"
-                      />
-                    </div>
 
-                    <div className="max-h-64 overflow-y-auto p-1">
-                      {filteredSuppliers.length ? (
-                        filteredSuppliers.map((supplier) => (
-                          <SelectItem
-                            key={supplier.id}
-                            value={String(supplier.id)}
-                          >
-                            <div>
-                              <div>{supplier.supplier_name}</div>
-                              {(supplier.supplier_code ||
-                                supplier.contact_person) && (
-                                <div className="text-xs text-muted-foreground">
-                                  {[
-                                    supplier.supplier_code,
-                                    supplier.contact_person,
-                                  ]
-                                    .filter(Boolean)
-                                    .join(" · ")}
-                                </div>
-                              )}
-                            </div>
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                          No suppliers match your search.
-                        </div>
-                      )}
-                    </div>
-                  </SelectContent>
-                </Select>
+                <Input
+                  id="supplier_search"
+                  className="mt-2"
+                  value={supplierSearch}
+                  autoComplete="off"
+                  onFocus={() => setSupplierSearchOpen(true)}
+                  onChange={(event) => {
+                    const value = event.target.value;
+
+                    setSupplierSearch(value);
+                    setSupplierSearchOpen(true);
+
+                    if (
+                      selectedSupplier &&
+                      value !== selectedSupplier.supplier_name
+                    ) {
+                      updateForm("supplier", "");
+                    }
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      setSupplierSearchOpen(false);
+                    }
+                  }}
+                  placeholder="Search and select supplier"
+                />
+
+                {supplierSearchOpen ? (
+                  <div className="absolute left-0 right-0 top-full z-40 mt-1 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-background p-1 shadow-xl dark:border-white/10">
+                    {filteredSuppliers.length ? (
+                      filteredSuppliers.map((supplier) => (
+                        <button
+                          key={supplier.id}
+                          type="button"
+                          className="flex w-full flex-col rounded-lg px-3 py-2.5 text-left transition hover:bg-slate-100 dark:hover:bg-white/5"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => {
+                            updateForm("supplier", String(supplier.id));
+                            setSupplierSearch(
+                              supplier.supplier_name || supplier.name || "",
+                            );
+                            setSupplierSearchOpen(false);
+                          }}
+                        >
+                          <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                            {supplier.supplier_name || supplier.name}
+                          </span>
+
+                          {(supplier.supplier_code ||
+                            supplier.contact_person ||
+                            supplier.email) && (
+                            <span className="mt-0.5 text-xs text-muted-foreground">
+                              {[
+                                supplier.supplier_code,
+                                supplier.contact_person,
+                                supplier.email,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </span>
+                          )}
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                        No suppliers match your search.
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+
                 {errors.supplier && (
                   <p className="mt-1 text-xs text-red-500">{errors.supplier}</p>
                 )}

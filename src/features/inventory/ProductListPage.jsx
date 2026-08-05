@@ -259,8 +259,6 @@ export default function ProductListPage() {
           rack_codes: new Set(),
           rack_names: new Set(),
           total_available_qty: 0,
-          total_available_regular: 0,
-          total_available_restricted: 0,
           stock_row_count: 0,
         };
 
@@ -271,12 +269,6 @@ export default function ProductListPage() {
             stock.current_stock ??
             stock.quantity ??
             0,
-        );
-
-        const regularAvailable = Number(stock.available_regular_quantity ?? 0);
-
-        const restrictedAvailable = Number(
-          stock.available_restricted_quantity ?? 0,
         );
 
         const rackCode =
@@ -295,16 +287,6 @@ export default function ProductListPage() {
 
         currentRow.total_available_qty += Number.isFinite(availableQuantity)
           ? Math.max(0, availableQuantity)
-          : 0;
-
-        currentRow.total_available_regular += Number.isFinite(regularAvailable)
-          ? Math.max(0, regularAvailable)
-          : 0;
-
-        currentRow.total_available_restricted += Number.isFinite(
-          restrictedAvailable,
-        )
-          ? Math.max(0, restrictedAvailable)
           : 0;
 
         currentRow.stock_row_count += 1;
@@ -331,8 +313,6 @@ export default function ProductListPage() {
           branch_code: product.branch_code || product.branch?.branch_code || "",
           branch_name: product.branch_name || product.branch?.branch_name || "",
           total_available_qty: 0,
-          total_available_regular: 0,
-          total_available_restricted: 0,
           stock_row_count: 0,
         });
       }
@@ -458,18 +438,7 @@ export default function ProductListPage() {
       align: "right",
       cell: (product) => (
         <div className="text-right">
-          <span
-            className="font-numeric font-medium text-slate-200"
-            title={
-              isAllBranches
-                ? `Regular: ${Number(
-                    product.total_available_regular || 0,
-                  )}, Restricted: ${Number(
-                    product.total_available_restricted || 0,
-                  )}`
-                : undefined
-            }
-          >
+          <span className="font-numeric font-medium text-slate-200">
             {getAvailableQuantity(product)}
           </span>
 
@@ -548,7 +517,7 @@ export default function ProductListPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-6 pb-10">
-      <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950">
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 text-white shadow-xl">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.12),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(14,165,233,0.08),transparent_30%)]" />
         <div className="relative flex flex-col gap-5 px-6 py-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex items-start gap-4">
@@ -556,13 +525,22 @@ export default function ProductListPage() {
               <Boxes className="h-7 w-7" />
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">
+              <p
+                className="text-xs font-bold uppercase tracking-[0.18em] !text-sky-200"
+                style={{ color: "#bae6fd" }}
+              >
                 Inventory catalogue
               </p>
-              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-3xl">
+              <h1
+                className="mt-1 text-2xl font-extrabold tracking-tight !text-white sm:text-3xl"
+                style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
+              >
                 Products
               </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">
+              <p
+                className="mt-2 max-w-2xl text-sm leading-6 !text-slate-100"
+                style={{ color: "#f1f5f9" }}
+              >
                 Manage laptop spare parts, branch availability, rack
                 assignments, pricing and product status from one place.
               </p>

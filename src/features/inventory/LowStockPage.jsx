@@ -1,7 +1,7 @@
 import React from "react";
+import { AlertTriangle, PackageSearch } from "lucide-react";
 
 import { useListQuery, DataTable, SearchInput } from "@/hooks/useListQuery";
-import { PageHeader } from "@/components/common/PageHeader";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { currency } from "@/lib/inventoryValuation";
 
@@ -136,10 +136,39 @@ export default function LowStockPage() {
 
   return (
     <div data-stock-module="low-stock" className="stock-module-page space-y-6">
-      <PageHeader
-        title="Low stock items"
-        subtitle="Items with available quantity below 10"
-      />
+      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-400/20 blur-3xl" />
+        <div className="relative flex items-start gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/15">
+            <AlertTriangle className="h-7 w-7 text-amber-300" />
+          </div>
+          <div>
+            <p
+              className="text-xs font-extrabold uppercase tracking-[0.2em]"
+              style={{ color: "#bae6fd" }}
+            >
+              Inventory control
+            </p>
+            <h1
+              className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl"
+              style={{
+                color: "#ffffff",
+                WebkitTextFillColor: "#ffffff",
+                textShadow: "0 2px 12px rgba(0,0,0,.28)",
+              }}
+            >
+              Low Stock Items
+            </h1>
+            <p
+              className="mt-2 max-w-2xl text-sm leading-6"
+              style={{ color: "#f1f5f9" }}
+            >
+              Items with available quantity below 10 for the branch selected in
+              the global branch filter.
+            </p>
+          </div>
+        </div>
+      </section>
 
       <SearchInput
         value={q}

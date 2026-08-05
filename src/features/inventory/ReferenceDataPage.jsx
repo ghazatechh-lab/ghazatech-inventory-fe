@@ -249,7 +249,7 @@ export default function ReferenceDataPage({
 
   return (
     <div className="space-y-6 pb-8">
-      <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-slate-950/70 sm:p-7">
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 p-6 text-white shadow-xl sm:p-7">
         <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
         <div className="pointer-events-none absolute bottom-0 right-1/3 h-36 w-36 rounded-full bg-amber-300/10 blur-3xl" />
 
@@ -266,10 +266,16 @@ export default function ReferenceDataPage({
                 </span>
               </div>
 
-              <h1 className="text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-3xl">
+              <h1
+                className="text-2xl font-extrabold tracking-tight !text-white sm:text-3xl"
+                style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
+              >
                 {title}
               </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">
+              <p
+                className="mt-2 max-w-2xl text-sm leading-6 !text-slate-100"
+                style={{ color: "#f1f5f9" }}
+              >
                 {subtitle}
               </p>
             </div>

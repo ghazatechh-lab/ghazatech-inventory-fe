@@ -94,7 +94,7 @@ export default function ProductDetailPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1500px] space-y-6 pb-10">
-      <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950">
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 text-white shadow-xl">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.14),transparent_36%),radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.08),transparent_32%)]" />
         <div className="relative flex flex-col gap-6 px-6 py-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex min-w-0 items-start gap-4">
@@ -112,7 +112,10 @@ export default function ProductDetailPage() {
                   {product.is_active !== false ? "Active" : "Inactive"}
                 </span>
               </div>
-              <h1 className="mt-2 truncate text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-3xl">
+              <h1
+                className="mt-2 truncate text-2xl font-extrabold tracking-tight !text-white sm:text-3xl"
+                style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
+              >
                 {product.product_name}
               </h1>
               <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-500 dark:text-slate-400">
@@ -233,8 +236,14 @@ export default function ProductDetailPage() {
             <DetailItem icon={Layers3} label="Unit" value={product.unit} />
             <DetailItem
               icon={CircleDollarSign}
-              label="VAT"
-              value={`${product.vat_rate ?? 0}% ${product.vat_inclusive ? "inclusive" : "exclusive"}`}
+              label="Tax treatment"
+              value={
+                product.tax_treatment === "ZERO_VAT"
+                  ? "Zero VAT (0%)"
+                  : product.tax_treatment === "NON_VAT"
+                    ? "Non-VAT"
+                    : `VAT (5%) ${product.vat_inclusive ? "inclusive" : "exclusive"}`
+              }
             />
           </div>
           {(product.compatible_models || product.description) && (
@@ -361,7 +370,7 @@ export default function ProductDetailPage() {
                       </td>
                     )}
                     <td className="px-6 py-4 text-right font-extrabold text-slate-950 dark:text-white">
-                      {variant.available_qty ?? variant.regular_quantity ?? 0}
+                      {variant.available_qty ?? variant.total_quantity ?? 0}
                     </td>
                     <td className="px-6 py-4 text-right font-medium text-slate-700 dark:text-slate-300">
                       {money(variant.purchase_price)}

@@ -111,18 +111,18 @@ export const modules = [
         permission: "inventory.stock.view",
       },
       {
-        id: "inventory-adjustments",
-        label: "Stock Adjustments",
-        to: "/inventory/adjustments",
-        icon: FileText,
-        permission: "inventory.adjustments.view",
-      },
-      {
         id: "inventory-movements",
         label: "Stock Movements",
         to: "/inventory/movements",
         icon: GitBranch,
         permission: "inventory.movements.view",
+      },
+      {
+        id: "inventory-adjustments",
+        label: "Stock Adjustments",
+        to: "/inventory/adjustments",
+        icon: FileText,
+        permission: "inventory.adjustments.view",
       },
       {
         id: "inventory-low-stock",
@@ -207,7 +207,7 @@ export const modules = [
       },
       {
         id: "purchase-vendor-credits",
-        label: "Vendor Credits",
+        label: "Supplier Credit",
         to: "/purchases/vendor-credits",
         icon: BadgeDollarSign,
         permission: "purchase.vendor_credits.view",

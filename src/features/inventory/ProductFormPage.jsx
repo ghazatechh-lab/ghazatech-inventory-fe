@@ -14,7 +14,7 @@ import {
 import { toast } from "sonner";
 
 import api, { unwrap } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,8 +31,7 @@ import {
 
 const emptyBaseStock = {
   attributes: [],
-  initial_regular_stock: 0,
-  initial_restricted_stock: 0,
+  initial_stock: 0,
   purchase_price: "",
   retail_price: 0,
   wholesale_price: 0,
@@ -53,8 +52,8 @@ const defaults = {
   compatible_models: "",
   condition: "NEW",
   unit: "PCS",
+  tax_treatment: "VAT",
   vat_inclusive: true,
-  vat_rate: 5,
   description: "",
   warranty_period_days: 0,
   reorder_level: 0,
@@ -87,8 +86,7 @@ function variantFromApi(item) {
       name,
       value,
     })),
-    initial_regular_stock: item.regular_quantity ?? item.available_qty ?? 0,
-    initial_restricted_stock: item.restricted_quantity ?? 0,
+    initial_stock: item.available_qty ?? item.total_quantity ?? 0,
     purchase_price: item.purchase_price ?? "",
     retail_price: item.retail_price ?? 0,
     wholesale_price: item.wholesale_price ?? 0,
@@ -102,12 +100,7 @@ export default function ProductFormPage() {
   const isEdit = Boolean(id);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { branchOverride, user } = useAuth();
-  const isAdmin = Boolean(
-    user?.is_superuser ||
-    user?.role?.code === "ADMIN" ||
-    user?.role_code === "ADMIN",
-  );
+  const { branchId: branchOverride } = useActiveBranchFilter();
   const fileRef = React.useRef(null);
   const hydratedRef = React.useRef(false);
   const previousBranchRef = React.useRef("");
@@ -197,9 +190,17 @@ export default function ProductFormPage() {
      * The user can continue selecting the product branch manually.
      */
     if (normalizedHeaderBranch === null) {
-      console.log(
-        "[Product Form] Header changed to All branches. Product branch left unchanged.",
-      );
+      setValue("branch", "", {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: true,
+      });
+      setValue("rack", "", {
+        shouldDirty: true,
+        shouldTouch: false,
+        shouldValidate: true,
+      });
+      previousBranchRef.current = "";
       return;
     }
 
@@ -429,8 +430,11 @@ export default function ProductFormPage() {
       compatible_models: product.compatible_models || "",
       condition: product.condition || "NEW",
       unit: product.unit || "PCS",
-      vat_inclusive: product.vat_inclusive ?? true,
-      vat_rate: Number(product.vat_rate ?? 5),
+      tax_treatment: product.tax_treatment || "VAT",
+      vat_inclusive:
+        (product.tax_treatment || "VAT") === "VAT"
+          ? (product.vat_inclusive ?? true)
+          : false,
       description: product.description || "",
       warranty_period_days: Number(product.warranty_period_days ?? 0),
       reorder_level: Number(product.reorder_level ?? 0),
@@ -564,13 +568,7 @@ export default function ProductFormPage() {
         return {
           ...(variant.id ? { id: variant.id } : {}),
           attributes: hasVariants ? attributes : {},
-          initial_regular_stock: Math.max(
-            0,
-            Number(variant.initial_regular_stock || 0),
-          ),
-          initial_restricted_stock: isAdmin
-            ? Math.max(0, Number(variant.initial_restricted_stock || 0))
-            : 0,
+          initial_stock: Math.max(0, Number(variant.initial_stock || 0)),
           purchase_price:
             variant.purchase_price === "" || variant.purchase_price == null
               ? null
@@ -596,8 +594,11 @@ export default function ProductFormPage() {
         compatible_models: values.compatible_models?.trim() || "",
         condition: values.condition,
         unit: values.unit,
-        vat_inclusive: Boolean(values.vat_inclusive),
-        vat_rate: Number(values.vat_rate || 0),
+        tax_treatment: values.tax_treatment,
+        vat_inclusive:
+          values.tax_treatment === "VAT"
+            ? Boolean(values.vat_inclusive)
+            : false,
         description: values.description?.trim() || "",
         warranty_period_days: Number(values.warranty_period_days || 0),
         reorder_level: Number(values.reorder_level || 0),
@@ -649,12 +650,10 @@ export default function ProductFormPage() {
               (item) => String(item.id) === String(variant.id),
             )
           : originalVariants[index];
-        const before =
-          Number(original?.regular_quantity || original?.available_qty || 0) +
-          Number(original?.restricted_quantity || 0);
-        const after =
-          Number(variant.initial_regular_stock || 0) +
-          Number(variant.initial_restricted_stock || 0);
+        const before = Number(
+          original?.available_qty ?? original?.total_quantity ?? 0,
+        );
+        const after = Number(variant.initial_stock || 0);
         if (before === after) return null;
         const label = hasVariants
           ? Object.values(
@@ -708,7 +707,7 @@ export default function ProductFormPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1500px] space-y-6 pb-10">
-      <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950">
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 text-white shadow-xl">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.14),transparent_36%),radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.08),transparent_30%)]" />
         <div className="relative flex flex-col gap-5 px-6 py-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex items-start gap-4">
@@ -716,13 +715,22 @@ export default function ProductFormPage() {
               <Boxes className="h-7 w-7" />
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">
+              <p
+                className="text-xs font-bold uppercase tracking-[0.18em] !text-sky-200"
+                style={{ color: "#bae6fd" }}
+              >
                 Product management
               </p>
-              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-3xl">
+              <h1
+                className="mt-1 text-2xl font-extrabold tracking-tight !text-white sm:text-3xl"
+                style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
+              >
                 {isEdit ? "Edit product" : "Create product"}
               </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">
+              <p
+                className="mt-2 max-w-2xl text-sm leading-6 !text-slate-100"
+                style={{ color: "#f1f5f9" }}
+              >
                 Maintain catalogue details, branch stock, rack placement,
                 variants, tax and selling prices.
               </p>
@@ -945,37 +953,15 @@ export default function ProductFormPage() {
               </div>
 
               <div className="grid gap-5 md:grid-cols-2">
-                <div>
-                  <Label>
-                    Branch
-                    <span className="ml-1 text-red-400">*</span>
-                  </Label>
-
-                  <select
-                    {...register("branch", {
-                      required: "Branch is required.",
-                    })}
-                    className="mt-2 h-11 w-full rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                  >
-                    <option value="">Select branch</option>
-
-                    {branches.map((item) => (
-                      <option key={item.id} value={String(item.id)}>
-                        {item.branch_code ||
-                          item.branch_name ||
-                          `Branch #${item.id}`}
-                        {item.branch_name && item.branch_code
-                          ? ` - ${item.branch_name}`
-                          : ""}
-                      </option>
-                    ))}
-                  </select>
-
-                  {errors.branch && (
-                    <p className="mt-1.5 text-sm text-red-400">
-                      {errors.branch.message}
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
+                  Branch is automatically selected from the global branch
+                  filter.
+                  {!selectedBranch ? (
+                    <p className="mt-2 font-semibold text-amber-700 dark:text-amber-300">
+                      Select a branch from the top branch filter before saving
+                      this product.
                     </p>
-                  )}
+                  ) : null}
                 </div>
 
                 <div>
@@ -1196,23 +1182,22 @@ export default function ProductFormPage() {
               </div>
 
               <div>
-                <Label>VAT rate</Label>
+                <Label>Tax treatment</Label>
 
-                <div className="relative mt-2">
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    {...register("vat_rate", {
-                      valueAsNumber: true,
-                    })}
-                    className="h-11 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80 pr-10"
-                  />
-
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500 dark:text-slate-500">
-                    %
-                  </span>
-                </div>
+                <select
+                  {...register("tax_treatment")}
+                  className="mt-2 h-11 w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-sm dark:border-white/10 dark:bg-slate-900/80"
+                  onChange={(event) => {
+                    setValue("tax_treatment", event.target.value);
+                    if (event.target.value !== "VAT") {
+                      setValue("vat_inclusive", false);
+                    }
+                  }}
+                >
+                  <option value="VAT">VAT (5%)</option>
+                  <option value="ZERO_VAT">Zero VAT (0%)</option>
+                  <option value="NON_VAT">Non-VAT</option>
+                </select>
               </div>
             </div>
 
@@ -1229,7 +1214,11 @@ export default function ProductFormPage() {
                 </div>
 
                 <Switch
-                  checked={Boolean(watch("vat_inclusive"))}
+                  checked={
+                    watch("tax_treatment") === "VAT" &&
+                    Boolean(watch("vat_inclusive"))
+                  }
+                  disabled={watch("tax_treatment") !== "VAT"}
                   onCheckedChange={(value) => setValue("vat_inclusive", value)}
                 />
               </div>
@@ -1424,55 +1413,20 @@ export default function ProductFormPage() {
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
                       <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.035] p-3">
                         <Label className="text-emerald-700 dark:text-emerald-100">
-                          Initial Regular Qty
+                          Initial quantity
                         </Label>
                         <Input
                           type="number"
                           min="0"
-                          value={variant.initial_regular_stock ?? 0}
+                          value={variant.initial_stock ?? 0}
                           onChange={(event) =>
                             updateVariant(
                               variantIndex,
-                              "initial_regular_stock",
+                              "initial_stock",
                               event.target.value,
                             )
                           }
                           className="mt-2 h-11 border-emerald-500/20 bg-white dark:bg-slate-950/80"
-                        />
-                      </div>
-
-                      {isAdmin ? (
-                        <div className="rounded-xl border border-amber-500/15 bg-amber-500/[0.035] p-3">
-                          <Label className="text-amber-700 dark:text-amber-100">
-                            Initial Restricted Qty
-                          </Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            value={variant.initial_restricted_stock ?? 0}
-                            onChange={(event) =>
-                              updateVariant(
-                                variantIndex,
-                                "initial_restricted_stock",
-                                event.target.value,
-                              )
-                            }
-                            className="mt-2 h-11 border-amber-500/20 bg-white dark:bg-slate-950/80"
-                          />
-                        </div>
-                      ) : null}
-
-                      <div className="rounded-xl border border-blue-500/15 bg-blue-500/[0.035] p-3">
-                        <Label className="text-blue-700 dark:text-blue-100">
-                          Total Qty
-                        </Label>
-                        <Input
-                          readOnly
-                          value={
-                            Number(variant.initial_regular_stock || 0) +
-                            Number(variant.initial_restricted_stock || 0)
-                          }
-                          className="mt-2 h-11 border-blue-500/20 bg-slate-100 dark:bg-slate-900"
                         />
                       </div>
 

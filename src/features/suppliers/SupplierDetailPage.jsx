@@ -1,9 +1,10 @@
 import React from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   BadgeCheck,
+  BadgeDollarSign,
   Banknote,
   Building2,
   CalendarDays,
@@ -12,8 +13,10 @@ import {
   Landmark,
   Mail,
   MapPin,
+  PackageMinus,
   Pencil,
   Phone,
+  ReceiptText,
   ShieldCheck,
   UserRound,
   WalletCards,
@@ -22,13 +25,22 @@ import {
 import api, { unwrap } from "@/lib/api";
 import { LoadingState } from "@/components/common/States";
 import { Button } from "@/components/ui/button";
-import { CurrencyText } from "@/components/common/CurrencyText";
+import { CurrencyText, DateText } from "@/components/common/CurrencyText";
+import { StatusBadge } from "@/components/common/StatusBadge";
 
 const value = (...items) => {
   for (const item of items) {
     if (item !== undefined && item !== null && String(item).trim()) return item;
   }
   return "—";
+};
+
+const normalizeList = (input) => {
+  if (Array.isArray(input)) return input;
+  if (Array.isArray(input?.results)) return input.results;
+  if (Array.isArray(input?.data)) return input.data;
+  if (Array.isArray(input?.data?.results)) return input.data.results;
+  return [];
 };
 
 const amount = (...items) => {
@@ -72,11 +84,131 @@ function MoneyCard({ label, value: cardValue, icon: Icon, tone = "blue" }) {
   );
 }
 
+function SupplierActivityCard({
+  title,
+  description,
+  icon: Icon,
+  items,
+  isLoading,
+  isError,
+  emptyText,
+  onViewAll,
+  renderItem,
+}) {
+  return (
+    <div className="supplier-detail-card">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="supplier-card-heading mb-0">
+          <Icon className="h-5 w-5" />
+          <div>
+            <h2>{title}</h2>
+            <p>{description}</p>
+          </div>
+        </div>
+
+        <Button type="button" size="sm" variant="outline" onClick={onViewAll}>
+          View all
+        </Button>
+      </div>
+
+      <div className="mt-5">
+        {isLoading ? (
+          <p className="text-sm text-slate-500">Loading records...</p>
+        ) : isError ? (
+          <p className="text-sm text-red-500">Unable to load records.</p>
+        ) : items.length ? (
+          <div className="space-y-2">{items.slice(0, 5).map(renderItem)}</div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-slate-200 px-4 py-7 text-center text-sm text-slate-500 dark:border-white/10">
+            {emptyText}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function SupplierDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
+
+  const openSupplierActivity = React.useCallback(
+    (path) => {
+      navigate(`${path}?supplier=${encodeURIComponent(id)}`);
+    },
+    [id, navigate],
+  );
   const { data, isLoading, isError } = useQuery({
     queryKey: ["supplier", id],
     queryFn: async () => unwrap(await api.get(`/suppliers/${id}/`)),
+  });
+
+  const billsQuery = useQuery({
+    queryKey: ["supplier-detail-bills", id],
+    queryFn: async () =>
+      unwrap(
+        await api.get("/purchases/supplier-bills/", {
+          params: {
+            supplier: id,
+            page_size: 5,
+            ordering: "-bill_date",
+          },
+          skipGlobalErrorToast: true,
+        }),
+      ),
+    enabled: Boolean(id),
+    retry: false,
+  });
+
+  const paymentsQuery = useQuery({
+    queryKey: ["supplier-detail-payments", id],
+    queryFn: async () =>
+      unwrap(
+        await api.get("/purchases/supplier-payments/", {
+          params: {
+            supplier: id,
+            page_size: 5,
+            ordering: "-payment_date",
+          },
+          skipGlobalErrorToast: true,
+        }),
+      ),
+    enabled: Boolean(id),
+    retry: false,
+  });
+
+  const returnsQuery = useQuery({
+    queryKey: ["supplier-detail-returns", id],
+    queryFn: async () =>
+      unwrap(
+        await api.get("/purchases/supplier-returns/", {
+          params: {
+            supplier: id,
+            page_size: 5,
+            ordering: "-return_date",
+          },
+          skipGlobalErrorToast: true,
+        }),
+      ),
+    enabled: Boolean(id),
+    retry: false,
+  });
+
+  const creditsQuery = useQuery({
+    queryKey: ["supplier-detail-credits", id],
+    queryFn: async () =>
+      unwrap(
+        await api.get("/purchases/vendor-credits/", {
+          params: {
+            supplier: id,
+            page_size: 5,
+            ordering: "-credit_date",
+          },
+          skipGlobalErrorToast: true,
+        }),
+      ),
+    enabled: Boolean(id),
+    retry: false,
   });
 
   if (isLoading) return <LoadingState />;
@@ -107,6 +239,11 @@ export default function SupplierDetailPage() {
     Number(s.payment_terms_days || 0) === 0
       ? "Due on receipt"
       : `${Number(s.payment_terms_days || 0)} days`;
+
+  const supplierBills = normalizeList(billsQuery.data);
+  const supplierPayments = normalizeList(paymentsQuery.data);
+  const supplierReturns = normalizeList(returnsQuery.data);
+  const supplierCredits = normalizeList(creditsQuery.data);
 
   return (
     <div className="supplier-module-page min-h-full px-4 py-6 sm:px-6 lg:px-8">
@@ -362,6 +499,236 @@ export default function SupplierDetailPage() {
                 </p>
               </div>
             )}
+          </div>
+        </section>
+
+        <section>
+          <div className="mb-4">
+            <h2 className="text-xl font-extrabold tracking-tight text-slate-950 dark:text-white">
+              Supplier activity
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Recent bills, payments, returns, and supplier credits.
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+            <SupplierActivityCard
+              title="Supplier Bills"
+              description={`${supplierBills.length} recent record${
+                supplierBills.length === 1 ? "" : "s"
+              }`}
+              icon={ReceiptText}
+              items={supplierBills}
+              isLoading={billsQuery.isLoading}
+              isError={billsQuery.isError}
+              emptyText="No supplier bills found."
+              onViewAll={() =>
+                openSupplierActivity("/purchases/supplier-bills")
+              }
+              renderItem={(bill) => (
+                <Link
+                  key={bill.id}
+                  to={`/purchases/supplier-bills/${bill.id}`}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-3 transition hover:bg-slate-50 dark:border-white/10 dark:hover:bg-white/5"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      {value(
+                        bill.bill_number,
+                        bill.supplier_invoice_number,
+                        `Bill ${bill.id}`,
+                      )}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {bill.bill_date ? (
+                        <DateText value={bill.bill_date} />
+                      ) : (
+                        "No bill date"
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="shrink-0 text-right">
+                    <CurrencyText
+                      value={amount(
+                        bill.balance_due,
+                        bill.total_amount,
+                        bill.amount,
+                      )}
+                      currency={bill.currency || s.currency || "AED"}
+                      className="text-sm font-semibold"
+                    />
+                    <div className="mt-1">
+                      <StatusBadge
+                        status={bill.payment_status || bill.status || "OPEN"}
+                      />
+                    </div>
+                  </div>
+                </Link>
+              )}
+            />
+
+            <SupplierActivityCard
+              title="Supplier Payments"
+              description={`${supplierPayments.length} recent record${
+                supplierPayments.length === 1 ? "" : "s"
+              }`}
+              icon={Banknote}
+              items={supplierPayments}
+              isLoading={paymentsQuery.isLoading}
+              isError={paymentsQuery.isError}
+              emptyText="No supplier payments found."
+              onViewAll={() =>
+                openSupplierActivity("/purchases/supplier-payments")
+              }
+              renderItem={(payment) => (
+                <Link
+                  key={payment.id}
+                  to={`/purchases/supplier-payments/${payment.id}`}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-3 transition hover:bg-slate-50 dark:border-white/10 dark:hover:bg-white/5"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      {value(
+                        payment.payment_number,
+                        payment.reference_number,
+                        `Payment ${payment.id}`,
+                      )}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {payment.payment_date ? (
+                        <DateText value={payment.payment_date} />
+                      ) : (
+                        "No payment date"
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="shrink-0 text-right">
+                    <CurrencyText
+                      value={amount(payment.amount, payment.total_amount)}
+                      currency={payment.currency || s.currency || "AED"}
+                      className="text-sm font-semibold"
+                    />
+                    <p className="mt-1 text-xs text-slate-500">
+                      {String(payment.payment_method || "Payment").replaceAll(
+                        "_",
+                        " ",
+                      )}
+                    </p>
+                  </div>
+                </Link>
+              )}
+            />
+
+            <SupplierActivityCard
+              title="Supplier Returns"
+              description={`${supplierReturns.length} recent record${
+                supplierReturns.length === 1 ? "" : "s"
+              }`}
+              icon={PackageMinus}
+              items={supplierReturns}
+              isLoading={returnsQuery.isLoading}
+              isError={returnsQuery.isError}
+              emptyText="No supplier returns found."
+              onViewAll={() =>
+                openSupplierActivity("/purchases/supplier-returns")
+              }
+              renderItem={(supplierReturn) => (
+                <Link
+                  key={supplierReturn.id}
+                  to={`/purchases/supplier-returns/${supplierReturn.id}`}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-3 transition hover:bg-slate-50 dark:border-white/10 dark:hover:bg-white/5"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      {value(
+                        supplierReturn.return_number,
+                        `Return ${supplierReturn.id}`,
+                      )}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {supplierReturn.return_date ? (
+                        <DateText value={supplierReturn.return_date} />
+                      ) : (
+                        "No return date"
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="shrink-0 text-right">
+                    <CurrencyText
+                      value={amount(
+                        supplierReturn.total_amount,
+                        supplierReturn.amount,
+                      )}
+                      currency={supplierReturn.currency || s.currency || "AED"}
+                      className="text-sm font-semibold"
+                    />
+                    <div className="mt-1">
+                      <StatusBadge status={supplierReturn.status || "DRAFT"} />
+                    </div>
+                  </div>
+                </Link>
+              )}
+            />
+
+            <SupplierActivityCard
+              title="Supplier Credit"
+              description={`${supplierCredits.length} recent record${
+                supplierCredits.length === 1 ? "" : "s"
+              }`}
+              icon={BadgeDollarSign}
+              items={supplierCredits}
+              isLoading={creditsQuery.isLoading}
+              isError={creditsQuery.isError}
+              emptyText="No supplier credits found."
+              onViewAll={() =>
+                openSupplierActivity("/purchases/vendor-credits")
+              }
+              renderItem={(credit) => (
+                <Link
+                  key={credit.id}
+                  to={`/purchases/vendor-credits/${credit.id}`}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-3 transition hover:bg-slate-50 dark:border-white/10 dark:hover:bg-white/5"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      {value(
+                        credit.credit_number,
+                        credit.reference_number,
+                        `Credit ${credit.id}`,
+                      )}
+                    </p>
+
+                    <p className="mt-1 text-xs text-slate-500">
+                      {credit.credit_date ? (
+                        <DateText value={credit.credit_date} />
+                      ) : (
+                        "No credit date"
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="shrink-0 text-right">
+                    <CurrencyText
+                      value={amount(
+                        credit.remaining_amount,
+                        credit.total_amount,
+                        credit.amount,
+                      )}
+                      currency={credit.currency || s.currency || "AED"}
+                      className="text-sm font-semibold"
+                    />
+
+                    <div className="mt-1">
+                      <StatusBadge status={credit.status || "OPEN"} />
+                    </div>
+                  </div>
+                </Link>
+              )}
+            />
           </div>
         </section>
       </div>

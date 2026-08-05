@@ -50,6 +50,22 @@ const number = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const decimalValue = (value, decimalPlaces = 2) => {
+  const parsed = Number(value || 0);
+
+  if (!Number.isFinite(parsed)) {
+    return 0;
+  }
+
+  // Backend DecimalFields use max_digits=14. Keep submitted values
+  // comfortably within that precision and round floating-point output.
+  const maximum = 999999999999.99;
+  const minimum = -maximum;
+  const bounded = Math.min(maximum, Math.max(minimum, parsed));
+
+  return Number(bounded.toFixed(decimalPlaces));
+};
+
 const getProductPrice = (product) =>
   number(
     product?.retail_price ??
@@ -482,13 +498,13 @@ export default function QuotationFormPage() {
 
         salesperson: form.salesperson ? Number(form.salesperson) : null,
 
-        discount_amount: number(form.discount_amount),
+        discount_amount: decimalValue(form.discount_amount),
 
-        shipping_amount: number(form.shipping_amount),
+        shipping_amount: decimalValue(form.shipping_amount),
 
-        subtotal,
-        vat_amount: vatAmount,
-        total_amount: total,
+        subtotal: decimalValue(subtotal),
+        vat_amount: decimalValue(vatAmount),
+        total_amount: decimalValue(total),
 
         items: calculatedItems.map((item) => ({
           ...(item.id
@@ -503,12 +519,18 @@ export default function QuotationFormPage() {
 
           description: item.description,
 
-          quantity: number(item.quantity),
+          quantity: decimalValue(item.quantity, 2),
 
-          unit_price: number(item.unit_price),
+          unit_price: decimalValue(item.unit_price, 2),
 
-          vat_percentage: number(item.tax_rate ?? item.vat_percentage ?? 5),
-          tax_rate: number(item.tax_rate ?? item.vat_percentage ?? 5),
+          vat_percentage: decimalValue(
+            item.tax_rate ?? item.vat_percentage ?? 5,
+            2,
+          ),
+          tax_rate: decimalValue(item.tax_rate ?? item.vat_percentage ?? 5, 2),
+          subtotal: decimalValue(item.subtotal),
+          vat_amount: decimalValue(item.vat_amount),
+          line_total: decimalValue(item.line_total),
           tax_treatment: canManageTax ? item.tax_treatment : "STANDARD_VAT",
           tax_reason: canManageTax ? String(item.tax_reason || "").trim() : "",
           stock_classification: canManageRestricted
@@ -969,6 +991,7 @@ export default function QuotationFormPage() {
                     <Input
                       type="number"
                       min="0.01"
+                      max="999999999999.99"
                       step="0.01"
                       value={item.quantity}
                       onChange={(event) =>
@@ -982,6 +1005,7 @@ export default function QuotationFormPage() {
                     <Input
                       type="number"
                       min="0"
+                      max="999999999999.99"
                       step="0.01"
                       value={item.unit_price}
                       onChange={(event) =>
@@ -1065,6 +1089,7 @@ export default function QuotationFormPage() {
                 <Input
                   type="number"
                   min="0"
+                  max="999999999999.99"
                   step="0.01"
                   value={form.discount_amount}
                   onChange={(event) =>

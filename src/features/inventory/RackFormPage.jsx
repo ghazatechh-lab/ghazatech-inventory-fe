@@ -18,6 +18,7 @@ import { toast } from "sonner";
 
 import api, { unwrap } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { isAdmin } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,6 +67,7 @@ export default function RackFormPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { branchId } = useActiveBranchFilter();
 
   const isEdit = Boolean(id);
   const canManage = isAdmin(user);
@@ -83,10 +85,19 @@ export default function RackFormPage() {
     defaultValues: {
       rack_code: "",
       rack_name: "",
-      branch: "",
+      branch: branchId ? String(branchId) : "",
       is_active: true,
     },
   });
+
+  React.useEffect(() => {
+    if (!isEdit && branchId) {
+      reset((current) => ({
+        ...current,
+        branch: String(branchId),
+      }));
+    }
+  }, [branchId, isEdit, reset]);
 
   const watchedCode = watch("rack_code");
   const watchedName = watch("rack_name");
@@ -232,7 +243,7 @@ export default function RackFormPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 pb-12">
-      <section className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white px-6 py-7 shadow-sm dark:border-white/10 dark:bg-slate-950/80 sm:px-8">
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 px-6 py-7 text-white shadow-xl sm:px-8">
         <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-blue-500/10 blur-3xl" />
 
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
@@ -241,10 +252,16 @@ export default function RackFormPage() {
               <Warehouse className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-blue-600 dark:text-blue-300">
+              <p
+                className="text-xs font-extrabold uppercase tracking-[0.16em] !text-sky-200"
+                style={{ color: "#bae6fd" }}
+              >
                 Inventory setup
               </p>
-              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-3xl">
+              <h1
+                className="mt-1 text-2xl font-extrabold tracking-tight !text-white sm:text-3xl"
+                style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
+              >
                 {isEdit ? "Edit Rack" : "Create New Rack"}
               </h1>
               <p className="mt-1.5 text-sm leading-6 text-slate-500 dark:text-slate-400">
@@ -329,53 +346,9 @@ export default function RackFormPage() {
               </div>
             </div>
 
-            <div>
-              <Label className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                Branch <span className="text-red-500">*</span>
-              </Label>
-              <Controller
-                name="branch"
-                control={control}
-                rules={{ required: "Branch is required." }}
-                render={({ field }) => (
-                  <Select
-                    value={field.value ? String(field.value) : ""}
-                    onValueChange={(value) => {
-                      field.onChange(value);
-                      clearErrors("branch");
-                    }}
-                  >
-                    <SelectTrigger className="mt-2 h-12 rounded-xl border-slate-200 bg-white dark:border-white/10 dark:bg-slate-900/80">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-slate-400" />
-                        <SelectValue placeholder="Select branch" />
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {branches.map((branch) => (
-                        <SelectItem key={branch.id} value={String(branch.id)}>
-                          {branch.branch_code || branch.branch_name}
-                          {branch.branch_name && branch.branch_code
-                            ? ` - ${branch.branch_name}`
-                            : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              <FieldMessage error={errors.branch}>
-                Each rack belongs to one branch and appears only in that branch
-                inventory.
-              </FieldMessage>
-
-              {!branches.length && (
-                <div className="mt-3 flex gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
-                  <Info className="h-4 w-4 shrink-0" />
-                  No branches are available. Create a branch before adding
-                  racks.
-                </div>
-              )}
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
+              <MapPin className="mr-2 inline h-4 w-4" />
+              Branch is automatically selected from the global branch filter.
             </div>
 
             <Controller

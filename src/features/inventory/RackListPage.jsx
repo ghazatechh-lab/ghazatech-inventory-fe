@@ -17,6 +17,7 @@ import { toast } from "sonner";
 
 import api from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { isAdmin } from "@/lib/permissions";
 import { useListQuery, DataTable, SearchInput } from "@/hooks/useListQuery";
 import { Button } from "@/components/ui/button";
@@ -77,9 +78,9 @@ function SummaryCard({ label, value, helper, icon: Icon, tone = "blue" }) {
 
 export default function RackListPage() {
   const queryClient = useQueryClient();
-  const { user, branchOverride } = useAuth();
+  const { user } = useAuth();
+  const { branchId: selectedBranchId } = useActiveBranchFilter();
   const canManage = isAdmin(user);
-  const selectedBranchId = canManage ? branchOverride : getUserBranchId(user);
 
   const listParams = React.useMemo(
     () => ({ branch: selectedBranchId || undefined }),
@@ -243,7 +244,7 @@ export default function RackListPage() {
 
   return (
     <div className="space-y-6 pb-10">
-      <section className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white px-6 py-7 shadow-sm dark:border-white/10 dark:bg-slate-950/80 sm:px-8">
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 px-6 py-7 text-white shadow-xl sm:px-8">
         <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-blue-500/10 blur-3xl" />
         <div className="pointer-events-none absolute bottom-0 right-28 h-32 w-32 rounded-full bg-amber-400/10 blur-3xl" />
 
@@ -261,10 +262,16 @@ export default function RackListPage() {
                   Storage management
                 </span>
               </div>
-              <h1 className="text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-3xl">
+              <h1
+                className="text-2xl font-extrabold tracking-tight !text-white sm:text-3xl"
+                style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
+              >
                 Rack Management
               </h1>
-              <p className="mt-1.5 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">
+              <p
+                className="mt-1.5 max-w-2xl text-sm leading-6 !text-slate-100"
+                style={{ color: "#f1f5f9" }}
+              >
                 {branchSubtitle}
               </p>
             </div>

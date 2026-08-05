@@ -1,12 +1,23 @@
 import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Controller, useForm } from "react-hook-form";
-import { Clock3, MinusCircle, Pencil, PlusCircle, Save, X } from "lucide-react";
+import {
+  ChevronDown,
+  Clock3,
+  FilterX,
+  MinusCircle,
+  Pencil,
+  PlusCircle,
+  RefreshCcw,
+  Save,
+  Search,
+  Warehouse,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { useListQuery, DataTable } from "@/hooks/useListQuery";
-import { PageHeader } from "@/components/common/PageHeader";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,7 +51,6 @@ const emptyAdjustment = (branchId = "") => ({
   branch: branchId ? String(branchId) : "",
   product: "",
   variant: "",
-  stock_classification: "REGULAR",
   adjustment_type: "DEDUCT",
   quantity: 1,
   reason: "",
@@ -77,6 +87,149 @@ const getSignedQuantity = (adjustment) => {
   return adjustment?.adjustment_type === "DEDUCT" ? -quantity : quantity;
 };
 
+const getVariantLabel = (variant) => {
+  if (!variant) return "Base product";
+
+  if (variant.display_name) return variant.display_name;
+  if (variant.variant_label) return variant.variant_label;
+  if (variant.variant_name) return variant.variant_name;
+  if (variant.name) return variant.name;
+  if (variant.attributes_display) return variant.attributes_display;
+
+  const attributeValues = Object.values(variant.attributes || {}).filter(
+    (value) => value !== null && value !== undefined && String(value).trim(),
+  );
+
+  return attributeValues.length ? attributeValues.join(" / ") : "Variant";
+};
+
+function SearchableProductSelect({
+  value,
+  products,
+  disabled = false,
+  placeholder = "Select product",
+  searchPlaceholder = "Search product or SKU",
+  getValue = (product) => String(product.id),
+  getLabel = (product) => `${product.product_name} — ${product.sku}`,
+  onChange,
+}) {
+  const wrapperRef = React.useRef(null);
+  const searchRef = React.useRef(null);
+  const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState("");
+
+  const selectedProduct = React.useMemo(
+    () => products.find((product) => getValue(product) === String(value || "")),
+    [products, value, getValue],
+  );
+
+  const filteredProducts = React.useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    if (!query) return products;
+
+    return products.filter((product) =>
+      [
+        product.product_name,
+        product.sku,
+        product.barcode,
+        product.category_name,
+        product.brand_name,
+        product.variant_label,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [products, search]);
+
+  React.useEffect(() => {
+    const closeOnOutsideClick = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, []);
+
+  React.useEffect(() => {
+    if (open) {
+      requestAnimationFrame(() => searchRef.current?.focus());
+    }
+  }, [open]);
+
+  return (
+    <div ref={wrapperRef} className="relative mt-2">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => {
+          if (!disabled) {
+            setOpen((current) => !current);
+            setSearch("");
+          }
+        }}
+        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <span className="truncate">
+          {selectedProduct ? getLabel(selectedProduct) : placeholder}
+        </span>
+        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+      </button>
+
+      {open ? (
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
+          <div className="border-b bg-popover p-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                ref={searchRef}
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") setOpen(false);
+                }}
+                placeholder={searchPlaceholder}
+                className="h-9 pl-9"
+              />
+            </div>
+          </div>
+
+          <div className="max-h-64 overflow-y-auto p-1">
+            {filteredProducts.length ? (
+              filteredProducts.map((product) => {
+                const optionValue = getValue(product);
+
+                return (
+                  <button
+                    key={optionValue}
+                    type="button"
+                    onClick={() => {
+                      onChange(optionValue);
+                      setOpen(false);
+                      setSearch("");
+                    }}
+                    className="flex w-full items-center rounded-sm px-2 py-2 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                  >
+                    {getLabel(product)}
+                  </button>
+                );
+              })
+            ) : (
+              <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                No matching products
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function AdjustmentFields({
   values,
   update,
@@ -84,57 +237,28 @@ function AdjustmentFields({
   products,
   variants,
   stock,
-  restrictedAllowed,
   disabled = false,
   errors = {},
 }) {
-  const classification = values.stock_classification || "REGULAR";
-  const regularAvailable = Number(stock?.available_regular_quantity || 0);
-  const restrictedAvailable = Number(stock?.available_restricted_quantity || 0);
+  const availableQuantity = Number(
+    stock?.available_stock ?? stock?.available_quantity ?? 0,
+  );
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <div>
-        <Label>Branch *</Label>
-        <Select
-          value={values.branch}
-          disabled={disabled}
-          onValueChange={(value) => update("branch", value)}
-        >
-          <SelectTrigger className="mt-2">
-            <SelectValue placeholder="Select branch" />
-          </SelectTrigger>
-          <SelectContent>
-            {branches.map((branch) => (
-              <SelectItem key={branch.id} value={String(branch.id)}>
-                {branch.branch_name || branch.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {errors.branch && (
-          <p className="mt-1 text-xs text-red-500">{errors.branch}</p>
-        )}
+      <div className="md:col-span-2 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
+        <Warehouse className="mr-2 inline h-4 w-4" />
+        Branch is controlled by the global branch filter.
       </div>
 
       <div>
         <Label>Product *</Label>
-        <Select
+        <SearchableProductSelect
           value={values.product}
+          products={products}
           disabled={disabled || !values.branch}
-          onValueChange={(value) => update("product", value)}
-        >
-          <SelectTrigger className="mt-2">
-            <SelectValue placeholder="Select product" />
-          </SelectTrigger>
-          <SelectContent className="max-h-72">
-            {products.map((product) => (
-              <SelectItem key={product.id} value={String(product.id)}>
-                {product.product_name} — {product.sku}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          onChange={(value) => update("product", value)}
+        />
         {errors.product && (
           <p className="mt-1 text-xs text-red-500">{errors.product}</p>
         )}
@@ -158,10 +282,7 @@ function AdjustmentFields({
             <SelectItem value="__base__">Base product</SelectItem>
             {variants.map((variant) => (
               <SelectItem key={variant.id} value={String(variant.id)}>
-                {variant.variant_name ||
-                  variant.name ||
-                  variant.attributes_display ||
-                  `Variant ${variant.id}`}
+                {getVariantLabel(variant)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -172,24 +293,8 @@ function AdjustmentFields({
       </div>
 
       <div>
-        <Label>Stock Type *</Label>
-        <Select
-          value={classification}
-          disabled={disabled || !values.product}
-          onValueChange={(value) => update("stock_classification", value)}
-        >
-          <SelectTrigger className="mt-2">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="REGULAR">
-              Regular — available {regularAvailable}
-            </SelectItem>
-            <SelectItem value="RESTRICTED" disabled={!restrictedAllowed}>
-              Restricted — available {restrictedAvailable}
-            </SelectItem>
-          </SelectContent>
-        </Select>
+        <Label>Available quantity</Label>
+        <Input className="mt-2" value={availableQuantity} readOnly />
       </div>
 
       <div className="md:col-span-2">
@@ -286,6 +391,8 @@ export default function StockAdjustmentPage() {
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [pendingAdjustment, setPendingAdjustment] = React.useState(null);
 
+  const [historyType, setHistoryType] = React.useState("__all__");
+
   const [editOpen, setEditOpen] = React.useState(false);
   const [editingAdjustment, setEditingAdjustment] = React.useState(null);
   const [editForm, setEditForm] = React.useState(() =>
@@ -308,7 +415,6 @@ export default function StockAdjustmentPage() {
   const selectedBranchId = watch("branch");
   const selectedProductId = watch("product");
   const selectedVariantId = watch("variant");
-  const selectedClassification = watch("stock_classification");
 
   const { data: branchResponse } = useQuery({
     queryKey: ["adjustment-branches"],
@@ -388,6 +494,14 @@ export default function StockAdjustmentPage() {
     staleTime: 0,
   });
 
+  const adjustmentListParams = React.useMemo(
+    () => ({
+      ...branchParams,
+      adjustment_type: historyType !== "__all__" ? historyType : undefined,
+    }),
+    [branchParams, historyType],
+  );
+
   const {
     query: adjustmentQuery,
     page: adjustmentPage,
@@ -395,7 +509,7 @@ export default function StockAdjustmentPage() {
   } = useListQuery(
     "stock-adjustments",
     "/inventory/adjustments/",
-    branchParams,
+    adjustmentListParams,
   );
 
   const branches = React.useMemo(
@@ -431,9 +545,6 @@ export default function StockAdjustmentPage() {
   const selectedStock = stockResponse || null;
   const editStock = editStockResponse || null;
 
-  const restrictedAllowed = selectedStock?.restricted_allowed !== false;
-  const editRestrictedAllowed = editStock?.restricted_allowed !== false;
-
   const adjustmentPayload = adjustmentQuery.data || {
     results: [],
     count: 0,
@@ -450,14 +561,9 @@ export default function StockAdjustmentPage() {
   }, [selectedProductId, setValue]);
 
   React.useEffect(() => {
-    if (selectedClassification === "RESTRICTED" && !restrictedAllowed) {
-      setValue("stock_classification", "REGULAR");
-    }
-  }, [restrictedAllowed, selectedClassification, setValue]);
-
-  React.useEffect(() => {
     if (branchId) {
       setValue("branch", String(branchId));
+    } else {
     }
   }, [branchId, setValue]);
 
@@ -564,10 +670,9 @@ export default function StockAdjustmentPage() {
     }
 
     if (values.adjustment_type === "DEDUCT" && stock) {
-      const available =
-        values.stock_classification === "RESTRICTED"
-          ? Number(stock.available_restricted_quantity || 0)
-          : Number(stock.available_regular_quantity || 0);
+      const available = Number(
+        stock.available_stock ?? stock.available_quantity ?? 0,
+      );
 
       /*
        * During edit, the API first reverses the original adjustment.
@@ -580,9 +685,7 @@ export default function StockAdjustmentPage() {
         String(editingAdjustment?.branch) === String(values.branch) &&
         String(editingAdjustment?.product) === String(values.product) &&
         String(editingAdjustment?.variant || "") ===
-          String(values.variant || "") &&
-        String(editingAdjustment?.stock_classification || "REGULAR") ===
-          String(values.stock_classification);
+          String(values.variant || "");
 
       const reversibleAmount =
         sameTarget && originalSigned < 0 ? Math.abs(originalSigned) : 0;
@@ -612,7 +715,6 @@ export default function StockAdjustmentPage() {
       branch: Number(values.branch),
       product: Number(values.product),
       variant: values.variant ? Number(values.variant) : null,
-      stock_classification: values.stock_classification,
       adjustment_type: values.adjustment_type,
       quantity: Number(values.quantity),
       reason: values.reason.trim(),
@@ -637,7 +739,6 @@ export default function StockAdjustmentPage() {
       branch: String(adjustment.branch || ""),
       product: String(adjustment.product || ""),
       variant: adjustment.variant ? String(adjustment.variant) : "",
-      stock_classification: adjustment.stock_classification || "REGULAR",
       adjustment_type: adjustment.adjustment_type || "DEDUCT",
       quantity: Number(adjustment.quantity || 1),
       reason: adjustment.reason || "",
@@ -680,13 +781,27 @@ export default function StockAdjustmentPage() {
       branch: Number(editForm.branch),
       product: Number(editForm.product),
       variant: editForm.variant ? Number(editForm.variant) : null,
-      stock_classification: editForm.stock_classification,
       adjustment_type: editForm.adjustment_type,
       quantity: Number(editForm.quantity),
       reason: editForm.reason.trim(),
       remarks: editForm.remarks.trim(),
     });
   };
+
+  const selectedHistoryBranchLabel = branchId
+    ? branches.find((item) => String(item.id) === String(branchId))
+        ?.branch_name ||
+      branches.find((item) => String(item.id) === String(branchId))
+        ?.branch_code ||
+      `Branch ${branchId}`
+    : "All branches";
+
+  const clearHistoryFilters = () => {
+    setHistoryType("__all__");
+    setAdjustmentPage(1);
+  };
+
+  const hasHistoryFilters = historyType !== "__all__";
 
   const adjustmentColumns = [
     {
@@ -728,12 +843,6 @@ export default function StockAdjustmentPage() {
       header: "Branch",
       sortKey: "branch__branch_code",
       cell: (item) => item.branch_code || item.branch_name || "—",
-    },
-    {
-      key: "stock_classification",
-      header: "Stock Type",
-      cell: (item) =>
-        item.stock_classification === "RESTRICTED" ? "Restricted" : "Regular",
     },
     {
       key: "adjustment_type",
@@ -800,12 +909,58 @@ export default function StockAdjustmentPage() {
   return (
     <div
       data-stock-module="stock-adjustments"
-      className="stock-module-page space-y-6"
+      className="stock-module-page stock-workspace mx-auto max-w-7xl space-y-5 pb-10"
     >
-      <PageHeader
-        title="Stock adjustments"
-        subtitle="Manually increase or decrease stock to match the physical count"
-      />
+      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-400/20 blur-3xl" />
+        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p
+              className="text-xs font-extrabold uppercase tracking-[0.2em]"
+              style={{ color: "#bae6fd" }}
+            >
+              Inventory control
+            </p>
+            <h1
+              className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl"
+              style={{
+                color: "#ffffff",
+                WebkitTextFillColor: "#ffffff",
+                textShadow: "0 2px 12px rgba(0,0,0,.28)",
+              }}
+            >
+              Stock Adjustments
+            </h1>
+            <p
+              className="mt-2 max-w-2xl text-sm leading-6"
+              style={{ color: "#f1f5f9" }}
+            >
+              Manual inventory corrections for {selectedHistoryBranchLabel}.
+              Branch scope follows the global branch filter.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={adjustmentQuery.isFetching}
+            onClick={() => adjustmentQuery.refetch()}
+            className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+          >
+            <RefreshCcw
+              className={`mr-2 h-4 w-4 ${adjustmentQuery.isFetching ? "animate-spin" : ""}`}
+            />
+            Refresh
+          </Button>
+        </div>
+      </section>
+
+      <div className="flex items-start gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
+        <Warehouse className="mt-0.5 h-4 w-4 shrink-0" />
+        <p>
+          Every adjustment creates a stock movement and immediately recalculates
+          branch inventory.
+        </p>
+      </div>
 
       <div className="grid items-start gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
         <form
@@ -822,36 +977,9 @@ export default function StockAdjustmentPage() {
 
           <div className="space-y-5 p-5">
             <div className="space-y-5">
-              <div>
-                <Label>Branch *</Label>
-                <Controller
-                  name="branch"
-                  control={control}
-                  rules={{ required: "Branch is required." }}
-                  render={({ field }) => (
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      disabled={Boolean(branchId)}
-                    >
-                      <SelectTrigger className="mt-2">
-                        <SelectValue placeholder="Select branch" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {visibleBranches.map((branch) => (
-                          <SelectItem key={branch.id} value={String(branch.id)}>
-                            {branch.branch_name || branch.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {errors.branch && (
-                  <p className="mt-1 text-xs text-red-500">
-                    {errors.branch.message}
-                  </p>
-                )}
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
+                <Warehouse className="mr-2 inline h-4 w-4" />
+                Branch is automatically selected from the global branch filter.
               </div>
 
               <div>
@@ -861,25 +989,12 @@ export default function StockAdjustmentPage() {
                   control={control}
                   rules={{ required: "Product is required." }}
                   render={({ field }) => (
-                    <Select
+                    <SearchableProductSelect
                       value={field.value}
-                      onValueChange={field.onChange}
+                      products={products}
                       disabled={!selectedBranchId}
-                    >
-                      <SelectTrigger className="mt-2">
-                        <SelectValue placeholder="Select product" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-72">
-                        {products.map((product) => (
-                          <SelectItem
-                            key={product.id}
-                            value={String(product.id)}
-                          >
-                            {product.product_name} — {product.sku}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onChange={field.onChange}
+                    />
                   )}
                 />
                 {errors.product && (
@@ -916,10 +1031,7 @@ export default function StockAdjustmentPage() {
                             key={variant.id}
                             value={String(variant.id)}
                           >
-                            {variant.variant_name ||
-                              variant.name ||
-                              variant.attributes_display ||
-                              `Variant ${variant.id}`}
+                            {getVariantLabel(variant)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -929,38 +1041,15 @@ export default function StockAdjustmentPage() {
               </div>
 
               <div>
-                <Label>Stock Type *</Label>
-                <Controller
-                  name="stock_classification"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      disabled={!selectedProductId}
-                    >
-                      <SelectTrigger className="mt-2">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="REGULAR">
-                          Regular — available{" "}
-                          {Number(
-                            selectedStock?.available_regular_quantity || 0,
-                          )}
-                        </SelectItem>
-                        <SelectItem
-                          value="RESTRICTED"
-                          disabled={!restrictedAllowed}
-                        >
-                          Restricted — available{" "}
-                          {Number(
-                            selectedStock?.available_restricted_quantity || 0,
-                          )}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+                <Label>Available quantity</Label>
+                <Input
+                  className="mt-2"
+                  value={Number(
+                    selectedStock?.available_stock ??
+                      selectedStock?.available_quantity ??
+                      0,
                   )}
+                  readOnly
                 />
               </div>
 
@@ -1067,12 +1156,53 @@ export default function StockAdjustmentPage() {
 
         <section className="stock-adjustment-history min-w-0 self-start overflow-hidden rounded-2xl border bg-card shadow-sm">
           <div className="relative z-10 border-b bg-card px-5 py-4">
-            <h2 className="font-semibold text-foreground">
-              Recent adjustments
-            </h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Sort by date, time, product, branch, quantity, status or user.
-            </p>
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+              <div>
+                <h2 className="font-semibold text-foreground">
+                  Recent adjustments
+                </h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Filter adjustment history by branch and adjustment type.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 xl:w-[460px]">
+                <div>
+                  <Label>Adjustment Type</Label>
+                  <Select
+                    value={historyType}
+                    onValueChange={(value) => {
+                      setHistoryType(value);
+                      setAdjustmentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="mt-2">
+                      <SelectValue />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      <SelectItem value="__all__">All adjustments</SelectItem>
+                      <SelectItem value="ADD">Increase</SelectItem>
+                      <SelectItem value="DEDUCT">Decrease</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {hasHistoryFilters ? (
+              <div className="mt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={clearHistoryFilters}
+                >
+                  <FilterX className="mr-2 h-4 w-4" />
+                  Clear History Filters
+                </Button>
+              </div>
+            ) : null}
           </div>
 
           <div className="relative z-0 min-w-0 overflow-x-auto bg-card pt-1">
@@ -1103,14 +1233,6 @@ export default function StockAdjustmentPage() {
 
           {pendingAdjustment && (
             <div className="space-y-3 rounded-xl border p-4 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Stock type</span>
-                <strong>
-                  {pendingAdjustment.stock_classification === "RESTRICTED"
-                    ? "Restricted"
-                    : "Regular"}
-                </strong>
-              </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Type</span>
                 <strong>
@@ -1176,7 +1298,6 @@ export default function StockAdjustmentPage() {
             products={editProducts}
             variants={editVariants}
             stock={editStock}
-            restrictedAllowed={editRestrictedAllowed}
             errors={editErrors}
           />
 

@@ -2,7 +2,8 @@ import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { PageHeader } from "@/components/common/PageHeader";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { ArrowRightLeft, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,10 +27,11 @@ const rows = (v) =>
           : [];
 export default function StockReclassificationPage() {
   const qc = useQueryClient();
+  const { branchId, branchParams } = useActiveBranchFilter();
   const [form, setForm] = React.useState({
     product: "",
     variant: "",
-    branch: "",
+    branch: branchId ? String(branchId) : "",
     warehouse: "",
     source_classification: "REGULAR",
     destination_classification: "RESTRICTED",
@@ -39,14 +41,22 @@ export default function StockReclassificationPage() {
   const { data: products = [] } = useQuery({
     queryKey: ["reclass-products"],
     queryFn: async () =>
-      rows(unwrap(await api.get("/products/", { params: { page_size: 500 } }))),
-  });
-  const { data: branches = [] } = useQuery({
-    queryKey: ["reclass-branches"],
-    queryFn: async () =>
-      rows(unwrap(await api.get("/branches/", { params: { page_size: 500 } }))),
+      rows(
+        unwrap(
+          await api.get("/products/", {
+            params: { page_size: 500, ...branchParams },
+          }),
+        ),
+      ),
   });
   const selected = products.find((p) => String(p.id) === String(form.product));
+  React.useEffect(() => {
+    setForm((current) => ({
+      ...current,
+      branch: branchId ? String(branchId) : "",
+    }));
+  }, [branchId]);
+
   const variants = (selected?.variants || []).filter(
     (v) => v.is_active !== false,
   );
@@ -75,10 +85,39 @@ export default function StockReclassificationPage() {
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="Stock Reclassification"
-        subtitle="Controlled movement between regular and restricted stock"
-      />
+      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-400/20 blur-3xl" />
+        <div className="relative flex items-start gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/15">
+            <ArrowRightLeft className="h-7 w-7 text-sky-200" />
+          </div>
+          <div>
+            <p
+              className="text-xs font-extrabold uppercase tracking-[0.2em]"
+              style={{ color: "#bae6fd" }}
+            >
+              Inventory control
+            </p>
+            <h1
+              className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl"
+              style={{
+                color: "#ffffff",
+                WebkitTextFillColor: "#ffffff",
+                textShadow: "0 2px 12px rgba(0,0,0,.28)",
+              }}
+            >
+              Stock Reclassification
+            </h1>
+            <p
+              className="mt-2 max-w-2xl text-sm leading-6"
+              style={{ color: "#f1f5f9" }}
+            >
+              Controlled movement between regular and restricted stock. Branch
+              is taken from the global branch filter.
+            </p>
+          </div>
+        </div>
+      </section>
       <section className="card-surface grid gap-4 p-5 md:grid-cols-2">
         <div>
           <Label>Product *</Label>
@@ -120,23 +159,9 @@ export default function StockReclassificationPage() {
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label>Branch *</Label>
-          <Select
-            value={form.branch}
-            onValueChange={(v) => update("branch", v)}
-          >
-            <SelectTrigger className="mt-2">
-              <SelectValue placeholder="Select branch" />
-            </SelectTrigger>
-            <SelectContent>
-              {branches.map((b) => (
-                <SelectItem key={b.id} value={String(b.id)}>
-                  {b.branch_name || b.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
+          <ShieldCheck className="mr-2 inline h-4 w-4" />
+          Branch is automatically selected from the global branch filter.
         </div>
         <div>
           <Label>Quantity *</Label>

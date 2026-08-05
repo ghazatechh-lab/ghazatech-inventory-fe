@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -79,6 +79,8 @@ export default function SupplierReturnsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const supplierFilter = searchParams.get("supplier") || "";
   const { branchId } = useActiveBranchFilter();
   const editingId = id || null;
 
@@ -88,12 +90,15 @@ export default function SupplierReturnsPage() {
   const [grnSearch, setGrnSearch] = React.useState("");
 
   const optionsQuery = useQuery({
-    queryKey: ["supplier-return-form-options", branchId],
+    queryKey: ["supplier-return-form-options", branchId, supplierFilter],
     queryFn: async () => {
       const response = await api.get(
         "/purchases/supplier-returns/form-options/",
         {
-          params: branchId ? { branch: branchId } : undefined,
+          params: {
+            branch: branchId || undefined,
+            supplier: supplierFilter || undefined,
+          },
           skipGlobalErrorToast: true,
         },
       );
@@ -140,11 +145,19 @@ export default function SupplierReturnsPage() {
   const filteredGrns = React.useMemo(() => {
     const search = grnSearch.trim().toLowerCase();
 
+    const supplierScopedGrns = supplierFilter
+      ? grns.filter(
+          (grn) =>
+            String(grn.supplier_id || grn.supplier?.id || "") ===
+            String(supplierFilter),
+        )
+      : grns;
+
     if (!search) {
-      return grns;
+      return supplierScopedGrns;
     }
 
-    return grns.filter((grn) =>
+    return supplierScopedGrns.filter((grn) =>
       [
         grn.grn_number,
         grn.supplier_name,
@@ -156,7 +169,7 @@ export default function SupplierReturnsPage() {
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(search)),
     );
-  }, [grns, grnSearch]);
+  }, [grns, grnSearch, supplierFilter]);
 
   const canViewRestricted = Boolean(
     options?.can_view_restricted ?? options?.data?.can_view_restricted ?? false,
@@ -293,6 +306,13 @@ export default function SupplierReturnsPage() {
       })),
     }));
     setErrors((current) => ({ ...current, grn: "", items: "" }));
+  };
+
+  const clearSupplierFilter = () => {
+    const next = new URLSearchParams(searchParams);
+
+    next.delete("supplier");
+    setSearchParams(next, { replace: true });
   };
 
   const validate = () => {
@@ -460,6 +480,24 @@ export default function SupplierReturnsPage() {
         }
       />
 
+      {supplierFilter ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
+          <span>
+            Showing confirmed GRNs for supplier ID{" "}
+            <strong>{supplierFilter}</strong>.
+          </span>
+
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={clearSupplierFilter}
+          >
+            Clear Supplier Filter
+          </Button>
+        </div>
+      ) : null}
+
       {!isEditable ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           This return is currently{" "}
@@ -540,7 +578,9 @@ export default function SupplierReturnsPage() {
               !grns.length &&
               !editingId ? (
                 <p className="mt-2 text-xs text-amber-600">
-                  No confirmed GRNs with returnable quantities are available.
+                  {supplierFilter
+                    ? "No confirmed GRNs with returnable quantities are available for this supplier."
+                    : "No confirmed GRNs with returnable quantities are available."}
                 </p>
               ) : null}
               {errors.grn ? (

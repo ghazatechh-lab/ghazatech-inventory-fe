@@ -1,13 +1,21 @@
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, PackageCheck, Send, Trash2, X } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  PackageCheck,
+  RefreshCcw,
+  Send,
+  Trash2,
+  Warehouse,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import api, { getApiErrorMessage, unwrap } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { PageHeader } from "@/components/common/PageHeader";
-import { LoadingState } from "@/components/common/States";
+import { LoadingState, EmptyState } from "@/components/common/States";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -37,7 +45,7 @@ const STEP_LABELS = {
   REQUESTED: "Requested",
   APPROVED: "Approved",
   DISPATCHED: "Dispatched",
-  IN_TRANSIT: "In transit",
+  IN_TRANSIT: "In Transit",
   RECEIVED: "Received",
 };
 
@@ -45,44 +53,76 @@ const normalizeStatus = (status) => String(status || "").toUpperCase();
 
 function Timeline({ status }) {
   const normalizedStatus = normalizeStatus(status);
+
   const currentIndex = STEPS.indexOf(normalizedStatus);
 
+  const isTerminal = normalizedStatus === "CANCELLED";
+
   return (
-    <div className="flex items-center gap-2 overflow-x-auto py-3">
-      {STEPS.map((step, index) => (
-        <React.Fragment key={step}>
-          <div
-            className={cn(
-              "flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-1.5 text-[11px] font-medium",
-              index < currentIndex
-                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
-                : index === currentIndex
-                  ? "border-blue-500/40 bg-blue-500/15 text-blue-700 dark:text-blue-200"
-                  : "border-border bg-muted/30 text-muted-foreground",
-            )}
-          >
-            <span
-              className={cn(
-                "h-1.5 w-1.5 rounded-full",
-                index < currentIndex
-                  ? "bg-emerald-400"
-                  : index === currentIndex
-                    ? "bg-blue-400"
-                    : "bg-slate-500",
-              )}
-            />
-            {STEP_LABELS[step]}
+    <div className="overflow-x-auto">
+      <div className="flex min-w-max items-center gap-2 py-2">
+        {STEPS.map((step, index) => {
+          const completed =
+            !isTerminal && currentIndex >= 0 && index < currentIndex;
+
+          const current = !isTerminal && index === currentIndex;
+
+          return (
+            <React.Fragment key={step}>
+              <div
+                className={cn(
+                  "flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-2 text-xs font-semibold",
+                  completed
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                    : current
+                      ? "border-blue-500/40 bg-blue-500/15 text-blue-700 dark:text-blue-200"
+                      : "border-border bg-muted/30 text-muted-foreground",
+                )}
+              >
+                <span
+                  className={cn(
+                    "h-2 w-2 rounded-full",
+                    completed
+                      ? "bg-emerald-500"
+                      : current
+                        ? "bg-blue-500"
+                        : "bg-slate-400",
+                  )}
+                />
+
+                {STEP_LABELS[step]}
+              </div>
+
+              {index < STEPS.length - 1 ? (
+                <div
+                  className={cn(
+                    "h-px w-8 shrink-0",
+                    completed ? "bg-emerald-500/40" : "bg-border",
+                  )}
+                />
+              ) : null}
+            </React.Fragment>
+          );
+        })}
+
+        {isTerminal ? (
+          <div className="ml-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-300">
+            Cancelled
           </div>
-          {index < STEPS.length - 1 && (
-            <div
-              className={cn(
-                "h-px w-6 shrink-0",
-                index < currentIndex ? "bg-emerald-500/30" : "bg-border",
-              )}
-            />
-          )}
-        </React.Fragment>
-      ))}
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function DetailRow({ label, children }) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-3 last:border-b-0 last:pb-0 dark:border-white/5">
+      <span className="text-sm text-muted-foreground">{label}</span>
+
+      <span className="max-w-[65%] text-right text-sm font-medium">
+        {children}
+      </span>
     </div>
   );
 }
@@ -91,8 +131,11 @@ export default function TransferDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
   const { hasRole, user } = useAuth();
+
   const [actionName, setActionName] = React.useState("");
+
   const [deleteOpen, setDeleteOpen] = React.useState(false);
 
   const isAdmin =
@@ -100,12 +143,27 @@ export default function TransferDetailPage() {
     hasRole("ADMIN") ||
     String(user?.role?.code || user?.role_code || "").toUpperCase() === "ADMIN";
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["transfer", id],
+
     queryFn: async () => unwrap(await api.get(`/transfers/${id}/`)),
+
+    enabled: Boolean(id),
+    retry: false,
   });
 
-  if (isLoading) return <LoadingState />;
+  if (isLoading) {
+    return <LoadingState />;
+  }
+
+  if (isError || !data) {
+    return (
+      <EmptyState
+        title="Transfer not found"
+        description="The requested stock transfer could not be loaded."
+      />
+    );
+  }
 
   const transfer = data || {};
 
@@ -120,27 +178,47 @@ export default function TransferDetailPage() {
   const deleteTransfer = async () => {
     try {
       setActionName("delete");
+
       await api.delete(`/transfers/${id}/`);
-      await queryClient.invalidateQueries({ queryKey: ["transfers"] });
-      queryClient.removeQueries({ queryKey: ["transfer", id] });
+
+      await queryClient.invalidateQueries({
+        queryKey: ["transfers"],
+      });
+
+      queryClient.removeQueries({
+        queryKey: ["transfer", id],
+      });
+
       toast.success("Stock transfer deleted.");
-      setDeleteOpen(false);
+
       navigate("/transfers");
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Unable to delete the transfer."));
     } finally {
       setActionName("");
+      setDeleteOpen(false);
     }
   };
 
   const runAction = async (path, successMessage) => {
     try {
       setActionName(path);
+
       await api.post(`/transfers/${id}/${path}/`, {});
+
       await Promise.all([
         refetch(),
-        queryClient.invalidateQueries({ queryKey: ["transfers"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["transfers"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["stock-overview"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["stock-movements"],
+        }),
       ]);
+
       toast.success(successMessage);
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Unable to update the transfer."));
@@ -163,232 +241,335 @@ export default function TransferDetailPage() {
     transfer.to_branch?.branch_name ||
     "—";
 
+  const totalQuantity =
+    transfer.total_quantity ??
+    transferItems.reduce(
+      (sum, item) =>
+        sum + Number(item.requested_quantity || item.quantity || 0),
+      0,
+    );
+
   return (
     <div
       data-stock-module="stock-transfer-detail"
-      className="stock-module-page space-y-4"
+      className="stock-module-page stock-workspace mx-auto max-w-7xl space-y-5 pb-10"
     >
-      <PageHeader
-        title={transfer.transfer_number || "Transfer details"}
-        subtitle={`${fromBranch} → ${toBranch}`}
-        actions={
-          <>
+      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-400/20 blur-3xl" />
+
+        <div className="relative flex flex-col gap-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p
+                className="text-xs font-extrabold uppercase tracking-[0.2em]"
+                style={{ color: "#bae6fd" }}
+              >
+                Inventory Logistics
+              </p>
+
+              <h1
+                className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl"
+                style={{
+                  color: "#ffffff",
+                  WebkitTextFillColor: "#ffffff",
+                  textShadow: "0 2px 12px rgba(0,0,0,.28)",
+                }}
+              >
+                {transfer.transfer_number || "Transfer Details"}
+              </h1>
+
+              <p
+                className="mt-2 flex flex-wrap items-center gap-2 text-sm"
+                style={{ color: "#f1f5f9" }}
+              >
+                <span>{fromBranch}</span>
+                <span>→</span>
+                <span>{toBranch}</span>
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate("/transfers")}
+                className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isFetching}
+                onClick={() => refetch()}
+                className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+              >
+                <RefreshCcw
+                  className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+                />
+                Refresh
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={transfer.status} />
 
-            {status === "REQUESTED" && isAdmin && (
+            {status === "REQUESTED" && isAdmin ? (
               <Button
-                variant="outline"
                 disabled={Boolean(actionName)}
                 onClick={() => runAction("approve", "Transfer approved.")}
+                className="bg-white text-blue-950 hover:bg-slate-100"
               >
-                <CheckCircle2 className="mr-1.5 h-4 w-4" />
+                <CheckCircle2 className="mr-2 h-4 w-4" />
                 {actionName === "approve" ? "Approving..." : "Approve"}
               </Button>
-            )}
+            ) : null}
 
-            {status === "APPROVED" && (
+            {status === "APPROVED" ? (
               <Button
-                variant="outline"
                 disabled={Boolean(actionName)}
                 onClick={() => runAction("dispatch", "Transfer dispatched.")}
+                className="bg-white text-blue-950 hover:bg-slate-100"
               >
-                <Send className="mr-1.5 h-4 w-4" />
+                <Send className="mr-2 h-4 w-4" />
                 {actionName === "dispatch" ? "Dispatching..." : "Dispatch"}
               </Button>
-            )}
+            ) : null}
 
-            {["DISPATCHED", "IN_TRANSIT"].includes(status) && (
+            {["DISPATCHED", "IN_TRANSIT"].includes(status) ? (
               <Button
-                className="bg-emerald-600 hover:bg-emerald-700"
+                className="bg-emerald-600 text-white hover:bg-emerald-700"
                 disabled={Boolean(actionName)}
                 onClick={() => runAction("receive", "Transfer received.")}
               >
-                <PackageCheck className="mr-1.5 h-4 w-4" />
+                <PackageCheck className="mr-2 h-4 w-4" />
                 {actionName === "receive" ? "Receiving..." : "Receive"}
               </Button>
-            )}
+            ) : null}
 
-            {!["RECEIVED", "COMPLETED", "CANCELLED"].includes(status) && (
+            {!["RECEIVED", "COMPLETED", "CANCELLED"].includes(status) ? (
               <Button
                 variant="outline"
                 disabled={Boolean(actionName)}
                 onClick={() => runAction("cancel", "Transfer cancelled.")}
+                className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
               >
-                <X className="mr-1.5 h-4 w-4" />
+                <X className="mr-2 h-4 w-4" />
                 {actionName === "cancel" ? "Cancelling..." : "Cancel"}
               </Button>
-            )}
+            ) : null}
 
             {isAdmin &&
-              ["DRAFT", "REQUESTED", "APPROVED", "CANCELLED"].includes(
-                status,
-              ) && (
-                <Button
-                  variant="outline"
-                  className="border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-700 dark:text-red-400"
-                  disabled={Boolean(actionName)}
-                  onClick={() => setDeleteOpen(true)}
-                >
-                  <Trash2 className="mr-1.5 h-4 w-4" />
-                  {actionName === "delete" ? "Deleting..." : "Delete"}
-                </Button>
-              )}
-          </>
-        }
-      />
+            ["DRAFT", "REQUESTED", "APPROVED", "CANCELLED"].includes(status) ? (
+              <Button
+                variant="outline"
+                disabled={Boolean(actionName)}
+                onClick={() => setDeleteOpen(true)}
+                className="border-red-300/40 bg-red-500/10 text-red-100 hover:bg-red-500/20 hover:text-white"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      </section>
 
-      <div className="card-surface p-5">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/70">
         <Timeline status={transfer.status} />
-      </div>
+      </section>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="card-surface p-5 lg:col-span-2">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-[10px] uppercase tracking-widest text-muted-foreground">
-                <th className="py-2 text-left">Product</th>
-                <th className="text-right">Quantity</th>
-                <th className="text-right">Damaged</th>
-                <th className="text-left">Class</th>
-                <th className="text-right">Unit Cost</th>
-                <th className="text-right">Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transferItems.map((item) => (
-                <tr key={item.id} className="border-b last:border-0">
-                  <td className="py-3">
-                    <div className="font-medium">
-                      {item.product_name || item.product?.product_name || "—"}
-                    </div>
-                    {item.sku && (
-                      <div className="text-xs text-muted-foreground">
-                        {item.sku}
-                      </div>
-                    )}
-                  </td>
-                  <td className="text-right font-numeric font-medium">
-                    {item.requested_quantity ?? item.quantity ?? 0}
-                  </td>
-                  <td className="text-right font-numeric text-red-500">
-                    {item.damaged_quantity ?? item.damaged ?? 0}
-                  </td>
-                  <td>{item.stock_classification || "REGULAR"}</td>
-                  <td className="text-right">
-                    <CurrencyText value={item.transfer_unit_cost || 0} />
-                  </td>
-                  <td className="text-right font-medium">
-                    <CurrencyText value={item.line_transfer_value || 0} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {!transferItems.length && (
-            <div className="py-12 text-center">
-              <p className="font-medium">No transfer items were saved</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                This transfer record does not contain any item rows. Delete and
-                recreate older affected records after applying the backend fix.
-              </p>
-            </div>
-          )}
+      <section className="grid gap-4 sm:grid-cols-3">
+        <div className="card-surface p-5">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            Items
+          </p>
+          <p className="mt-2 text-2xl font-bold">{transferItems.length}</p>
         </div>
 
-        <div className="card-surface space-y-4 p-5 text-sm">
-          <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
-            Internal stock movement: VAT scope is{" "}
-            {transfer.tax_scope || "OUT_OF_SCOPE"}. Only courier charges create
-            VAT.
+        <div className="card-surface p-5">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            Total Quantity
+          </p>
+          <p className="mt-2 text-2xl font-bold">{totalQuantity}</p>
+        </div>
+
+        <div className="card-surface p-5">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            Transfer Value
+          </p>
+          <div className="mt-2 text-2xl font-bold">
+            <CurrencyText value={transfer.transfer_value || 0} />
           </div>
-          <div className="grid grid-cols-2 gap-3 rounded-lg border p-3">
-            <span className="text-muted-foreground">Transfer value</span>
-            <span className="text-right font-medium">
+        </div>
+      </section>
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/70">
+          <div className="border-b border-slate-200 bg-slate-50/70 px-5 py-4 dark:border-white/10 dark:bg-white/[0.025]">
+            <h2 className="font-semibold">Transfer Items</h2>
+
+            <p className="mt-1 text-xs text-muted-foreground">
+              Products and quantities included in this transfer.
+            </p>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[820px] text-sm">
+              <thead className="border-b bg-muted/30">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Product
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Quantity
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Damaged
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Unit Cost
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Value
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {transferItems.map((item) => (
+                  <tr
+                    key={item.id}
+                    className="border-b last:border-0 hover:bg-muted/30"
+                  >
+                    <td className="px-4 py-4">
+                      <p className="font-medium">
+                        {item.product_name || item.product?.product_name || "—"}
+                      </p>
+
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {item.sku || "—"}
+
+                        {item.variant_label ? ` · ${item.variant_label}` : ""}
+                      </p>
+                    </td>
+
+                    <td className="px-4 py-4 text-right font-medium">
+                      {item.requested_quantity ?? item.quantity ?? 0}
+                    </td>
+
+                    <td className="px-4 py-4 text-right text-red-500">
+                      {item.damaged_quantity ?? item.damaged ?? 0}
+                    </td>
+
+                    <td className="px-4 py-4 text-right">
+                      <CurrencyText value={item.transfer_unit_cost || 0} />
+                    </td>
+
+                    <td className="px-4 py-4 text-right font-medium">
+                      <CurrencyText value={item.line_transfer_value || 0} />
+                    </td>
+                  </tr>
+                ))}
+
+                {!transferItems.length ? (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="p-12 text-center text-muted-foreground"
+                    >
+                      No transfer items were saved.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="space-y-5">
+          <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
+            <Warehouse className="mr-2 inline h-4 w-4" />
+            Internal stock movement is {transfer.tax_scope || "OUT_OF_SCOPE"}.
+            Courier charges may create VAT.
+          </div>
+
+          <div className="card-surface space-y-3 p-5">
+            <h2 className="font-semibold">Transfer Summary</h2>
+
+            <DetailRow label="From">{fromBranch}</DetailRow>
+
+            <DetailRow label="To">{toBranch}</DetailRow>
+
+            <DetailRow label="Transfer value">
               <CurrencyText value={transfer.transfer_value || 0} />
-            </span>
-            <span className="font-medium">Total transfer cost</span>
-            <span className="text-right font-semibold">
+            </DetailRow>
+
+            <DetailRow label="Total transfer cost">
               <CurrencyText value={transfer.total_transfer_cost || 0} />
-            </span>
-            <span className="text-muted-foreground">Reconciliation</span>
-            <span className="text-right">
-              {transfer.reconciliation_status || "PENDING"}
-            </span>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-              Created / requested by
-            </div>
-            <div className="mt-1 font-medium">
+            </DetailRow>
+
+            <DetailRow label="Reconciliation">
+              <StatusBadge
+                status={transfer.reconciliation_status || "PENDING"}
+              />
+            </DetailRow>
+
+            <DetailRow label="Requested by">
               {transfer.requested_by_name || "—"}
-            </div>
-          </div>
+            </DetailRow>
 
-          <div>
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-              Approved by
-            </div>
-            <div className="mt-1 font-medium">
+            <DetailRow label="Approved by">
               {transfer.approved_by_name || "—"}
-            </div>
-          </div>
+            </DetailRow>
 
-          <div>
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-              Transfer date
-            </div>
-            <div className="mt-1">
+            <DetailRow label="Transfer date">
               {transfer.transfer_date ? (
                 <DateText value={transfer.transfer_date} />
               ) : (
                 "—"
               )}
-            </div>
-          </div>
+            </DetailRow>
 
-          <div>
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-              Dispatch date
-            </div>
-            <div className="mt-1">
+            <DetailRow label="Dispatch date">
               {transfer.dispatch_date ? (
                 <DateText value={transfer.dispatch_date} />
               ) : (
                 "—"
               )}
-            </div>
-          </div>
+            </DetailRow>
 
-          <div>
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-              Received on
-            </div>
-            <div className="mt-1">
+            <DetailRow label="Received on">
               {transfer.received_date ? (
                 <DateText value={transfer.received_date} />
               ) : (
                 "—"
               )}
-            </div>
+            </DetailRow>
           </div>
-        </div>
+        </section>
       </div>
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete stock transfer?</AlertDialogTitle>
+
             <AlertDialogDescription>
               This permanently removes{" "}
-              {transfer.transfer_number || "this transfer"}. Transfers that have
+              {transfer.transfer_number || "this transfer"}. Transfers that
               already changed stock cannot be deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
+
           <AlertDialogFooter>
             <AlertDialogCancel disabled={actionName === "delete"}>
-              Keep transfer
+              Keep Transfer
             </AlertDialogCancel>
+
             <AlertDialogAction
               className="bg-red-600 text-white hover:bg-red-700"
               disabled={actionName === "delete"}
@@ -397,7 +578,7 @@ export default function TransferDetailPage() {
                 deleteTransfer();
               }}
             >
-              {actionName === "delete" ? "Deleting..." : "Delete transfer"}
+              {actionName === "delete" ? "Deleting..." : "Delete Transfer"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,9 +1,17 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, Search } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  FilterX,
+  RefreshCcw,
+  Search,
+  Warehouse,
+} from "lucide-react";
 
 import api, { unwrap } from "@/lib/api";
-import { PageHeader } from "@/components/common/PageHeader";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -68,8 +76,9 @@ const movementLabel = (movement) =>
   "Movement";
 
 export default function StockMovementsPage() {
+  const { branchId: activeBranchId, branchParams } = useActiveBranchFilter();
+
   const [search, setSearch] = React.useState("");
-  const [branch, setBranch] = React.useState(ALL);
   const [type, setType] = React.useState(ALL);
 
   const { data: branchResponse } = useQuery({
@@ -93,20 +102,19 @@ export default function StockMovementsPage() {
     data: movementResponse,
     isLoading,
     isError,
+    refetch,
+    isFetching,
   } = useQuery({
-    queryKey: ["stock-movements", search, branch, type],
+    queryKey: ["stock-movements", search, type, branchParams],
     queryFn: async () => {
       const params = {
+        ...branchParams,
         page_size: 500,
         ordering: "-created_at",
       };
 
       if (search.trim()) {
         params.search = search.trim();
-      }
-
-      if (branch !== ALL) {
-        params.branch = branch;
       }
 
       if (type !== ALL) {
@@ -124,81 +132,195 @@ export default function StockMovementsPage() {
     [movementResponse],
   );
 
+  const summary = React.useMemo(() => {
+    let incoming = 0;
+    let outgoing = 0;
+    let valueChange = 0;
+
+    movements.forEach((movement) => {
+      const quantity = Number(movement.quantity || 0);
+
+      if (quantity >= 0) {
+        incoming += quantity;
+      } else {
+        outgoing += Math.abs(quantity);
+      }
+
+      valueChange += Number(movement.net_value_change || 0);
+    });
+
+    return {
+      count: movements.length,
+      incoming,
+      outgoing,
+      valueChange,
+    };
+  }, [movements]);
+
+  const selectedBranchLabel = activeBranchId
+    ? branches.find((item) => String(item.id) === String(activeBranchId))
+        ?.branch_name ||
+      branches.find((item) => String(item.id) === String(activeBranchId))
+        ?.branch_code ||
+      `Branch ${activeBranchId}`
+    : "All branches";
+
+  const clearFilters = () => {
+    setSearch("");
+    setType(ALL);
+  };
+
+  const hasFilters = Boolean(search) || type !== ALL;
+
   return (
     <div
       data-stock-module="stock-movements"
       className="stock-module-page space-y-6"
     >
-      <PageHeader
-        title="Stock Movements"
-        subtitle="History of every transaction that changed inventory levels"
-      />
+      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-400/20 blur-3xl" />
+        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p
+              className="text-xs font-extrabold uppercase tracking-[0.2em]"
+              style={{ color: "#bae6fd" }}
+            >
+              Inventory ledger
+            </p>
+            <h1
+              className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl"
+              style={{
+                color: "#ffffff",
+                WebkitTextFillColor: "#ffffff",
+                textShadow: "0 2px 12px rgba(0,0,0,.28)",
+              }}
+            >
+              Stock Movements
+            </h1>
+            <p
+              className="mt-2 max-w-2xl text-sm leading-6"
+              style={{ color: "#f1f5f9" }}
+            >
+              Inventory transaction history for {selectedBranchLabel}. Branch
+              scope follows the global branch filter.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isFetching}
+            onClick={() => refetch()}
+            className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+          >
+            <RefreshCcw
+              className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+            />
+            {isFetching ? "Refreshing..." : "Refresh"}
+          </Button>
+        </div>
+      </section>
 
       <section className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200">
+        <Warehouse className="mr-2 inline h-4 w-4" />
         Purchase +50 → Sale -5 → Transfer -10 → Adjustment +2
       </section>
 
-      <section className="card-surface grid gap-4 p-4 md:grid-cols-[minmax(0,1fr)_220px_220px]">
-        <div>
-          <Label>Search</Label>
-
-          <div className="relative mt-2">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Reference, product, SKU or branch"
-              className="pl-9"
-            />
-          </div>
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="card-surface p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Movements
+          </p>
+          <p className="mt-2 text-2xl font-bold">{summary.count}</p>
         </div>
 
-        <div>
-          <Label>Branch</Label>
-
-          <Select value={branch} onValueChange={setBranch}>
-            <SelectTrigger className="mt-2">
-              <SelectValue />
-            </SelectTrigger>
-
-            <SelectContent>
-              <SelectItem value={ALL}>All branches</SelectItem>
-
-              {branches.map((item) => (
-                <SelectItem key={item.id} value={String(item.id)}>
-                  {item.branch_code || item.branch_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="card-surface p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Incoming Quantity
+          </p>
+          <p className="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+            +{summary.incoming}
+          </p>
         </div>
 
-        <div>
-          <Label>Movement Type</Label>
+        <div className="card-surface p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Outgoing Quantity
+          </p>
+          <p className="mt-2 text-2xl font-bold text-red-600 dark:text-red-400">
+            -{summary.outgoing}
+          </p>
+        </div>
 
-          <Select value={type} onValueChange={setType}>
-            <SelectTrigger className="mt-2">
-              <SelectValue />
-            </SelectTrigger>
-
-            <SelectContent>
-              <SelectItem value={ALL}>All movements</SelectItem>
-              <SelectItem value="OPENING">Opening stock</SelectItem>
-              <SelectItem value="PURCHASE">Purchase</SelectItem>
-              <SelectItem value="SALE">Sale</SelectItem>
-              <SelectItem value="TRANSFER_IN">Transfer in</SelectItem>
-              <SelectItem value="TRANSFER_OUT">Transfer out</SelectItem>
-              <SelectItem value="ADJUSTMENT">Adjustment</SelectItem>
-              <SelectItem value="CUSTOMER_RETURN">Customer return</SelectItem>
-              <SelectItem value="SUPPLIER_RETURN">Supplier return</SelectItem>
-              <SelectItem value="DAMAGED">Damaged</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="card-surface p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Net Value Change
+          </p>
+          <p className="mt-2 text-2xl font-bold">
+            AED {summary.valueChange.toFixed(2)}
+          </p>
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border bg-card">
+      <section className="card-surface p-5">
+        <div className="mb-4">
+          <h2 className="font-semibold">Movement filters</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Search and narrow the movement ledger by branch and transaction
+            type.
+          </p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
+          <div>
+            <Label>Search</Label>
+
+            <div className="relative mt-2">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Reference, product, SKU or branch"
+                className="pl-9"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label>Movement Type</Label>
+
+            <Select value={type} onValueChange={setType}>
+              <SelectTrigger className="mt-2">
+                <SelectValue />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value={ALL}>All movements</SelectItem>
+                <SelectItem value="OPENING">Opening stock</SelectItem>
+                <SelectItem value="PURCHASE">Purchase</SelectItem>
+                <SelectItem value="SALE">Sale</SelectItem>
+                <SelectItem value="TRANSFER_IN">Transfer in</SelectItem>
+                <SelectItem value="TRANSFER_OUT">Transfer out</SelectItem>
+                <SelectItem value="ADJUSTMENT">Adjustment</SelectItem>
+                <SelectItem value="CUSTOMER_RETURN">Customer return</SelectItem>
+                <SelectItem value="SUPPLIER_RETURN">Supplier return</SelectItem>
+                <SelectItem value="DAMAGED">Damaged</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {hasFilters ? (
+          <div className="mt-4">
+            <Button type="button" variant="outline" onClick={clearFilters}>
+              <FilterX className="mr-2 h-4 w-4" />
+              Clear Filters
+            </Button>
+          </div>
+        ) : null}
+      </section>
+
+      <section className="card-surface overflow-hidden">
         <div className="border-b px-5 py-4">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">Movement Ledger</h2>
@@ -277,7 +399,14 @@ export default function StockMovementsPage() {
                     >
                       <td className="whitespace-nowrap px-4 py-4 text-sm text-muted-foreground">
                         {movement.created_at
-                          ? new Date(movement.created_at).toLocaleString()
+                          ? new Date(movement.created_at).toLocaleDateString(
+                              "en-AE",
+                              {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              },
+                            )
                           : "—"}
                       </td>
 
