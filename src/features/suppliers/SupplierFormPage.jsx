@@ -19,6 +19,7 @@ import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,6 +49,7 @@ const ACCEPTED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx"];
 
 const defaults = {
   supplier_code: "",
+  branch: "",
   supplier_name: "",
   trade_name: "",
   supplier_type: "Local Supplier",
@@ -61,7 +63,7 @@ const defaults = {
   country: "UAE",
   trn_number: "",
   credit_limit: 0,
-  payment_terms_days: 15,
+  payment_terms_days: 0,
   currency: "AED",
   opening_balance: 0,
   bank_name: "",
@@ -152,6 +154,7 @@ export default function SupplierFormPage() {
   const navigate = useNavigate();
   const backTarget = edit ? `/suppliers/${id}` : "/suppliers";
   const queryClient = useQueryClient();
+  const { branchId } = useActiveBranchFilter();
 
   const [selectedFiles, setSelectedFiles] = React.useState([]);
 
@@ -167,7 +170,10 @@ export default function SupplierFormPage() {
     control,
     formState: { errors },
   } = useForm({
-    defaultValues: defaults,
+    defaultValues: {
+      ...defaults,
+      branch: branchId ? String(branchId) : "",
+    },
   });
 
   const { data, isLoading } = useQuery({
@@ -180,6 +186,14 @@ export default function SupplierFormPage() {
   });
 
   React.useEffect(() => {
+    if (!edit && branchId) {
+      setValue("branch", String(branchId), {
+        shouldDirty: false,
+      });
+    }
+  }, [branchId, edit, setValue]);
+
+  React.useEffect(() => {
     if (!data) {
       return;
     }
@@ -187,8 +201,10 @@ export default function SupplierFormPage() {
     reset({
       ...defaults,
       ...data,
+      branch: String(data.branch?.id || data.branch || branchId || ""),
+      payment_terms_days: Number(data.payment_terms_days ?? 0),
     });
-  }, [data, reset]);
+  }, [data, reset, branchId]);
 
   const save = useMutation({
     mutationFn: async (values) => {
@@ -379,35 +395,23 @@ export default function SupplierFormPage() {
             description="Legal and tax details used on purchase orders and supplier bills."
           >
             <div className="grid gap-4 md:grid-cols-2">
-              <Field
-                label="Supplier code"
-                required
-                error={errors.supplier_code}
-              >
-                <div className="flex gap-2">
-                  <Input
-                    {...register("supplier_code", {
-                      required: "Supplier code is required.",
-                    })}
-                  />
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() =>
-                      setValue(
-                        "supplier_code",
-                        `SUP-${Date.now().toString().slice(-6)}`,
-                        {
-                          shouldDirty: true,
-                        },
-                      )
-                    }
-                    title="Generate supplier code"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
-                </div>
+              <Field label="Supplier code">
+                <Input
+                  value={data?.supplier_code || "Auto-generated on save"}
+                  readOnly
+                  disabled
+                />
+                <input
+                  type="hidden"
+                  {...register("branch", {
+                    required: "Select a branch before creating a supplier.",
+                  })}
+                />
+                {errors.branch && (
+                  <p className="mt-1 text-sm text-red-500">
+                    {errors.branch.message}
+                  </p>
+                )}
               </Field>
 
               <Field label="Legal name" required error={errors.supplier_name}>
@@ -510,7 +514,7 @@ export default function SupplierFormPage() {
                   control={control}
                   render={({ field }) => (
                     <Select
-                      value={String(field.value ?? 15)}
+                      value={String(field.value ?? 0)}
                       onValueChange={(value) => field.onChange(Number(value))}
                     >
                       <SelectTrigger>

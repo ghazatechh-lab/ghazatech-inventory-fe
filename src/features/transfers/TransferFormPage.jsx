@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   ArrowRight,
   Boxes,
-  ChevronDown,
   CalendarDays,
   FileText,
   Plus,
@@ -45,26 +44,35 @@ function SearchableProductSelect({
   value,
   products,
   disabled = false,
-  placeholder = "Select product",
-  searchPlaceholder = "Search product or SKU",
+  placeholder = "Search and select product",
+  searchPlaceholder = "Search and select product",
   getValue = (product) => String(product.id),
   getLabel = (product) => `${product.product_name} — ${product.sku}`,
   onChange,
 }) {
   const wrapperRef = React.useRef(null);
-  const searchRef = React.useRef(null);
-  const [open, setOpen] = React.useState(false);
-  const [search, setSearch] = React.useState("");
+  const [searchOpen, setSearchOpen] = React.useState(false);
+  const [searchValue, setSearchValue] = React.useState("");
 
   const selectedProduct = React.useMemo(
     () => products.find((product) => getValue(product) === String(value || "")),
     [products, value, getValue],
   );
 
-  const filteredProducts = React.useMemo(() => {
-    const query = search.trim().toLowerCase();
+  React.useEffect(() => {
+    if (selectedProduct) {
+      setSearchValue(getLabel(selectedProduct));
+    } else if (!value) {
+      setSearchValue("");
+    }
+  }, [selectedProduct, value, getLabel]);
 
-    if (!query) return products;
+  const filteredProducts = React.useMemo(() => {
+    const query = searchValue.trim().toLowerCase();
+
+    if (!query || selectedProduct) {
+      return products;
+    }
 
     return products.filter((product) =>
       [
@@ -80,79 +88,68 @@ function SearchableProductSelect({
         .toLowerCase()
         .includes(query),
     );
-  }, [products, search]);
+  }, [products, searchValue, selectedProduct]);
 
   React.useEffect(() => {
-    const closeOnOutsideClick = (event) => {
+    const handleOutsideClick = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-        setOpen(false);
+        setSearchOpen(false);
       }
     };
 
-    document.addEventListener("mousedown", closeOnOutsideClick);
-    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
-  }, []);
+    document.addEventListener("mousedown", handleOutsideClick);
 
-  React.useEffect(() => {
-    if (open) {
-      requestAnimationFrame(() => searchRef.current?.focus());
-    }
-  }, [open]);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, []);
 
   return (
     <div ref={wrapperRef} className="relative mt-2">
-      <button
-        type="button"
+      <Input
+        value={searchValue}
         disabled={disabled}
-        onClick={() => {
-          if (!disabled) {
-            setOpen((current) => !current);
-            setSearch("");
+        autoComplete="off"
+        onFocus={() => setSearchOpen(true)}
+        onChange={(event) => {
+          const nextValue = event.target.value;
+
+          setSearchValue(nextValue);
+          setSearchOpen(true);
+
+          if (selectedProduct && nextValue !== getLabel(selectedProduct)) {
+            onChange("");
           }
         }}
-        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <span className="truncate">
-          {selectedProduct ? getLabel(selectedProduct) : placeholder}
-        </span>
-        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-      </button>
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            setSearchOpen(false);
+          }
+        }}
+        placeholder={searchPlaceholder || placeholder}
+      />
 
-      {open ? (
-        <div className="relative z-20 mt-1 overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
-          <div className="border-b bg-popover p-2">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                ref={searchRef}
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Escape") setOpen(false);
-                }}
-                placeholder={searchPlaceholder}
-                className="h-9 pl-9"
-              />
-            </div>
-          </div>
-
+      {searchOpen && !disabled ? (
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
           <div className="max-h-64 overflow-y-auto p-1">
             {filteredProducts.length ? (
               filteredProducts.map((product) => {
                 const optionValue = getValue(product);
+                const optionLabel = getLabel(product);
 
                 return (
                   <button
                     key={optionValue}
                     type="button"
+                    onMouseDown={(event) => event.preventDefault()}
                     onClick={() => {
                       onChange(optionValue);
-                      setOpen(false);
-                      setSearch("");
+                      setSearchValue(optionLabel);
+                      setSearchOpen(false);
                     }}
                     className="flex w-full items-center rounded-sm px-2 py-2 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground"
                   >
-                    {getLabel(product)}
+                    {optionLabel}
                   </button>
                 );
               })
@@ -558,7 +555,7 @@ export default function TransferFormPage() {
               return (
                 <div
                   key={index}
-                  className="relative rounded-2xl border border-slate-200 p-4 dark:border-white/10"
+                  className="rounded-2xl border border-slate-200 p-4 dark:border-white/10"
                 >
                   <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_170px_44px]">
                     <div>

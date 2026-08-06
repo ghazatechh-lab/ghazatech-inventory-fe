@@ -105,7 +105,12 @@ export default function ShipmentFormPage() {
 
   const [errors, setErrors] = React.useState({});
   const [purchaseOrderSearch, setPurchaseOrderSearch] = React.useState("");
+  const [purchaseOrderSearchOpen, setPurchaseOrderSearchOpen] =
+    React.useState(false);
   const [supplierSearch, setSupplierSearch] = React.useState("");
+  const [supplierSearchOpen, setSupplierSearchOpen] = React.useState(false);
+  const [productSearches, setProductSearches] = React.useState({});
+  const [productSearchOpen, setProductSearchOpen] = React.useState({});
 
   React.useEffect(() => {
     if (!edit && branchId) {
@@ -157,6 +162,40 @@ export default function ShipmentFormPage() {
         .some((value) => String(value).toLowerCase().includes(search)),
     );
   }, [purchaseOrders, purchaseOrderSearch]);
+
+  const selectedPurchaseOrder = React.useMemo(
+    () =>
+      purchaseOrders.find(
+        (order) => String(order.id) === String(form.purchase_order),
+      ),
+    [purchaseOrders, form.purchase_order],
+  );
+
+  const selectedSupplier = React.useMemo(
+    () =>
+      suppliers.find(
+        (supplier) => String(supplier.id) === String(form.supplier),
+      ),
+    [suppliers, form.supplier],
+  );
+
+  React.useEffect(() => {
+    if (selectedPurchaseOrder) {
+      setPurchaseOrderSearch(selectedPurchaseOrder.po_number || "");
+    } else if (!form.purchase_order) {
+      setPurchaseOrderSearch("");
+    }
+  }, [selectedPurchaseOrder, form.purchase_order]);
+
+  React.useEffect(() => {
+    if (selectedSupplier) {
+      setSupplierSearch(
+        selectedSupplier.supplier_name || selectedSupplier.name || "",
+      );
+    } else if (!form.supplier) {
+      setSupplierSearch("");
+    }
+  }, [selectedSupplier, form.supplier]);
 
   const filteredSuppliers = React.useMemo(() => {
     const search = supplierSearch.trim().toLowerCase();
@@ -344,8 +383,6 @@ export default function ShipmentFormPage() {
   };
 
   const selectPurchaseOrder = (value) => {
-    setPurchaseOrderSearch("");
-
     const order = purchaseOrders.find(
       (item) => String(item.id) === String(value),
     );
@@ -353,6 +390,9 @@ export default function ShipmentFormPage() {
     if (!order) {
       return;
     }
+
+    setPurchaseOrderSearch(order.po_number || "");
+    setPurchaseOrderSearchOpen(false);
 
     setForm((current) => ({
       ...current,
@@ -407,7 +447,12 @@ export default function ShipmentFormPage() {
   };
 
   const selectSupplier = (value) => {
-    setSupplierSearch("");
+    const supplier = suppliers.find(
+      (item) => String(item.id) === String(value),
+    );
+
+    setSupplierSearch(supplier?.supplier_name || supplier?.name || "");
+    setSupplierSearchOpen(false);
     updateForm("supplier", value);
 
     setForm((current) => ({
@@ -421,6 +466,54 @@ export default function ShipmentFormPage() {
         ? current.purchase_order
         : "",
     }));
+  };
+
+  const getProductSearchValue = (index, item) => {
+    if (Object.prototype.hasOwnProperty.call(productSearches, index)) {
+      return productSearches[index];
+    }
+
+    if (item.product_name) {
+      return [item.product_name, item.sku].filter(Boolean).join(" · ");
+    }
+
+    const selected = products.find(
+      (product) => String(product.id) === String(item.product),
+    );
+
+    return selected
+      ? [selected.product_name, selected.sku].filter(Boolean).join(" · ")
+      : "";
+  };
+
+  const getFilteredProducts = (index, item) => {
+    const selected = products.find(
+      (product) => String(product.id) === String(item.product),
+    );
+
+    const selectedLabel = selected
+      ? [selected.product_name, selected.sku].filter(Boolean).join(" · ")
+      : "";
+
+    const search = getProductSearchValue(index, item).trim().toLowerCase();
+
+    if (!search || search === selectedLabel.toLowerCase()) {
+      return products;
+    }
+
+    return products.filter((product) =>
+      [
+        product.product_name,
+        product.sku,
+        product.barcode,
+        product.brand_name,
+        product.category_name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(search),
+    );
   };
 
   const selectProduct = (index, productId) => {
@@ -437,6 +530,10 @@ export default function ShipmentFormPage() {
     const defaultVariant =
       variants.find((variant) => variant.is_base) || variants[0];
 
+    const label = [product.product_name, defaultVariant?.sku || product.sku]
+      .filter(Boolean)
+      .join(" · ");
+
     updateItem(index, {
       product: String(product.id),
 
@@ -450,6 +547,16 @@ export default function ShipmentFormPage() {
 
       unit_cost: defaultVariant?.purchase_price ?? product.purchase_price ?? 0,
     });
+
+    setProductSearches((current) => ({
+      ...current,
+      [index]: label,
+    }));
+
+    setProductSearchOpen((current) => ({
+      ...current,
+      [index]: false,
+    }));
   };
 
   const selectVariant = (index, variantId) => {
@@ -738,59 +845,72 @@ export default function ShipmentFormPage() {
             </Select>
           </div>
 
-          <div>
+          <div className="relative">
             <Label>Purchase Order</Label>
 
-            <Select
-              value={form.purchase_order}
-              onValueChange={selectPurchaseOrder}
+            <Input
+              className="mt-2"
+              value={purchaseOrderSearch}
               disabled={optionsLoading}
-            >
-              <SelectTrigger className="mt-2">
-                <SelectValue placeholder="Select Purchase Order" />
-              </SelectTrigger>
+              autoComplete="off"
+              onFocus={() => setPurchaseOrderSearchOpen(true)}
+              onChange={(event) => {
+                const value = event.target.value;
 
-              <SelectContent className="max-h-80 p-0">
-                <div
-                  className="sticky top-0 z-10 border-b bg-popover p-2"
-                  onKeyDown={(event) => event.stopPropagation()}
-                >
-                  <Input
-                    autoFocus
-                    value={purchaseOrderSearch}
-                    onChange={(event) =>
-                      setPurchaseOrderSearch(event.target.value)
-                    }
-                    onClick={(event) => event.stopPropagation()}
-                    placeholder="Search PO number, supplier or branch"
-                  />
-                </div>
+                setPurchaseOrderSearch(value);
+                setPurchaseOrderSearchOpen(true);
 
-                <div className="max-h-64 overflow-y-auto p-1">
-                  {filteredPurchaseOrders.length ? (
-                    filteredPurchaseOrders.map((order) => (
-                      <SelectItem key={order.id} value={String(order.id)}>
-                        <div>
-                          <div className="font-medium">{order.po_number}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {[
-                              order.supplier_name,
-                              order.branch_code || order.branch_name,
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </div>
-                        </div>
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                      No purchase orders match your search.
-                    </div>
-                  )}
-                </div>
-              </SelectContent>
-            </Select>
+                if (
+                  selectedPurchaseOrder &&
+                  value !== selectedPurchaseOrder.po_number
+                ) {
+                  updateForm("purchase_order", "");
+                }
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setPurchaseOrderSearchOpen(false);
+                }
+              }}
+              placeholder="Search and select purchase order"
+            />
+
+            {purchaseOrderSearchOpen && !optionsLoading ? (
+              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-background p-1 shadow-xl dark:border-white/10">
+                {filteredPurchaseOrders.length ? (
+                  filteredPurchaseOrders.map((order) => (
+                    <button
+                      key={order.id}
+                      type="button"
+                      className="flex w-full flex-col rounded-lg px-3 py-2.5 text-left transition hover:bg-slate-100 dark:hover:bg-white/5"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => selectPurchaseOrder(String(order.id))}
+                    >
+                      <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                        {order.po_number}
+                      </span>
+
+                      {(order.supplier_name ||
+                        order.branch_code ||
+                        order.branch_name) && (
+                        <span className="mt-0.5 text-xs text-muted-foreground">
+                          {[
+                            order.supplier_name,
+                            order.branch_code || order.branch_name,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                      )}
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                    No purchase orders match your search.
+                  </div>
+                )}
+              </div>
+            ) : null}
 
             {errors.purchase_order && (
               <p className="mt-1 text-xs text-red-500">
@@ -799,57 +919,78 @@ export default function ShipmentFormPage() {
             )}
           </div>
 
-          <div>
+          <div className="relative">
             <Label>Supplier</Label>
 
-            <Select
-              value={form.supplier}
-              onValueChange={selectSupplier}
+            <Input
+              className="mt-2"
+              value={supplierSearch}
               disabled={optionsLoading}
-            >
-              <SelectTrigger className="mt-2">
-                <SelectValue placeholder="Select supplier" />
-              </SelectTrigger>
+              autoComplete="off"
+              onFocus={() => setSupplierSearchOpen(true)}
+              onChange={(event) => {
+                const value = event.target.value;
 
-              <SelectContent className="max-h-80 p-0">
-                <div
-                  className="sticky top-0 z-10 border-b bg-popover p-2"
-                  onKeyDown={(event) => event.stopPropagation()}
-                >
-                  <Input
-                    autoFocus
-                    value={supplierSearch}
-                    onChange={(event) => setSupplierSearch(event.target.value)}
-                    onClick={(event) => event.stopPropagation()}
-                    placeholder="Search supplier name, code or contact"
-                  />
-                </div>
+                setSupplierSearch(value);
+                setSupplierSearchOpen(true);
 
-                <div className="max-h-64 overflow-y-auto p-1">
-                  {filteredSuppliers.length ? (
-                    filteredSuppliers.map((supplier) => (
-                      <SelectItem key={supplier.id} value={String(supplier.id)}>
-                        <div>
-                          <div>{supplier.supplier_name}</div>
-                          {(supplier.supplier_code ||
-                            supplier.contact_person) && (
-                            <div className="text-xs text-muted-foreground">
-                              {[supplier.supplier_code, supplier.contact_person]
-                                .filter(Boolean)
-                                .join(" · ")}
-                            </div>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                      No suppliers match your search.
-                    </div>
-                  )}
-                </div>
-              </SelectContent>
-            </Select>
+                if (
+                  selectedSupplier &&
+                  value !==
+                    (selectedSupplier.supplier_name ||
+                      selectedSupplier.name ||
+                      "")
+                ) {
+                  updateForm("supplier", "");
+                  updateForm("purchase_order", "");
+                  setPurchaseOrderSearch("");
+                }
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setSupplierSearchOpen(false);
+                }
+              }}
+              placeholder="Search and select supplier"
+            />
+
+            {supplierSearchOpen && !optionsLoading ? (
+              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-background p-1 shadow-xl dark:border-white/10">
+                {filteredSuppliers.length ? (
+                  filteredSuppliers.map((supplier) => (
+                    <button
+                      key={supplier.id}
+                      type="button"
+                      className="flex w-full flex-col rounded-lg px-3 py-2.5 text-left transition hover:bg-slate-100 dark:hover:bg-white/5"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => selectSupplier(String(supplier.id))}
+                    >
+                      <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                        {supplier.supplier_name || supplier.name}
+                      </span>
+
+                      {(supplier.supplier_code ||
+                        supplier.contact_person ||
+                        supplier.email) && (
+                        <span className="mt-0.5 text-xs text-muted-foreground">
+                          {[
+                            supplier.supplier_code,
+                            supplier.contact_person,
+                            supplier.email,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                      )}
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                    No suppliers match your search.
+                  </div>
+                )}
+              </div>
+            ) : null}
 
             {errors.supplier && (
               <p className="mt-1 text-xs text-red-500">{errors.supplier}</p>
@@ -1137,27 +1278,97 @@ export default function ShipmentFormPage() {
                 return (
                   <div
                     key={item.id || index}
-                    className="grid grid-cols-[220px_180px_115px_100px_repeat(4,88px)_110px_82px_120px_130px_38px] items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-white/10 dark:bg-white/[0.025]"
+                    className="grid grid-cols-[220px_180px_115px_100px_repeat(4,88px)_110px_82px_120px_130px_38px] items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-white/10 dark:bg-white/[0.025]"
                   >
-                    <Select
-                      value={item.product}
-                      onValueChange={(value) => selectProduct(index, value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select product" />
-                      </SelectTrigger>
+                    <div className="relative">
+                      <Input
+                        value={getProductSearchValue(index, item)}
+                        autoComplete="off"
+                        onFocus={() =>
+                          setProductSearchOpen((current) => ({
+                            ...current,
+                            [index]: true,
+                          }))
+                        }
+                        onChange={(event) => {
+                          const value = event.target.value;
 
-                      <SelectContent className="max-h-72">
-                        {products.map((product) => (
-                          <SelectItem
-                            key={product.id}
-                            value={String(product.id)}
-                          >
-                            {product.product_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                          setProductSearches((current) => ({
+                            ...current,
+                            [index]: value,
+                          }));
+                          setProductSearchOpen((current) => ({
+                            ...current,
+                            [index]: true,
+                          }));
+
+                          if (item.product) {
+                            updateItem(index, {
+                              product: "",
+                              variant: "",
+                              product_name: "",
+                              sku: "",
+                              brand_name: "",
+                              unit_cost: 0,
+                            });
+                          }
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Escape") {
+                            setProductSearchOpen((current) => ({
+                              ...current,
+                              [index]: false,
+                            }));
+                          }
+                        }}
+                        placeholder="Search and select product"
+                      />
+
+                      {productSearchOpen[index] ? (
+                        <div className="relative z-50 mt-1 min-w-[260px] max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-background p-1 shadow-xl dark:border-white/10">
+                          {getFilteredProducts(index, item).length ? (
+                            getFilteredProducts(index, item).map(
+                              (productOption) => (
+                                <button
+                                  key={productOption.id}
+                                  type="button"
+                                  className="flex w-full flex-col rounded-lg px-3 py-2.5 text-left transition hover:bg-slate-100 dark:hover:bg-white/5"
+                                  onMouseDown={(event) =>
+                                    event.preventDefault()
+                                  }
+                                  onClick={() =>
+                                    selectProduct(
+                                      index,
+                                      String(productOption.id),
+                                    )
+                                  }
+                                >
+                                  <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                    {productOption.product_name}
+                                  </span>
+
+                                  {(productOption.sku ||
+                                    productOption.brand_name) && (
+                                    <span className="mt-0.5 text-xs text-muted-foreground">
+                                      {[
+                                        productOption.sku,
+                                        productOption.brand_name,
+                                      ]
+                                        .filter(Boolean)
+                                        .join(" · ")}
+                                    </span>
+                                  )}
+                                </button>
+                              ),
+                            )
+                          ) : (
+                            <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                              No products match your search.
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
 
                     <Select
                       value={item.variant || "__base__"}

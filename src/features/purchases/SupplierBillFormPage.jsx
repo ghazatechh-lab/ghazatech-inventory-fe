@@ -25,6 +25,17 @@ const SUPPLIER_BILL_ENDPOINT = "/purchases/supplier-bills/";
 
 const CURRENCY_OPTIONS = ["AED", "USD", "EUR", "GBP", "INR", "SAR"];
 
+const PAYMENT_TERM_OPTIONS = [
+  { value: 0, label: "Due on Receipt" },
+  { value: 7, label: "7 Days" },
+  { value: 14, label: "14 Days" },
+  { value: 15, label: "15 Days" },
+  { value: 30, label: "30 Days" },
+  { value: 45, label: "45 Days" },
+  { value: 60, label: "60 Days" },
+  { value: 90, label: "90 Days" },
+];
+
 const STATUS_OPTIONS = [
   {
     value: "DRAFT",
@@ -286,26 +297,20 @@ export default function SupplierBillFormPage() {
   const [errors, setErrors] = React.useState({});
 
   const [initialized, setInitialized] = React.useState(false);
+  const [purchaseOrderSearch, setPurchaseOrderSearch] = React.useState("");
+  const [purchaseOrderSearchOpen, setPurchaseOrderSearchOpen] =
+    React.useState(false);
 
-  console.log("Supplier Bill form-options query key:");
   const optionsQuery = useQuery({
-    queryKey: ["supplier-bill-form-options"],
+    queryKey: ["supplier-bill-form-options", form.branch],
 
     queryFn: async () => {
       const response = await api.get(`${SUPPLIER_BILL_ENDPOINT}form-options/`, {
+        params: { branch: form.branch || branchId || undefined },
         skipGlobalErrorToast: true,
       });
 
-      console.log("Supplier Bill form-options raw response:", response);
-
       const normalized = normalizePayload(response);
-
-      console.log("Supplier Bill form-options normalized:", normalized);
-      console.log(
-        "Supplier Bill purchase orders:",
-        normalizeList(normalized?.purchase_orders),
-      );
-      console.log("Supplier Bill GRNs:", normalizeList(normalized?.grns));
 
       return normalized;
     },
@@ -333,7 +338,7 @@ export default function SupplierBillFormPage() {
 
   const options = optionsQuery.data || {};
 
-  const purchaseOrders = normalizeList(options.purchase_orders);
+  const optionPurchaseOrders = normalizeList(options.purchase_orders);
 
   const grns = normalizeList(options.grns);
 
@@ -350,9 +355,134 @@ export default function SupplierBillFormPage() {
     });
   }, [grns, form.purchase_order]);
 
-  const suppliers = normalizeList(options.suppliers);
+  const optionSuppliers = normalizeList(options.suppliers);
 
-  const branches = normalizeList(options.branches);
+  const optionBranches = normalizeList(options.branches);
+
+  const { data: fallbackPurchaseOrderResponse } = useQuery({
+    queryKey: ["supplier-bill-purchase-orders", form.branch],
+    queryFn: async () =>
+      normalizePayload(
+        await api.get("/purchases/orders/", {
+          params: {
+            branch: form.branch || branchId || undefined,
+            page_size: 500,
+            ordering: "-order_date",
+          },
+          skipGlobalErrorToast: true,
+        }),
+      ),
+    staleTime: 30000,
+    retry: false,
+  });
+
+  const { data: fallbackSupplierResponse } = useQuery({
+    queryKey: ["supplier-bill-suppliers", form.branch],
+    queryFn: async () =>
+      normalizePayload(
+        await api.get("/suppliers/", {
+          params: {
+            branch: form.branch || branchId || undefined,
+            page_size: 500,
+            is_active: true,
+            ordering: "supplier_name",
+          },
+          skipGlobalErrorToast: true,
+        }),
+      ),
+    staleTime: 30000,
+    retry: false,
+  });
+
+  const { data: fallbackBranchResponse } = useQuery({
+    queryKey: ["supplier-bill-branches"],
+    queryFn: async () =>
+      normalizePayload(
+        await api.get("/branches/", {
+          params: { page_size: 500, is_active: true, ordering: "branch_code" },
+          skipGlobalErrorToast: true,
+        }),
+      ),
+    staleTime: 300000,
+    retry: false,
+  });
+
+  const purchaseOrders = React.useMemo(() => {
+    const merged = new Map();
+    [...optionPurchaseOrders, ...normalizeList(fallbackPurchaseOrderResponse)]
+      .filter((order) =>
+        ["APPROVED", "PARTIALLY_RECEIVED", "RECEIVED"].includes(
+          String(order.status || "").toUpperCase(),
+        ),
+      )
+      .forEach((order) => {
+        if (order?.id) merged.set(String(order.id), order);
+      });
+    return Array.from(merged.values());
+  }, [optionPurchaseOrders, fallbackPurchaseOrderResponse]);
+
+  const suppliers = React.useMemo(() => {
+    const merged = new Map();
+    [...optionSuppliers, ...normalizeList(fallbackSupplierResponse)].forEach(
+      (supplier) => {
+        if (supplier?.id) merged.set(String(supplier.id), supplier);
+      },
+    );
+    return Array.from(merged.values());
+  }, [optionSuppliers, fallbackSupplierResponse]);
+
+  const branches = React.useMemo(() => {
+    const merged = new Map();
+    [...optionBranches, ...normalizeList(fallbackBranchResponse)].forEach(
+      (branch) => {
+        if (branch?.id) merged.set(String(branch.id), branch);
+      },
+    );
+    return Array.from(merged.values());
+  }, [optionBranches, fallbackBranchResponse]);
+
+  const selectedPurchaseOrder = React.useMemo(
+    () =>
+      purchaseOrders.find(
+        (item) => String(item.id) === String(form.purchase_order),
+      ),
+    [purchaseOrders, form.purchase_order],
+  );
+
+  const selectedSupplier = React.useMemo(
+    () => suppliers.find((item) => String(item.id) === String(form.supplier)),
+    [suppliers, form.supplier],
+  );
+
+  const filteredPurchaseOrders = React.useMemo(() => {
+    const search = purchaseOrderSearch.trim().toLowerCase();
+    if (!search) return purchaseOrders;
+    return purchaseOrders.filter((item) =>
+      [
+        item.po_number,
+        item.supplier_name,
+        item.branch_name,
+        item.branch_code,
+        item.status,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(search),
+    );
+  }, [purchaseOrders, purchaseOrderSearch]);
+
+  React.useEffect(() => {
+    if (selectedPurchaseOrder) {
+      setPurchaseOrderSearch(
+        [selectedPurchaseOrder.po_number, selectedPurchaseOrder.supplier_name]
+          .filter(Boolean)
+          .join(" · "),
+      );
+    } else if (!form.purchase_order) {
+      setPurchaseOrderSearch("");
+    }
+  }, [selectedPurchaseOrder, form.purchase_order]);
 
   React.useEffect(() => {
     if (isEdit || initialized) {
@@ -395,9 +525,9 @@ export default function SupplierBillFormPage() {
 
               description: item.description || "",
 
-              quantity: numberValue(item.quantity),
+              quantity: numberValue(item.bill_quantity ?? item.quantity),
 
-              unit_price: numberValue(item.unit_price),
+              unit_price: numberValue(item.unit_cost ?? item.unit_price),
 
               discount_amount: numberValue(item.discount_amount),
 
@@ -574,43 +704,92 @@ export default function SupplierBillFormPage() {
     });
   }
 
-  function applyPurchaseOrder(purchaseOrderId) {
+  async function applyPurchaseOrder(purchaseOrderId) {
     const selectedId = String(purchaseOrderId || "");
 
-    console.log("Selected Purchase Order ID:", selectedId);
-
     if (!selectedId) {
+      setPurchaseOrderSearch("");
+      setPurchaseOrderSearchOpen(false);
+
       setForm((current) => ({
         ...current,
         purchase_order: "",
         grn: "",
+        supplier: "",
+        items: [createEmptyItem()],
+      }));
+
+      return;
+    }
+
+    let purchaseOrder = purchaseOrders.find(
+      (item) => String(item.id) === selectedId,
+    );
+
+    if (!purchaseOrder) {
+      setErrors((current) => ({
+        ...current,
+        purchase_order: "Selected Purchase Order was not found.",
       }));
       return;
     }
 
-    const purchaseOrder = purchaseOrders.find(
-      (item) => String(item.id) === selectedId,
-    );
+    const currentItems = normalizeList(purchaseOrder.items);
+    const currentSupplierId =
+      purchaseOrder.supplier_id ?? getId(purchaseOrder.supplier);
 
-    console.log("Selected Purchase Order record:", purchaseOrder);
+    if (!currentItems.length || !currentSupplierId) {
+      try {
+        const response = await api.get(`/purchases/orders/${selectedId}/`, {
+          skipGlobalErrorToast: true,
+        });
 
-    if (!purchaseOrder) {
-      updateField("purchase_order", selectedId);
-      return;
+        purchaseOrder = {
+          ...purchaseOrder,
+          ...normalizePayload(response),
+        };
+      } catch (error) {
+        toast.error("Unable to load Purchase Order details.");
+        return;
+      }
     }
 
     const poItems = normalizeList(purchaseOrder.items);
+
     const supplierId =
       purchaseOrder.supplier_id ?? getId(purchaseOrder.supplier);
-    const branchId = purchaseOrder.branch_id ?? getId(purchaseOrder.branch);
-    const paymentTermsDays = numberValue(purchaseOrder.payment_terms_days);
+
+    const branchValue = purchaseOrder.branch_id ?? getId(purchaseOrder.branch);
+
+    const supplierRecord = suppliers.find(
+      (supplier) => String(supplier.id) === String(supplierId),
+    );
+
+    const paymentTermsDays = numberValue(
+      purchaseOrder.payment_terms_days ??
+        purchaseOrder.supplier_payment_terms_days ??
+        supplierRecord?.payment_terms_days ??
+        0,
+    );
+
+    setPurchaseOrderSearch(
+      [
+        purchaseOrder.po_number,
+        purchaseOrder.supplier_name ||
+          supplierRecord?.supplier_name ||
+          supplierRecord?.name,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    );
+    setPurchaseOrderSearchOpen(false);
 
     setForm((current) => ({
       ...current,
       purchase_order: selectedId,
       grn: "",
-      supplier: supplierId ? String(supplierId) : current.supplier,
-      branch: branchId ? String(branchId) : current.branch,
+      supplier: supplierId ? String(supplierId) : "",
+      branch: branchValue ? String(branchValue) : current.branch,
       currency: purchaseOrder.currency || current.currency || "AED",
       payment_terms_days: paymentTermsDays,
       due_date: addDays(current.bill_date, paymentTermsDays),
@@ -626,10 +805,15 @@ export default function SupplierBillFormPage() {
               product_name:
                 item.product_name || item.product?.product_name || "",
               sku: item.sku || item.product?.sku || "",
-              variant_name: item.variant_name || "",
-              description: item.description || item.product_name || "",
-              quantity: numberValue(item.quantity),
-              unit_price: numberValue(item.unit_price),
+              variant_name:
+                item.variant_name || item.variant?.display_name || "",
+              description:
+                item.description ||
+                item.product_name ||
+                item.product?.product_name ||
+                "",
+              quantity: numberValue(item.quantity ?? item.ordered_quantity),
+              unit_price: numberValue(item.unit_price ?? item.unit_cost),
               discount_amount: numberValue(item.discount_amount),
               vat_percentage: numberValue(item.vat_percentage ?? 5),
             }),
@@ -640,7 +824,9 @@ export default function SupplierBillFormPage() {
     setErrors((current) => ({
       ...current,
       purchase_order: undefined,
-      supplier: undefined,
+      supplier: supplierId
+        ? undefined
+        : "Supplier is missing from the selected Purchase Order.",
       branch: undefined,
       items: undefined,
       general: undefined,
@@ -656,8 +842,6 @@ export default function SupplierBillFormPage() {
 
     const grn = availableGrns.find((item) => String(item.id) === String(grnId));
 
-    console.log("Selected GRN record:", grn);
-
     if (!grn) {
       updateField("grn", grnId);
 
@@ -666,6 +850,7 @@ export default function SupplierBillFormPage() {
 
     const grnItems = normalizeList(grn.items);
 
+    const linkedSupplierId = grn.supplier_id ?? getId(grn.supplier);
     setForm((current) => ({
       ...current,
 
@@ -832,11 +1017,7 @@ export default function SupplierBillFormPage() {
         notes: form.notes,
 
         items: calculatedItems.map((item) => ({
-          ...(item.id
-            ? {
-                id: item.id,
-              }
-            : {}),
+          ...(item.id ? { id: item.id } : {}),
 
           product: Number(item.product),
 
@@ -844,21 +1025,15 @@ export default function SupplierBillFormPage() {
 
           grn_item: item.grn_item ? Number(item.grn_item) : null,
 
-          description: item.description || item.product_name || "",
+          received_quantity: numberValue(item.quantity),
 
-          quantity: numberValue(item.quantity),
+          bill_quantity: numberValue(item.quantity),
 
-          unit_price: numberValue(item.unit_price),
+          unit_cost: numberValue(item.unit_price),
 
           discount_amount: numberValue(item.discount_amount),
 
           vat_percentage: numberValue(item.vat_percentage),
-
-          subtotal: Number(item.subtotal.toFixed(2)),
-
-          vat_amount: Number(item.vat_amount.toFixed(2)),
-
-          line_total: Number(item.line_total.toFixed(2)),
         })),
       };
 
@@ -920,9 +1095,6 @@ export default function SupplierBillFormPage() {
     },
 
     onError: (error) => {
-      console.error("Supplier Bill save error:", error);
-      console.error("Supplier Bill save response:", error?.response?.data);
-
       const apiErrors = getApiErrors(error);
 
       setErrors((current) => ({
@@ -1056,9 +1228,7 @@ export default function SupplierBillFormPage() {
 
                   bill_date: billDate,
 
-                  due_date: current.payment_terms_days
-                    ? addDays(billDate, current.payment_terms_days)
-                    : current.due_date,
+                  due_date: addDays(billDate, current.payment_terms_days),
                 }));
               }}
             />
@@ -1083,24 +1253,26 @@ export default function SupplierBillFormPage() {
           <div>
             <Label htmlFor="payment_terms_days">Payment Terms</Label>
 
-            <Input
+            <select
               id="payment_terms_days"
-              className="mt-2"
-              type="number"
-              min="0"
-              value={form.payment_terms_days}
+              className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"
+              value={String(form.payment_terms_days ?? 0)}
               onChange={(event) => {
-                const days = event.target.value;
+                const days = Number(event.target.value || 0);
 
                 setForm((current) => ({
                   ...current,
-
                   payment_terms_days: days,
-
                   due_date: addDays(current.bill_date, days),
                 }));
               }}
-            />
+            >
+              {PAYMENT_TERM_OPTIONS.map((option) => (
+                <option key={option.value} value={String(option.value)}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -1154,14 +1326,16 @@ export default function SupplierBillFormPage() {
               onChange={(event) => {
                 const value = event.target.value;
 
+                setPurchaseOrderSearch("");
+                setPurchaseOrderSearchOpen(false);
+
                 setForm((current) => ({
                   ...current,
-
                   branch: value,
-
                   purchase_order: "",
-
                   grn: "",
+                  supplier: "",
+                  items: [createEmptyItem()],
                 }));
               }}
             >
@@ -1178,32 +1352,82 @@ export default function SupplierBillFormPage() {
             <FieldError message={errors.branch} />
           </div>
 
-          <div>
+          <div className="relative">
             <Label htmlFor="purchase_order">Purchase Order *</Label>
-
-            <select
+            <Input
               id="purchase_order"
-              className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"
-              value={form.purchase_order}
-              onChange={(event) => applyPurchaseOrder(event.target.value)}
-            >
-              <option value="">
-                {optionsQuery.isLoading
-                  ? "Loading purchase orders..."
-                  : purchaseOrders.length
-                    ? "Select purchase order"
-                    : "No approved purchase orders available"}
-              </option>
+              className="mt-2"
+              value={purchaseOrderSearch}
+              autoComplete="off"
+              disabled={optionsQuery.isLoading}
+              onFocus={() => setPurchaseOrderSearchOpen(true)}
+              onChange={(event) => {
+                const value = event.target.value;
+                setPurchaseOrderSearch(value);
+                setPurchaseOrderSearchOpen(true);
 
-              {purchaseOrders.map((purchaseOrder) => (
-                <option key={purchaseOrder.id} value={String(purchaseOrder.id)}>
-                  {purchaseOrder.po_number || `PO ${purchaseOrder.id}`}
-                  {purchaseOrder.supplier_name
-                    ? ` — ${purchaseOrder.supplier_name}`
-                    : ""}
-                </option>
-              ))}
-            </select>
+                const selectedLabel = selectedPurchaseOrder
+                  ? [
+                      selectedPurchaseOrder.po_number,
+                      selectedPurchaseOrder.supplier_name,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
+                  : "";
+
+                if (selectedPurchaseOrder && value !== selectedLabel) {
+                  setForm((current) => ({
+                    ...current,
+                    purchase_order: "",
+                    grn: "",
+                    supplier: "",
+                    items: [createEmptyItem()],
+                  }));
+                }
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setPurchaseOrderSearchOpen(false);
+                }
+              }}
+              placeholder="Search and select purchase order"
+            />
+
+            {purchaseOrderSearchOpen ? (
+              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-background p-1 shadow-xl dark:border-white/10">
+                {filteredPurchaseOrders.length ? (
+                  filteredPurchaseOrders.map((purchaseOrder) => (
+                    <button
+                      key={purchaseOrder.id}
+                      type="button"
+                      className="flex w-full flex-col rounded-lg px-3 py-2.5 text-left transition hover:bg-slate-100 dark:hover:bg-white/5"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() =>
+                        applyPurchaseOrder(String(purchaseOrder.id))
+                      }
+                    >
+                      <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                        {purchaseOrder.po_number || `PO ${purchaseOrder.id}`}
+                      </span>
+                      <span className="mt-0.5 text-xs text-muted-foreground">
+                        {[
+                          purchaseOrder.supplier_name,
+                          purchaseOrder.branch_code ||
+                            purchaseOrder.branch_name,
+                          purchaseOrder.status,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                    No Purchase Orders match your search.
+                  </div>
+                )}
+              </div>
+            ) : null}
 
             <FieldError message={errors.purchase_order} />
           </div>
@@ -1240,20 +1464,23 @@ export default function SupplierBillFormPage() {
           <div>
             <Label htmlFor="supplier">Supplier *</Label>
 
-            <select
+            <Input
               id="supplier"
-              className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"
-              value={form.supplier}
-              onChange={(event) => updateField("supplier", event.target.value)}
-            >
-              <option value="">Select supplier</option>
+              className="mt-2"
+              value={
+                selectedSupplier?.supplier_name ||
+                selectedSupplier?.name ||
+                selectedPurchaseOrder?.supplier_name ||
+                ""
+              }
+              readOnly
+              disabled
+              placeholder="Automatically selected from Purchase Order"
+            />
 
-              {suppliers.map((supplier) => (
-                <option key={supplier.id} value={String(supplier.id)}>
-                  {supplier.supplier_name || supplier.name}
-                </option>
-              ))}
-            </select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Supplier is selected automatically from the linked Purchase Order.
+            </p>
 
             <FieldError message={errors.supplier} />
           </div>

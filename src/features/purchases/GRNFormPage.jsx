@@ -19,15 +19,33 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CurrencyText } from "@/components/common/CurrencyText";
-import { useAuth } from "@/lib/auth";
-import { canCreateRestrictedPurchase } from "@/lib/taxAccess";
-import { ClassifiedQuantityFields } from "@/components/tax/ClassifiedQuantityFields";
 
 const list = (value) => {
   if (Array.isArray(value)) return value;
   if (Array.isArray(value?.results)) return value.results;
   if (Array.isArray(value?.data)) return value.data;
   if (Array.isArray(value?.data?.results)) return value.data.results;
+  return [];
+};
+
+const getPurchaseOrderItems = (order) => {
+  const candidates = [
+    order?.items,
+    order?.data?.items,
+    order?.purchase_order_items,
+    order?.order_items,
+    order?.results,
+    order?.data?.results,
+  ];
+
+  for (const candidate of candidates) {
+    const items = list(candidate);
+
+    if (items.length) {
+      return items;
+    }
+  }
+
   return [];
 };
 
@@ -73,11 +91,12 @@ export default function GRNFormPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { branchId } = useActiveBranchFilter();
-  const { user } = useAuth();
-  const allowRestricted = canCreateRestrictedPurchase(user);
 
   const [files, setFiles] = React.useState([]);
   const [errors, setErrors] = React.useState({});
+  const [purchaseOrderSearch, setPurchaseOrderSearch] = React.useState("");
+  const [purchaseOrderSearchOpen, setPurchaseOrderSearchOpen] =
+    React.useState(false);
   const [form, setForm] = React.useState({
     grn_number: "",
     purchase_order: "",
@@ -113,11 +132,44 @@ export default function GRNFormPage() {
   });
 
   const options = optionsResponse || {};
-  const orders = list(options.purchase_orders);
+  const optionOrders = list(options.purchase_orders);
   const branches = list(options.branches);
   const optionReceivers = list(options.receivers);
   const racks = list(options.racks);
   const qualityStatuses = list(options.quality_statuses);
+
+  const { data: purchaseOrderResponse } = useQuery({
+    queryKey: ["grn-purchase-orders-fallback", form.branch],
+    queryFn: async () =>
+      unwrap(
+        await api.get("/purchases/orders/", {
+          params: {
+            branch: form.branch || undefined,
+            page_size: 500,
+            ordering: "-order_date",
+          },
+        }),
+      ),
+    staleTime: 30_000,
+  });
+
+  const fallbackOrders = list(purchaseOrderResponse).filter((order) =>
+    ["APPROVED", "PARTIALLY_RECEIVED"].includes(
+      String(order.status || "").toUpperCase(),
+    ),
+  );
+
+  const orders = React.useMemo(() => {
+    const merged = new Map();
+
+    [...optionOrders, ...fallbackOrders].forEach((order) => {
+      if (order?.id) {
+        merged.set(String(order.id), order);
+      }
+    });
+
+    return Array.from(merged.values());
+  }, [optionOrders, fallbackOrders]);
 
   /*
    * Some purchase form-options responses do not include receivers.
@@ -204,14 +256,14 @@ export default function GRNFormPage() {
       items: (existing.items || []).map((item) => {
         const productId = getPk(
           item.product_id,
-          item.product,
           item.product?.id,
+          item.product,
         );
 
         const variantId = getPk(
           item.variant_id,
-          item.variant,
           item.variant?.id,
+          item.variant,
         );
 
         return {
@@ -224,35 +276,6 @@ export default function GRNFormPage() {
             item.product?.name,
           ),
           sku: getText(item.sku, item.variant?.sku, item.product?.sku),
-          ordered_regular_quantity: num(
-            item.ordered_regular_quantity ??
-              item.regular_quantity ??
-              item.ordered_quantity ??
-              item.quantity,
-          ),
-          ordered_restricted_quantity: num(
-            item.ordered_restricted_quantity ??
-              item.restricted_quantity ??
-              item.restricted_qty,
-          ),
-          regular_received_quantity: num(
-            item.regular_received_quantity ??
-              item.received_regular_quantity ??
-              item.received_quantity,
-          ),
-          restricted_received_quantity: num(
-            item.restricted_received_quantity ??
-              item.received_restricted_quantity,
-          ),
-          regular_accepted_quantity: num(
-            item.regular_accepted_quantity ??
-              item.accepted_regular_quantity ??
-              item.accepted_quantity,
-          ),
-          restricted_accepted_quantity: num(
-            item.restricted_accepted_quantity ??
-              item.accepted_restricted_quantity,
-          ),
           ordered_quantity: num(item.ordered_quantity ?? item.quantity),
           previously_received_quantity: num(item.previously_received_quantity),
           received_quantity: num(item.received_quantity),
@@ -273,6 +296,34 @@ export default function GRNFormPage() {
       orders.find((order) => String(order.id) === String(form.purchase_order)),
     [orders, form.purchase_order],
   );
+
+  const filteredOrders = React.useMemo(() => {
+    const search = purchaseOrderSearch.trim().toLowerCase();
+
+    if (!search) return orders;
+
+    return orders.filter((order) =>
+      [
+        order.po_number,
+        order.supplier_name,
+        order.branch_name,
+        order.branch_code,
+        order.status,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(search),
+    );
+  }, [orders, purchaseOrderSearch]);
+
+  React.useEffect(() => {
+    if (selectedOrder) {
+      setPurchaseOrderSearch(selectedOrder.po_number || "");
+    } else if (!form.purchase_order) {
+      setPurchaseOrderSearch("");
+    }
+  }, [selectedOrder, form.purchase_order]);
 
   const selectedReceiver = React.useMemo(
     () =>
@@ -304,13 +355,36 @@ export default function GRNFormPage() {
     }));
   };
 
-  const selectPO = (value) => {
-    const order = orders.find((item) => String(item.id) === String(value));
+  const selectPO = async (value) => {
+    let order = orders.find((item) => String(item.id) === String(value));
 
     if (!order) {
       toast.error("Selected purchase order could not be loaded.");
       return;
     }
+
+    let rawItems = getPurchaseOrderItems(order);
+
+    if (!rawItems.length) {
+      try {
+        const detailResponse = unwrap(
+          await api.get(`/purchases/orders/${value}/`),
+        );
+
+        order = detailResponse?.data || detailResponse || order;
+        rawItems = getPurchaseOrderItems(order);
+      } catch (error) {
+        console.error("[GRN PO item diagnostic] Detail request failed", {
+          purchaseOrderId: value,
+          error,
+        });
+        toast.error("Unable to load purchase-order items.");
+        return;
+      }
+    }
+
+    setPurchaseOrderSearch(order.po_number || "");
+    setPurchaseOrderSearchOpen(false);
 
     const supplierId = getPk(
       order.supplier_id,
@@ -320,102 +394,36 @@ export default function GRNFormPage() {
 
     const branchValue = getPk(order.branch_id, order.branch, order.branch?.id);
 
-    const normalizedItems = (order.items || [])
-      .map((item) => {
+    const itemDiagnostics = [];
+
+    const normalizedItems = rawItems
+      .map((item, itemIndex) => {
         const productId = getPk(
           item.product_id,
-          item.product,
           item.product?.id,
+          item.product,
         );
 
         const variantId = getPk(
           item.variant_id,
-          item.variant,
           item.variant?.id,
+          item.variant,
         );
 
-        const rawOrderedRestricted = num(
-          item.ordered_restricted_quantity ??
-            item.restricted_quantity ??
-            item.restricted_qty ??
-            item.classified_restricted_quantity ??
-            0,
-        );
-
-        const orderedRegular = num(
-          item.ordered_regular_quantity ??
-            item.regular_quantity ??
-            item.regular_qty ??
-            item.classified_regular_quantity ??
-            (rawOrderedRestricted > 0
-              ? Math.max(
-                  0,
-                  num(item.ordered_quantity ?? item.quantity) -
-                    rawOrderedRestricted,
-                )
-              : (item.ordered_quantity ?? item.quantity)),
-        );
-
-        /*
-         * Do not derive restricted quantity from the aggregate quantity.
-         * It must come from the PO classification returned by the backend.
-         * The field remains editable only when allowRestricted is true.
-         */
-        const orderedRestricted = rawOrderedRestricted;
         const orderedQuantity = num(
-          item.ordered_quantity ??
-            item.quantity ??
-            orderedRegular + orderedRestricted,
+          item.quantity ?? item.ordered_quantity ?? 0,
         );
 
-        const previouslyReceivedRegular = num(
-          item.previously_received_regular_quantity ??
-            item.regular_received_quantity ??
-            (item.previously_received_restricted_quantity != null
-              ? 0
-              : item.previously_received_quantity),
-        );
-        const previouslyReceivedRestricted = num(
-          item.previously_received_restricted_quantity ??
-            item.received_restricted_quantity ??
-            item.restricted_received_quantity ??
-            0,
-        );
         const previouslyReceived = num(
-          item.previously_received_quantity ??
-            previouslyReceivedRegular + previouslyReceivedRestricted,
+          item.previously_received_quantity ?? item.received_grn_quantity ?? 0,
         );
 
-        const remainingRegular = Math.max(
-          0,
-          orderedRegular - previouslyReceivedRegular,
-        );
-        const remainingRestricted = Math.max(
-          0,
-          orderedRestricted - previouslyReceivedRestricted,
-        );
         const remaining = Math.max(
           0,
-          num(
-            item.remaining_quantity ?? remainingRegular + remainingRestricted,
-          ),
+          num(item.remaining_quantity ?? orderedQuantity - previouslyReceived),
         );
 
-        if (
-          orderedQuantity > 0 &&
-          orderedRegular === orderedQuantity &&
-          orderedRestricted === 0 &&
-          item.ordered_restricted_quantity == null &&
-          item.restricted_quantity == null &&
-          item.restricted_qty == null
-        ) {
-          console.warn(
-            "GRN PO item has no classified quantity fields. Update the backend GRN form-options endpoint.",
-            item,
-          );
-        }
-
-        return {
+        const normalized = {
           po_item_id: getPk(item.po_item_id, item.id),
           product: productId ? String(productId) : "",
           variant: variantId ? String(variantId) : "",
@@ -425,16 +433,8 @@ export default function GRNFormPage() {
             item.product?.name,
           ),
           sku: getText(item.sku, item.variant?.sku, item.product?.sku),
-          ordered_regular_quantity: orderedRegular,
-          ordered_restricted_quantity: orderedRestricted,
           ordered_quantity: orderedQuantity,
-          previously_received_regular_quantity: previouslyReceivedRegular,
-          previously_received_restricted_quantity: previouslyReceivedRestricted,
           previously_received_quantity: previouslyReceived,
-          regular_received_quantity: remainingRegular,
-          restricted_received_quantity: remainingRestricted,
-          regular_accepted_quantity: remainingRegular,
-          restricted_accepted_quantity: remainingRestricted,
           received_quantity: remaining,
           damaged_quantity: 0,
           accepted_quantity: remaining,
@@ -442,17 +442,60 @@ export default function GRNFormPage() {
           rack: "",
           remarks: "",
         };
+
+        itemDiagnostics.push({
+          index: itemIndex,
+          raw: item,
+          normalized,
+          excludedReason: !productId
+            ? "Missing product ID"
+            : orderedQuantity <= 0
+              ? "Ordered quantity is zero"
+              : remaining <= 0
+                ? "No remaining quantity"
+                : "Included",
+        });
+
+        return normalized;
       })
-      .filter((item) => num(item.received_quantity) > 0);
+      .filter(
+        (item) =>
+          getPk(item.product) &&
+          num(item.ordered_quantity) > 0 &&
+          num(item.received_quantity) > 0,
+      );
 
-    const invalidProducts = normalizedItems.filter(
-      (item) => !getPk(item.product),
+    console.groupCollapsed(
+      `[GRN PO item diagnostic] ${order.po_number || value}`,
     );
+    console.log("Purchase order", order);
+    console.log("Raw item count", rawItems.length, rawItems);
+    console.table(
+      itemDiagnostics.map((entry) => ({
+        index: entry.index,
+        product: entry.normalized.product,
+        product_name: entry.normalized.product_name,
+        ordered: entry.normalized.ordered_quantity,
+        previous: entry.normalized.previously_received_quantity,
+        remaining: entry.normalized.received_quantity,
+        result: entry.excludedReason,
+      })),
+    );
+    console.log("Items loaded into GRN", normalizedItems);
+    console.groupEnd();
 
-    if (invalidProducts.length) {
-      toast.error("Purchase-order product data is incomplete.", {
+    if (!rawItems.length) {
+      toast.error("The selected purchase order has no item lines.", {
         description:
-          "Refresh the page after updating the GRN form-options endpoint.",
+          "Open the browser console and check the GRN PO item diagnostic.",
+      });
+      return;
+    }
+
+    if (!normalizedItems.length) {
+      toast.error("No receivable PO items were found.", {
+        description:
+          "The console diagnostic shows whether product IDs, quantities, or remaining balances are missing.",
       });
       return;
     }
@@ -518,31 +561,16 @@ export default function GRNFormPage() {
     }
 
     const invalid = form.items.some((item) => {
-      const regularReceived = num(item.regular_received_quantity);
-      const restrictedReceived = allowRestricted
-        ? num(item.restricted_received_quantity)
-        : 0;
-      const received = regularReceived + restrictedReceived;
+      const received = num(item.received_quantity);
       const accepted = num(item.accepted_quantity);
       const damaged = num(item.damaged_quantity);
-
-      const remainingRegular = Math.max(
+      const remaining = Math.max(
         0,
-        num(item.ordered_regular_quantity) -
-          num(item.previously_received_regular_quantity),
+        num(item.ordered_quantity) - num(item.previously_received_quantity),
       );
-      const remainingRestricted = Math.max(
-        0,
-        num(item.ordered_restricted_quantity) -
-          num(item.previously_received_restricted_quantity),
-      );
-      const remaining = remainingRegular + remainingRestricted;
 
       return (
-        regularReceived < 0 ||
-        restrictedReceived < 0 ||
-        regularReceived > remainingRegular ||
-        restrictedReceived > remainingRestricted ||
+        received < 0 ||
         accepted < 0 ||
         damaged < 0 ||
         accepted + damaged !== received ||
@@ -586,25 +614,9 @@ export default function GRNFormPage() {
             product: productId,
             variant: variantId,
             ordered_quantity: num(item.ordered_quantity),
-            regular_received_quantity: num(
-              item.regular_received_quantity ?? item.received_quantity,
-            ),
-            restricted_received_quantity: allowRestricted
-              ? num(item.restricted_received_quantity)
-              : 0,
-            regular_accepted_quantity: num(
-              item.regular_accepted_quantity ?? item.accepted_quantity,
-            ),
-            restricted_accepted_quantity: allowRestricted
-              ? num(item.restricted_accepted_quantity)
-              : 0,
-            received_quantity:
-              num(item.regular_received_quantity ?? item.received_quantity) +
-              (allowRestricted ? num(item.restricted_received_quantity) : 0),
+            received_quantity: num(item.received_quantity),
             damaged_quantity: num(item.damaged_quantity),
-            accepted_quantity:
-              num(item.regular_accepted_quantity ?? item.accepted_quantity) +
-              (allowRestricted ? num(item.restricted_accepted_quantity) : 0),
+            accepted_quantity: num(item.accepted_quantity),
             quality_status: item.quality_status,
             rack: rackId,
             remarks: item.remarks || "",
@@ -719,22 +731,77 @@ export default function GRNFormPage() {
 
             <div className="mt-4">
               <Label>PO reference *</Label>
-              <Select value={form.purchase_order} onValueChange={selectPO}>
-                <SelectTrigger className="mt-2">
-                  <SelectValue placeholder="Select purchase order" />
-                </SelectTrigger>
-                <SelectContent className="max-h-72">
-                  {orders.map((order) => (
-                    <SelectItem key={order.id} value={String(order.id)}>
-                      {order.po_number} · {order.supplier_name} ·{" "}
-                      <CurrencyText
-                        value={order.total_amount}
-                        currency={order.currency || "AED"}
-                      />
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+
+              <div className="relative mt-2">
+                <Input
+                  value={purchaseOrderSearch}
+                  autoComplete="off"
+                  onFocus={() => setPurchaseOrderSearchOpen(true)}
+                  onChange={(event) => {
+                    const value = event.target.value;
+
+                    setPurchaseOrderSearch(value);
+                    setPurchaseOrderSearchOpen(true);
+
+                    if (selectedOrder && value !== selectedOrder.po_number) {
+                      updateForm("purchase_order", "");
+                      updateForm("supplier", "");
+                      setForm((current) => ({
+                        ...current,
+                        items: [],
+                      }));
+                    }
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      setPurchaseOrderSearchOpen(false);
+                    }
+                  }}
+                  placeholder="Search and select purchase order"
+                />
+
+                {purchaseOrderSearchOpen ? (
+                  <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-background p-1 shadow-xl dark:border-white/10">
+                    {filteredOrders.length ? (
+                      filteredOrders.map((order) => (
+                        <button
+                          key={order.id}
+                          type="button"
+                          className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-slate-100 dark:hover:bg-white/5"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => selectPO(String(order.id))}
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+                              {order.po_number}
+                            </p>
+                            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                              {[
+                                order.supplier_name,
+                                order.branch_code || order.branch_name,
+                                order.status,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </p>
+                          </div>
+
+                          <span className="shrink-0 text-xs font-medium">
+                            <CurrencyText
+                              value={order.total_amount || 0}
+                              currency={order.currency || "AED"}
+                            />
+                          </span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                        No eligible purchase orders found.
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
 
               {errors.purchase_order && (
                 <p className="mt-1 text-xs text-red-500">
@@ -762,7 +829,7 @@ export default function GRNFormPage() {
               Where and when the goods physically arrived.
             </p>
 
-            <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <div>
                 <Label>Date received *</Label>
                 <Input
@@ -776,7 +843,7 @@ export default function GRNFormPage() {
               </div>
 
               <div>
-                <Label>Receiving branch / warehouse *</Label>
+                <Label>Receiving branch *</Label>
                 <Select
                   value={form.branch}
                   onValueChange={(value) => updateForm("branch", value)}
@@ -793,13 +860,16 @@ export default function GRNFormPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
 
+              <div>
+                <Label>Warehouse location</Label>
                 <Input
                   value={form.warehouse_location}
                   onChange={(event) =>
                     updateForm("warehouse_location", event.target.value)
                   }
-                  placeholder="Warehouse location"
+                  placeholder="Enter warehouse location"
                   className="mt-2"
                 />
               </div>
@@ -872,27 +942,38 @@ export default function GRNFormPage() {
 
                       <div className="text-right text-sm">
                         {item.ordered_quantity}
-                        {allowRestricted ? (
-                          <div className="text-[10px] text-muted-foreground">
-                            Regular {item.ordered_regular_quantity || 0} ·
-                            Restricted {item.ordered_restricted_quantity || 0}
-                          </div>
-                        ) : null}
                       </div>
 
                       <Input
                         type="number"
-                        value={
-                          num(item.regular_received_quantity) +
-                          (allowRestricted
-                            ? num(item.restricted_received_quantity)
-                            : 0)
-                        }
-                        readOnly
-                        className="text-right bg-muted/40"
-                        title="Total received is calculated from regular and restricted quantities below."
-                      />
+                        min="0"
+                        max={Math.max(
+                          0,
+                          num(item.ordered_quantity) -
+                            num(item.previously_received_quantity),
+                        )}
+                        value={item.received_quantity}
+                        onChange={(event) => {
+                          const received = Math.max(
+                            0,
+                            Math.min(
+                              num(event.target.value),
+                              Math.max(
+                                0,
+                                num(item.ordered_quantity) -
+                                  num(item.previously_received_quantity),
+                              ),
+                            ),
+                          );
 
+                          updateItem(index, {
+                            received_quantity: received,
+                            accepted_quantity: received,
+                            damaged_quantity: 0,
+                          });
+                        }}
+                        className="text-right"
+                      />
                       <Select
                         value={item.quality_status}
                         onValueChange={(value) =>
@@ -948,78 +1029,6 @@ export default function GRNFormPage() {
                     </div>
                   ))}
                 </div>
-
-                {form.items.map((item, index) => (
-                  <div
-                    key={`classified-${item.id || index}`}
-                    className="mt-3 rounded-lg border p-3"
-                  >
-                    <p className="mb-2 text-xs font-medium">
-                      {item.product_name || item.sku} — classified receipt
-                    </p>
-                    <ClassifiedQuantityFields
-                      regular={item.regular_received_quantity || 0}
-                      restricted={item.restricted_received_quantity || 0}
-                      canUseRestricted={allowRestricted}
-                      regularMax={Math.max(
-                        0,
-                        num(item.ordered_regular_quantity) -
-                          num(item.previously_received_regular_quantity),
-                      )}
-                      restrictedMax={Math.max(
-                        0,
-                        num(item.ordered_restricted_quantity) -
-                          num(item.previously_received_restricted_quantity),
-                      )}
-                      onRegularChange={(value) => {
-                        const regular = Math.max(
-                          0,
-                          Math.min(
-                            num(value),
-                            Math.max(
-                              0,
-                              num(item.ordered_regular_quantity) -
-                                num(item.previously_received_regular_quantity),
-                            ),
-                          ),
-                        );
-                        const restricted = allowRestricted
-                          ? num(item.restricted_received_quantity)
-                          : 0;
-                        updateItem(index, {
-                          regular_received_quantity: regular,
-                          regular_accepted_quantity: regular,
-                          received_quantity: regular + restricted,
-                          accepted_quantity: regular + restricted,
-                          damaged_quantity: 0,
-                        });
-                      }}
-                      onRestrictedChange={(value) => {
-                        const restricted = Math.max(
-                          0,
-                          Math.min(
-                            num(value),
-                            Math.max(
-                              0,
-                              num(item.ordered_restricted_quantity) -
-                                num(
-                                  item.previously_received_restricted_quantity,
-                                ),
-                            ),
-                          ),
-                        );
-                        const regular = num(item.regular_received_quantity);
-                        updateItem(index, {
-                          restricted_received_quantity: restricted,
-                          restricted_accepted_quantity: restricted,
-                          received_quantity: regular + restricted,
-                          accepted_quantity: regular + restricted,
-                          damaged_quantity: 0,
-                        });
-                      }}
-                    />
-                  </div>
-                ))}
 
                 {errors.items && (
                   <p className="mt-3 text-sm text-red-500">{errors.items}</p>

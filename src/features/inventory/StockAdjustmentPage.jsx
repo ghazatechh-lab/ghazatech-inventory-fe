@@ -230,6 +230,119 @@ function SearchableProductSelect({
   );
 }
 
+function ProductSearchInput({
+  products,
+  value,
+  disabled = false,
+  placeholder = "Search and select product",
+  onChange,
+}) {
+  const wrapperRef = React.useRef(null);
+  const selectedProduct = React.useMemo(
+    () => products.find((item) => String(item.id) === String(value || "")),
+    [products, value],
+  );
+  const [productSearch, setProductSearch] = React.useState("");
+  const [productSearchOpen, setProductSearchOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    setProductSearch(
+      selectedProduct
+        ? `${selectedProduct.product_name} — ${selectedProduct.sku || "No SKU"}`
+        : "",
+    );
+  }, [selectedProduct]);
+
+  const filteredProducts = React.useMemo(() => {
+    const query = productSearch.trim().toLowerCase();
+    if (!query || selectedProduct) return products;
+
+    return products.filter((product) =>
+      [
+        product.product_name,
+        product.sku,
+        product.barcode,
+        product.brand_name,
+        product.category_name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [products, productSearch, selectedProduct]);
+
+  React.useEffect(() => {
+    const close = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setProductSearchOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
+
+  return (
+    <div ref={wrapperRef} className="relative mt-2">
+      <Input
+        value={productSearch}
+        disabled={disabled}
+        autoComplete="off"
+        onFocus={() => setProductSearchOpen(true)}
+        onChange={(event) => {
+          const nextValue = event.target.value;
+          setProductSearch(nextValue);
+          setProductSearchOpen(true);
+
+          if (
+            selectedProduct &&
+            nextValue !==
+              `${selectedProduct.product_name} — ${selectedProduct.sku || "No SKU"}`
+          ) {
+            onChange("");
+          }
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setProductSearchOpen(false);
+        }}
+        placeholder={placeholder}
+      />
+
+      {productSearchOpen && !disabled ? (
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
+          {filteredProducts.length ? (
+            filteredProducts.map((product) => (
+              <button
+                key={product.id}
+                type="button"
+                onClick={() => {
+                  onChange(String(product.id));
+                  setProductSearch(
+                    `${product.product_name} — ${product.sku || "No SKU"}`,
+                  );
+                  setProductSearchOpen(false);
+                }}
+                className="flex w-full flex-col rounded-sm px-3 py-2 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+              >
+                <span className="font-medium">{product.product_name}</span>
+                <span className="text-xs text-muted-foreground">
+                  {product.sku || "No SKU"}
+                  {product.brand_name ? ` · ${product.brand_name}` : ""}
+                  {product.category_name ? ` · ${product.category_name}` : ""}
+                </span>
+              </button>
+            ))
+          ) : (
+            <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+              No matching products
+            </div>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function AdjustmentFields({
   values,
   update,
@@ -253,7 +366,7 @@ function AdjustmentFields({
 
       <div>
         <Label>Product *</Label>
-        <SearchableProductSelect
+        <ProductSearchInput
           value={values.product}
           products={products}
           disabled={disabled || !values.branch}
@@ -989,7 +1102,7 @@ export default function StockAdjustmentPage() {
                   control={control}
                   rules={{ required: "Product is required." }}
                   render={({ field }) => (
-                    <SearchableProductSelect
+                    <ProductSearchInput
                       value={field.value}
                       products={products}
                       disabled={!selectedBranchId}

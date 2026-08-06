@@ -18,10 +18,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CurrencyText } from "@/components/common/CurrencyText";
-import { useAuth } from "@/lib/auth";
-import { canCreateRestrictedPurchase } from "@/lib/taxAccess";
-import { ClassifiedQuantityFields } from "@/components/tax/ClassifiedQuantityFields";
-import { TaxTreatmentSelect } from "@/components/tax/TaxTreatmentSelect";
 
 const normalizeList = (value) => {
   if (Array.isArray(value)) return value;
@@ -42,14 +38,9 @@ const emptyItem = () => ({
   product: "",
   variant: "",
   description: "",
-  regular_quantity: 1,
-  restricted_quantity: 0,
   quantity: 1,
   unit_price: 0,
   discount_amount: 0,
-  tax_treatment: "STANDARD_VAT",
-  tax_reason: "",
-  vat_percentage: 5,
 });
 
 const getVariants = (product) =>
@@ -88,8 +79,6 @@ export default function POFormPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { branchId } = useActiveBranchFilter();
-  const { user } = useAuth();
-  const allowRestricted = canCreateRestrictedPurchase(user);
 
   const [form, setForm] = React.useState({
     po_number: "",
@@ -111,6 +100,8 @@ export default function POFormPage() {
   const [errors, setErrors] = React.useState({});
   const [supplierSearch, setSupplierSearch] = React.useState("");
   const [supplierSearchOpen, setSupplierSearchOpen] = React.useState(false);
+  const [productSearches, setProductSearches] = React.useState({});
+  const [productSearchOpen, setProductSearchOpen] = React.useState({});
 
   React.useEffect(() => {
     if (!edit && branchId) {
@@ -122,7 +113,7 @@ export default function POFormPage() {
   }, [branchId, edit]);
 
   const { data: supplierResponse } = useQuery({
-    queryKey: ["supplier-options", "purchase-order-form"],
+    queryKey: ["supplier-options", "purchase-order-form", form.branch],
     queryFn: async () =>
       unwrap(
         await api.get("/suppliers/", {
@@ -130,6 +121,7 @@ export default function POFormPage() {
             page_size: 500,
             is_active: true,
             ordering: "supplier_name",
+            branch: form.branch || undefined,
           },
         }),
       ),
@@ -258,14 +250,9 @@ export default function POFormPage() {
                 ? String(item.variant?.id || item.variant)
                 : "",
               description: item.description || "",
-              regular_quantity: item.regular_quantity ?? item.quantity ?? 1,
-              restricted_quantity: item.restricted_quantity ?? 0,
               quantity: item.quantity || 1,
-              tax_treatment: item.tax_treatment || "STANDARD_VAT",
-              tax_reason: item.tax_reason || "",
               unit_price: item.unit_price || 0,
               discount_amount: item.discount_amount || 0,
-              vat_percentage: item.vat_percentage ?? 5,
             }))
           : [emptyItem()],
     });
@@ -297,24 +284,58 @@ export default function POFormPage() {
     }));
   };
 
+  const getProductSearchValue = (index, item) => {
+    if (Object.prototype.hasOwnProperty.call(productSearches, index)) {
+      return productSearches[index];
+    }
+
+    const selected = products.find(
+      (candidate) => String(candidate.id) === String(item.product),
+    );
+
+    if (!selected) return "";
+
+    return [selected.product_name, selected.sku].filter(Boolean).join(" · ");
+  };
+
+  const getFilteredProducts = (index, item) => {
+    const selected = products.find(
+      (candidate) => String(candidate.id) === String(item.product),
+    );
+    const selectedLabel = selected
+      ? [selected.product_name, selected.sku].filter(Boolean).join(" · ")
+      : "";
+
+    const search = getProductSearchValue(index, item).trim().toLowerCase();
+
+    if (!search || search === selectedLabel.toLowerCase()) {
+      return products;
+    }
+
+    return products.filter((candidate) =>
+      [
+        candidate.product_name,
+        candidate.sku,
+        candidate.barcode,
+        candidate.brand_name,
+        candidate.category_name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(search),
+    );
+  };
+
   const calculations = React.useMemo(
     () =>
       form.items.map((item) => {
-        const totalQuantity =
-          money(item.regular_quantity) +
-          (allowRestricted ? money(item.restricted_quantity) : 0);
-
-        const gross = totalQuantity * money(item.unit_price);
+        const gross = money(item.quantity) * money(item.unit_price);
 
         const discount = money(item.discount_amount);
         const taxable = Math.max(0, gross - discount);
 
-        const vatRate =
-          item.tax_treatment === "STANDARD_VAT"
-            ? money(item.vat_percentage)
-            : 0;
-
-        const vat = (taxable * vatRate) / 100;
+        const vat = (taxable * 5) / 100;
 
         return {
           gross,
@@ -323,7 +344,7 @@ export default function POFormPage() {
           total: taxable + vat,
         };
       }),
-    [form.items, allowRestricted],
+    [form.items],
   );
 
   const subtotal = calculations.reduce((sum, item) => sum + item.gross, 0);
@@ -358,7 +379,7 @@ export default function POFormPage() {
       form.items.some(
         (item) =>
           !item.product ||
-          money(item.regular_quantity) + money(item.restricted_quantity) <= 0 ||
+          money(item.quantity) <= 0 ||
           money(item.unit_price) < 0,
       )
     ) {
@@ -385,18 +406,12 @@ export default function POFormPage() {
           product: Number(item.product),
           variant: item.variant ? Number(item.variant) : null,
           description: item.description || "",
-          regular_quantity: Number(item.regular_quantity || 0),
-          restricted_quantity: allowRestricted
-            ? Number(item.restricted_quantity || 0)
-            : 0,
-          quantity:
-            Number(item.regular_quantity || 0) +
-            (allowRestricted ? Number(item.restricted_quantity || 0) : 0),
-          tax_treatment: item.tax_treatment || "STANDARD_VAT",
-          tax_reason: item.tax_reason || "",
+          quantity: Number(item.quantity || 0),
+          tax_treatment: "STANDARD_VAT",
+          tax_reason: "",
           unit_price: money(item.unit_price),
           discount_amount: money(item.discount_amount),
-          vat_percentage: money(item.vat_percentage),
+          vat_percentage: 5,
         })),
       };
 
@@ -452,6 +467,27 @@ export default function POFormPage() {
       });
     },
   });
+
+  const canAddAnotherItem = form.items.every(
+    (item) =>
+      Boolean(item.product) &&
+      money(item.quantity) > 0 &&
+      money(item.unit_price) >= 0,
+  );
+
+  const addLineItem = () => {
+    if (!canAddAnotherItem) {
+      toast.error(
+        "Complete the current line item before adding another product.",
+      );
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      items: [...current.items, emptyItem()],
+    }));
+  };
 
   const submit = (targetStatus) => {
     if (!validate()) return;
@@ -707,174 +743,213 @@ export default function POFormPage() {
                   );
 
                   const variants = getVariants(product);
+                  const filteredProducts = getFilteredProducts(index, item);
 
                   return (
                     <div
                       key={item.id || index}
-                      className="grid gap-3 md:grid-cols-[minmax(250px,1fr)_80px_110px_110px_36px]"
+                      className="relative rounded-xl border border-slate-200 p-3 dark:border-white/10"
                     >
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <Select
-                          value={item.product}
-                          onValueChange={(value) => {
-                            const selected = products.find(
-                              (candidate) => String(candidate.id) === value,
-                            );
+                      <div className="grid gap-3 md:grid-cols-[minmax(280px,1fr)_90px_120px_120px_36px]">
+                        <div className="grid min-w-0 gap-2 sm:grid-cols-2">
+                          <div className="relative z-30">
+                            <Input
+                              value={getProductSearchValue(index, item)}
+                              autoComplete="off"
+                              onFocus={() =>
+                                setProductSearchOpen((current) => ({
+                                  ...current,
+                                  [index]: true,
+                                }))
+                              }
+                              onChange={(event) => {
+                                const value = event.target.value;
 
-                            const firstVariant = selected?.variants?.[0];
+                                setProductSearches((current) => ({
+                                  ...current,
+                                  [index]: value,
+                                }));
+                                setProductSearchOpen((current) => ({
+                                  ...current,
+                                  [index]: true,
+                                }));
 
-                            updateItem(index, {
-                              product: value,
-                              variant: "",
-                              unit_price: firstVariant?.purchase_price || 0,
-                            });
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select item" />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-72">
-                            {products.map((productOption) => (
-                              <SelectItem
-                                key={productOption.id}
-                                value={String(productOption.id)}
-                              >
-                                {productOption.product_name}
-                                {productOption.sku
-                                  ? ` · ${productOption.sku}`
-                                  : ""}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-
-                        <Select
-                          value={item.variant || "__base__"}
-                          onValueChange={(value) => {
-                            if (value === "__base__") {
-                              updateItem(index, { variant: "" });
-                              return;
-                            }
-
-                            const selectedVariant = variants.find(
-                              (variant) => String(variant.id) === value,
-                            );
-
-                            updateItem(index, {
-                              variant: value,
-                              unit_price:
-                                selectedVariant?.purchase_price ||
-                                item.unit_price,
-                            });
-                          }}
-                          disabled={!variants.length}
-                        >
-                          <SelectTrigger>
-                            <SelectValue
-                              placeholder={variants.length ? "Variant" : "Base"}
+                                if (item.product) {
+                                  updateItem(index, {
+                                    product: "",
+                                    variant: "",
+                                    unit_price: 0,
+                                  });
+                                }
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === "Escape") {
+                                  setProductSearchOpen((current) => ({
+                                    ...current,
+                                    [index]: false,
+                                  }));
+                                }
+                              }}
+                              placeholder="Search and select product"
                             />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__base__">
-                              Base product
-                            </SelectItem>
-                            {variants.map((variant) => (
-                              <SelectItem
-                                key={variant.id}
-                                value={String(variant.id)}
-                              >
-                                {variant.display_name ||
-                                  Object.values(variant.attributes || {}).join(
-                                    " / ",
-                                  )}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
 
-                      <div className="md:col-span-4 rounded-lg border p-3">
-                        <ClassifiedQuantityFields
-                          regular={item.regular_quantity}
-                          restricted={item.restricted_quantity}
-                          canUseRestricted={allowRestricted}
-                          onRegularChange={(value) =>
-                            updateItem(index, {
-                              regular_quantity: value,
-                              quantity:
-                                Number(value || 0) +
-                                Number(item.restricted_quantity || 0),
-                            })
-                          }
-                          onRestrictedChange={(value) =>
-                            updateItem(index, {
-                              restricted_quantity: value,
-                              quantity:
-                                Number(item.regular_quantity || 0) +
-                                Number(value || 0),
-                            })
-                          }
-                        />
-                        <div className="mt-3">
-                          <TaxTreatmentSelect
-                            value={item.tax_treatment}
-                            taxRate={item.vat_percentage}
-                            reason={item.tax_reason}
-                            onChange={(value) =>
+                            {productSearchOpen[index] ? (
+                              <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-background p-1 shadow-xl dark:border-white/10">
+                                {filteredProducts.length ? (
+                                  filteredProducts.map((productOption) => (
+                                    <button
+                                      key={productOption.id}
+                                      type="button"
+                                      className="flex w-full flex-col rounded-lg px-3 py-2.5 text-left transition hover:bg-slate-100 dark:hover:bg-white/5"
+                                      onMouseDown={(event) =>
+                                        event.preventDefault()
+                                      }
+                                      onClick={() => {
+                                        const firstVariant =
+                                          productOption?.variants?.[0];
+                                        const label = [
+                                          productOption.product_name,
+                                          productOption.sku,
+                                        ]
+                                          .filter(Boolean)
+                                          .join(" · ");
+
+                                        updateItem(index, {
+                                          product: String(productOption.id),
+                                          variant: "",
+                                          unit_price:
+                                            firstVariant?.purchase_price || 0,
+                                        });
+                                        setProductSearches((current) => ({
+                                          ...current,
+                                          [index]: label,
+                                        }));
+                                        setProductSearchOpen((current) => ({
+                                          ...current,
+                                          [index]: false,
+                                        }));
+                                      }}
+                                    >
+                                      <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                        {productOption.product_name}
+                                      </span>
+                                      {productOption.sku ? (
+                                        <span className="mt-0.5 text-xs text-muted-foreground">
+                                          {productOption.sku}
+                                        </span>
+                                      ) : null}
+                                    </button>
+                                  ))
+                                ) : (
+                                  <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                                    No products match your search.
+                                  </div>
+                                )}
+                              </div>
+                            ) : null}
+                          </div>
+
+                          <Select
+                            value={item.variant || "__base__"}
+                            onValueChange={(value) => {
+                              if (value === "__base__") {
+                                updateItem(index, { variant: "" });
+                                return;
+                              }
+
+                              const selectedVariant = variants.find(
+                                (variant) => String(variant.id) === value,
+                              );
+
                               updateItem(index, {
-                                tax_treatment: value,
-                                vat_percentage:
-                                  value === "STANDARD_VAT"
-                                    ? item.vat_percentage || 5
-                                    : 0,
-                              })
-                            }
-                            onTaxRateChange={(value) =>
-                              updateItem(index, { vat_percentage: value })
-                            }
-                            onReasonChange={(value) =>
-                              updateItem(index, { tax_reason: value })
-                            }
+                                variant: value,
+                                unit_price:
+                                  selectedVariant?.purchase_price ||
+                                  item.unit_price,
+                              });
+                            }}
+                            disabled={!variants.length}
+                          >
+                            <SelectTrigger>
+                              <SelectValue
+                                placeholder={
+                                  variants.length ? "Variant" : "Base product"
+                                }
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__base__">
+                                Base product
+                              </SelectItem>
+                              {variants.map((variant) => (
+                                <SelectItem
+                                  key={variant.id}
+                                  value={String(variant.id)}
+                                >
+                                  {variant.display_name ||
+                                    variant.variant_name ||
+                                    Object.values(
+                                      variant.attributes || {},
+                                    ).join(" / ") ||
+                                    "Variant"}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <Input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={item.quantity}
+                          onChange={(event) =>
+                            updateItem(index, {
+                              quantity: event.target.value,
+                            })
+                          }
+                          className="text-right"
+                          aria-label="Quantity"
+                        />
+
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.unit_price}
+                          onChange={(event) =>
+                            updateItem(index, {
+                              unit_price: event.target.value,
+                            })
+                          }
+                          className="text-right"
+                          aria-label="Unit cost"
+                        />
+
+                        <div className="flex h-10 items-center justify-end rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-medium dark:border-white/10 dark:bg-white/[0.025]">
+                          <CurrencyText
+                            value={calculations[index]?.total || 0}
+                            currency={form.currency}
                           />
                         </div>
+
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          disabled={form.items.length === 1}
+                          onClick={() =>
+                            setForm((current) => ({
+                              ...current,
+                              items: current.items.filter(
+                                (_, itemIndex) => itemIndex !== index,
+                              ),
+                            }))
+                          }
+                        >
+                          <Trash2 className="h-4 w-4 text-red-400" />
+                        </Button>
                       </div>
-
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.unit_price}
-                        onChange={(event) =>
-                          updateItem(index, {
-                            unit_price: event.target.value,
-                          })
-                        }
-                        className="text-right"
-                      />
-
-                      <div className="flex h-10 items-center justify-end rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-medium dark:border-white/10 dark:bg-white/[0.025]">
-                        <CurrencyText
-                          value={calculations[index]?.total || 0}
-                          currency={form.currency}
-                        />
-                      </div>
-
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        disabled={form.items.length === 1}
-                        onClick={() =>
-                          setForm((current) => ({
-                            ...current,
-                            items: current.items.filter(
-                              (_, itemIndex) => itemIndex !== index,
-                            ),
-                          }))
-                        }
-                      >
-                        <Trash2 className="h-4 w-4 text-red-400" />
-                      </Button>
                     </div>
                   );
                 })}
@@ -886,13 +961,14 @@ export default function POFormPage() {
 
               <button
                 type="button"
-                onClick={() =>
-                  setForm((current) => ({
-                    ...current,
-                    items: [...current.items, emptyItem()],
-                  }))
+                disabled={!canAddAnotherItem}
+                onClick={addLineItem}
+                className="mt-4 flex w-full items-center rounded-lg border border-dashed border-slate-300 px-3 py-2 text-xs font-medium text-blue-600 transition hover:border-blue-400 hover:bg-blue-50/50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:text-blue-400 dark:hover:bg-blue-500/5"
+                title={
+                  canAddAnotherItem
+                    ? "Add another line item"
+                    : "Complete the current line item first"
                 }
-                className="mt-4 flex w-full items-center rounded-lg border border-dashed border-slate-300 px-3 py-2 text-xs font-medium text-blue-600 transition hover:border-blue-400 hover:bg-blue-50/50 dark:border-white/15 dark:text-blue-400 dark:hover:bg-blue-500/5"
               >
                 <Plus className="mr-1.5 h-4 w-4" />
                 Add line item

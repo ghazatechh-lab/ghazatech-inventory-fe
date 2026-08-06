@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Barcode as BarcodeIcon,
   Boxes,
+  Download,
   Eye,
   FilterX,
   Layers3,
@@ -11,6 +12,7 @@ import {
   PackageCheck,
   Pencil,
   Plus,
+  Upload,
   Tags,
   Trash2,
 } from "lucide-react";
@@ -81,6 +83,8 @@ export default function ProductListPage() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const importInputRef = React.useRef(null);
   const { branchId, isAllBranches } = useActiveBranchFilter();
 
   const page = Number(searchParams.get("page") || 1);
@@ -353,6 +357,81 @@ export default function ProductListPage() {
     };
   }, [productData.results, search, brand, category]);
 
+  const exportProducts = async () => {
+    try {
+      const response = await api.get("/products/export/", {
+        params: {
+          branch: branchId || undefined,
+          search: debouncedSearch || undefined,
+          brand: brand || undefined,
+          category: category || undefined,
+        },
+        responseType: "blob",
+      });
+
+      const blob = response.data instanceof Blob ? response.data : response;
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = "products_export.xlsx";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success("Product data exported successfully.");
+    } catch (error) {
+      if (!error?.__apiErrorShown) {
+        toast.error(
+          getApiErrorMessage(error, "Unable to export product data."),
+        );
+      }
+    }
+  };
+
+  const importProducts = async (file) => {
+    if (!file) return;
+
+    if (!branchId) {
+      toast.error("Select a branch before importing products.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("branch", String(branchId));
+
+    setImporting(true);
+
+    try {
+      const response = await api.post("/products/import/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        skipGlobalErrorToast: true,
+      });
+
+      const result = unwrap(response);
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["products"] }),
+        queryClient.invalidateQueries({ queryKey: ["stock-overview"] }),
+        queryClient.invalidateQueries({ queryKey: ["low-stock"] }),
+      ]);
+
+      toast.success(
+        `${result?.created_count || 0} product(s) imported successfully.`,
+      );
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Unable to import product data."));
+    } finally {
+      setImporting(false);
+
+      if (importInputRef.current) {
+        importInputRef.current.value = "";
+      }
+    }
+  };
+
   const deleteMutation = useMutation({
     mutationFn: async (productId) => api.delete(`/products/${productId}/`),
     onSuccess: () => {
@@ -546,16 +625,54 @@ export default function ProductListPage() {
               </p>
             </div>
           </div>
-          <Button
-            asChild
-            className="h-11 rounded-xl bg-blue-600 px-5 font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700"
-            data-testid="new-product-btn"
-          >
-            <Link to="/inventory/products/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Add product
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".xlsx"
+              className="hidden"
+              onChange={(event) =>
+                importProducts(event.target.files?.[0] || null)
+              }
+            />
+
+            <Button
+              type="button"
+              variant="outline"
+              disabled={importing || !branchId}
+              onClick={() => importInputRef.current?.click()}
+              className="h-11 rounded-xl border-white/20 bg-white/10 px-5 font-bold text-white hover:bg-white/20 hover:text-white"
+              title={
+                branchId
+                  ? "Import products using the Excel template"
+                  : "Select a branch before importing"
+              }
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              {importing ? "Importing..." : "Import"}
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={exportProducts}
+              className="h-11 rounded-xl border-white/20 bg-white/10 px-5 font-bold text-white hover:bg-white/20 hover:text-white"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export
+            </Button>
+
+            <Button
+              asChild
+              className="h-11 rounded-xl bg-blue-600 px-5 font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700"
+              data-testid="new-product-btn"
+            >
+              <Link to="/inventory/products/new">
+                <Plus className="mr-2 h-4 w-4" />
+                Add product
+              </Link>
+            </Button>
+          </div>
         </div>
       </section>
 
