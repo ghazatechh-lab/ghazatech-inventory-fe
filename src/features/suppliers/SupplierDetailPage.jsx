@@ -251,16 +251,19 @@ export default function SupplierDetailPage() {
         <section className="supplier-detail-hero">
           <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <Link to="/suppliers" className="supplier-back-link">
+              <Link
+                to="/suppliers"
+                className="supplier-back-link !text-white/90 hover:!text-white"
+              >
                 <ArrowLeft className="h-4 w-4" /> Suppliers
               </Link>
               <div className="mt-5 flex items-start gap-4">
-                <span className="supplier-hero-icon">
+                <span className="supplier-hero-icon !text-white">
                   <Building2 className="h-6 w-6" />
                 </span>
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="text-3xl font-extrabold tracking-tight text-white">
+                    <h1 className="text-3xl font-extrabold tracking-tight !text-white">
                       {supplierName}
                     </h1>
                     <span
@@ -273,10 +276,10 @@ export default function SupplierDetailPage() {
                       <span /> {isActive ? "Active" : "Blocked"}
                     </span>
                   </div>
-                  <p className="mt-2 text-sm font-semibold text-slate-300">
+                  <p className="mt-2 text-sm font-semibold !text-slate-200">
                     {value(s.supplier_code, s.trade_name)}
                   </p>
-                  <p className="mt-2 max-w-3xl text-sm text-slate-400">
+                  <p className="mt-2 max-w-3xl text-sm !text-slate-300">
                     Supplier identity, payment readiness, credit exposure and
                     operational records.
                   </p>
