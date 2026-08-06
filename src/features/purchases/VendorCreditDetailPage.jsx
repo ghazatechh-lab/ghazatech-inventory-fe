@@ -3,14 +3,16 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   AlertCircle,
   ArrowLeft,
+  CheckCircle2,
   Edit3,
   FileText,
   Printer,
   RefreshCcw,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import api from "@/lib/api";
+import api, { getApiErrorDetails, unwrap } from "@/lib/api";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import {
@@ -95,6 +97,7 @@ function SummaryRow({ label, value, strong = false }) {
 export default function VendorCreditDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const query = useQuery({
     queryKey: ["VendorCreditDetailPage", id],
@@ -110,6 +113,60 @@ export default function VendorCreditDetailPage() {
     refetchOnMount: "always",
   });
 
+  const approveMutation = useMutation({
+    mutationFn: async () =>
+      unwrap(
+        await api.post(
+          `/purchases/vendor-credits/${id}/approve/`,
+          {},
+          {
+            skipGlobalErrorToast: true,
+          },
+        ),
+      ),
+
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["VendorCreditDetailPage", id],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["vendor-credit", id],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["vendor-credits"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["vendor-credit-summary"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["supplier-bills"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["supplier-bills-summary"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["supplier-returns"],
+        }),
+      ]);
+
+      toast.success("Vendor credit approved successfully.");
+
+      await query.refetch();
+    },
+
+    onError: (error) => {
+      const details = getApiErrorDetails(error);
+
+      toast.error(details.title || "Unable to approve vendor credit", {
+        description:
+          details.summary ||
+          details.message ||
+          "Only a draft or pending vendor credit can be approved.",
+      });
+    },
+  });
+
   if (query.isLoading) {
     return (
       <div className="rounded-2xl border bg-card p-12 text-center text-muted-foreground">
@@ -119,6 +176,21 @@ export default function VendorCreditDetailPage() {
   }
 
   const record = query.data;
+
+  const normalizedStatus = String(record?.status || "DRAFT").toUpperCase();
+
+  const isPersistentlyApproved = Boolean(
+    normalizedStatus === "APPROVED" &&
+    record?.approval_date &&
+    record?.approved_by,
+  );
+
+  const canApprove =
+    !isPersistentlyApproved &&
+    ["DRAFT", "PENDING", "OPEN"].includes(normalizedStatus) &&
+    !record?.posted_at;
+
+  const canEdit = !isPersistentlyApproved && normalizedStatus === "DRAFT";
 
   if (query.isError || !record) {
     return (
@@ -226,15 +298,56 @@ export default function VendorCreditDetailPage() {
               Print
             </Button>
 
-            <Button asChild>
-              <Link to={`/purchases/vendor-credits/${id}/edit`}>
-                <Edit3 className="mr-2 h-4 w-4" />
-                Edit
-              </Link>
-            </Button>
+            {canEdit ? (
+              <Button asChild variant="outline">
+                <Link to={`/purchases/vendor-credits/${id}/edit`}>
+                  <Edit3 className="mr-2 h-4 w-4" />
+                  Edit
+                </Link>
+              </Button>
+            ) : null}
+
+            {canApprove ? (
+              <Button
+                type="button"
+                onClick={() => approveMutation.mutate()}
+                disabled={approveMutation.isPending}
+                className="bg-emerald-600 text-white hover:bg-emerald-700"
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                {approveMutation.isPending
+                  ? "Approving..."
+                  : "Approve Vendor Credit"}
+              </Button>
+            ) : null}
           </div>
         }
       />
+
+      <div className="rounded-2xl border bg-card p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold">Vendor Credit Workflow</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Draft → Approved → Open → Partially Applied → Fully Applied
+            </p>
+          </div>
+
+          <div className="text-sm">
+            Current status:{" "}
+            <span className="font-semibold">
+              {String(record.status_display || record.status || "DRAFT")}
+            </span>
+            <span className="ml-3 text-xs text-muted-foreground">
+              {isPersistentlyApproved
+                ? "Approved in backend"
+                : record?.posted_at
+                  ? "Credit already posted/applied"
+                  : "Not yet approved in backend"}
+            </span>
+          </div>
+        </div>
+      </div>
 
       <DetailSection title="Vendor Credit Information">
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -372,7 +485,7 @@ export default function VendorCreditDetailPage() {
 
       <DetailSection title={`Credit Items (${items.length})`}>
         <div className="overflow-x-auto">
-          <table className="min-w-[1050px] w-full text-sm">
+          <table className="min-w-[1180px] w-full text-sm">
             <thead className="border-b bg-muted/40">
               <tr>
                 {[
@@ -380,8 +493,9 @@ export default function VendorCreditDetailPage() {
                   "Quantity",
                   "Unit Price",
                   "Subtotal",
-                  "Tax %",
-                  "Tax Amount",
+                  "VAT Treatment",
+                  "VAT %",
+                  "VAT Amount",
                   "Line Total",
                   "GL Account",
                 ].map((label) => (
@@ -430,7 +544,21 @@ export default function VendorCreditDetailPage() {
                     </td>
 
                     <td className="px-4 py-4">
-                      {Number(item.tax_percentage || 0).toFixed(2)}%
+                      {String(
+                        item.tax_treatment ||
+                          item.vat_treatment ||
+                          "STANDARD_VAT",
+                      )
+                        .replaceAll("_", " ")
+                        .toLowerCase()
+                        .replace(/\b\w/g, (letter) => letter.toUpperCase())}
+                    </td>
+
+                    <td className="px-4 py-4">
+                      {Number(
+                        item.tax_percentage ?? item.vat_percentage ?? 0,
+                      ).toFixed(2)}
+                      %
                     </td>
 
                     <td className="px-4 py-4">
@@ -451,11 +579,13 @@ export default function VendorCreditDetailPage() {
               {!items.length ? (
                 <tr>
                   <td
-                    colSpan="8"
+                    colSpan="9"
                     className="p-10 text-center text-muted-foreground"
                   >
                     <FileText className="mx-auto mb-3 h-8 w-8 opacity-40" />
-                    No credit items were saved for this vendor credit.
+                    No credit items were returned by the API. Refresh this page
+                    once; the backend now repairs return-generated credits by
+                    copying their Supplier Return items.
                   </td>
                 </tr>
               ) : null}
@@ -516,7 +646,9 @@ export default function VendorCreditDetailPage() {
                     colSpan="5"
                     className="p-10 text-center text-muted-foreground"
                   >
-                    No bill applications have been recorded.
+                    No planned bill application was returned. The backend now
+                    links eligible open bills from the same supplier and
+                    Purchase Order before approval.
                   </td>
                 </tr>
               ) : null}

@@ -228,6 +228,14 @@ export default function SupplierReturnDetailPage() {
             value={record.resolution_display || record.resolution}
           />
           <DetailField
+            label="Net Return"
+            value={renderMoney(record.subtotal ?? record.net_amount ?? 0)}
+          />
+          <DetailField
+            label="VAT Reversal"
+            value={renderMoney(record.vat_amount ?? record.tax_amount ?? 0)}
+          />
+          <DetailField
             label="Total Amount"
             value={renderMoney(record.total_amount)}
           />
@@ -243,11 +251,12 @@ export default function SupplierReturnDetailPage() {
                 {[
                   "Product",
                   "SKU",
-                  "Regular Qty",
-                  "Restricted Qty",
-                  "Total Qty",
-                  "Unit Price",
-                  "Line Total",
+                  "Quantity",
+                  "Tax Treatment",
+                  "VAT Rate",
+                  "Net Amount",
+                  "VAT Amount",
+                  "Total",
                   "Reason",
                 ].map((label) => (
                   <th
@@ -261,9 +270,31 @@ export default function SupplierReturnDetailPage() {
             </thead>
             <tbody>
               {(record.items || []).map((item) => {
-                const regular = Number(item.regular_quantity || 0);
-                const restricted = Number(item.restricted_quantity || 0);
-                const quantity = Number(item.quantity ?? regular + restricted);
+                const quantity = Number(item.quantity || 0);
+                const unitPrice = Number(
+                  item.unit_price ?? item.unit_cost ?? 0,
+                );
+                const taxTreatment = String(
+                  item.tax_treatment ?? item.vat_treatment ?? "STANDARD_VAT",
+                ).toUpperCase();
+                const vatRate =
+                  taxTreatment === "STANDARD_VAT"
+                    ? Number(item.vat_percentage || 0)
+                    : 0;
+                const netAmount =
+                  Number(item.net_amount) || quantity * unitPrice;
+                const vatAmount =
+                  Number(item.vat_amount) || (netAmount * vatRate) / 100;
+                const lineTotal =
+                  Number(item.line_total) || netAmount + vatAmount;
+
+                const treatmentLabel =
+                  taxTreatment === "STANDARD_VAT"
+                    ? "Standard VAT"
+                    : taxTreatment === "ZERO_VAT"
+                      ? "Zero VAT"
+                      : "Non-VAT";
+
                 return (
                   <tr key={item.id} className="border-b">
                     <td className="px-4 py-4 font-medium">
@@ -272,17 +303,13 @@ export default function SupplierReturnDetailPage() {
                     <td className="px-4 py-4 font-mono text-xs">
                       {item.sku || "—"}
                     </td>
-                    <td className="px-4 py-4">{regular}</td>
-                    <td className="px-4 py-4">{restricted}</td>
                     <td className="px-4 py-4 font-semibold">{quantity}</td>
-                    <td className="px-4 py-4">
-                      {renderMoney(item.unit_price)}
-                    </td>
-                    <td className="px-4 py-4">
-                      {renderMoney(
-                        item.line_total ??
-                          quantity * Number(item.unit_price || 0),
-                      )}
+                    <td className="px-4 py-4">{treatmentLabel}</td>
+                    <td className="px-4 py-4">{vatRate}%</td>
+                    <td className="px-4 py-4">{renderMoney(netAmount)}</td>
+                    <td className="px-4 py-4">{renderMoney(vatAmount)}</td>
+                    <td className="px-4 py-4 font-semibold">
+                      {renderMoney(lineTotal)}
                     </td>
                     <td className="px-4 py-4">{item.reason || "—"}</td>
                   </tr>
@@ -291,7 +318,7 @@ export default function SupplierReturnDetailPage() {
               {!record.items?.length ? (
                 <tr>
                   <td
-                    colSpan="8"
+                    colSpan="9"
                     className="p-10 text-center text-muted-foreground"
                   >
                     No returned items.

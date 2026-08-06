@@ -563,9 +563,9 @@ export default function PurchaseExpenseFormPage() {
             <Label>Branch *</Label>
 
             <select
-              className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"
+              className="mt-2 h-10 w-full rounded-md border bg-muted px-3 text-sm"
               value={form.branch}
-              onChange={(event) => updateField("branch", event.target.value)}
+              disabled
             >
               <option value="">Select branch</option>
 

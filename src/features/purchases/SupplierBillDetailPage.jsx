@@ -117,7 +117,7 @@ export default function SupplierBillDetailPage() {
     <div className="purchase-module-page purchase-workspace mx-auto max-w-7xl space-y-5 pb-10">
       <PageHeader
         title={bill.bill_number || `Supplier Bill ${id}`}
-        subtitle="Supplier invoice, received items, payments and outstanding balanceee"
+        subtitle="Supplier invoice, received items, payments and outstanding balance"
         actions={
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
@@ -127,12 +127,14 @@ export default function SupplierBillDetailPage() {
               </Link>
             </Button>
 
-            <Button asChild variant="outline">
-              <Link to={`/purchases/supplier-bills/${id}/edit`}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit Bill
-              </Link>
-            </Button>
+            {!bill.approved_at ? (
+              <Button asChild variant="outline">
+                <Link to={`/purchases/supplier-bills/${id}/edit`}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit Bill / Change Status
+                </Link>
+              </Button>
+            ) : null}
           </div>
         }
       />
@@ -252,6 +254,11 @@ export default function SupplierBillDetailPage() {
           <div>
             <p className="text-xs text-muted-foreground">Approved by</p>
             <p className="mt-1 font-medium">{value(bill.approved_by_name)}</p>
+            {bill.approved_at ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                <DateText value={bill.approved_at} />
+              </p>
+            ) : null}
           </div>
         </div>
       </section>

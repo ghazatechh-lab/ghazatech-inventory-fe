@@ -46,6 +46,35 @@ const asNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const TAX_TREATMENTS = {
+  STANDARD_VAT: "Standard VAT",
+  ZERO_VAT: "Zero VAT",
+  NON_VAT: "Non-VAT",
+};
+
+const normalizeTaxTreatment = (value) => {
+  const normalized = String(value || "STANDARD_VAT").toUpperCase();
+
+  if (["ZERO_VAT", "ZERO_RATED", "ZERO-RATED"].includes(normalized)) {
+    return "ZERO_VAT";
+  }
+
+  if (
+    ["NON_VAT", "NON-VAT", "OUT_OF_SCOPE", "EXEMPT", "VAT_EXEMPT"].includes(
+      normalized,
+    )
+  ) {
+    return "NON_VAT";
+  }
+
+  return "STANDARD_VAT";
+};
+
+const effectiveVatRate = (taxTreatment, vatPercentage) =>
+  normalizeTaxTreatment(taxTreatment) === "STANDARD_VAT"
+    ? asNumber(vatPercentage)
+    : 0;
+
 const formatSize = (bytes) => {
   const value = Number(bytes || 0);
   if (value < 1024) return `${value} B`;
@@ -171,15 +200,6 @@ export default function SupplierReturnsPage() {
     );
   }, [grns, grnSearch, supplierFilter]);
 
-  const canViewRestricted = Boolean(
-    options?.can_view_restricted ?? options?.data?.can_view_restricted ?? false,
-  );
-  const canReturnRestricted = Boolean(
-    options?.can_return_restricted ??
-    options?.data?.can_return_restricted ??
-    false,
-  );
-
   React.useEffect(() => {
     if (!existingQuery.data) return;
     const existing = existingQuery.data;
@@ -202,20 +222,23 @@ export default function SupplierReturnsPage() {
         variant: item.variant ? String(item.variant?.id || item.variant) : "",
         product_name: item.product_name || "",
         sku: item.sku || "",
-        available_regular_quantity: asNumber(
-          item.available_regular_quantity ?? item.regular_quantity,
+        available_quantity: asNumber(
+          item.available_quantity ??
+            item.returnable_quantity ??
+            item.received_quantity ??
+            item.accepted_quantity ??
+            item.quantity,
         ),
-        available_restricted_quantity: asNumber(
-          item.available_restricted_quantity ?? item.restricted_quantity,
+        quantity: asNumber(item.quantity),
+        unit_price: asNumber(item.unit_price ?? item.unit_cost),
+        tax_treatment: normalizeTaxTreatment(
+          item.tax_treatment ?? item.vat_treatment,
         ),
-        regular_quantity: asNumber(item.regular_quantity),
-        restricted_quantity: asNumber(item.restricted_quantity),
-        quantity:
-          asNumber(item.regular_quantity) + asNumber(item.restricted_quantity),
-        unit_price: asNumber(item.unit_price),
-        selected:
-          asNumber(item.regular_quantity) + asNumber(item.restricted_quantity) >
-          0,
+        vat_percentage: effectiveVatRate(
+          item.tax_treatment ?? item.vat_treatment,
+          item.vat_percentage,
+        ),
+        selected: asNumber(item.quantity) > 0,
         reason: item.reason || "",
       })),
     });
@@ -228,27 +251,35 @@ export default function SupplierReturnsPage() {
 
   const selectedItems = React.useMemo(
     () =>
-      form.items.filter(
-        (item) =>
-          item.selected &&
-          asNumber(item.regular_quantity) + asNumber(item.restricted_quantity) >
-            0,
-      ),
+      form.items.filter((item) => item.selected && asNumber(item.quantity) > 0),
     [form.items],
   );
 
-  const totalAmount = React.useMemo(
+  const returnTotals = React.useMemo(
     () =>
       selectedItems.reduce(
-        (sum, item) =>
-          sum +
-          (asNumber(item.regular_quantity) +
-            asNumber(item.restricted_quantity)) *
-            asNumber(item.unit_price),
-        0,
+        (totals, item) => {
+          const quantity = asNumber(item.quantity);
+          const unitPrice = asNumber(item.unit_price);
+          const netAmount = quantity * unitPrice;
+          const vatRate = effectiveVatRate(
+            item.tax_treatment,
+            item.vat_percentage,
+          );
+          const vatAmount = (netAmount * vatRate) / 100;
+
+          return {
+            net: totals.net + netAmount,
+            vat: totals.vat + vatAmount,
+            total: totals.total + netAmount + vatAmount,
+          };
+        },
+        { net: 0, vat: 0, total: 0 },
       ),
     [selectedItems],
   );
+
+  const totalAmount = returnTotals.total;
 
   const updateForm = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -290,17 +321,21 @@ export default function SupplierReturnsPage() {
             : "",
         product_name: item.product_name || "",
         sku: item.sku || "",
-        available_regular_quantity: asNumber(
-          item.available_regular_quantity ?? item.accepted_regular_quantity,
+        available_quantity: asNumber(
+          item.available_quantity ??
+            item.returnable_quantity ??
+            item.accepted_quantity ??
+            item.received_quantity,
         ),
-        available_restricted_quantity: asNumber(
-          item.available_restricted_quantity ??
-            item.accepted_restricted_quantity,
-        ),
-        regular_quantity: 0,
-        restricted_quantity: 0,
         quantity: 0,
-        unit_price: asNumber(item.unit_price),
+        unit_price: asNumber(item.unit_price ?? item.unit_cost),
+        tax_treatment: normalizeTaxTreatment(
+          item.tax_treatment ?? item.vat_treatment,
+        ),
+        vat_percentage: effectiveVatRate(
+          item.tax_treatment ?? item.vat_treatment,
+          item.vat_percentage,
+        ),
         selected: false,
         reason: "",
       })),
@@ -324,19 +359,14 @@ export default function SupplierReturnsPage() {
       next.items = "Select at least one item to return.";
 
     const invalid = selectedItems.some((item) => {
-      const regular = asNumber(item.regular_quantity);
-      const restricted = asNumber(item.restricted_quantity);
-      return (
-        regular + restricted <= 0 ||
-        regular > asNumber(item.available_regular_quantity) ||
-        restricted > asNumber(item.available_restricted_quantity) ||
-        (restricted > 0 && !canReturnRestricted)
-      );
+      const quantity = asNumber(item.quantity);
+
+      return quantity <= 0 || quantity > asNumber(item.available_quantity);
     });
 
     if (invalid) {
       next.items =
-        "Return quantities must stay within the available regular and restricted balances.";
+        "Return quantity must be greater than zero and cannot exceed the available returnable quantity.";
     }
 
     setErrors(next);
@@ -358,15 +388,14 @@ export default function SupplierReturnsPage() {
           grn_item: item.grn_item ? Number(item.grn_item) : null,
           product: Number(item.product),
           variant: item.variant ? Number(item.variant) : null,
-          received_quantity:
-            asNumber(item.regular_quantity) +
-            asNumber(item.restricted_quantity),
-          regular_quantity: asNumber(item.regular_quantity),
-          restricted_quantity: asNumber(item.restricted_quantity),
-          quantity:
-            asNumber(item.regular_quantity) +
-            asNumber(item.restricted_quantity),
+          received_quantity: asNumber(item.available_quantity),
+          quantity: asNumber(item.quantity),
           unit_price: asNumber(item.unit_price),
+          tax_treatment: normalizeTaxTreatment(item.tax_treatment),
+          vat_percentage: effectiveVatRate(
+            item.tax_treatment,
+            item.vat_percentage,
+          ),
           reason: item.reason || form.details || "",
         })),
       };
@@ -651,59 +680,50 @@ export default function SupplierReturnsPage() {
             </div>
 
             <div className="overflow-x-auto p-5">
-              <div className="min-w-[900px]">
-                <div
-                  className={`grid gap-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground ${
-                    canViewRestricted
-                      ? "grid-cols-[36px_minmax(240px,1fr)_110px_110px_110px_110px_120px]"
-                      : "grid-cols-[36px_minmax(300px,1fr)_130px_130px_120px]"
-                  }`}
-                >
+              <div className="min-w-[980px]">
+                <div className="grid grid-cols-[36px_minmax(260px,1fr)_110px_110px_150px_90px_120px] gap-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   <span />
                   <span>Item</span>
-                  <span className="text-right">Available regular</span>
-                  <span className="text-right">Return regular</span>
-                  {canViewRestricted ? (
-                    <>
-                      <span className="text-right">Available restricted</span>
-                      <span className="text-right">Return restricted</span>
-                    </>
-                  ) : null}
-                  <span className="text-right">Value</span>
+                  <span className="text-right">Available</span>
+                  <span className="text-right">Return Qty</span>
+                  <span>Tax Treatment</span>
+                  <span className="text-right">VAT</span>
+                  <span className="text-right">Total</span>
                 </div>
 
                 <div className="space-y-1">
                   {form.items.map((item, index) => {
-                    const totalReturn =
-                      asNumber(item.regular_quantity) +
-                      asNumber(item.restricted_quantity);
-                    const lineValue = totalReturn * asNumber(item.unit_price);
+                    const quantity = asNumber(item.quantity);
+                    const netAmount = quantity * asNumber(item.unit_price);
+                    const vatRate = effectiveVatRate(
+                      item.tax_treatment,
+                      item.vat_percentage,
+                    );
+                    const vatAmount = (netAmount * vatRate) / 100;
+                    const lineTotal = netAmount + vatAmount;
 
                     return (
                       <div
                         key={item.grn_item || item.id || index}
-                        className={`grid items-center gap-3 border-b py-2 last:border-b-0 ${
-                          canViewRestricted
-                            ? "grid-cols-[36px_minmax(240px,1fr)_110px_110px_110px_110px_120px]"
-                            : "grid-cols-[36px_minmax(300px,1fr)_130px_130px_120px]"
-                        } ${item.selected ? "" : "opacity-60"}`}
+                        className={`grid grid-cols-[36px_minmax(260px,1fr)_110px_110px_150px_90px_120px] items-center gap-3 border-b py-2 last:border-b-0 ${
+                          item.selected ? "" : "opacity-60"
+                        }`}
                       >
                         <input
                           type="checkbox"
                           checked={Boolean(item.selected)}
-                          disabled={!isEditable}
+                          disabled={
+                            !isEditable ||
+                            asNumber(item.available_quantity) <= 0
+                          }
                           onChange={(event) => {
-                            const defaultRegular = event.target.checked
-                              ? Math.min(
-                                  1,
-                                  asNumber(item.available_regular_quantity),
-                                )
+                            const quantityValue = event.target.checked
+                              ? Math.min(1, asNumber(item.available_quantity))
                               : 0;
+
                             updateItem(index, {
                               selected: event.target.checked,
-                              regular_quantity: defaultRegular,
-                              restricted_quantity: 0,
-                              quantity: defaultRegular,
+                              quantity: quantityValue,
                             });
                           }}
                           className="h-4 w-4 rounded border-slate-300"
@@ -717,75 +737,59 @@ export default function SupplierReturnsPage() {
                             {item.sku || "No SKU"}
                           </p>
                           <p className="mt-1 text-[11px] text-muted-foreground">
-                            Total return: {totalReturn}
+                            Unit cost: <CurrencyText value={item.unit_price} />
                           </p>
                         </div>
 
                         <div className="text-right text-sm">
-                          {item.available_regular_quantity}
+                          {item.available_quantity}
                         </div>
+
                         <Input
                           type="number"
                           min="0"
-                          max={item.available_regular_quantity}
-                          value={item.regular_quantity}
+                          max={item.available_quantity}
+                          step="1"
+                          value={item.quantity}
                           disabled={!isEditable || !item.selected}
                           onChange={(event) => {
-                            const regular = Math.max(
+                            const quantityValue = Math.max(
                               0,
                               Math.min(
                                 asNumber(event.target.value),
-                                asNumber(item.available_regular_quantity),
+                                asNumber(item.available_quantity),
                               ),
                             );
+
                             updateItem(index, {
-                              regular_quantity: regular,
-                              quantity:
-                                regular + asNumber(item.restricted_quantity),
+                              quantity: quantityValue,
                             });
                           }}
                           className="text-right"
                         />
 
-                        {canViewRestricted ? (
-                          <>
-                            <div className="text-right text-sm">
-                              {item.available_restricted_quantity}
-                            </div>
-                            <Input
-                              type="number"
-                              min="0"
-                              max={item.available_restricted_quantity}
-                              value={item.restricted_quantity}
-                              disabled={
-                                !isEditable ||
-                                !item.selected ||
-                                !canReturnRestricted
-                              }
-                              onChange={(event) => {
-                                const restricted = Math.max(
-                                  0,
-                                  Math.min(
-                                    asNumber(event.target.value),
-                                    asNumber(
-                                      item.available_restricted_quantity,
-                                    ),
-                                  ),
-                                );
-                                updateItem(index, {
-                                  restricted_quantity: restricted,
-                                  quantity:
-                                    asNumber(item.regular_quantity) +
-                                    restricted,
-                                });
-                              }}
-                              className="text-right"
-                            />
-                          </>
-                        ) : null}
+                        <div>
+                          <p className="text-sm font-medium">
+                            {
+                              TAX_TREATMENTS[
+                                normalizeTaxTreatment(item.tax_treatment)
+                              ]
+                            }
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {normalizeTaxTreatment(item.tax_treatment) ===
+                            "STANDARD_VAT"
+                              ? `${vatRate}% inherited from GRN`
+                              : "0% inherited from GRN"}
+                          </p>
+                        </div>
+
+                        <div className="text-right text-sm">
+                          <CurrencyText value={vatAmount} />
+                        </div>
 
                         <div className="text-right font-medium">
-                          <CurrencyText value={lineValue} />
+                          <CurrencyText value={lineTotal} />
                         </div>
                       </div>
                     );
@@ -797,13 +801,24 @@ export default function SupplierReturnsPage() {
                     Select a confirmed GRN to load returnable items.
                   </p>
                 ) : null}
+
                 {errors.items ? (
                   <p className="mt-3 text-sm text-red-500">{errors.items}</p>
                 ) : null}
 
-                <div className="mt-5 flex justify-end gap-8 border-t pt-4 font-semibold">
-                  <span>Return value</span>
-                  <CurrencyText value={totalAmount} />
+                <div className="ml-auto mt-5 max-w-sm space-y-2 border-t pt-4 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Net return</span>
+                    <CurrencyText value={returnTotals.net} />
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">VAT reversal</span>
+                    <CurrencyText value={returnTotals.vat} />
+                  </div>
+                  <div className="flex justify-between border-t pt-3 font-semibold">
+                    <span>Total return value</span>
+                    <CurrencyText value={returnTotals.total} />
+                  </div>
                 </div>
               </div>
             </div>
@@ -988,8 +1003,16 @@ export default function SupplierReturnsPage() {
                 <span className="font-medium">{selectedItems.length}</span>
               </div>
               <div className="flex justify-between gap-3">
-                <span className="text-muted-foreground">Return value</span>
-                <CurrencyText value={totalAmount} />
+                <span className="text-muted-foreground">Net return</span>
+                <CurrencyText value={returnTotals.net} />
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">VAT reversal</span>
+                <CurrencyText value={returnTotals.vat} />
+              </div>
+              <div className="flex justify-between gap-3 font-semibold">
+                <span>Total return value</span>
+                <CurrencyText value={returnTotals.total} />
               </div>
               <div className="flex justify-between border-t pt-3">
                 <span className="text-muted-foreground">Status</span>

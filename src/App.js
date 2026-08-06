@@ -503,20 +503,19 @@ export default function App() {
               />
 
               <Route
-                path="/purchases/supplier-bills"
-                element={<SupplierBillsPage />}
+                path="/purchases/supplier-bills/new"
+                element={<SupplierBillFormPage />}
+              />
+
+              <Route
+                path="/purchases/supplier-bills/:id/edit"
+                element={<SupplierBillFormPage />}
               />
 
               <Route
                 path="/purchases/supplier-bills/:id"
                 element={<SupplierBillDetailPage />}
               />
-
-              <Route
-                path="/purchases/supplier-bills/new"
-                element={<SupplierBillFormPage />}
-              />
-
               {/* Supplier Payments */}
 
               <Route

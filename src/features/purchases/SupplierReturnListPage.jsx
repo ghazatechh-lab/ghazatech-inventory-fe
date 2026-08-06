@@ -250,7 +250,9 @@ export default function SupplierReturnListPage() {
                   "Date",
                   "Reason",
                   "Items",
-                  "Amount",
+                  "Net",
+                  "VAT",
+                  "Total",
                   "Status",
                   "Action",
                 ].map((label) => (
@@ -301,6 +303,20 @@ export default function SupplierReturnListPage() {
 
                   <td className="px-4 py-4">
                     <CurrencyText
+                      value={row.subtotal ?? row.net_amount ?? 0}
+                      currency={row.currency || "AED"}
+                    />
+                  </td>
+
+                  <td className="px-4 py-4">
+                    <CurrencyText
+                      value={row.vat_amount ?? row.tax_amount ?? 0}
+                      currency={row.currency || "AED"}
+                    />
+                  </td>
+
+                  <td className="px-4 py-4 font-medium">
+                    <CurrencyText
                       value={row.total_amount}
                       currency={row.currency || "AED"}
                     />
@@ -324,7 +340,7 @@ export default function SupplierReturnListPage() {
               {query.isLoading ? (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={11}
                     className="p-12 text-center text-muted-foreground"
                   >
                     Loading...
@@ -335,7 +351,7 @@ export default function SupplierReturnListPage() {
               {!query.isLoading && !query.isError && !rows.length ? (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={11}
                     className="p-12 text-center text-muted-foreground"
                   >
                     {supplierId

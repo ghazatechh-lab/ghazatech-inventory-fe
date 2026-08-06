@@ -9,11 +9,9 @@ import {
   Download,
   FileText,
   Info,
-  Plus,
   ReceiptText,
   Save,
   Send,
-  Trash2,
   UploadCloud,
   WalletCards,
   X,
@@ -53,6 +51,42 @@ const number = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const TAX_TREATMENT_OPTIONS = {
+  STANDARD_VAT: "Standard VAT",
+  ZERO_VAT: "Zero VAT",
+  NON_VAT: "Non-VAT",
+};
+
+const normalizeTaxTreatment = (value) => {
+  const normalized = String(value || "STANDARD_VAT")
+    .trim()
+    .toUpperCase();
+
+  if (["ZERO_VAT", "ZERO_RATED", "ZERO-RATED"].includes(normalized)) {
+    return "ZERO_VAT";
+  }
+
+  if (
+    [
+      "NON_VAT",
+      "NON-VAT",
+      "OUT_OF_SCOPE",
+      "EXEMPT",
+      "VAT_EXEMPT",
+      "NON_TAXABLE",
+    ].includes(normalized)
+  ) {
+    return "NON_VAT";
+  }
+
+  return "STANDARD_VAT";
+};
+
+const effectiveTaxPercentage = (taxTreatment, percentage) =>
+  normalizeTaxTreatment(taxTreatment) === "STANDARD_VAT"
+    ? number(percentage)
+    : 0;
+
 const formatSize = (bytes) => {
   const value = Number(bytes || 0);
 
@@ -70,6 +104,7 @@ const emptyLine = () => ({
   gl_account: "",
   quantity: 1,
   unit_price: 0,
+  tax_treatment: "STANDARD_VAT",
   tax_percentage: 0,
 });
 
@@ -90,6 +125,21 @@ const createForm = (branchId) => ({
   items: [emptyLine()],
   applications: [],
 });
+
+const LOCKED_VENDOR_CREDIT_STATUSES = new Set([
+  "APPROVED",
+  "OPEN",
+  "PARTIALLY_APPLIED",
+  "FULLY_APPLIED",
+  "VOID",
+]);
+
+const APPROVABLE_VENDOR_CREDIT_STATUSES = new Set(["DRAFT", "PENDING"]);
+
+const normalizeStatus = (value) =>
+  String(value || "DRAFT")
+    .trim()
+    .toUpperCase();
 
 const reasonOptions = [
   {
@@ -221,7 +271,12 @@ export default function VendorCreditsPage() {
   });
 
   const { data: optionsResponse, isLoading: optionsLoading } = useQuery({
-    queryKey: ["vendor-credit-form-options", form.branch, form.supplier],
+    queryKey: [
+      "vendor-credit-form-options",
+      form.branch,
+      form.supplier,
+      editingId,
+    ],
 
     queryFn: async () =>
       unwrap(
@@ -230,6 +285,7 @@ export default function VendorCreditsPage() {
             branch: form.branch || undefined,
 
             supplier: form.supplier || undefined,
+            vendor_credit_id: editingId || undefined,
           },
         }),
       ),
@@ -327,7 +383,13 @@ export default function VendorCreditsPage() {
         gl_account: item.gl_account ? String(item.gl_account) : "",
         quantity: number(item.quantity),
         unit_price: number(item.unit_price),
-        tax_percentage: number(item.tax_percentage),
+        tax_treatment: normalizeTaxTreatment(
+          item.tax_treatment ?? item.vat_treatment,
+        ),
+        tax_percentage: effectiveTaxPercentage(
+          item.tax_treatment ?? item.vat_treatment,
+          item.tax_percentage ?? item.vat_percentage,
+        ),
       })),
 
       applications: (existing.applications || []).map((application) => ({
@@ -413,11 +475,17 @@ export default function VendorCreditsPage() {
     () =>
       form.items.map((item) => {
         const subtotal = number(item.quantity) * number(item.unit_price);
-
-        const tax = (subtotal * number(item.tax_percentage)) / 100;
+        const taxTreatment = normalizeTaxTreatment(item.tax_treatment);
+        const taxPercentage = effectiveTaxPercentage(
+          taxTreatment,
+          item.tax_percentage,
+        );
+        const tax = (subtotal * taxPercentage) / 100;
 
         return {
           ...item,
+          tax_treatment: taxTreatment,
+          tax_percentage: taxPercentage,
           subtotal,
           tax_amount: tax,
           line_total: subtotal + tax,
@@ -448,13 +516,9 @@ export default function VendorCreditsPage() {
 
   const remainingCredit = Math.max(0, totalCredit - totalApplied);
 
-  const normalizedStatus = String(form.status || "DRAFT").toUpperCase();
+  const normalizedStatus = normalizeStatus(form.status);
 
-  const isDraft =
-    !editingId ||
-    !["OPEN", "PARTIALLY_APPLIED", "FULLY_APPLIED", "VOID"].includes(
-      normalizedStatus,
-    );
+  const isApproved = normalizedStatus === "APPROVED";
 
   const canEditDocument = !editingId || normalizedStatus === "DRAFT";
 
@@ -462,9 +526,10 @@ export default function VendorCreditsPage() {
 
   const canApproveDocument =
     Boolean(editingId) &&
-    !["OPEN", "PARTIALLY_APPLIED", "FULLY_APPLIED", "VOID"].includes(
-      normalizedStatus,
-    );
+    APPROVABLE_VENDOR_CREDIT_STATUSES.has(normalizedStatus);
+
+  const isReadOnlyDocument =
+    Boolean(editingId) && LOCKED_VENDOR_CREDIT_STATUSES.has(normalizedStatus);
 
   const updateForm = (field, value) => {
     setForm((current) => ({
@@ -555,21 +620,28 @@ export default function VendorCreditsPage() {
 
       notes: supplierReturn.details || supplierReturn.notes || current.notes,
 
-      items: (supplierReturn.items || []).map((item) => ({
-        description: `${item.product_name}${
-          item.quantity ? ` — ${item.quantity} unit(s)` : ""
-        }`,
+      items: (supplierReturn.items || []).map((item) => {
+        const treatment = normalizeTaxTreatment(
+          item.tax_treatment ?? item.vat_treatment,
+        );
 
-        gl_account: defaultInventoryAccountId
-          ? String(defaultInventoryAccountId)
-          : "",
-
-        quantity: number(item.quantity),
-
-        unit_price: number(item.unit_price),
-
-        tax_percentage: 0,
-      })),
+        return {
+          source_return_item: item.id,
+          description: `${item.product_name}${
+            item.quantity ? ` — ${item.quantity} unit(s)` : ""
+          }`,
+          gl_account: defaultInventoryAccountId
+            ? String(defaultInventoryAccountId)
+            : "",
+          quantity: number(item.quantity),
+          unit_price: number(item.unit_price),
+          tax_treatment: treatment,
+          tax_percentage: effectiveTaxPercentage(
+            treatment,
+            item.tax_percentage ?? item.vat_percentage,
+          ),
+        };
+      }),
     }));
   };
 
@@ -688,7 +760,14 @@ export default function VendorCreditsPage() {
 
           unit_price: number(item.unit_price),
 
-          tax_percentage: number(item.tax_percentage),
+          source_return_item: item.source_return_item || null,
+
+          tax_treatment: normalizeTaxTreatment(item.tax_treatment),
+
+          tax_percentage: effectiveTaxPercentage(
+            item.tax_treatment,
+            item.tax_percentage,
+          ),
         })),
 
         applications: form.applications
@@ -730,10 +809,8 @@ export default function VendorCreditsPage() {
        */
       if (shouldApprove && editingId) {
         return api.post(
-          `/purchases/vendor-credits/${editingId}/update-status/`,
-          {
-            status: "OPEN",
-          },
+          `/purchases/vendor-credits/${editingId}/approve/`,
+          {},
           {
             skipGlobalErrorToast: true,
           },
@@ -756,10 +833,8 @@ export default function VendorCreditsPage() {
 
       if (shouldApprove) {
         return api.post(
-          `/purchases/vendor-credits/${saved.id}/update-status/`,
-          {
-            status: "OPEN",
-          },
+          `/purchases/vendor-credits/${saved.id}/approve/`,
+          {},
           {
             skipGlobalErrorToast: true,
           },
@@ -839,10 +914,8 @@ export default function VendorCreditsPage() {
     mutationFn: async (creditId) =>
       unwrap(
         await api.post(
-          `/purchases/vendor-credits/${creditId}/update-status/`,
-          {
-            status: "OPEN",
-          },
+          `/purchases/vendor-credits/${creditId}/approve/`,
+          {},
           {
             skipGlobalErrorToast: true,
           },
@@ -1029,30 +1102,30 @@ export default function VendorCreditsPage() {
           >
             View
           </Button>
-          {!["OPEN", "PARTIALLY_APPLIED", "FULLY_APPLIED", "VOID"].includes(
-            String(row.status || "").toUpperCase(),
-          ) ? (
-            <>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => openEdit(row)}
-              >
-                Edit
-              </Button>
+          {normalizeStatus(row.status) === "DRAFT" ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => openEdit(row)}
+            >
+              Edit
+            </Button>
+          ) : null}
 
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => approveCredit.mutate(row.id)}
-                disabled={approveCredit.isPending}
-                className="bg-emerald-600 text-white hover:bg-emerald-700"
-              >
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-                Approve
-              </Button>
-            </>
+          {APPROVABLE_VENDOR_CREDIT_STATUSES.has(
+            normalizeStatus(row.status),
+          ) ? (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => approveCredit.mutate(row.id)}
+              disabled={approveCredit.isPending}
+              className="bg-emerald-600 text-white hover:bg-emerald-700"
+            >
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              Approve
+            </Button>
           ) : null}
         </div>
       ),
@@ -1069,6 +1142,11 @@ export default function VendorCreditsPage() {
 
     const tabs = [
       { value: "ALL", label: "All credits", count: summary.all_count },
+      {
+        value: "APPROVED",
+        label: "Approved",
+        count: summary.approved_count || 0,
+      },
       { value: "OPEN", label: "Open", count: summary.open_count },
       {
         value: "PARTIALLY_APPLIED",
@@ -1098,7 +1176,7 @@ export default function VendorCreditsPage() {
                 <p className="vendor-credit-hero__eyebrow">
                   Purchase Management
                 </p>
-                <h1 className="vendor-credit-hero__title">Vendor Credits</h1>
+                <h1 className="vendor-credit-hero__title">Supplier Credits</h1>
                 <p className="vendor-credit-hero__description">
                   Record supplier credit notes, monitor remaining balances, and
                   apply credits accurately against outstanding supplier bills.
@@ -1121,8 +1199,7 @@ export default function VendorCreditsPage() {
                 onClick={openNew}
                 className="vendor-credit-primary-action"
               >
-                <Plus className="mr-2 h-4 w-4" />
-                New Vendor Credit
+                New Supplier Credit
               </Button>
             </div>
           </div>
@@ -1185,7 +1262,7 @@ export default function VendorCreditsPage() {
                 Credit register
               </p>
               <h2 className="vendor-credit-directory__title">
-                Vendor credit records
+                Supplier Credits Records
               </h2>
               <p className="vendor-credit-directory__description">
                 Review credit sources, application progress, remaining balances,
@@ -1197,7 +1274,7 @@ export default function VendorCreditsPage() {
               <SearchInput
                 value={q}
                 onChange={setQ}
-                placeholder="Search credit number, vendor or reference"
+                placeholder="Search credit number, supplier or reference"
               />
             </div>
           </div>
@@ -1282,11 +1359,13 @@ export default function VendorCreditsPage() {
         }
       />
 
-      {!canEditDocument ? (
+      {isReadOnlyDocument || isLegacyPending ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
-          {isLegacyPending
-            ? "This is a legacy pending vendor credit. It cannot be edited, but it can be approved directly."
-            : `This vendor credit is already ${form.status}. Only draft credits can be edited.`}
+          {isApproved
+            ? "This Vendor Credit is approved. Editing and re-approval are disabled."
+            : isLegacyPending
+              ? "This is a pending Vendor Credit. It cannot be edited, but it can still be approved."
+              : `This Vendor Credit is ${form.status}. Editing is disabled.`}
         </div>
       ) : null}
 
@@ -1321,6 +1400,7 @@ export default function VendorCreditsPage() {
               onChange={(event) =>
                 updateForm("credit_date", event.target.value)
               }
+              disabled={!canEditDocument}
               className="mt-2"
             />
           </div>
@@ -1331,6 +1411,7 @@ export default function VendorCreditsPage() {
             <Select
               value={form.currency}
               onValueChange={(value) => updateForm("currency", value)}
+              disabled={!canEditDocument}
             >
               <SelectTrigger className="mt-2">
                 <SelectValue />
@@ -1347,7 +1428,11 @@ export default function VendorCreditsPage() {
           <div>
             <Label>Source Return *</Label>
 
-            <Select value={form.supplier_return} onValueChange={selectReturn}>
+            <Select
+              value={form.supplier_return}
+              onValueChange={selectReturn}
+              disabled={!canEditDocument}
+            >
               <SelectTrigger className="mt-2">
                 <SelectValue placeholder="Select supplier return" />
               </SelectTrigger>
@@ -1366,6 +1451,14 @@ export default function VendorCreditsPage() {
               </SelectContent>
             </Select>
 
+            {!optionsLoading && !supplierReturns.length ? (
+              <p className="mt-1 text-xs text-amber-600">
+                No approved supplier returns are available. Approve a return
+                first, and ensure it is not already linked to another vendor
+                credit.
+              </p>
+            ) : null}
+
             {errors.supplier_return ? (
               <p className="mt-1 text-xs text-red-500">
                 {errors.supplier_return}
@@ -1381,6 +1474,7 @@ export default function VendorCreditsPage() {
               onChange={(event) =>
                 updateForm("reference_number", event.target.value)
               }
+              disabled={!canEditDocument}
               placeholder="Bill, PO or external credit reference"
               className="mt-2"
             />
@@ -1392,6 +1486,7 @@ export default function VendorCreditsPage() {
             <Select
               value={form.reason}
               onValueChange={(value) => updateForm("reason", value)}
+              disabled={!canEditDocument}
             >
               <SelectTrigger className="mt-2">
                 <SelectValue />
@@ -1429,52 +1524,38 @@ export default function VendorCreditsPage() {
             </p>
           </div>
 
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() =>
-              setForm((current) => ({
-                ...current,
-                items: [...current.items, emptyLine()],
-              }))
-            }
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Line
-          </Button>
+          <div className="text-xs text-muted-foreground">
+            Lines are loaded automatically from the approved supplier return.
+          </div>
         </div>
 
         <div className="overflow-x-auto p-5">
           <div className="min-w-[950px]">
-            <div className="grid grid-cols-[minmax(260px,1fr)_190px_80px_110px_90px_130px_38px] gap-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="grid grid-cols-[minmax(240px,1fr)_180px_75px_105px_145px_85px_125px] gap-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               <span>Description</span>
               <span>GL Account</span>
               <span className="text-right">Qty</span>
               <span className="text-right">Unit Price</span>
-              <span className="text-right">Tax %</span>
-              <span className="text-right">Amount</span>
-              <span />
+              <span>VAT Treatment</span>
+              <span className="text-right">VAT</span>
+              <span className="text-right">Total</span>
             </div>
 
             <div className="space-y-2">
               {calculatedItems.map((item, index) => (
                 <div
                   key={item.id || index}
-                  className="grid grid-cols-[minmax(260px,1fr)_190px_80px_110px_90px_130px_38px] items-center gap-3 border-b border-slate-100 py-2 last:border-b-0 dark:border-white/5"
+                  className="grid grid-cols-[minmax(240px,1fr)_180px_75px_105px_145px_85px_125px] items-center gap-3 border-b border-slate-100 py-2 last:border-b-0 dark:border-white/5"
                 >
                   <Input
                     value={item.description}
-                    onChange={(event) =>
-                      updateItem(index, {
-                        description: event.target.value,
-                      })
-                    }
-                    placeholder="Credit line description"
+                    readOnly
+                    placeholder="Loaded from supplier return"
                   />
 
                   <Select
                     value={item.gl_account || "__none__"}
+                    disabled={!canEditDocument}
                     onValueChange={(value) =>
                       updateItem(index, {
                         gl_account: value === "__none__" ? "" : value,
@@ -1501,11 +1582,7 @@ export default function VendorCreditsPage() {
                     min="0.01"
                     step="0.01"
                     value={item.quantity}
-                    onChange={(event) =>
-                      updateItem(index, {
-                        quantity: event.target.value,
-                      })
-                    }
+                    readOnly
                     className="text-right"
                   />
 
@@ -1514,27 +1591,26 @@ export default function VendorCreditsPage() {
                     min="0"
                     step="0.01"
                     value={item.unit_price}
-                    onChange={(event) =>
-                      updateItem(index, {
-                        unit_price: event.target.value,
-                      })
-                    }
+                    readOnly
                     className="text-right"
                   />
 
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={item.tax_percentage}
-                    onChange={(event) =>
-                      updateItem(index, {
-                        tax_percentage: event.target.value,
-                      })
-                    }
-                    className="text-right"
-                  />
+                  <div>
+                    <p className="text-sm font-medium">
+                      {TAX_TREATMENT_OPTIONS[item.tax_treatment] ||
+                        item.tax_treatment}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {item.tax_percentage}% inherited
+                    </p>
+                  </div>
+
+                  <div className="text-right">
+                    <CurrencyText
+                      value={item.tax_amount}
+                      currency={form.currency}
+                    />
+                  </div>
 
                   <div className="text-right font-medium">
                     <CurrencyText
@@ -1542,22 +1618,6 @@ export default function VendorCreditsPage() {
                       currency={form.currency}
                     />
                   </div>
-
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    onClick={() =>
-                      setForm((current) => ({
-                        ...current,
-                        items: current.items.filter(
-                          (_, itemIndex) => itemIndex !== index,
-                        ),
-                      }))
-                    }
-                  >
-                    <Trash2 className="h-4 w-4 text-red-400" />
-                  </Button>
                 </div>
               ))}
             </div>
@@ -1633,6 +1693,7 @@ export default function VendorCreditsPage() {
                   onChange={(event) =>
                     updateApplication(application.bill, event.target.value)
                   }
+                  disabled={!canEditDocument}
                   className="text-right"
                 />
               </div>
@@ -1712,31 +1773,34 @@ export default function VendorCreditsPage() {
             onChange={(event) =>
               updateForm("internal_memo", event.target.value)
             }
+            disabled={!canEditDocument}
             placeholder="Internal explanation, approval note, or supplier correspondence summary"
             className="mt-2"
           />
         </div>
 
-        <label className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-7 text-center hover:border-blue-400 dark:border-white/15 dark:bg-white/[0.025]">
-          <UploadCloud className="h-7 w-7 text-blue-500" />
+        {canEditDocument ? (
+          <label className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-7 text-center hover:border-blue-400 dark:border-white/15 dark:bg-white/[0.025]">
+            <UploadCloud className="h-7 w-7 text-blue-500" />
 
-          <span className="mt-2 text-sm font-medium">
-            Drop files or browse to attach supporting documents
-          </span>
+            <span className="mt-2 text-sm font-medium">
+              Drop files or browse to attach supporting documents
+            </span>
 
-          <span className="mt-1 text-xs text-muted-foreground">
-            RMA, receiving report, supplier email, PDF, JPG, PNG or EML up to 10
-            MB
-          </span>
+            <span className="mt-1 text-xs text-muted-foreground">
+              RMA, receiving report, supplier email, PDF, JPG, PNG or EML up to
+              10 MB
+            </span>
 
-          <input
-            type="file"
-            multiple
-            accept=".pdf,.jpg,.jpeg,.png,.eml"
-            className="sr-only"
-            onChange={addFiles}
-          />
-        </label>
+            <input
+              type="file"
+              multiple
+              accept=".pdf,.jpg,.jpeg,.png,.eml"
+              className="sr-only"
+              onChange={addFiles}
+            />
+          </label>
+        ) : null}
 
         {files.length > 0 && (
           <div className="mt-3 space-y-2">
@@ -1793,42 +1857,41 @@ export default function VendorCreditsPage() {
           Cancel
         </Button>
 
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => submit(false)}
-          disabled={save.isPending || !canEditDocument}
-        >
-          <Save className="mr-2 h-4 w-4" />
-          Save as Draft
-        </Button>
+        {canEditDocument ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => submit(false)}
+            disabled={save.isPending}
+          >
+            <Save className="mr-2 h-4 w-4" />
+            Save as Draft
+          </Button>
+        ) : null}
 
         {canApproveDocument ? (
           <Button
             type="button"
-            variant="outline"
             onClick={() => approveCredit.mutate(editingId)}
             disabled={approveCredit.isPending || save.isPending}
-            className="border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+            className="bg-emerald-600 text-white hover:bg-emerald-700"
           >
             <CheckCircle2 className="mr-2 h-4 w-4" />
-            {approveCredit.isPending ? "Approving..." : "Approve Credit"}
+            {approveCredit.isPending ? "Approving..." : "Approve Vendor Credit"}
           </Button>
         ) : null}
 
-        <Button
-          type="button"
-          onClick={() => submit(true)}
-          disabled={save.isPending || approveCredit.isPending}
-          className="bg-blue-600 text-white hover:bg-blue-700"
-        >
-          <Send className="mr-2 h-4 w-4" />
-          {save.isPending
-            ? "Processing..."
-            : editingId
-              ? "Approve Credit"
-              : "Save and Approve"}
-        </Button>
+        {!editingId ? (
+          <Button
+            type="button"
+            onClick={() => submit(true)}
+            disabled={save.isPending || approveCredit.isPending}
+            className="bg-blue-600 text-white hover:bg-blue-700"
+          >
+            <Send className="mr-2 h-4 w-4" />
+            {save.isPending ? "Processing..." : "Save and Approve"}
+          </Button>
+        ) : null}
       </div>
     </div>
   );

@@ -2,10 +2,10 @@ import React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
+  CheckCircle2,
   FileText,
   Loader2,
   Paperclip,
-  Plus,
   Save,
   Trash2,
 } from "lucide-react";
@@ -36,18 +36,57 @@ const PAYMENT_TERM_OPTIONS = [
   { value: 90, label: "90 Days" },
 ];
 
+const SUPPLIER_BILL_STATUS_OPTIONS = [
+  {
+    value: "DRAFT",
+    label: "Draft",
+    editable: true,
+  },
+  {
+    value: "UNMATCHED",
+    label: "Unmatched",
+    editable: true,
+  },
+  {
+    value: "UNPAID",
+    label: "Unpaid",
+    editable: false,
+  },
+  {
+    value: "PARTIALLY_PAID",
+    label: "Partially Paid",
+    editable: false,
+  },
+  {
+    value: "PAID",
+    label: "Paid",
+    editable: false,
+  },
+  {
+    value: "CANCELLED",
+    label: "Cancelled",
+    editable: true,
+  },
+];
+
+const EDITABLE_STATUS_OPTIONS = SUPPLIER_BILL_STATUS_OPTIONS.filter(
+  (option) => option.editable,
+);
+
+function getStatusLabel(status) {
+  return (
+    SUPPLIER_BILL_STATUS_OPTIONS.find(
+      (option) => option.value === String(status || "").toUpperCase(),
+    )?.label ||
+    status ||
+    "Draft"
+  );
+}
+
 const STATUS_OPTIONS = [
   {
     value: "DRAFT",
     label: "Draft",
-  },
-  {
-    value: "PENDING_APPROVAL",
-    label: "Pending Approval",
-  },
-  {
-    value: "APPROVED",
-    label: "Approved",
   },
 ];
 
@@ -137,7 +176,8 @@ function createEmptyItem() {
     sku: "",
     variant_name: "",
 
-    description: "",
+    received_quantity: 0,
+    available_bill_quantity: 0,
 
     quantity: 1,
     unit_price: 0,
@@ -217,6 +257,39 @@ function createInitialForm(branchId) {
   };
 }
 
+function flattenApiError(value, prefix = "") {
+  if (Array.isArray(value)) {
+    return value
+      .map((item, index) =>
+        flattenApiError(
+          item,
+          prefix ? `${prefix} ${index + 1}` : `Item ${index + 1}`,
+        ),
+      )
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  if (value && typeof value === "object") {
+    return Object.entries(value)
+      .map(([key, item]) => {
+        const label = key
+          .replaceAll("_", " ")
+          .replace(/^./, (character) => character.toUpperCase());
+
+        return flattenApiError(item, prefix ? `${prefix} - ${label}` : label);
+      })
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  if (value === undefined || value === null || value === "") {
+    return "";
+  }
+
+  return prefix ? `${prefix}: ${String(value)}` : String(value);
+}
+
 function getApiErrors(error) {
   const body = error?.response?.data;
 
@@ -235,22 +308,24 @@ function getApiErrors(error) {
   }
 
   if (normalized?.detail || normalized?.message) {
+    const nestedErrors = normalized?.errors;
+
     return {
-      general: normalized.detail || normalized.message,
+      general:
+        flattenApiError(nestedErrors) ||
+        normalized.detail ||
+        normalized.message,
     };
   }
 
   const errors = {};
 
   Object.entries(normalized || {}).forEach(([field, message]) => {
-    if (Array.isArray(message)) {
-      errors[field] = message.join(" ");
-    } else if (typeof message === "object" && message !== null) {
-      errors[field] = JSON.stringify(message);
-    } else {
-      errors[field] = String(message);
-    }
+    errors[field] = flattenApiError(message);
   });
+
+  errors.general =
+    flattenApiError(normalized) || "Supplier Bill validation failed.";
 
   return errors;
 }
@@ -301,12 +376,17 @@ export default function SupplierBillFormPage() {
   const [purchaseOrderSearchOpen, setPurchaseOrderSearchOpen] =
     React.useState(false);
 
+  const [statusAction, setStatusAction] = React.useState("DRAFT");
+
   const optionsQuery = useQuery({
-    queryKey: ["supplier-bill-form-options", form.branch],
+    queryKey: ["supplier-bill-form-options", form.branch, isEdit ? id : null],
 
     queryFn: async () => {
       const response = await api.get(`${SUPPLIER_BILL_ENDPOINT}form-options/`, {
-        params: { branch: form.branch || branchId || undefined },
+        params: {
+          branch: form.branch || branchId || undefined,
+          bill_id: isEdit ? id : undefined,
+        },
         skipGlobalErrorToast: true,
       });
 
@@ -340,7 +420,36 @@ export default function SupplierBillFormPage() {
 
   const optionPurchaseOrders = normalizeList(options.purchase_orders);
 
-  const grns = normalizeList(options.grns);
+  const grns = React.useMemo(() => {
+    const merged = new Map();
+
+    normalizeList(options.grns).forEach((grn) => {
+      if (grn?.id) {
+        merged.set(String(grn.id), grn);
+      }
+    });
+
+    const existing = existingQuery.data;
+
+    if (isEdit && existing?.grn) {
+      const existingGrnId = getId(existing.grn);
+
+      if (existingGrnId && !merged.has(String(existingGrnId))) {
+        merged.set(String(existingGrnId), {
+          id: existingGrnId,
+          grn_number: existing.grn_number,
+          purchase_order_id: getId(existing.purchase_order),
+          supplier_id: getId(existing.supplier),
+          supplier_name: existing.supplier_name,
+          branch_id: getId(existing.branch),
+          branch_name: existing.branch_name,
+          items: existing.items || [],
+        });
+      }
+    }
+
+    return Array.from(merged.values());
+  }, [options.grns, existingQuery.data, isEdit]);
 
   const availableGrns = React.useMemo(() => {
     if (!form.purchase_order) {
@@ -409,7 +518,23 @@ export default function SupplierBillFormPage() {
 
   const purchaseOrders = React.useMemo(() => {
     const merged = new Map();
-    [...optionPurchaseOrders, ...normalizeList(fallbackPurchaseOrderResponse)]
+    [
+      ...optionPurchaseOrders,
+      ...normalizeList(fallbackPurchaseOrderResponse),
+      ...(existingQuery.data?.purchase_order
+        ? [
+            {
+              id: getId(existingQuery.data.purchase_order),
+              po_number: existingQuery.data.po_number,
+              supplier_id: getId(existingQuery.data.supplier),
+              supplier_name: existingQuery.data.supplier_name,
+              branch_id: getId(existingQuery.data.branch),
+              branch_name: existingQuery.data.branch_name,
+              status: "APPROVED",
+            },
+          ]
+        : []),
+    ]
       .filter((order) =>
         ["APPROVED", "PARTIALLY_RECEIVED", "RECEIVED"].includes(
           String(order.status || "").toUpperCase(),
@@ -419,7 +544,7 @@ export default function SupplierBillFormPage() {
         if (order?.id) merged.set(String(order.id), order);
       });
     return Array.from(merged.values());
-  }, [optionPurchaseOrders, fallbackPurchaseOrderResponse]);
+  }, [optionPurchaseOrders, fallbackPurchaseOrderResponse, existingQuery.data]);
 
   const suppliers = React.useMemo(() => {
     const merged = new Map();
@@ -514,7 +639,10 @@ export default function SupplierBillFormPage() {
                   ? String(item.variant_id ?? getId(item.variant))
                   : "",
 
-              grn_item: item.grn_item ? String(getId(item.grn_item)) : "",
+              grn_item:
+                item.grn_item_id || item.grn_item
+                  ? String(item.grn_item_id ?? getId(item.grn_item))
+                  : "",
 
               product_name:
                 item.product_name || item.product?.product_name || "",
@@ -523,7 +651,11 @@ export default function SupplierBillFormPage() {
 
               variant_name: item.variant_name || "",
 
-              description: item.description || "",
+              received_quantity: numberValue(item.received_quantity),
+
+              available_bill_quantity: numberValue(
+                item.available_bill_quantity ?? item.received_quantity,
+              ),
 
               quantity: numberValue(item.bill_quantity ?? item.quantity),
 
@@ -571,7 +703,11 @@ export default function SupplierBillFormPage() {
 
       balance_due: numberValue(existing.balance_due),
 
-      status: existing.status || "DRAFT",
+      status: ["DRAFT", "UNMATCHED"].includes(
+        String(existing.status || "").toUpperCase(),
+      )
+        ? "DRAFT"
+        : "DRAFT",
 
       match_status: existing.match_status || "PENDING",
 
@@ -579,6 +715,18 @@ export default function SupplierBillFormPage() {
 
       items: existingItems,
     });
+
+    const existingStatus = String(existing.status || "DRAFT").toUpperCase();
+
+    setStatusAction(
+      existing.approved_at
+        ? existingStatus
+        : EDITABLE_STATUS_OPTIONS.some(
+              (option) => option.value === existingStatus,
+            )
+          ? existingStatus
+          : "DRAFT",
+    );
 
     setInitialized(true);
   }, [existingQuery.data, isEdit]);
@@ -682,28 +830,6 @@ export default function SupplierBillFormPage() {
     }));
   }
 
-  function addItem() {
-    setForm((current) => ({
-      ...current,
-
-      items: [...current.items, createEmptyItem()],
-    }));
-  }
-
-  function removeItem(index) {
-    setForm((current) => {
-      const nextItems = current.items.filter(
-        (_, itemIndex) => itemIndex !== index,
-      );
-
-      return {
-        ...current,
-
-        items: nextItems.length ? nextItems : [createEmptyItem()],
-      };
-    });
-  }
-
   async function applyPurchaseOrder(purchaseOrderId) {
     const selectedId = String(purchaseOrderId || "");
 
@@ -754,8 +880,6 @@ export default function SupplierBillFormPage() {
       }
     }
 
-    const poItems = normalizeList(purchaseOrder.items);
-
     const supplierId =
       purchaseOrder.supplier_id ?? getId(purchaseOrder.supplier);
 
@@ -793,32 +917,7 @@ export default function SupplierBillFormPage() {
       currency: purchaseOrder.currency || current.currency || "AED",
       payment_terms_days: paymentTermsDays,
       due_date: addDays(current.bill_date, paymentTermsDays),
-      items: poItems.length
-        ? poItems.map((item) =>
-            calculateItem({
-              product: String(item.product_id ?? getId(item.product)),
-              variant:
-                (item.variant_id ?? getId(item.variant))
-                  ? String(item.variant_id ?? getId(item.variant))
-                  : "",
-              grn_item: "",
-              product_name:
-                item.product_name || item.product?.product_name || "",
-              sku: item.sku || item.product?.sku || "",
-              variant_name:
-                item.variant_name || item.variant?.display_name || "",
-              description:
-                item.description ||
-                item.product_name ||
-                item.product?.product_name ||
-                "",
-              quantity: numberValue(item.quantity ?? item.ordered_quantity),
-              unit_price: numberValue(item.unit_price ?? item.unit_cost),
-              discount_amount: numberValue(item.discount_amount),
-              vat_percentage: numberValue(item.vat_percentage ?? 5),
-            }),
-          )
-        : [createEmptyItem()],
+      items: [createEmptyItem()],
     }));
 
     setErrors((current) => ({
@@ -887,10 +986,20 @@ export default function SupplierBillFormPage() {
 
               variant_name: item.variant_name || "",
 
-              description: item.description || item.product_name || "",
+              received_quantity: numberValue(
+                item.accepted_quantity ?? item.received_quantity,
+              ),
+
+              available_bill_quantity: numberValue(
+                item.available_bill_quantity ??
+                  item.accepted_quantity ??
+                  item.received_quantity,
+              ),
 
               quantity: numberValue(
-                item.accepted_quantity ?? item.received_quantity,
+                item.available_bill_quantity ??
+                  item.accepted_quantity ??
+                  item.received_quantity,
               ),
 
               unit_price: numberValue(item.unit_price ?? item.unit_cost),
@@ -950,12 +1059,25 @@ export default function SupplierBillFormPage() {
 
     calculatedItems.forEach((item, index) => {
       if (!item.product) {
-        nextErrors[`item_${index}_product`] = "Select a product.";
+        nextErrors[`item_${index}_product`] =
+          "Product must come from the selected GRN.";
+      }
+
+      if (!item.grn_item) {
+        nextErrors[`item_${index}_product`] =
+          "Select a confirmed GRN to load bill items.";
       }
 
       if (numberValue(item.quantity) <= 0) {
         nextErrors[`item_${index}_quantity`] =
-          "Quantity must be greater than zero.";
+          "Bill quantity must be greater than zero.";
+      } else if (
+        numberValue(item.quantity) > numberValue(item.available_bill_quantity)
+      ) {
+        nextErrors[`item_${index}_quantity`] =
+          `Bill quantity cannot exceed ${numberValue(
+            item.available_bill_quantity,
+          )}.`;
       }
 
       if (numberValue(item.unit_price) < 0) {
@@ -964,14 +1086,56 @@ export default function SupplierBillFormPage() {
       }
     });
 
-    if (totals.paidAmount > totals.totalAmount) {
-      nextErrors.paid_amount = "Paid amount cannot exceed the bill total.";
-    }
-
     setErrors(nextErrors);
 
     return Object.keys(nextErrors).length === 0;
   }
+
+  const approveMutation = useMutation({
+    mutationFn: async (billId) =>
+      unwrap(
+        await api.post(
+          `${SUPPLIER_BILL_ENDPOINT}${billId}/approve/`,
+          {},
+          {
+            skipGlobalErrorToast: true,
+          },
+        ),
+      ),
+
+    onSuccess: async (approvedBill) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["supplier-bills"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["supplier-bill"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["supplier-bills-summary"],
+        }),
+      ]);
+
+      toast.success("Supplier bill approved successfully.");
+
+      navigate(
+        approvedBill?.id
+          ? `/purchases/supplier-bills/${approvedBill.id}/edit`
+          : `/purchases/supplier-bills/${id}/edit`,
+      );
+    },
+
+    onError: (error) => {
+      const apiErrors = getApiErrors(error);
+
+      setErrors((current) => ({
+        ...current,
+        ...apiErrors,
+      }));
+
+      toast.error(apiErrors.general || "Unable to approve supplier bill.");
+    },
+  });
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -1000,19 +1164,9 @@ export default function SupplierBillFormPage() {
 
         currency: form.currency,
 
-        subtotal: Number(totals.subtotal.toFixed(2)),
-
         discount_amount: Number(totals.headerDiscount.toFixed(2)),
 
-        vat_amount: Number(totals.vatAmount.toFixed(2)),
-
-        total_amount: Number(totals.totalAmount.toFixed(2)),
-
-        paid_amount: Number(totals.paidAmount.toFixed(2)),
-
-        balance_due: Number(totals.balanceDue.toFixed(2)),
-
-        status: form.status,
+        status: statusAction === "APPROVE" ? "DRAFT" : statusAction,
 
         notes: form.notes,
 
@@ -1025,7 +1179,7 @@ export default function SupplierBillFormPage() {
 
           grn_item: item.grn_item ? Number(item.grn_item) : null,
 
-          received_quantity: numberValue(item.quantity),
+          received_quantity: numberValue(item.received_quantity),
 
           bill_quantity: numberValue(item.quantity),
 
@@ -1081,6 +1235,12 @@ export default function SupplierBillFormPage() {
         }),
       ]);
 
+      if (isEdit && statusAction === "APPROVE" && saved?.id) {
+        toast.success("Supplier bill updated. Approving now...");
+        approveMutation.mutate(saved.id);
+        return;
+      }
+
       toast.success(
         isEdit
           ? "Supplier bill updated successfully."
@@ -1089,7 +1249,7 @@ export default function SupplierBillFormPage() {
 
       navigate(
         saved?.id
-          ? `/purchases/supplier-bills/${saved.id}`
+          ? `/purchases/supplier-bills/${saved.id}/edit`
           : "/purchases/supplier-bills",
       );
     },
@@ -1105,6 +1265,14 @@ export default function SupplierBillFormPage() {
       toast.error(apiErrors.general || "Unable to save supplier bill.");
     },
   });
+
+  const isApproved = Boolean(existingQuery.data?.approved_at);
+
+  const currentStatus = String(
+    existingQuery.data?.status || form.status || "DRAFT",
+  ).toUpperCase();
+
+  const isSaving = saveMutation.isPending || approveMutation.isPending;
 
   const isLoading = existingQuery.isLoading || optionsQuery.isLoading;
 
@@ -1130,7 +1298,11 @@ export default function SupplierBillFormPage() {
     <div className="purchase-module-page purchase-workspace space-y-6">
       <PageHeader
         title={isEdit ? "Edit Supplier Bill" : "New Supplier Bill"}
-        subtitle="Record a supplier invoice and match it against the purchase order and GRN."
+        subtitle={
+          isEdit
+            ? "Update the supplier invoice using its linked purchase order and GRN."
+            : "Record a supplier invoice and match it against the purchase order and GRN."
+        }
         actions={
           <div className="flex flex-wrap gap-2">
             <Button
@@ -1144,20 +1316,50 @@ export default function SupplierBillFormPage() {
 
             <Button
               type="button"
-              disabled={saveMutation.isPending || isLoading}
+              disabled={isSaving || isLoading || isApproved}
               onClick={() => saveMutation.mutate()}
             >
-              {saveMutation.isPending ? (
+              {isSaving ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}
 
-              {isEdit ? "Update Bill" : "Save Bill"}
+              {approveMutation.isPending
+                ? "Approving Bill..."
+                : isEdit && statusAction === "APPROVE"
+                  ? "Update & Approve"
+                  : isEdit
+                    ? `Update as ${getStatusLabel(statusAction)}`
+                    : "Save Bill"}
             </Button>
           </div>
         }
       />
+
+      {isEdit && !isApproved ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5" />
+            <span>Status changes are managed from this edit page.</span>
+          </div>
+
+          <span className="font-medium">
+            Selected action:{" "}
+            {statusAction === "APPROVE"
+              ? "Approve Bill"
+              : getStatusLabel(statusAction)}
+          </span>
+        </div>
+      ) : null}
+
+      {isApproved ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          This Supplier Bill has already been approved. Current status:{" "}
+          <strong>{getStatusLabel(currentStatus)}</strong>. Payment-derived
+          statuses are updated through Supplier Payments.
+        </div>
+      ) : null}
 
       {errors.general ? (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -1293,20 +1495,59 @@ export default function SupplierBillFormPage() {
           </div>
 
           <div>
-            <Label htmlFor="status">Status</Label>
+            <Label htmlFor="status_action">Status</Label>
 
-            <select
-              id="status"
-              className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"
-              value={form.status}
-              onChange={(event) => updateField("status", event.target.value)}
-            >
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            {isEdit ? (
+              <>
+                <select
+                  id="status_action"
+                  className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  value={
+                    isApproved
+                      ? String(existingQuery.data?.status || "UNPAID")
+                      : statusAction
+                  }
+                  disabled={isApproved || isSaving}
+                  onChange={(event) => setStatusAction(event.target.value)}
+                >
+                  {EDITABLE_STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+
+                  <option value="APPROVE">Approve Bill</option>
+
+                  {isApproved ? (
+                    <option
+                      value={String(existingQuery.data?.status || "UNPAID")}
+                    >
+                      {getStatusLabel(existingQuery.data?.status)}
+                    </option>
+                  ) : null}
+                </select>
+
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Draft, Unmatched, and Cancelled can be selected manually.
+                  Unpaid, Partially Paid, and Paid are calculated by the backend
+                  from the payment balance.
+                </p>
+              </>
+            ) : (
+              <>
+                <Input
+                  id="status_action"
+                  className="mt-2"
+                  value="Draft"
+                  readOnly
+                  disabled
+                />
+
+                <p className="mt-1 text-xs text-muted-foreground">
+                  New Supplier Bills are created as Draft.
+                </p>
+              </>
+            )}
           </div>
         </div>
       </Section>
@@ -1500,11 +1741,6 @@ export default function SupplierBillFormPage() {
 
             <FieldError message={errors.items} />
           </div>
-
-          <Button type="button" variant="outline" size="sm" onClick={addItem}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Item
-          </Button>
         </div>
 
         <div className="space-y-4">
@@ -1524,15 +1760,6 @@ export default function SupplierBillFormPage() {
                     </p>
                   ) : null}
                 </div>
-
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => removeItem(index)}
-                >
-                  <Trash2 className="h-4 w-4 text-red-600" />
-                </Button>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
@@ -1542,24 +1769,28 @@ export default function SupplierBillFormPage() {
                   <Input
                     className="mt-2"
                     value={item.product_name || item.product}
-                    disabled={Boolean(item.product_name)}
-                    onChange={(event) =>
-                      updateItem(index, "product", event.target.value)
-                    }
-                    placeholder="Product ID"
+                    readOnly
+                    disabled
+                    placeholder="Loaded from confirmed GRN"
                   />
 
                   <FieldError message={errors[`item_${index}_product`]} />
                 </div>
 
                 <div>
-                  <Label>Quantity *</Label>
+                  <Label>Bill Quantity *</Label>
+
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Accepted: {numberValue(item.received_quantity)} · Available:{" "}
+                    {numberValue(item.available_bill_quantity)}
+                  </p>
 
                   <Input
                     className="mt-2"
                     type="number"
-                    min="0.01"
-                    step="0.01"
+                    min="1"
+                    step="1"
+                    max={numberValue(item.available_bill_quantity)}
                     value={item.quantity}
                     onChange={(event) =>
                       updateItem(index, "quantity", event.target.value)
@@ -1578,9 +1809,7 @@ export default function SupplierBillFormPage() {
                     min="0"
                     step="0.01"
                     value={item.unit_price}
-                    onChange={(event) =>
-                      updateItem(index, "unit_price", event.target.value)
-                    }
+                    readOnly
                   />
 
                   <FieldError message={errors[`item_${index}_unit_price`]} />
@@ -1595,9 +1824,7 @@ export default function SupplierBillFormPage() {
                     min="0"
                     step="0.01"
                     value={item.discount_amount}
-                    onChange={(event) =>
-                      updateItem(index, "discount_amount", event.target.value)
-                    }
+                    readOnly
                   />
                 </div>
 
@@ -1610,22 +1837,7 @@ export default function SupplierBillFormPage() {
                     min="0"
                     step="0.01"
                     value={item.vat_percentage}
-                    onChange={(event) =>
-                      updateItem(index, "vat_percentage", event.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="md:col-span-2 xl:col-span-4">
-                  <Label>Description</Label>
-
-                  <Input
-                    className="mt-2"
-                    value={item.description}
-                    onChange={(event) =>
-                      updateItem(index, "description", event.target.value)
-                    }
-                    placeholder="Item description"
+                    readOnly
                   />
                 </div>
 
@@ -1776,21 +1988,15 @@ export default function SupplierBillFormPage() {
             </div>
 
             <div>
-              <Label htmlFor="paid_amount">Previously Paid</Label>
+              <Label>Previously Paid</Label>
 
-              <Input
-                id="paid_amount"
-                className="mt-2"
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.paid_amount}
-                onChange={(event) =>
-                  updateField("paid_amount", event.target.value)
-                }
-              />
+              <div className="mt-2 flex h-10 items-center rounded-md border bg-muted/30 px-3 text-sm">
+                <CurrencyText value={totals.paidAmount} />
+              </div>
 
-              <FieldError message={errors.paid_amount} />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Updated only through Supplier Payments.
+              </p>
             </div>
 
             <div className="rounded-xl border bg-muted/30 p-4">
@@ -1825,16 +2031,22 @@ export default function SupplierBillFormPage() {
 
         <Button
           type="button"
-          disabled={saveMutation.isPending || isLoading}
+          disabled={isSaving || isLoading || isApproved}
           onClick={() => saveMutation.mutate()}
         >
-          {saveMutation.isPending ? (
+          {isSaving ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
             <Save className="mr-2 h-4 w-4" />
           )}
 
-          {isEdit ? "Update Supplier Bill" : "Create Supplier Bill"}
+          {approveMutation.isPending
+            ? "Approving Supplier Bill..."
+            : isEdit && statusAction === "APPROVE"
+              ? "Update & Approve Supplier Bill"
+              : isEdit
+                ? `Update as ${getStatusLabel(statusAction)}`
+                : "Create Supplier Bill"}
         </Button>
       </div>
     </div>

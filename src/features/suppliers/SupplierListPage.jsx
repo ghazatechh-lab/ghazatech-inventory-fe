@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { CurrencyText } from "@/components/common/CurrencyText";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 
 const PAGE_SIZE = 12;
 
@@ -184,10 +185,25 @@ function CreditUsage({ used, limit }) {
 }
 
 export default function SupplierListPage() {
+  const { branchId, branchParams } = useActiveBranchFilter();
+
+  const normalizedBranchId =
+    branchId && String(branchId).trim().toLowerCase() !== "all"
+      ? String(branchId)
+      : "";
+
   const { query, q, setQ, page, setPage } = useListQuery(
     "suppliers",
     "/suppliers/",
+    {
+      ...branchParams,
+      branch: normalizedBranchId || undefined,
+    },
   );
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [normalizedBranchId, setPage]);
 
   const payload = React.useMemo(
     () =>
@@ -282,6 +298,9 @@ export default function SupplierListPage() {
                 <p className="supplier-hero-description supplier-list-description mt-2 max-w-3xl">
                   Manage vendor identities, tax records, commercial terms,
                   credit exposure and payment readiness.
+                  {normalizedBranchId
+                    ? " Showing suppliers for the selected branch."
+                    : " Showing suppliers from all branches."}
                 </p>
               </div>
             </div>
@@ -478,7 +497,8 @@ export default function SupplierListPage() {
                       <AlertCircle className="mx-auto h-7 w-7 text-slate-400" />
                       <p className="mt-3 font-medium">No suppliers found</p>
                       <p className="mt-1 text-sm text-slate-500">
-                        Add your first supplier or change the search.
+                        Add a supplier for the selected branch or change the
+                        search.
                       </p>
                     </td>
                   </tr>

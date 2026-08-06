@@ -19,12 +19,68 @@ import {
 } from "@/components/ui/select";
 import { CurrencyText } from "@/components/common/CurrencyText";
 
+const normalizePayload = (value) => {
+  let current = value;
+
+  for (let index = 0; index < 6; index += 1) {
+    if (current === null || current === undefined || Array.isArray(current)) {
+      break;
+    }
+
+    if (
+      Array.isArray(current.results) ||
+      Object.prototype.hasOwnProperty.call(current, "id")
+    ) {
+      break;
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(current, "data") &&
+      current.data !== current
+    ) {
+      current = current.data;
+      continue;
+    }
+
+    break;
+  }
+
+  return current;
+};
+
 const normalizeList = (value) => {
-  if (Array.isArray(value)) return value;
-  if (Array.isArray(value?.results)) return value.results;
-  if (Array.isArray(value?.data)) return value.data;
-  if (Array.isArray(value?.data?.results)) return value.data.results;
+  const normalized = normalizePayload(value);
+
+  if (Array.isArray(normalized)) return normalized;
+  if (Array.isArray(normalized?.results)) return normalized.results;
+  if (Array.isArray(normalized?.data)) return normalized.data;
+  if (Array.isArray(normalized?.data?.results)) {
+    return normalized.data.results;
+  }
+
   return [];
+};
+
+const normalizeBranchId = (value) => {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  const normalized = String(value).trim();
+
+  return normalized && normalized.toLowerCase() !== "all" ? normalized : "";
+};
+
+const getRelationId = (value, fallback) => {
+  if (fallback !== undefined && fallback !== null && fallback !== "") {
+    return fallback;
+  }
+
+  if (value && typeof value === "object") {
+    return value.id ?? "";
+  }
+
+  return value ?? "";
 };
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -79,11 +135,12 @@ export default function POFormPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { branchId } = useActiveBranchFilter();
+  const activeBranchId = normalizeBranchId(branchId);
 
   const [form, setForm] = React.useState({
     po_number: "",
     supplier: "",
-    branch: branchId ? String(branchId) : "",
+    branch: activeBranchId,
     order_date: today(),
     expected_delivery_date: "",
     currency: "AED",
@@ -104,18 +161,23 @@ export default function POFormPage() {
   const [productSearchOpen, setProductSearchOpen] = React.useState({});
 
   React.useEffect(() => {
-    if (!edit && branchId) {
+    if (!edit && activeBranchId) {
       setForm((current) => ({
         ...current,
-        branch: String(branchId),
+        branch: activeBranchId,
       }));
     }
-  }, [branchId, edit]);
+  }, [activeBranchId, edit]);
 
-  const { data: supplierResponse } = useQuery({
-    queryKey: ["supplier-options", "purchase-order-form", form.branch],
+  const {
+    data: supplierResponse,
+    isLoading: suppliersLoading,
+    isError: suppliersError,
+    refetch: refetchSuppliers,
+  } = useQuery({
+    queryKey: ["supplier-options", "purchase-order-form", form.branch || null],
     queryFn: async () =>
-      unwrap(
+      normalizePayload(
         await api.get("/suppliers/", {
           params: {
             page_size: 500,
@@ -123,14 +185,18 @@ export default function POFormPage() {
             ordering: "supplier_name",
             branch: form.branch || undefined,
           },
+          skipGlobalErrorToast: true,
         }),
       ),
+    enabled: Boolean(form.branch),
+    staleTime: 0,
+    retry: false,
   });
 
   const { data: branchResponse } = useQuery({
     queryKey: ["branch-options", "purchase-order-form"],
     queryFn: async () =>
-      unwrap(
+      normalizePayload(
         await api.get("/branches/", {
           params: {
             page_size: 500,
@@ -144,7 +210,7 @@ export default function POFormPage() {
   const { data: productResponse } = useQuery({
     queryKey: ["product-options", "purchase-order-form", form.branch],
     queryFn: async () =>
-      unwrap(
+      normalizePayload(
         await api.get("/products/", {
           params: {
             page_size: 500,
@@ -163,10 +229,58 @@ export default function POFormPage() {
     staleTime: 0,
   });
 
-  const suppliers = React.useMemo(
-    () => normalizeList(supplierResponse),
-    [supplierResponse],
-  );
+  const suppliers = React.useMemo(() => {
+    const merged = new Map();
+
+    normalizeList(supplierResponse).forEach((supplier) => {
+      if (!supplier?.id) {
+        return;
+      }
+
+      const supplierBranchId = getRelationId(
+        supplier.branch,
+        supplier.branch_id,
+      );
+
+      if (
+        form.branch &&
+        supplierBranchId &&
+        String(supplierBranchId) !== String(form.branch)
+      ) {
+        return;
+      }
+
+      merged.set(String(supplier.id), supplier);
+    });
+
+    if (edit && existing?.supplier) {
+      const existingSupplierId = getRelationId(
+        existing.supplier,
+        existing.supplier_id,
+      );
+
+      if (existingSupplierId && !merged.has(String(existingSupplierId))) {
+        merged.set(String(existingSupplierId), {
+          id: existingSupplierId,
+          supplier_name:
+            existing.supplier_name ||
+            existing.supplier?.supplier_name ||
+            existing.supplier?.name ||
+            `Supplier ${existingSupplierId}`,
+          supplier_code:
+            existing.supplier_code || existing.supplier?.supplier_code || "",
+          contact_person: existing.supplier?.contact_person || "",
+          email: existing.supplier?.email || "",
+          branch_id: getRelationId(existing.branch, existing.branch_id),
+          payment_terms_days: existing.supplier?.payment_terms_days || 0,
+          credit_limit: existing.supplier?.credit_limit || 0,
+          outstanding_balance: existing.supplier?.outstanding_balance || 0,
+        });
+      }
+    }
+
+    return Array.from(merged.values());
+  }, [supplierResponse, form.branch, edit, existing]);
 
   const filteredSuppliers = React.useMemo(() => {
     const search = supplierSearch.trim().toLowerCase();
@@ -197,10 +311,12 @@ export default function POFormPage() {
 
   const branches = React.useMemo(
     () =>
-      branchId
-        ? allBranches.filter((branch) => String(branch.id) === String(branchId))
+      activeBranchId
+        ? allBranches.filter(
+            (branch) => String(branch.id) === String(activeBranchId),
+          )
         : allBranches,
-    [allBranches, branchId],
+    [allBranches, activeBranchId],
   );
 
   const products = React.useMemo(
@@ -229,8 +345,8 @@ export default function POFormPage() {
 
     setForm({
       po_number: existing.po_number || "",
-      supplier: String(existing.supplier?.id || existing.supplier || ""),
-      branch: String(existing.branch?.id || existing.branch || ""),
+      supplier: String(getRelationId(existing.supplier, existing.supplier_id)),
+      branch: String(getRelationId(existing.branch, existing.branch_id)),
       order_date: existing.order_date || today(),
       expected_delivery_date: existing.expected_delivery_date || "",
       currency: existing.currency || "AED",
@@ -367,8 +483,26 @@ export default function POFormPage() {
   const validate = () => {
     const next = {};
 
-    if (!form.supplier) next.supplier = "Supplier is required.";
-    if (!form.branch) next.branch = "Branch is required.";
+    if (!form.branch) {
+      next.branch = "Branch is required.";
+    }
+
+    if (!form.supplier) {
+      next.supplier = "Supplier is required.";
+    } else if (selectedSupplier) {
+      const supplierBranchId = getRelationId(
+        selectedSupplier.branch,
+        selectedSupplier.branch_id,
+      );
+
+      if (
+        supplierBranchId &&
+        String(supplierBranchId) !== String(form.branch)
+      ) {
+        next.supplier =
+          "Selected supplier does not belong to the selected branch.";
+      }
+    }
     if (!form.order_date) next.order_date = "Order date is required.";
     if (!form.expected_delivery_date) {
       next.expected_delivery_date = "Expected delivery is required.";
@@ -433,6 +567,10 @@ export default function POFormPage() {
         }),
         queryClient.invalidateQueries({
           queryKey: ["purchase-orders-summary"],
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: ["supplier-options"],
         }),
       ]);
 
@@ -534,6 +672,7 @@ export default function POFormPage() {
                   className="mt-2"
                   value={supplierSearch}
                   autoComplete="off"
+                  disabled={!form.branch || suppliersLoading}
                   onFocus={() => setSupplierSearchOpen(true)}
                   onChange={(event) => {
                     const value = event.target.value;
@@ -594,7 +733,23 @@ export default function POFormPage() {
                       ))
                     ) : (
                       <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                        No suppliers match your search.
+                        {suppliersLoading
+                          ? "Loading suppliers..."
+                          : suppliersError
+                            ? "Unable to load suppliers."
+                            : !form.branch
+                              ? "Select a branch to load suppliers."
+                              : "No active suppliers are available for this branch."}
+
+                        {suppliersError ? (
+                          <button
+                            type="button"
+                            className="mt-2 block w-full text-xs font-medium text-blue-600"
+                            onClick={() => refetchSuppliers()}
+                          >
+                            Retry supplier loading
+                          </button>
+                        ) : null}
                       </div>
                     )}
                   </div>
@@ -645,8 +800,32 @@ export default function POFormPage() {
                 <Label>Branch</Label>
                 <Select
                   value={form.branch}
-                  onValueChange={(value) => updateForm("branch", value)}
-                  disabled={Boolean(branchId)}
+                  onValueChange={(value) => {
+                    setSupplierSearch("");
+                    setSupplierSearchOpen(false);
+                    setProductSearches({});
+                    setProductSearchOpen({});
+
+                    setForm((current) => ({
+                      ...current,
+                      branch: value,
+                      supplier: "",
+                      items: current.items.map((item) => ({
+                        ...item,
+                        product: "",
+                        variant: "",
+                        unit_price: 0,
+                      })),
+                    }));
+
+                    setErrors((current) => ({
+                      ...current,
+                      branch: "",
+                      supplier: "",
+                      items: "",
+                    }));
+                  }}
+                  disabled={Boolean(activeBranchId)}
                 >
                   <SelectTrigger className="mt-2">
                     <SelectValue placeholder="Select branch" />
