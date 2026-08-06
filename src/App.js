@@ -147,6 +147,13 @@ import PayrollPage from "@/features/hrms/PayrollPage";
 import PayslipPage from "@/features/hrms/PayslipPage";
 import SalaryHistoryPage from "@/features/hrms/SalaryHistoryPage";
 import DocumentExpiryPage from "@/features/hrms/DocumentExpiryPage";
+import FleetDashboardPage from "@/features/fleet/FleetDashboardPage";
+import VehicleListPage from "@/features/fleet/VehicleListPage";
+import VehicleFormPage from "@/features/fleet/VehicleFormPage";
+import VehicleCheckoutPage from "@/features/fleet/VehicleCheckoutPage";
+import TripLogPage from "@/features/fleet/TripLogPage";
+import ServiceManagementPage from "@/features/serviceRepairs/ServiceManagementPage";
+import ServiceHistoryPage from "@/features/serviceRepairs/ServiceHistoryPage";
 
 /* -------------------------------------------------------------------------- */
 /* Finance                                                                    */
@@ -834,6 +841,24 @@ export default function App() {
                     <BranchConsolidationPage />
                   </ProtectedRoute>
                 }
+              />
+
+              {/* Fleet Management */}
+              <Route path="/fleet" element={<FleetDashboardPage />} />
+              <Route path="/fleet/vehicles" element={<VehicleListPage />} />
+              <Route path="/fleet/vehicles/new" element={<VehicleFormPage />} />
+              <Route path="/fleet/checkout" element={<VehicleCheckoutPage />} />
+              <Route path="/fleet/returns" element={<VehicleCheckoutPage />} />
+              <Route path="/fleet/trips" element={<TripLogPage />} />
+
+              {/* Service & Repair */}
+              <Route
+                path="/service-repairs"
+                element={<ServiceManagementPage />}
+              />
+              <Route
+                path="/service-repairs/history"
+                element={<ServiceHistoryPage />}
               />
 
               {/* Reports */}

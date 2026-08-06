@@ -8,6 +8,7 @@ import {
   Calculator,
   CalendarCheck,
   CalendarDays,
+  CarFront,
   FileSpreadsheet,
   FileText,
   GitBranch,
@@ -34,6 +35,7 @@ import {
   Users,
   Wallet,
   WalletCards,
+  Wrench,
 } from "lucide-react";
 
 import { canAccessModule, hasPermission, isAdmin } from "@/lib/permissions";
@@ -498,6 +500,74 @@ export const modules = [
         to: "/hrms/document-expiry",
         icon: ShieldAlert,
         permission: "hrms.documents.view",
+      },
+    ],
+  },
+
+  {
+    id: "fleet",
+    key: "fleet",
+    order: 7,
+    title: "Fleet Management",
+    shortTitle: "Fleet",
+    description:
+      "Manage company vehicles, checkouts, returns, mileage, drivers, expenses, and trip logs.",
+    icon: CarFront,
+    path: "/fleet",
+    landingPath: "/fleet",
+    color: "cyan",
+    items: [
+      {
+        id: "fleet-vehicles",
+        label: "Vehicles",
+        to: "/fleet/vehicles",
+        icon: CarFront,
+      },
+      {
+        id: "fleet-add-vehicle",
+        label: "Add Vehicle",
+        to: "/fleet/vehicles/new",
+        icon: PackagePlus,
+      },
+      {
+        id: "fleet-movements",
+        label: "Checkout & Return",
+        to: "/fleet/checkout",
+        icon: CarFront,
+      },
+      {
+        id: "fleet-trip-logs",
+        label: "Trip Logs",
+        to: "/fleet/trips",
+        icon: History,
+      },
+    ],
+  },
+
+  {
+    id: "service-repairs",
+    key: "service-repairs",
+    order: 8,
+    title: "Service & Repair",
+    shortTitle: "Service",
+    description:
+      "Manage laptop and device intake, diagnosis, technician work, parts, charges, completion, and service history.",
+    icon: Wrench,
+    path: "/service-repairs",
+    landingPath: "/service-repairs",
+    color: "indigo",
+    items: [
+      {
+        id: "service-management",
+        label: "Service List & Management",
+        to: "/service-repairs",
+        icon: Wrench,
+      },
+      {
+        id: "service-history",
+        label: "Service History",
+        to: "/service-repairs/history",
+        icon: History,
       },
     ],
   },
