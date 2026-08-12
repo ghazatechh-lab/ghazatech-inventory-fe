@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 
 const normalizeList = (value) => {
   if (Array.isArray(value)) return value;
@@ -83,7 +84,7 @@ const createForm = (branchId) => ({
 
 export default function DeliveryNotesPage() {
   const queryClient = useQueryClient();
-  const branchId = "";
+  const { branchId, branchParams } = useActiveBranchFilter();
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState(() => createForm(branchId));
   const [errors, setErrors] = React.useState({});
@@ -91,22 +92,27 @@ export default function DeliveryNotesPage() {
   const { query, q, setQ, page, setPage } = useListQuery(
     "delivery-notes",
     "/sales/delivery-notes/",
-    {},
+    branchParams,
   );
 
   const { data: optionsResponse } = useQuery({
-    queryKey: ["delivery-note-form-options"],
+    queryKey: ["delivery-note-form-options", branchId],
     queryFn: async () =>
-      unwrap(await api.get("/sales/delivery-notes/form-options/")),
+      unwrap(
+        await api.get("/sales/delivery-notes/form-options/", {
+          params: branchParams,
+        }),
+      ),
     enabled: open,
   });
 
   const { data: orderDetail } = useQuery({
-    queryKey: ["delivery-note-order-options", form.sales_order],
+    queryKey: ["delivery-note-order-options", form.sales_order, branchId],
     queryFn: async () =>
       unwrap(
         await api.get(
           `/sales/delivery-notes/order-options/${form.sales_order}/`,
+          { params: branchParams },
         ),
       ),
     enabled: open && Boolean(form.sales_order),
@@ -130,6 +136,17 @@ export default function DeliveryNotesPage() {
       //   );
     }
   }, [query.data, query.error, payload.results]);
+
+  React.useEffect(() => {
+    setForm((current) => ({
+      ...current,
+      branch: branchId ? String(branchId) : "",
+      sales_order: "",
+      customer: "",
+      invoice: "",
+      items: [],
+    }));
+  }, [branchId]);
 
   React.useEffect(() => {
     if (!orderDetail) return;

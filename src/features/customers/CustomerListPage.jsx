@@ -11,17 +11,21 @@ import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { SalesDocumentFlow } from "@/components/sales/SalesDocumentFlow";
 import { MetricCard } from "@/components/sales/MetricCard";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 
 export default function CustomerListPage() {
+  const { branchId, branchParams } = useActiveBranchFilter();
+
   const { query, q, setQ, page, setPage } = useListQuery(
     "customers",
     "/customers/",
-    {},
+    branchParams,
   );
 
   const { data: summaryResponse } = useQuery({
-    queryKey: ["customers-summary"],
-    queryFn: async () => unwrap(await api.get("/customers/summary/")),
+    queryKey: ["customers-summary", branchId],
+    queryFn: async () =>
+      unwrap(await api.get("/customers/summary/", { params: branchParams })),
     retry: false,
   });
 
@@ -30,6 +34,7 @@ export default function CustomerListPage() {
 
   const exportRows = async () => {
     const response = await api.get("/customers/export/", {
+      params: branchParams,
       responseType: "blob",
     });
 

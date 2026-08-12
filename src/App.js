@@ -154,6 +154,7 @@ import VehicleCheckoutPage from "@/features/fleet/VehicleCheckoutPage";
 import TripLogPage from "@/features/fleet/TripLogPage";
 import ServiceManagementPage from "@/features/serviceRepairs/ServiceManagementPage";
 import ServiceHistoryPage from "@/features/serviceRepairs/ServiceHistoryPage";
+import SalaryCertificatesPage from "@/features/hrms/SalaryCertificatesPage";
 
 /* -------------------------------------------------------------------------- */
 /* Finance                                                                    */
@@ -715,6 +716,15 @@ export default function App() {
                 element={
                   <ProtectedRoute allow={["ADMIN"]}>
                     <SalaryHistoryPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/hrms/salary-certificates"
+                element={
+                  <ProtectedRoute allow={["ADMIN"]}>
+                    <SalaryCertificatesPage />
                   </ProtectedRoute>
                 }
               />

@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 
 const defaults = {
   customer_name: "",
@@ -91,6 +92,7 @@ export default function CustomerFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { branchId, branchParams } = useActiveBranchFilter();
   const isEdit = Boolean(id);
   const backTarget = isEdit ? `/customers/${id}` : "/customers";
 
@@ -104,8 +106,9 @@ export default function CustomerFormPage() {
   } = useForm({ defaultValues: defaults });
 
   const customerQuery = useQuery({
-    queryKey: ["customer", id],
-    queryFn: async () => unwrap(await api.get(`/customers/${id}/`)),
+    queryKey: ["customer", id, branchId],
+    queryFn: async () =>
+      unwrap(await api.get(`/customers/${id}/`, { params: branchParams })),
     enabled: isEdit,
     staleTime: 0,
     retry: false,
@@ -124,14 +127,20 @@ export default function CustomerFormPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (values) => {
+      if (!branchId) {
+        throw new Error("Select a branch before saving a customer.");
+      }
+
       const payload = {
         ...values,
+        branch: Number(branchId),
         credit_limit: Number(values.credit_limit || 0),
         payment_terms_days: Number(values.payment_terms_days || 0),
       };
 
       return isEdit
         ? api.patch(`/customers/${id}/`, payload, {
+            params: branchParams,
             skipGlobalErrorToast: true,
           })
         : api.post("/customers/", payload, {

@@ -5,6 +5,7 @@ import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/select";
 
 export default function InlineCustomerDialog({ onCreated }) {
+  const { branchId } = useActiveBranchFilter();
   const [open, setOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [form, setForm] = React.useState({
@@ -36,7 +38,9 @@ export default function InlineCustomerDialog({ onCreated }) {
       return toast.error("Customer name is required.");
     setSaving(true);
     try {
-      const customer = unwrap(await api.post("/customers/", form));
+      const customer = unwrap(
+        await api.post("/customers/", { ...form, branch: Number(branchId) }),
+      );
       onCreated?.(customer);
       toast.success("Customer added successfully.");
       setOpen(false);

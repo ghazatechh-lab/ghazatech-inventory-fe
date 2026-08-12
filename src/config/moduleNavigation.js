@@ -36,6 +36,7 @@ import {
   Wallet,
   WalletCards,
   Wrench,
+  FileBadge2,
 } from "lucide-react";
 
 import { canAccessModule, hasPermission, isAdmin } from "@/lib/permissions";
@@ -260,27 +261,6 @@ export const modules = [
         permission: "sales.orders.view",
       },
       {
-        id: "sales-delivery-notes",
-        label: "Delivery Notes",
-        to: "/sales/delivery-notes",
-        icon: Truck,
-        permission: "sales.orders.view",
-      },
-      {
-        id: "sales-returns",
-        label: "Sales Returns",
-        to: "/sales/returns",
-        icon: RotateCcw,
-        permission: "sales.returns.view",
-      },
-      {
-        id: "sales-price-lists",
-        label: "Price Lists & Discounts",
-        to: "/sales/price-lists",
-        icon: Tag,
-        permission: "sales.price_lists.view",
-      },
-      {
         id: "sales-invoices",
         label: "Invoices",
         to: "/sales/invoices",
@@ -295,6 +275,13 @@ export const modules = [
         permission: "sales.pos.view",
       },
       {
+        id: "sales-delivery-notes",
+        label: "Delivery Notes",
+        to: "/sales/delivery-notes",
+        icon: Truck,
+        permission: "sales.orders.view",
+      },
+      {
         id: "sales-payments",
         label: "Sales Payments",
         to: "/sales/payments",
@@ -302,11 +289,18 @@ export const modules = [
         permission: "sales.sales_payments.view",
       },
       {
-        id: "sales-credit-notes",
-        label: "Credit Notes",
-        to: "/sales/credit-notes",
+        id: "sales-returns",
+        label: "Sales Returns",
+        to: "/sales/returns",
         icon: RotateCcw,
-        permission: "sales.credit_notes.view",
+        permission: "sales.returns.view",
+      },
+      {
+        id: "sales-price-lists",
+        label: "Price Lists & Discounts",
+        to: "/sales/price-lists",
+        icon: Tag,
+        permission: "sales.price_lists.view",
       },
     ],
   },
@@ -493,6 +487,12 @@ export const modules = [
         to: "/hrms/salary-history",
         icon: History,
         permission: "hrms.salary_history.view",
+      },
+      {
+        to: "/hrms/salary-certificates",
+        label: "Salary Certificates",
+        icon: FileBadge2,
+        adminOnly: true,
       },
       {
         id: "hrms-document-expiry",

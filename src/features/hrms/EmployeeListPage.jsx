@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Plus, Users } from "lucide-react";
+import { FileBadge2, Plus, Users } from "lucide-react";
 
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -12,10 +12,7 @@ import { ListingRowActions } from "@/components/common/ListingRowActions";
 
 const normalizePayload = (value) => {
   if (Array.isArray(value)) {
-    return {
-      results: value,
-      count: value.length,
-    };
+    return { results: value, count: value.length };
   }
 
   if (Array.isArray(value?.results)) {
@@ -44,7 +41,6 @@ const normalizePayload = (value) => {
   if (Array.isArray(value?.data?.data?.results)) {
     return {
       results: value.data.data.results,
-
       count: Number(
         value.data.data.count ??
           value.data.count ??
@@ -54,10 +50,7 @@ const normalizePayload = (value) => {
     };
   }
 
-  return {
-    results: [],
-    count: 0,
-  };
+  return { results: [], count: 0 };
 };
 
 export default function EmployeeListPage() {
@@ -70,20 +63,11 @@ export default function EmployeeListPage() {
   );
 
   const previousBranchId = React.useRef(branchId);
-
   const data = React.useMemo(() => normalizePayload(query.data), [query.data]);
 
-  /*
-   * Reset to page 1 only when the selected branch actually changes.
-   *
-   * Do not include setPage in an effect dependency array because some
-   * custom hooks return a new setter wrapper during each render. That
-   * would continuously reset pagination to page 1.
-   */
   React.useEffect(() => {
     if (previousBranchId.current !== branchId) {
       previousBranchId.current = branchId;
-
       setPage(1);
     }
   }, [branchId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -99,7 +83,6 @@ export default function EmployeeListPage() {
           </span>
         ),
       },
-
       {
         key: "employee",
         header: "Employee",
@@ -132,20 +115,17 @@ export default function EmployeeListPage() {
           </Link>
         ),
       },
-
       {
         key: "department_name",
         header: "Department",
         cell: (row) => row.department_name || "—",
       },
-
       {
         key: "branch_name",
         header: "Branch",
         cell: (row) => (
           <div>
             <p className="font-medium">{row.branch_name || "Unassigned"}</p>
-
             {row.branch_code && (
               <p className="mt-0.5 text-xs text-muted-foreground">
                 {row.branch_code}
@@ -154,44 +134,52 @@ export default function EmployeeListPage() {
           </div>
         ),
       },
-
       {
         key: "passport_number",
         header: "Passport",
         cell: (row) => row.passport_number || "—",
       },
-
       {
         key: "emirates_id_number",
         header: "Emirates ID",
         cell: (row) => row.emirates_id_number || "—",
       },
-
       {
         key: "total_salary",
         header: "Package",
         align: "right",
         cell: (row) => <CurrencyText value={row.total_salary} />,
       },
-
       {
         key: "employment_status",
         header: "Status",
         cell: (row) => <StatusBadge status={row.employment_status} />,
       },
-
       {
         key: "actions",
         header: "Actions",
         align: "right",
         cell: (row) => (
-          <ListingRowActions
-            viewTo={`/hrms/employees/${row.id}`}
-            editTo={`/hrms/employees/${row.id}/edit`}
-            deleteUrl={`/hrms/employees/${row.id}/`}
-            queryKey="employees"
-            itemLabel={row.full_name}
-          />
+          <div className="flex items-center justify-end gap-1">
+            <Button
+              asChild
+              size="icon"
+              variant="ghost"
+              title="Salary Certificate"
+            >
+              <Link to={`/hrms/salary-certificates?employee=${row.id}`}>
+                <FileBadge2 className="h-4 w-4" />
+              </Link>
+            </Button>
+
+            <ListingRowActions
+              viewTo={`/hrms/employees/${row.id}`}
+              editTo={`/hrms/employees/${row.id}/edit`}
+              deleteUrl={`/hrms/employees/${row.id}/`}
+              queryKey="employees"
+              itemLabel={row.full_name}
+            />
+          </div>
         ),
       },
     ],
@@ -214,7 +202,7 @@ export default function EmployeeListPage() {
   );
 
   return (
-    <div className="hrms-module-page hrms-workspace space-y-5">
+    <div className="space-y-5">
       <PageHeader
         title="Employees"
         subtitle={
@@ -223,12 +211,24 @@ export default function EmployeeListPage() {
             : "Employees assigned to the selected branch"
         }
         actions={
-          <Button asChild className="bg-blue-600 text-white hover:bg-blue-700">
-            <Link to="/hrms/employees/new">
-              <Plus className="mr-2 h-4 w-4" />
-              New Employee
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link to="/hrms/salary-certificates">
+                <FileBadge2 className="mr-2 h-4 w-4" />
+                Salary Certificates
+              </Link>
+            </Button>
+
+            <Button
+              asChild
+              className="bg-blue-600 text-white hover:bg-blue-700"
+            >
+              <Link to="/hrms/employees/new">
+                <Plus className="mr-2 h-4 w-4" />
+                New Employee
+              </Link>
+            </Button>
+          </div>
         }
       />
 

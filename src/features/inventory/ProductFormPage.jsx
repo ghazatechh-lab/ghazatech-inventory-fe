@@ -503,24 +503,84 @@ export default function ProductFormPage() {
         i === index ? { ...variant, [field]: value } : variant,
       ),
     );
-  const addVariant = () =>
+  const getVariantCombinationError = (variant, index) => {
+    const combinationNumber = index + 1;
+    const attributes = variant.attributes || [];
+
+    if (!attributes.length) {
+      return `Complete attribute combination ${combinationNumber} first.`;
+    }
+
+    const hasEmptyAttribute = attributes.some(
+      (attribute) =>
+        !String(attribute.name || "").trim() ||
+        !String(attribute.value || "").trim(),
+    );
+
+    if (hasEmptyAttribute) {
+      return `Complete all attribute names and values in combination ${combinationNumber} first.`;
+    }
+
+    const normalizedNames = attributes.map((attribute) =>
+      String(attribute.name || "")
+        .trim()
+        .toLowerCase(),
+    );
+
+    if (new Set(normalizedNames).size !== normalizedNames.length) {
+      return `Combination ${combinationNumber} contains duplicate attribute names.`;
+    }
+
+    return "";
+  };
+
+  const addVariant = () => {
+    const invalidIndex = variants.findIndex((variant, index) =>
+      Boolean(getVariantCombinationError(variant, index)),
+    );
+
+    if (invalidIndex !== -1) {
+      toast.error(
+        getVariantCombinationError(variants[invalidIndex], invalidIndex),
+      );
+      return;
+    }
+
     setVariants((current) => [
       ...current,
       { ...emptyBaseStock, attributes: [{ name: "", value: "" }] },
     ]);
+  };
   const removeVariant = (index) =>
     setVariants((current) => current.filter((_, i) => i !== index));
-  const addAttribute = (variantIndex) =>
+  const addAttribute = (variantIndex) => {
+    const variant = variants[variantIndex];
+    const attributes = variant?.attributes || [];
+
+    const hasIncompleteAttribute = attributes.some(
+      (attribute) =>
+        !String(attribute.name || "").trim() ||
+        !String(attribute.value || "").trim(),
+    );
+
+    if (hasIncompleteAttribute) {
+      toast.error(
+        `Complete the existing attribute in combination ${variantIndex + 1} first.`,
+      );
+      return;
+    }
+
     setVariants((current) =>
-      current.map((variant, i) =>
+      current.map((item, i) =>
         i === variantIndex
           ? {
-              ...variant,
-              attributes: [...variant.attributes, { name: "", value: "" }],
+              ...item,
+              attributes: [...item.attributes, { name: "", value: "" }],
             }
-          : variant,
+          : item,
       ),
     );
+  };
   const updateAttribute = (variantIndex, attributeIndex, field, value) =>
     setVariants((current) =>
       current.map((variant, i) =>

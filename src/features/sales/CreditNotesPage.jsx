@@ -8,7 +8,6 @@ import { useAuth } from "@/lib/auth";
 import {
   calculateTaxLine,
   canManageSalesVat,
-  canManageRestrictedStock,
   canUseNonVatSale,
 } from "@/lib/taxAccess";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
@@ -89,8 +88,6 @@ export default function CreditNotesPage() {
   const canManageTax = canManageSalesVat(user);
 
   const canUseNonVat = canUseNonVatSale(user);
-
-  const canManageRestricted = canManageRestrictedStock(user);
 
   const { branchId, branchParams } = useActiveBranchFilter();
 
@@ -181,7 +178,6 @@ export default function CreditNotesPage() {
         tax_rate: number(item.tax_rate ?? item.vat_percentage ?? 5),
         tax_treatment: item.tax_treatment || "STANDARD_VAT",
         tax_reason: item.tax_reason || "",
-        stock_classification: item.stock_classification || "REGULAR",
         tax_inclusive: Boolean(invoiceDetail.tax_inclusive),
       })),
     }));
@@ -216,7 +212,6 @@ export default function CreditNotesPage() {
         tax_rate: number(item.tax_rate ?? item.vat_percentage ?? 5),
         tax_treatment: item.tax_treatment || "STANDARD_VAT",
         tax_reason: item.tax_reason || "",
-        stock_classification: item.stock_classification || "REGULAR",
         tax_inclusive: Boolean(existing.tax_inclusive),
       })),
     });
@@ -368,9 +363,6 @@ export default function CreditNotesPage() {
           tax_rate: number(item.tax_rate ?? item.vat_percentage ?? 5),
           tax_treatment: canManageTax ? item.tax_treatment : "STANDARD_VAT",
           tax_reason: canManageTax ? String(item.tax_reason || "").trim() : "",
-          stock_classification: canManageRestricted
-            ? item.stock_classification
-            : "REGULAR",
           tax_inclusive: Boolean(item.tax_inclusive),
         })),
       };
@@ -782,13 +774,12 @@ export default function CreditNotesPage() {
                               {" / unit"}
                             </p>
 
-                            {(canUseNonVat || canManageRestricted) && (
+                            {canUseNonVat && (
                               <div className="mt-2">
                                 <SalesVatLineControls
                                   item={item}
                                   canManageTax={canManageTax}
                                   canUseNonVat={canUseNonVat}
-                                  canManageRestricted={canManageRestricted}
                                   readOnly
                                   onChange={() => {}}
                                 />

@@ -5,6 +5,7 @@ import { ArrowRight, Download, Edit } from "lucide-react";
 import { toast } from "sonner";
 
 import api, { unwrap } from "@/lib/api";
+import { downloadSalesPdf } from "@/lib/salesPdf";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
@@ -22,6 +23,17 @@ const numberValue = (value) => {
   const parsed = Number(value || 0);
   return Number.isFinite(parsed) ? parsed : 0;
 };
+
+const getEntityId = (value) => {
+  if (value === null || value === undefined || value === "") return "";
+  if (typeof value === "object") return String(value.id || "");
+  return String(value);
+};
+
+const isQuotationEditLocked = (status) =>
+  ["CONVERTED", "CANCELLED"].includes(
+    String(status || "").toUpperCase(),
+  );
 
 const getItemProductName = (item) =>
   item?.product_name ||
@@ -83,6 +95,16 @@ export default function QuotationDetailPage() {
     staleTime: 0,
   });
 
+  const quotationCustomerId = getEntityId(quotation?.customer);
+
+  const { data: customerDetail } = useQuery({
+    queryKey: ["quotation-pdf-customer", quotationCustomerId],
+    queryFn: async () =>
+      unwrap(await api.get(`/customers/${quotationCustomerId}/`)),
+    enabled: Boolean(quotationCustomerId),
+    staleTime: 60_000,
+  });
+
   const convert = useMutation({
     mutationFn: async () =>
       api.post(`/sales/quotations/${id}/convert-to-order/`),
@@ -108,6 +130,40 @@ export default function QuotationDetailPage() {
   }
 
   const items = getQuotationItems(quotation);
+  const editLocked = isQuotationEditLocked(quotation.status);
+
+  const downloadQuotationPdf = () => {
+    try {
+      downloadSalesPdf({
+        type: "QUOTATION",
+        number: quotation.quote_number || "DRAFT",
+        date: quotation.quote_date,
+        secondaryLabel: "Valid Until",
+        secondaryValue: quotation.valid_until,
+        paymentTerms: quotation.payment_terms,
+        customer:
+          customerDetail || {
+            customer_name: quotation.customer_name || "Customer",
+          },
+        items,
+        products: [],
+        subtotal: quotation.subtotal,
+        vatAmount: quotation.vat_amount,
+        discountAmount: quotation.discount_amount,
+        shippingAmount: quotation.shipping_amount,
+        total: quotation.total_amount,
+        currency: quotation.currency || "AED",
+        notes: quotation.notes,
+        deliveryTerms: quotation.delivery_terms,
+        status: quotation.status,
+      });
+
+      toast.success("Quotation PDF downloaded.");
+    } catch (error) {
+      console.error("[Quotation Detail PDF] Failed:", error);
+      toast.error("Unable to generate quotation PDF.");
+    }
+  };
 
   return (
     <div className="sales-module-page sales-workspace mx-auto max-w-6xl space-y-5">
@@ -116,21 +172,30 @@ export default function QuotationDetailPage() {
         subtitle="Quotation details and customer pricing"
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={downloadQuotationPdf}
+            >
               <Download className="mr-2 h-4 w-4" />
-              Export PDF
+              Download PDF
             </Button>
 
-            <Button asChild variant="outline">
-              <Link to={`/sales/quotations/${id}/edit`}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit
-              </Link>
-            </Button>
+            {!editLocked && (
+              <Button asChild variant="outline">
+                <Link to={`/sales/quotations/${id}/edit`}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </Link>
+              </Button>
+            )}
 
-            {!["CONVERTED", "REJECTED", "EXPIRED"].includes(
-              quotation.status,
-            ) && (
+            {![
+              "CONVERTED",
+              "CANCELLED",
+              "REJECTED",
+              "EXPIRED",
+            ].includes(String(quotation.status || "").toUpperCase()) && (
               <Button
                 type="button"
                 onClick={() => convert.mutate()}
@@ -144,6 +209,16 @@ export default function QuotationDetailPage() {
           </div>
         }
       />
+
+      {editLocked && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
+          <p className="font-semibold">This quotation is read-only.</p>
+          <p className="mt-1 text-xs leading-5">
+            {String(quotation.status || "").replaceAll("_", " ")} quotations
+            cannot be edited.
+          </p>
+        </div>
+      )}
 
       <section className="card-surface p-5">
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">

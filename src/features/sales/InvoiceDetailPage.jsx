@@ -5,10 +5,22 @@ import { Download, Edit, Mail } from "lucide-react";
 import { toast } from "sonner";
 
 import api, { unwrap } from "@/lib/api";
+import { downloadSalesPdf } from "@/lib/salesPdf";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
+
+const getEntityId = (value) => {
+  if (value === null || value === undefined || value === "") return "";
+  if (typeof value === "object") return String(value.id || "");
+  return String(value);
+};
+
+const isInvoiceEditLocked = (paymentStatus) =>
+  ["PAID", "VOID"].includes(
+    String(paymentStatus || "").toUpperCase(),
+  );
 
 export default function InvoiceDetailPage() {
   const { id } = useParams();
@@ -17,6 +29,16 @@ export default function InvoiceDetailPage() {
   const { data: invoice, isLoading } = useQuery({
     queryKey: ["sales-invoice", id],
     queryFn: async () => unwrap(await api.get(`/sales/invoices/${id}/`)),
+  });
+
+  const invoiceCustomerId = getEntityId(invoice?.customer);
+
+  const { data: customerDetail } = useQuery({
+    queryKey: ["invoice-pdf-customer", invoiceCustomerId],
+    queryFn: async () =>
+      unwrap(await api.get(`/customers/${invoiceCustomerId}/`)),
+    enabled: Boolean(invoiceCustomerId),
+    staleTime: 60_000,
   });
 
   const sendReminder = useMutation({
@@ -39,6 +61,42 @@ export default function InvoiceDetailPage() {
     return <div className="card-surface p-6">Invoice not found.</div>;
   }
 
+  const downloadInvoicePdf = () => {
+    try {
+      downloadSalesPdf({
+        type: "INVOICE",
+        number: invoice.invoice_number || "DRAFT",
+        date: invoice.invoice_date,
+        secondaryLabel: "Due Date",
+        secondaryValue: invoice.due_date,
+        paymentTerms: invoice.payment_terms,
+        customerPo: invoice.customer_po_number,
+        customer:
+          customerDetail || {
+            customer_name: invoice.customer_name || "Customer",
+          },
+        items: invoice.items || [],
+        products: [],
+        subtotal: invoice.subtotal,
+        vatAmount: invoice.vat_amount,
+        discountAmount: invoice.discount_amount,
+        shippingAmount: invoice.shipping_amount,
+        paidAmount: invoice.paid_amount,
+        total: invoice.total_amount,
+        currency: invoice.currency || "AED",
+        notes: invoice.notes,
+        status: invoice.payment_status || invoice.status,
+      });
+
+      toast.success("Invoice PDF downloaded.");
+    } catch (error) {
+      console.error("[Invoice Detail PDF] Failed:", error);
+      toast.error("Unable to generate invoice PDF.");
+    }
+  };
+
+  const editLocked = isInvoiceEditLocked(invoice.payment_status);
+
   return (
     <div className="sales-module-page sales-workspace mx-auto max-w-6xl space-y-5">
       <PageHeader
@@ -46,9 +104,13 @@ export default function InvoiceDetailPage() {
         subtitle="Invoice details, balance, and payment status"
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={downloadInvoicePdf}
+            >
               <Download className="mr-2 h-4 w-4" />
-              Export PDF
+              Download PDF
             </Button>
 
             <Button
@@ -61,18 +123,30 @@ export default function InvoiceDetailPage() {
               Send Reminder
             </Button>
 
-            <Button
-              asChild
-              className="bg-blue-600 text-white hover:bg-blue-700"
-            >
-              <Link to={`/sales/invoices/${id}/edit`}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit
-              </Link>
-            </Button>
+            {!editLocked && (
+              <Button
+                asChild
+                className="bg-blue-600 text-white hover:bg-blue-700"
+              >
+                <Link to={`/sales/invoices/${id}/edit`}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </Link>
+              </Button>
+            )}
           </div>
         }
       />
+
+      {editLocked && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
+          <p className="font-semibold">This invoice is read-only.</p>
+          <p className="mt-1 text-xs leading-5">
+            {String(invoice.payment_status || "").replaceAll("_", " ")} invoices
+            cannot be edited.
+          </p>
+        </div>
+      )}
 
       <section className="card-surface p-5">
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">

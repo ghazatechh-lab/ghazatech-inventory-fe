@@ -22,6 +22,7 @@ import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { DataTable } from "@/components/common/DataTable";
 import { Button } from "@/components/ui/button";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 
 const normalizeList = (value) => {
   if (Array.isArray(value)) return value;
@@ -83,32 +84,46 @@ function DetailRow({ label, children }) {
 
 export default function CustomerDetailPage() {
   const { id } = useParams();
+  const { branchId, branchParams } = useActiveBranchFilter();
 
   const customerQuery = useQuery({
-    queryKey: ["customer", id],
-    queryFn: async () => unwrap(await api.get(`/customers/${id}/`)),
+    queryKey: ["customer", id, branchId],
+    queryFn: async () =>
+      unwrap(await api.get(`/customers/${id}/`, { params: branchParams })),
     enabled: Boolean(id),
     retry: false,
   });
 
   const historyQuery = useQuery({
-    queryKey: ["cust-sales", id],
+    queryKey: ["cust-sales", id, branchId],
     queryFn: async () =>
-      unwrap(await api.get(`/customers/${id}/sales-history/`)),
+      unwrap(
+        await api.get(`/customers/${id}/sales-history/`, {
+          params: branchParams,
+        }),
+      ),
     enabled: Boolean(id),
     retry: false,
   });
 
   const ledgerQuery = useQuery({
-    queryKey: ["cust-ledger", id],
-    queryFn: async () => unwrap(await api.get(`/customers/${id}/ledger/`)),
+    queryKey: ["cust-ledger", id, branchId],
+    queryFn: async () =>
+      unwrap(
+        await api.get(`/customers/${id}/ledger/`, { params: branchParams }),
+      ),
     enabled: Boolean(id),
     retry: false,
   });
 
   const outstandingQuery = useQuery({
-    queryKey: ["cust-out", id],
-    queryFn: async () => unwrap(await api.get(`/customers/${id}/outstanding/`)),
+    queryKey: ["cust-out", id, branchId],
+    queryFn: async () =>
+      unwrap(
+        await api.get(`/customers/${id}/outstanding/`, {
+          params: branchParams,
+        }),
+      ),
     enabled: Boolean(id),
     retry: false,
   });

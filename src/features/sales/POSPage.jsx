@@ -13,11 +13,7 @@ import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import {
-  calculateTaxLine,
-  canManageRestrictedStock,
-  canUseNonVatSale,
-} from "@/lib/taxAccess";
+import { calculateTaxLine, canUseNonVatSale } from "@/lib/taxAccess";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -72,11 +68,8 @@ const emptyItem = () => ({
   tax_rate: 5,
   tax_treatment: "STANDARD_VAT",
   tax_reason: "",
-  stock_classification: "REGULAR",
   tax_inclusive: false,
   available_stock: 0,
-  available_regular_quantity: 0,
-  available_restricted_quantity: 0,
 });
 
 const createForm = (branchId) => ({
@@ -96,8 +89,6 @@ const createForm = (branchId) => ({
 export default function POSPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-
-  const canManageRestricted = canManageRestrictedStock(user);
 
   const canUseNonVat = canUseNonVatSale(user);
 
@@ -169,29 +160,17 @@ export default function POSPage() {
 
         const stockRow = stockByKey.get(key) || {};
 
-        const regular = number(
-          product.available_regular_quantity ??
-            stockRow.available_regular_quantity ??
-            product.available_stock ??
-            stockRow.available_stock ??
-            0,
-        );
-
-        const restricted = number(
-          product.available_restricted_quantity ??
-            stockRow.available_restricted_quantity ??
-            0,
+        const available = number(
+          product.available_stock ?? stockRow.available_stock ?? 0,
         );
 
         return {
           ...product,
-          available_regular_quantity: regular,
-          available_restricted_quantity: restricted,
-          available_stock: regular + (canManageRestricted ? restricted : 0),
+          available_stock: available,
         };
       })
       .filter((product) => number(product.available_stock) > 0);
-  }, [rawProducts, stock, canManageRestricted]);
+  }, [rawProducts, stock]);
 
   const calculatedItems = form.items.map((item) => {
     const values = calculateTaxLine({
@@ -202,10 +181,7 @@ export default function POSPage() {
       inclusive: Boolean(item.tax_inclusive),
     });
 
-    const selectedAvailable =
-      item.stock_classification === "RESTRICTED"
-        ? number(item.available_restricted_quantity)
-        : number(item.available_regular_quantity ?? item.available_stock);
+    const selectedAvailable = number(item.available_stock);
 
     return {
       ...item,
@@ -318,17 +294,8 @@ export default function POSPage() {
       tax_rate: number(product?.vat_rate ?? product?.vat_percentage ?? 5),
       tax_treatment: product?.tax_treatment || "STANDARD_VAT",
       tax_reason: "",
-      stock_classification: "REGULAR",
       tax_inclusive: Boolean(product?.vat_inclusive),
-      available_regular_quantity: number(
-        product?.available_regular_quantity ?? product?.available_stock ?? 0,
-      ),
-      available_restricted_quantity: number(
-        product?.available_restricted_quantity ?? 0,
-      ),
-      available_stock: number(
-        product?.available_regular_quantity ?? product?.available_stock ?? 0,
-      ),
+      available_stock: number(product?.available_stock ?? 0),
     });
 
     setOpenProductIndex(null);
@@ -448,9 +415,6 @@ export default function POSPage() {
           tax_rate: number(item.tax_rate ?? item.vat_percentage ?? 5),
           tax_treatment: item.tax_treatment || "STANDARD_VAT",
           tax_reason: "",
-          stock_classification: canManageRestricted
-            ? item.stock_classification
-            : "REGULAR",
           tax_inclusive: Boolean(item.tax_inclusive),
         })),
       };
@@ -760,15 +724,9 @@ export default function POSPage() {
 
                 <div className="relative mt-2 overflow-visible rounded-xl border">
                   <div
-                    className={`grid gap-3 border-b bg-slate-50 px-3 py-3 text-[10px] uppercase tracking-wider text-muted-foreground dark:bg-white/[0.025] ${
-                      canManageRestricted
-                        ? "grid-cols-[minmax(280px,1fr)_150px_80px_110px_110px_44px]"
-                        : "grid-cols-[minmax(320px,1fr)_80px_120px_120px_44px]"
-                    }`}
+                    className={`grid gap-3 border-b bg-slate-50 px-3 py-3 text-[10px] uppercase tracking-wider text-muted-foreground dark:bg-white/[0.025] ${"grid-cols-[minmax(320px,1fr)_80px_120px_120px_44px]"}`}
                   >
                     <span>Product</span>
-
-                    {canManageRestricted && <span>Stock type</span>}
 
                     <span className="text-right">Qty</span>
                     <span className="text-right">Unit price</span>
@@ -779,11 +737,7 @@ export default function POSPage() {
                   {calculatedItems.map((item, index) => (
                     <div
                       key={index}
-                      className={`relative grid items-center gap-3 border-b px-3 py-3 last:border-b-0 ${
-                        canManageRestricted
-                          ? "grid-cols-[minmax(280px,1fr)_150px_80px_110px_110px_44px]"
-                          : "grid-cols-[minmax(320px,1fr)_80px_120px_120px_44px]"
-                      }`}
+                      className={`relative grid items-center gap-3 border-b px-3 py-3 last:border-b-0 ${"grid-cols-[minmax(320px,1fr)_80px_120px_120px_44px]"}`}
                     >
                       <div className="min-w-0 space-y-1.5">
                         <div className="relative">
@@ -810,9 +764,6 @@ export default function POSPage() {
                                   query: "",
                                   unit_price: 0,
                                   available_stock: 0,
-                                  available_regular_quantity: 0,
-                                  available_restricted_quantity: 0,
-                                  stock_classification: "REGULAR",
                                 });
                                 setOpenProductIndex(index);
                               }}
@@ -888,16 +839,7 @@ export default function POSPage() {
                                           {product.barcode && product.sku
                                             ? ` · ${product.barcode}`
                                             : ""}
-                                          {canManageRestricted
-                                            ? ` · Regular ${number(
-                                                product.available_regular_quantity,
-                                              )} · Restricted ${number(
-                                                product.available_restricted_quantity,
-                                              )}`
-                                            : ` · ${number(
-                                                product.available_regular_quantity ??
-                                                  product.available_stock,
-                                              )} available`}
+                                          {` · ${number(product.available_stock)} available`}
                                         </p>
                                       </div>
 
@@ -1013,51 +955,6 @@ export default function POSPage() {
                           </div>
                         )}
                       </div>
-
-                      {canManageRestricted && (
-                        <div>
-                          <Select
-                            value={item.stock_classification || "REGULAR"}
-                            onValueChange={(value) =>
-                              updateItem(index, {
-                                stock_classification: value,
-                              })
-                            }
-                          >
-                            <SelectTrigger className="h-10">
-                              <SelectValue />
-                            </SelectTrigger>
-
-                            <SelectContent>
-                              <SelectItem value="REGULAR">
-                                Regular ·{" "}
-                                {number(item.available_regular_quantity)}
-                              </SelectItem>
-
-                              <SelectItem
-                                value="RESTRICTED"
-                                disabled={
-                                  number(item.available_restricted_quantity) <=
-                                  0
-                                }
-                              >
-                                Restricted ·{" "}
-                                {number(item.available_restricted_quantity)}
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-
-                          <p className="mt-1 text-[10px] text-muted-foreground">
-                            {item.stock_classification === "RESTRICTED"
-                              ? `${number(
-                                  item.available_restricted_quantity,
-                                )} restricted available`
-                              : `${number(
-                                  item.available_regular_quantity,
-                                )} regular available`}
-                          </p>
-                        </div>
-                      )}
 
                       <Input
                         type="number"

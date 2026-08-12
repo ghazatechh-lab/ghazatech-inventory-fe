@@ -1,17 +1,12 @@
 import React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Save, Send, Trash2, UserPlus } from "lucide-react";
+import { Check, ChevronsUpDown, Download, Plus, Save, Send, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import {
-  calculateTaxLine,
-  canManageSalesVat,
-  canManageRestrictedStock,
-  canUseNonVatSale,
-} from "@/lib/taxAccess";
+import { calculateTaxLine } from "@/lib/taxAccess";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -26,8 +21,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CurrencyText } from "@/components/common/CurrencyText";
+import { cn } from "@/lib/utils";
+import { downloadSalesPdf, findSalesCustomer } from "@/lib/salesPdf";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import InlineCustomerDialog from "./InlineCustomerDialog";
-import { SalesVatLineControls } from "@/components/sales/SalesVatLineControls";
 
 const normalizeList = (value) => {
   if (Array.isArray(value)) return value;
@@ -109,9 +114,310 @@ const emptyItem = () => ({
   tax_rate: 5,
   tax_treatment: "STANDARD_VAT",
   tax_reason: "",
-  stock_classification: "REGULAR",
   tax_inclusive: false,
 });
+
+const VAT_CATEGORIES = [
+  { value: "STANDARD_VAT", label: "Standard VAT (5%)", rate: 5 },
+  { value: "ZERO_RATED", label: "Zero Rated (0%)", rate: 0 },
+  { value: "EXEMPT", label: "Exempt (0%)", rate: 0 },
+  { value: "OUT_OF_SCOPE", label: "Non-VAT / Out of Scope (0%)", rate: 0 },
+];
+
+const getVatCategory = (value) =>
+  VAT_CATEGORIES.find((category) => category.value === value) || VAT_CATEGORIES[0];
+
+function ProductSearchPicker({
+  products,
+  allProducts,
+  item,
+  search,
+  onSearchChange,
+  onSelect,
+}) {
+  const [open, setOpen] = React.useState(false);
+  const searchRef = React.useRef(null);
+
+  const selectedValue = item.product
+    ? `${item.product}:${item.variant || ""}`
+    : "";
+
+  const selectedProduct = React.useMemo(
+    () =>
+      allProducts.find(
+        (product) =>
+          String(product.product_id || product.id) === String(item.product) &&
+          String(product.variant_id || "") === String(item.variant || ""),
+      ),
+    [allProducts, item.product, item.variant],
+  );
+
+  const focusSearch = React.useCallback(() => {
+    window.setTimeout(() => {
+      searchRef.current?.focus();
+      searchRef.current?.select?.();
+    }, 0);
+  }, []);
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (nextOpen) focusSearch();
+      }}
+    >
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="h-11 w-full justify-between px-3 font-normal"
+        >
+          <div className="min-w-0 text-left">
+            <div className="truncate text-sm font-semibold">
+              {selectedProduct?.product_name ||
+                item.product_name ||
+                "Select product"}
+              {(selectedProduct?.variant_name || item.variant_name) && (
+                <span className="font-normal text-muted-foreground">
+                  {` — ${selectedProduct?.variant_name || item.variant_name}`}
+                </span>
+              )}
+            </div>
+
+            {(selectedProduct || item.product) && (
+              <div className="truncate text-[11px] text-muted-foreground">
+                {selectedProduct?.sku || "Existing item"}
+                {selectedProduct
+                  ? ` · ${selectedProduct.available_stock ?? 0} available`
+                  : ""}
+              </div>
+            )}
+          </div>
+
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+
+      <PopoverContent
+        align="start"
+        className="w-[var(--radix-popover-trigger-width)] min-w-[360px] max-w-[min(520px,calc(100vw-2rem))] p-0"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          focusSearch();
+        }}
+      >
+        <Command shouldFilter={false}>
+          <CommandInput
+            ref={searchRef}
+            value={search}
+            onValueChange={onSearchChange}
+            placeholder="Type product name, SKU, brand or model..."
+          />
+
+          <CommandList className="max-h-[340px]">
+            {!products.length ? (
+              <CommandEmpty>No products match your search.</CommandEmpty>
+            ) : null}
+
+            <CommandGroup>
+              {item.product && !selectedProduct ? (
+                <CommandItem
+                  value={`existing-${selectedValue}`}
+                  onSelect={() => {
+                    setOpen(false);
+                    onSearchChange("");
+                  }}
+                >
+                  <Check className="h-4 w-4" />
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">
+                      {item.product_name || `Product ${item.product}`}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Existing quotation item
+                    </div>
+                  </div>
+                </CommandItem>
+              ) : null}
+
+              {products.map((product) => {
+                const value = `${product.product_id || product.id}:${product.variant_id || ""}`;
+                const isSelected = value === selectedValue;
+
+                return (
+                  <CommandItem
+                    key={value}
+                    value={`${product.product_name || ""} ${product.variant_name || ""} ${product.sku || ""} ${product.brand_name || ""}`}
+                    onSelect={() => {
+                      onSelect(value);
+                      onSearchChange("");
+                      setOpen(false);
+                    }}
+                    className="my-1 cursor-pointer py-2.5"
+                  >
+                    <Check
+                      className={cn(
+                        "h-4 w-4 shrink-0",
+                        isSelected ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold">
+                        {product.product_name}
+                        {product.variant_name ? ` — ${product.variant_name}` : ""}
+                      </div>
+                      <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {product.sku || "No SKU"} · {product.available_stock ?? 0} available
+                      </div>
+                    </div>
+
+                    <span className="shrink-0 pl-3 text-xs font-semibold text-blue-600 dark:text-blue-300">
+                      AED {getProductPrice(product).toFixed(2)}
+                    </span>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function CustomerSearchPicker({
+  customers,
+  filteredCustomers,
+  value,
+  search,
+  onSearchChange,
+  onSelect,
+}) {
+  const [open, setOpen] = React.useState(false);
+  const searchRef = React.useRef(null);
+
+  const selectedCustomer = React.useMemo(
+    () => customers.find((customer) => String(customer.id) === String(value)),
+    [customers, value],
+  );
+
+  const focusSearch = React.useCallback(() => {
+    window.setTimeout(() => {
+      searchRef.current?.focus();
+      searchRef.current?.select?.();
+    }, 0);
+  }, []);
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (nextOpen) {
+          onSearchChange("");
+          focusSearch();
+        }
+      }}
+    >
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="mt-2 h-10 w-full justify-between px-3 font-normal"
+        >
+          <div className="min-w-0 text-left">
+            <div className="truncate text-sm">
+              {selectedCustomer?.customer_name || "Select existing customer"}
+            </div>
+            {selectedCustomer && (
+              <div className="truncate text-[11px] text-muted-foreground">
+                {[
+                  selectedCustomer.customer_code,
+                  selectedCustomer.contact_person,
+                  selectedCustomer.phone || selectedCustomer.phone_number,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </div>
+            )}
+          </div>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+
+      <PopoverContent
+        align="start"
+        className="w-[var(--radix-popover-trigger-width)] min-w-[360px] max-w-[min(520px,calc(100vw-2rem))] p-0"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          focusSearch();
+        }}
+      >
+        <Command shouldFilter={false}>
+          <CommandInput
+            ref={searchRef}
+            value={search}
+            onValueChange={onSearchChange}
+            placeholder="Type customer name, code, phone, contact or TRN..."
+          />
+
+          <CommandList className="max-h-[320px]">
+            {!filteredCustomers.length ? (
+              <CommandEmpty>No customers match your search.</CommandEmpty>
+            ) : null}
+
+            <CommandGroup>
+              {filteredCustomers.map((customer) => {
+                const isSelected = String(customer.id) === String(value);
+
+                return (
+                  <CommandItem
+                    key={customer.id}
+                    value={`${customer.customer_name || ""} ${customer.customer_code || ""} ${customer.contact_person || ""} ${customer.phone || customer.phone_number || ""} ${customer.email || ""} ${customer.trn_number || ""}`}
+                    onSelect={() => {
+                      onSelect(String(customer.id));
+                      onSearchChange("");
+                      setOpen(false);
+                    }}
+                    className="my-1 cursor-pointer py-2.5"
+                  >
+                    <Check
+                      className={cn(
+                        "h-4 w-4 shrink-0",
+                        isSelected ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold">
+                        {customer.customer_name}
+                      </div>
+                      <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {[
+                          customer.customer_code,
+                          customer.contact_person,
+                          customer.phone || customer.phone_number,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || "Customer"}
+                      </div>
+                    </div>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export default function QuotationFormPage() {
   const { id } = useParams();
@@ -119,12 +425,6 @@ export default function QuotationFormPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-
-  const canManageTax = canManageSalesVat(user);
-
-  const canUseNonVat = canUseNonVatSale(user);
-
-  const canManageRestricted = canManageRestrictedStock(user);
 
   const { branchId } = useActiveBranchFilter();
 
@@ -143,12 +443,37 @@ export default function QuotationFormPage() {
     currency: "AED",
     payment_terms: "50% advance, balance on delivery",
     delivery_terms: "",
+    vat_category: "STANDARD_VAT",
+    vat_reason: "",
     discount_amount: 0,
     shipping_amount: 0,
     notes: "",
     status: "DRAFT",
     items: [emptyItem()],
   });
+
+
+  // New quotations always use the branch selected in the global top bar.
+  // There is intentionally no branch selector inside the quotation form.
+  React.useEffect(() => {
+    if (isEdit) return;
+
+    const nextBranch = branchId ? String(branchId) : "";
+
+    setForm((current) => {
+      if (current.branch === nextBranch) return current;
+
+      return {
+        ...current,
+        branch: nextBranch,
+        customer: "",
+        items: [emptyItem()],
+      };
+    });
+
+    setCustomerSearch("");
+    setProductSearches({});
+  }, [branchId, isEdit]);
 
   const { data: existing, isLoading: existingLoading } = useQuery({
     queryKey: ["quotation", id],
@@ -159,22 +484,8 @@ export default function QuotationFormPage() {
     staleTime: 0,
   });
 
-  const { data: branchesResponse } = useQuery({
-    queryKey: ["quotation-branches"],
-
-    queryFn: async () =>
-      unwrap(
-        await api.get("/branches/", {
-          params: {
-            page_size: 100,
-            is_active: true,
-          },
-        }),
-      ),
-  });
-
   const { data: customersResponse } = useQuery({
-    queryKey: ["quotation-customers"],
+    queryKey: ["quotation-customers", form.branch],
 
     queryFn: async () =>
       unwrap(
@@ -182,9 +493,11 @@ export default function QuotationFormPage() {
           params: {
             page_size: 200,
             is_active: true,
+            branch: form.branch,
           },
         }),
       ),
+    enabled: Boolean(form.branch),
   });
 
   const { data: usersResponse } = useQuery({
@@ -201,18 +514,77 @@ export default function QuotationFormPage() {
       ),
   });
 
-  const { data: productsResponse } = useQuery({
+  const {
+    data: productsResponse,
+    isFetching: productsLoading,
+    error: productsError,
+  } = useQuery({
     queryKey: ["quotation-products", form.branch],
-    queryFn: async () =>
-      unwrap(
-        await api.get("/sales/quotations/form-options/", {
-          params: { branch: form.branch || undefined },
-        }),
-      ),
-    enabled: Boolean(form.branch),
-  });
+    queryFn: async () => {
+      console.group("[Quotation] Product options");
+      console.log("Selected top-bar branch:", branchId);
+      console.log("Quotation branch sent to API:", form.branch);
 
-  const branches = normalizeList(branchesResponse);
+      try {
+        const response = await api.get("/sales/quotations/form-options/", {
+          params: {
+            branch: form.branch || undefined,
+          },
+        });
+
+        const payload = unwrap(response);
+        const optionProducts = normalizeList(
+          payload?.products || payload,
+        );
+
+        console.log("Form-options raw response:", payload);
+        console.log("Form-options products:", optionProducts);
+        console.log("Form-options product count:", optionProducts.length);
+
+        // Temporary safety fallback. This also makes the UI usable if an old
+        // backend is still calculating stock from removed regular/restricted
+        // quantity fields.
+        if (!optionProducts.length) {
+          console.warn(
+            "Quotation form-options returned no products. Falling back to /products/.",
+          );
+
+          const fallbackResponse = await api.get("/products/", {
+            params: {
+              page_size: 500,
+              is_active: true,
+              branch: form.branch || undefined,
+              ordering: "product_name",
+            },
+          });
+
+          const fallbackPayload = unwrap(fallbackResponse);
+          const fallbackProducts = normalizeList(fallbackPayload);
+
+          console.log("Fallback /products/ raw response:", fallbackPayload);
+          console.log("Fallback products:", fallbackProducts);
+          console.log("Fallback product count:", fallbackProducts.length);
+          console.groupEnd();
+
+          return {
+            ...(payload && typeof payload === "object" ? payload : {}),
+            products: fallbackProducts,
+          };
+        }
+
+        console.groupEnd();
+        return payload;
+      } catch (error) {
+        console.error("Failed to load quotation products:", error);
+        console.error("API response:", error?.response?.data);
+        console.error("HTTP status:", error?.response?.status);
+        console.groupEnd();
+        throw error;
+      }
+    },
+    enabled: Boolean(form.branch),
+    staleTime: 0,
+  });
 
   const customers = React.useMemo(
     () => normalizeList(customersResponse),
@@ -249,6 +621,22 @@ export default function QuotationFormPage() {
     () => normalizeList(productsResponse?.products || productsResponse),
     [productsResponse],
   );
+
+  React.useEffect(() => {
+    console.log("[Quotation] branchId:", branchId);
+    console.log("[Quotation] form.branch:", form.branch);
+    console.log("[Quotation] products loading:", productsLoading);
+    console.log("[Quotation] normalized products:", products);
+    console.log("[Quotation] normalized product count:", products.length);
+
+    if (productsError) {
+      console.error("[Quotation] products query error:", productsError);
+      console.error(
+        "[Quotation] products query response:",
+        productsError?.response?.data,
+      );
+    }
+  }, [branchId, form.branch, products, productsLoading, productsError]);
 
   const getFilteredProducts = React.useCallback(
     (index) => {
@@ -299,6 +687,13 @@ export default function QuotationFormPage() {
 
       delivery_terms: existing.delivery_terms || "",
 
+      vat_category:
+        existing.items?.[0]?.tax_treatment ||
+        existing.items?.[0]?.vat_treatment ||
+        "STANDARD_VAT",
+
+      vat_reason: existing.items?.[0]?.tax_reason || "",
+
       discount_amount: number(existing.discount_amount),
 
       shipping_amount: number(existing.shipping_amount),
@@ -330,24 +725,21 @@ export default function QuotationFormPage() {
             tax_rate: number(item.tax_rate ?? item.vat_percentage ?? 5),
             tax_treatment: item.tax_treatment || "STANDARD_VAT",
             tax_reason: item.tax_reason || "",
-            stock_classification: item.stock_classification || "REGULAR",
             tax_inclusive: Boolean(existing.tax_inclusive),
           }))
         : [emptyItem()],
     });
   }, [existing]);
 
-  const selectedBranch = branches.find(
-    (branch) => String(branch.id) === String(form.branch),
-  );
+  const selectedVatCategory = getVatCategory(form.vat_category);
 
   const calculatedItems = form.items.map((item) => {
     const values = calculateTaxLine({
       quantity: item.quantity,
       unitPrice: item.unit_price,
-      treatment: item.tax_treatment || "STANDARD_VAT",
-      taxRate: item.tax_rate ?? item.vat_percentage ?? 5,
-      inclusive: Boolean(item.tax_inclusive),
+      treatment: selectedVatCategory.value,
+      taxRate: selectedVatCategory.rate,
+      inclusive: false,
     });
 
     return {
@@ -428,20 +820,55 @@ export default function QuotationFormPage() {
       description: product?.description || product?.product_name || "",
 
       unit_price: getProductPrice(product),
-      vat_percentage: number(product?.vat_percentage ?? product?.vat_rate ?? 5),
-      tax_rate: number(product?.vat_rate ?? product?.vat_percentage ?? 5),
-      tax_treatment: product?.tax_treatment || "STANDARD_VAT",
-      tax_reason: "",
-      stock_classification: "REGULAR",
-      tax_inclusive: Boolean(product?.vat_inclusive),
+      // VAT is selected once for the full quotation in the totals section.
+      vat_percentage: selectedVatCategory.rate,
+      tax_rate: selectedVatCategory.rate,
+      tax_treatment: selectedVatCategory.value,
+      tax_reason: form.vat_reason || "",
+      tax_inclusive: false,
     });
+  };
+
+  const handleAddLineItem = () => {
+    const incompleteIndex = form.items.findIndex(
+      (item) =>
+        !item.product ||
+        number(item.quantity) <= 0 ||
+        number(item.unit_price) < 0,
+    );
+
+    if (incompleteIndex !== -1) {
+      const lineNumber = incompleteIndex + 1;
+
+      setErrors((current) => ({
+        ...current,
+        items: `Complete line item ${lineNumber} before adding another item.`,
+      }));
+
+      toast.error(`Complete line item ${lineNumber} first`, {
+        description:
+          "Select a product and enter a valid quantity and unit price before adding another line.",
+      });
+
+      return;
+    }
+
+    setErrors((current) => ({
+      ...current,
+      items: "",
+    }));
+
+    setForm((current) => ({
+      ...current,
+      items: [...current.items, emptyItem()],
+    }));
   };
 
   const validate = () => {
     const next = {};
 
     if (!form.branch) {
-      next.branch = "Branch is required.";
+      next.branch = "Select a branch from the top bar before creating a quotation.";
     }
 
     if (!form.customer) {
@@ -466,6 +893,11 @@ export default function QuotationFormPage() {
 
     if (!form.items.length) {
       next.items = "Add at least one line item.";
+    }
+
+    if (form.vat_category !== "STANDARD_VAT" && !String(form.vat_reason || "").trim()) {
+      next.vat_reason =
+        "A legal reason / supporting reference is required for 0% or Non-VAT quotations.";
     }
 
     if (
@@ -523,20 +955,17 @@ export default function QuotationFormPage() {
 
           unit_price: decimalValue(item.unit_price, 2),
 
-          vat_percentage: decimalValue(
-            item.tax_rate ?? item.vat_percentage ?? 5,
-            2,
-          ),
-          tax_rate: decimalValue(item.tax_rate ?? item.vat_percentage ?? 5, 2),
+          vat_percentage: decimalValue(selectedVatCategory.rate, 2),
+          tax_rate: decimalValue(selectedVatCategory.rate, 2),
           subtotal: decimalValue(item.subtotal),
           vat_amount: decimalValue(item.vat_amount),
           line_total: decimalValue(item.line_total),
-          tax_treatment: canManageTax ? item.tax_treatment : "STANDARD_VAT",
-          tax_reason: canManageTax ? String(item.tax_reason || "").trim() : "",
-          stock_classification: canManageRestricted
-            ? item.stock_classification
-            : "REGULAR",
-          tax_inclusive: Boolean(item.tax_inclusive),
+          tax_treatment: selectedVatCategory.value,
+          tax_reason:
+            selectedVatCategory.value === "STANDARD_VAT"
+              ? ""
+              : String(form.vat_reason || "").trim(),
+          tax_inclusive: false,
         })),
       };
 
@@ -585,6 +1014,51 @@ export default function QuotationFormPage() {
     },
   });
 
+  const selectedCustomerForPdf = React.useMemo(
+    () => findSalesCustomer(customers, form.customer),
+    [customers, form.customer],
+  );
+
+  const downloadQuotationPdf = () => {
+    if (!form.customer) {
+      toast.error("Select a customer before downloading the quotation PDF.");
+      return;
+    }
+
+    if (!calculatedItems.length || !calculatedItems.some((item) => item.product)) {
+      toast.error("Add at least one quotation item before downloading PDF.");
+      return;
+    }
+
+    try {
+      downloadSalesPdf({
+        type: "QUOTATION",
+        number: form.quote_number || existing?.quote_number || "DRAFT",
+        date: form.quote_date,
+        secondaryLabel: "Valid Until",
+        secondaryValue: form.valid_until,
+        paymentTerms: form.payment_terms,
+        customer: selectedCustomerForPdf,
+        items: calculatedItems,
+        products,
+        subtotal,
+        vatAmount,
+        discountAmount: form.discount_amount,
+        shippingAmount: form.shipping_amount,
+        total,
+        currency: form.currency,
+        notes: form.notes,
+        deliveryTerms: form.delivery_terms,
+        status: form.status,
+      });
+
+      toast.success("Quotation PDF downloaded.");
+    } catch (error) {
+      console.error("[Quotation PDF] Failed:", error);
+      toast.error("Unable to generate quotation PDF.");
+    }
+  };
+
   const submit = (status) => {
     if (!validate()) return;
 
@@ -610,6 +1084,15 @@ export default function QuotationFormPage() {
 
             <Button
               type="button"
+              variant="outline"
+              onClick={downloadQuotationPdf}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download PDF
+            </Button>
+
+            <Button
+              type="button"
               onClick={() => submit("DRAFT")}
               disabled={saveMutation.isPending}
               className="bg-blue-600 text-white hover:bg-blue-700"
@@ -621,45 +1104,11 @@ export default function QuotationFormPage() {
         }
       />
 
-      <section className="card-surface p-5">
-        <h2 className="font-semibold">Branch</h2>
-
-        <p className="mt-1 text-xs text-muted-foreground">
-          Sets the quote number series, trade licence, VAT details, and
-          available stock.
-        </p>
-
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          {branches.map((branch) => {
-            const selected = String(form.branch) === String(branch.id);
-
-            return (
-              <button
-                key={branch.id}
-                type="button"
-                onClick={() => updateForm("branch", String(branch.id))}
-                className={
-                  selected
-                    ? "rounded-xl border border-blue-500 bg-blue-50 p-4 text-left ring-1 ring-blue-500 dark:bg-blue-500/10"
-                    : "rounded-xl border border-slate-200 p-4 text-left transition hover:border-blue-300 dark:border-white/10"
-                }
-              >
-                <p className="font-medium">{branch.branch_name}</p>
-
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {branch.location ||
-                    branch.address ||
-                    "Branch quotation series"}
-                </p>
-              </button>
-            );
-          })}
-        </div>
-
-        {errors.branch && (
-          <p className="mt-2 text-xs text-red-500">{errors.branch}</p>
-        )}
-      </section>
+      {!isEdit && !form.branch && (
+        <section className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+          Select a branch from the top bar before creating a quotation.
+        </section>
+      )}
 
       <section className="card-surface p-5">
         <h2 className="font-semibold">Quotation Details</h2>
@@ -672,61 +1121,22 @@ export default function QuotationFormPage() {
           <div>
             <Label>Customer *</Label>
 
-            <Select
+            <CustomerSearchPicker
+              customers={customers}
+              filteredCustomers={filteredCustomers}
               value={form.customer}
-              onValueChange={(value) => {
+              search={customerSearch}
+              onSearchChange={setCustomerSearch}
+              onSelect={(value) => {
                 updateForm("customer", value);
                 setCustomerSearch("");
               }}
-            >
-              <SelectTrigger className="mt-2">
-                <SelectValue placeholder="Select existing customer" />
-              </SelectTrigger>
-
-              <SelectContent className="max-h-80 p-0">
-                <div
-                  className="sticky top-0 z-10 border-b bg-popover p-2"
-                  onKeyDown={(event) => event.stopPropagation()}
-                >
-                  <Input
-                    autoFocus
-                    value={customerSearch}
-                    onChange={(event) => setCustomerSearch(event.target.value)}
-                    onClick={(event) => event.stopPropagation()}
-                    placeholder="Search customer name, code or contact"
-                  />
-                </div>
-
-                <div className="max-h-64 overflow-y-auto p-1">
-                  {filteredCustomers.length ? (
-                    filteredCustomers.map((customer) => (
-                      <SelectItem key={customer.id} value={String(customer.id)}>
-                        <div>
-                          <div>{customer.customer_name}</div>
-                          {(customer.customer_code ||
-                            customer.contact_person) && (
-                            <div className="text-xs text-muted-foreground">
-                              {[customer.customer_code, customer.contact_person]
-                                .filter(Boolean)
-                                .join(" · ")}
-                            </div>
-                          )}
-                        </div>
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                      No customers match your search.
-                    </div>
-                  )}
-                </div>
-              </SelectContent>
-            </Select>
+            />
 
             <InlineCustomerDialog
               onCreated={(customer) => {
                 queryClient.invalidateQueries({
-                  queryKey: ["quotation-customers"],
+                  queryKey: ["quotation-customers", form.branch],
                 });
                 updateForm("customer", String(customer.id));
               }}
@@ -834,7 +1244,7 @@ export default function QuotationFormPage() {
 
             <p className="mt-1 text-xs text-muted-foreground">
               Products and services being quoted from{" "}
-              {selectedBranch?.branch_name || "the selected branch"}.
+              the active branch selected in the top bar.
             </p>
           </div>
 
@@ -842,13 +1252,7 @@ export default function QuotationFormPage() {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() =>
-              setForm((current) => ({
-                ...current,
-
-                items: [...current.items, emptyItem()],
-              }))
-            }
+            onClick={handleAddLineItem}
           >
             <Plus className="mr-2 h-4 w-4" />
             Add Line Item
@@ -856,14 +1260,13 @@ export default function QuotationFormPage() {
         </div>
 
         <div className="overflow-x-auto p-5">
-          <div className="min-w-[1480px]">
-            <div className="grid grid-cols-[minmax(260px,1.2fr)_minmax(220px,1fr)_90px_125px_430px_145px_42px] gap-3 border-b border-slate-200 px-1 pb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:border-white/10">
+          <div className="min-w-[880px]">
+            <div className="grid grid-cols-[minmax(240px,1.35fr)_minmax(220px,1fr)_80px_110px_120px_42px] gap-3 border-b border-slate-200 px-1 pb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:border-white/10">
               <span>Item</span>
               <span>Description</span>
               <span className="text-right">Qty</span>
               <span className="text-right">Unit Price</span>
-              <span>VAT & Stock Classification</span>
-              <span className="text-right">Line Total</span>
+                <span className="text-right">Line Total</span>
               <span />
             </div>
 
@@ -874,108 +1277,21 @@ export default function QuotationFormPage() {
                 return (
                   <div
                     key={item.id || index}
-                    className="grid grid-cols-[minmax(260px,1.2fr)_minmax(220px,1fr)_90px_125px_430px_145px_42px] items-start gap-3 py-4"
+                    className="grid grid-cols-[minmax(240px,1.35fr)_minmax(220px,1fr)_80px_110px_120px_42px] items-start gap-3 py-4"
                   >
-                    <Select
-                      value={
-                        item.product
-                          ? `${item.product}:${item.variant || ""}`
-                          : "__none__"
+                    <ProductSearchPicker
+                      products={filteredProducts}
+                      allProducts={products}
+                      item={item}
+                      search={productSearches[index] || ""}
+                      onSearchChange={(value) =>
+                        setProductSearches((current) => ({
+                          ...current,
+                          [index]: value,
+                        }))
                       }
-                      onValueChange={(value) =>
-                        selectProduct(index, value === "__none__" ? "" : value)
-                      }
-                    >
-                      <SelectTrigger className="h-10">
-                        <SelectValue placeholder="Select product" />
-                      </SelectTrigger>
-
-                      <SelectContent className="max-h-96 min-w-[390px] p-0">
-                        <div
-                          className="sticky top-0 z-10 border-b bg-popover p-2"
-                          onKeyDown={(event) => event.stopPropagation()}
-                        >
-                          <Input
-                            autoFocus
-                            value={productSearches[index] || ""}
-                            onChange={(event) =>
-                              setProductSearches((current) => ({
-                                ...current,
-                                [index]: event.target.value,
-                              }))
-                            }
-                            onClick={(event) => event.stopPropagation()}
-                            placeholder="Search product, SKU, brand or variant"
-                          />
-                        </div>
-
-                        <div className="max-h-72 overflow-y-auto p-1">
-                          <SelectItem value="__none__">
-                            Select product
-                          </SelectItem>
-
-                          {item.product &&
-                          !products.some(
-                            (product) =>
-                              String(product.product_id || product.id) ===
-                                String(item.product) &&
-                              String(product.variant_id || "") ===
-                                String(item.variant || ""),
-                          ) ? (
-                            <SelectItem
-                              value={`${item.product}:${item.variant || ""}`}
-                            >
-                              <div>
-                                <p className="text-sm font-semibold">
-                                  {item.product_name ||
-                                    `Product ${item.product}`}
-                                  {item.variant_name
-                                    ? ` — ${item.variant_name}`
-                                    : ""}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  Existing quotation item
-                                </p>
-                              </div>
-                            </SelectItem>
-                          ) : null}
-
-                          {filteredProducts.length ? (
-                            filteredProducts.map((product) => (
-                              <SelectItem
-                                key={`${product.product_id || product.id}:${product.variant_id || ""}`}
-                                value={`${product.product_id || product.id}:${product.variant_id || ""}`}
-                                className="my-1 cursor-pointer rounded-lg py-2.5"
-                              >
-                                <div className="flex w-full min-w-0 items-center justify-between gap-4">
-                                  <div className="min-w-0 text-left">
-                                    <p className="truncate text-sm font-semibold">
-                                      {product.product_name}
-                                      {product.variant_name
-                                        ? ` — ${product.variant_name}`
-                                        : ""}
-                                    </p>
-
-                                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                                      {product.sku || "No SKU"} ·{" "}
-                                      {product.available_stock ?? 0} available
-                                    </p>
-                                  </div>
-
-                                  <span className="shrink-0 text-sm font-semibold text-blue-600 dark:text-blue-300">
-                                    AED {getProductPrice(product).toFixed(2)}
-                                  </span>
-                                </div>
-                              </SelectItem>
-                            ))
-                          ) : (
-                            <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                              No products match your search.
-                            </div>
-                          )}
-                        </div>
-                      </SelectContent>
-                    </Select>
+                      onSelect={(value) => selectProduct(index, value)}
+                    />
 
                     <Input
                       className="h-10"
@@ -1016,22 +1332,6 @@ export default function QuotationFormPage() {
                       className="h-10 text-right"
                     />
 
-                    <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-white/10 dark:bg-white/[0.025]">
-                      <SalesVatLineControls
-                        item={item}
-                        canManageTax={canManageTax}
-                        canUseNonVat={canUseNonVat}
-                        canManageRestricted={canManageRestricted}
-                        onChange={(patch) => updateItem(index, patch)}
-                      />
-
-                      {!canUseNonVat && (
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          Standard VAT 5%
-                        </p>
-                      )}
-                    </div>
-
                     <div className="flex min-h-10 items-center justify-end px-2 text-right font-semibold">
                       <CurrencyText
                         value={item.line_total}
@@ -1070,15 +1370,56 @@ export default function QuotationFormPage() {
               <p className="mt-3 text-sm text-red-500">{errors.items}</p>
             )}
 
-            <div className="ml-auto mt-7 max-w-sm space-y-3 rounded-xl border bg-slate-50 p-5 text-sm dark:border-white/10 dark:bg-white/[0.025]">
-              <div className="flex justify-between">
+            <div className="ml-auto mt-7 max-w-md space-y-3 rounded-xl border bg-slate-50 p-5 text-sm dark:border-white/10 dark:bg-white/[0.025]">
+              <div>
+                <Label>VAT Category</Label>
+                <Select
+                  value={form.vat_category || "STANDARD_VAT"}
+                  onValueChange={(value) => {
+                    updateForm("vat_category", value);
+                    if (value === "STANDARD_VAT") {
+                      updateForm("vat_reason", "");
+                    }
+                  }}
+                >
+                  <SelectTrigger className="mt-2 h-9">
+                    <SelectValue placeholder="Select VAT category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VAT_CATEGORIES.map((category) => (
+                      <SelectItem key={category.value} value={category.value}>
+                        {category.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {form.vat_category !== "STANDARD_VAT" && (
+                <div>
+                  <Label>VAT Reason / Supporting Reference *</Label>
+                  <Input
+                    className="mt-2 h-9"
+                    value={form.vat_reason || ""}
+                    onChange={(event) => updateForm("vat_reason", event.target.value)}
+                    placeholder="Enter legal reason or supporting reference"
+                  />
+                  {errors.vat_reason && (
+                    <p className="mt-1 text-xs text-red-500">{errors.vat_reason}</p>
+                  )}
+                </div>
+              )}
+
+              <div className="flex justify-between border-t pt-3">
                 <span className="text-muted-foreground">Subtotal</span>
 
                 <CurrencyText value={subtotal} currency={form.currency} />
               </div>
 
               <div className="flex justify-between">
-                <span className="text-muted-foreground">VAT</span>
+                <span className="text-muted-foreground">
+                  VAT ({selectedVatCategory.rate}%)
+                </span>
 
                 <CurrencyText value={vatAmount} currency={form.currency} />
               </div>

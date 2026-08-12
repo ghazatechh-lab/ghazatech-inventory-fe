@@ -6,17 +6,12 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Save, Trash2, UserPlus } from "lucide-react";
+import { Download, Plus, Save, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import {
-  calculateTaxLine,
-  canSellRestrictedStock,
-  canUseNonVatSale,
-  isAdmin,
-} from "@/lib/taxAccess";
+import { calculateTaxLine, canUseNonVatSale } from "@/lib/taxAccess";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -31,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CurrencyText } from "@/components/common/CurrencyText";
+import { downloadSalesPdf, findSalesCustomer } from "@/lib/salesPdf";
 import InlineCustomerDialog from "./InlineCustomerDialog";
 
 const normalizeList = (value) => {
@@ -78,11 +74,14 @@ const emptyItem = () => ({
   tax_rate: 5,
   tax_treatment: "STANDARD_VAT",
   tax_reason: "",
-  stock_classification: "REGULAR",
   tax_inclusive: false,
-  available_regular_quantity: 0,
-  available_restricted_quantity: 0,
+  available_stock: 0,
 });
+
+const isInvoiceEditLocked = (paymentStatus) =>
+  ["PAID", "VOID"].includes(
+    String(paymentStatus || "").toUpperCase(),
+  );
 
 export default function InvoiceFormPage() {
   const { id } = useParams();
@@ -93,8 +92,6 @@ export default function InvoiceFormPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-
-  const canSellRestricted = isAdmin(user) || canSellRestrictedStock(user);
 
   const canUseNonVat = canUseNonVatSale(user);
 
@@ -130,6 +127,18 @@ export default function InvoiceFormPage() {
     staleTime: 0,
   });
 
+  React.useEffect(() => {
+    if (!isEdit || !existing) return;
+
+    if (isInvoiceEditLocked(existing.payment_status)) {
+      toast.error(
+        `${String(existing.payment_status || "").replaceAll("_", " ")} invoices cannot be edited.`,
+      );
+      navigate(`/sales/invoices/${id}`, { replace: true });
+    }
+  }, [existing, id, isEdit, navigate]);
+
+
   const { data: sourceOrder } = useQuery({
     queryKey: ["invoice-source-order", salesOrderId],
     queryFn: async () =>
@@ -152,8 +161,6 @@ export default function InvoiceFormPage() {
 
   const options = optionsResponse || {};
 
-  const branches = normalizeList(options.branches);
-
   const customers = normalizeList(options.customers);
 
   const salespeople = normalizeList(options.salespeople);
@@ -163,6 +170,48 @@ export default function InvoiceFormPage() {
   const salesOrders = normalizeList(options.sales_orders);
 
   const bankAccounts = normalizeList(options.bank_accounts);
+
+  /*
+   * New standalone invoices always follow the global top-bar branch.
+   * Existing invoices keep their saved branch, and invoices created from
+   * a Sales Order inherit the Sales Order branch.
+   */
+  React.useEffect(() => {
+    if (isEdit || salesOrderId) return;
+
+    const nextBranch =
+      branchId === null || branchId === undefined || branchId === ""
+        ? ""
+        : String(branchId);
+
+    setForm((current) => {
+      if (String(current.branch || "") === nextBranch) {
+        return current;
+      }
+
+      console.log("[Invoice Form] Applying top-bar branch:", {
+        previousBranch: current.branch,
+        branchId,
+        nextBranch,
+      });
+
+      return {
+        ...current,
+        branch: nextBranch,
+        sales_order: "",
+        customer: "",
+        bank_account: "",
+        items: [emptyItem()],
+      };
+    });
+
+    setErrors((current) => ({
+      ...current,
+      branch: "",
+      customer: "",
+      items: "",
+    }));
+  }, [branchId, isEdit, salesOrderId]);
 
   const findProductOption = React.useCallback(
     (productId, variantId) =>
@@ -252,7 +301,6 @@ export default function InvoiceFormPage() {
             tax_rate: number(item.tax_rate ?? item.vat_percentage ?? 5),
             tax_treatment: item.tax_treatment || "STANDARD_VAT",
             tax_reason: item.tax_reason || "",
-            stock_classification: item.stock_classification || "REGULAR",
             tax_inclusive: Boolean(
               existing?.tax_inclusive || sourceOrder?.tax_inclusive,
             ),
@@ -260,18 +308,6 @@ export default function InvoiceFormPage() {
         : [emptyItem()],
     });
   }, [existing, sourceOrder]);
-
-  React.useEffect(() => {
-    if (canSellRestricted) return;
-
-    setForm((current) => ({
-      ...current,
-      items: current.items.map((item) => ({
-        ...item,
-        stock_classification: "REGULAR",
-      })),
-    }));
-  }, [canSellRestricted]);
 
   React.useEffect(() => {
     if (!products.length) return;
@@ -286,23 +322,9 @@ export default function InvoiceFormPage() {
           return item;
         }
 
-        const regular = number(
-          option.available_regular_quantity ??
-            option.regular_quantity ??
-            option.available_stock ??
-            0,
-        );
+        const available = number(option.available_stock ?? 0);
 
-        const restricted = number(
-          option.available_restricted_quantity ??
-            option.restricted_quantity ??
-            0,
-        );
-
-        if (
-          number(item.available_regular_quantity) === regular &&
-          number(item.available_restricted_quantity) === restricted
-        ) {
+        if (number(item.available_stock) === available) {
           return item;
         }
 
@@ -310,8 +332,7 @@ export default function InvoiceFormPage() {
 
         return {
           ...item,
-          available_regular_quantity: regular,
-          available_restricted_quantity: restricted,
+          available_stock: available,
         };
       });
 
@@ -424,19 +445,8 @@ export default function InvoiceFormPage() {
       tax_rate: number(product?.vat_rate ?? product?.vat_percentage ?? 5),
       tax_treatment: product?.tax_treatment || "STANDARD_VAT",
       tax_reason: "",
-      stock_classification: "REGULAR",
       tax_inclusive: Boolean(product?.vat_inclusive),
-      available_regular_quantity: number(
-        product?.available_regular_quantity ??
-          product?.regular_quantity ??
-          product?.available_stock ??
-          0,
-      ),
-      available_restricted_quantity: number(
-        product?.available_restricted_quantity ??
-          product?.restricted_quantity ??
-          0,
-      ),
+      available_stock: number(product?.available_stock ?? 0),
     });
   };
 
@@ -455,7 +465,7 @@ export default function InvoiceFormPage() {
     const next = {};
 
     if (!form.branch) {
-      next.branch = "Branch is required.";
+      next.branch = "Select a specific branch from the top bar before saving.";
     }
 
     if (!form.customer) {
@@ -505,6 +515,12 @@ export default function InvoiceFormPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      if (isEdit && isInvoiceEditLocked(existing?.payment_status)) {
+        throw new Error(
+          `${String(existing?.payment_status || "").replaceAll("_", " ")} invoices cannot be edited.`,
+        );
+      }
+
       const payload = {
         ...form,
 
@@ -549,10 +565,6 @@ export default function InvoiceFormPage() {
           tax_rate: number(item.tax_rate ?? item.vat_percentage ?? 5),
           tax_treatment: item.tax_treatment || "STANDARD_VAT",
           tax_reason: String(item.tax_reason || "").trim(),
-          stock_classification:
-            canSellRestricted && item.stock_classification === "RESTRICTED"
-              ? "RESTRICTED"
-              : "REGULAR",
           tax_inclusive: Boolean(item.tax_inclusive),
         })),
       };
@@ -596,6 +608,55 @@ export default function InvoiceFormPage() {
     },
   });
 
+  const selectedCustomerForPdf = React.useMemo(
+    () => findSalesCustomer(customers, form.customer),
+    [customers, form.customer],
+  );
+
+  const downloadInvoicePdf = () => {
+    if (!form.customer) {
+      toast.error("Select a customer before downloading the invoice PDF.");
+      return;
+    }
+
+    if (!calculatedItems.length || !calculatedItems.some((item) => item.product)) {
+      toast.error("Add at least one invoice item before downloading PDF.");
+      return;
+    }
+
+    try {
+      downloadSalesPdf({
+        type: "INVOICE",
+        number:
+          form.invoice_number ||
+          existing?.invoice_number ||
+          "DRAFT",
+        date: form.invoice_date,
+        secondaryLabel: "Due Date",
+        secondaryValue: form.due_date,
+        paymentTerms: form.payment_terms,
+        customerPo: form.customer_po_number,
+        customer: selectedCustomerForPdf,
+        items: calculatedItems,
+        products,
+        subtotal,
+        vatAmount,
+        discountAmount: form.discount_amount,
+        shippingAmount: form.shipping_amount,
+        paidAmount: form.paid_amount,
+        total,
+        currency: form.currency,
+        notes: form.notes,
+        status: existing?.status || "DRAFT",
+      });
+
+      toast.success("Invoice PDF downloaded.");
+    } catch (error) {
+      console.error("[Invoice PDF] Failed:", error);
+      toast.error("Unable to generate invoice PDF.");
+    }
+  };
+
   const submit = () => {
     if (!validate()) return;
     saveMutation.mutate();
@@ -621,6 +682,15 @@ export default function InvoiceFormPage() {
 
             <Button
               type="button"
+              variant="outline"
+              onClick={downloadInvoicePdf}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download PDF
+            </Button>
+
+            <Button
+              type="button"
               onClick={submit}
               disabled={saveMutation.isPending}
               className="bg-blue-600 text-white hover:bg-blue-700"
@@ -631,6 +701,12 @@ export default function InvoiceFormPage() {
           </div>
         }
       />
+
+      {errors.branch && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          {errors.branch}
+        </div>
+      )}
 
       <section className="card-surface p-5">
         <h2 className="font-semibold">Source</h2>
@@ -715,46 +791,6 @@ export default function InvoiceFormPage() {
               </SelectContent>
             </Select>
           </div>
-        )}
-      </section>
-
-      <section className="card-surface p-5">
-        <h2 className="font-semibold">Branch</h2>
-
-        <p className="mt-1 text-xs text-muted-foreground">
-          Sets the invoice number series and trade licence/TRN printed on the
-          invoice.
-        </p>
-
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          {branches.map((branch) => {
-            const selected = String(form.branch) === String(branch.id);
-
-            return (
-              <button
-                key={branch.id}
-                type="button"
-                onClick={() => updateForm("branch", String(branch.id))}
-                className={
-                  selected
-                    ? "rounded-xl border border-blue-500 bg-blue-50 p-4 text-left ring-1 ring-blue-500 dark:bg-blue-500/10"
-                    : "rounded-xl border border-slate-200 p-4 text-left transition hover:border-blue-300 dark:border-white/10"
-                }
-              >
-                <p className="font-medium">{branch.branch_name}</p>
-
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {branch.trn
-                    ? `TRN ${branch.trn}`
-                    : branch.location || "Branch invoice series"}
-                </p>
-              </button>
-            );
-          })}
-        </div>
-
-        {errors.branch && (
-          <p className="mt-2 text-xs text-red-500">{errors.branch}</p>
         )}
       </section>
 
@@ -899,24 +935,12 @@ export default function InvoiceFormPage() {
         </div>
 
         <div className="overflow-x-auto p-5">
-          <div
-            className={
-              canUseNonVat && canSellRestricted
-                ? "min-w-[1320px]"
-                : canUseNonVat || canSellRestricted
-                  ? "min-w-[1160px]"
-                  : "min-w-[980px]"
-            }
-          >
+          <div className={canUseNonVat ? "min-w-[1160px]" : "min-w-[980px]"}>
             <div
               className={`grid items-center gap-3 border-b border-slate-200 pb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:border-white/10 ${
-                canUseNonVat && canSellRestricted
-                  ? "grid-cols-[minmax(240px,1.35fr)_minmax(190px,1fr)_minmax(220px,1.15fr)_170px_90px_125px_120px_44px]"
-                  : canUseNonVat
-                    ? "grid-cols-[minmax(250px,1.4fr)_minmax(200px,1fr)_minmax(240px,1.2fr)_90px_125px_120px_44px]"
-                    : canSellRestricted
-                      ? "grid-cols-[minmax(250px,1.4fr)_minmax(250px,1.25fr)_170px_90px_125px_120px_44px]"
-                      : "grid-cols-[minmax(280px,1.45fr)_minmax(280px,1.3fr)_90px_125px_120px_44px]"
+                canUseNonVat
+                  ? "grid-cols-[minmax(250px,1.4fr)_minmax(200px,1fr)_minmax(240px,1.2fr)_90px_125px_120px_44px]"
+                  : "grid-cols-[minmax(280px,1.45fr)_minmax(280px,1.3fr)_90px_125px_120px_44px]"
               }`}
             >
               <span>Item</span>
@@ -924,8 +948,6 @@ export default function InvoiceFormPage() {
               {canUseNonVat && <span>Tax treatment</span>}
 
               <span>Description</span>
-
-              {canSellRestricted && <span>Stock type</span>}
 
               <span className="text-right">Qty</span>
               <span className="text-right">Unit price</span>
@@ -938,13 +960,9 @@ export default function InvoiceFormPage() {
                 <div
                   key={item.id || index}
                   className={`grid items-start gap-3 py-4 ${
-                    canUseNonVat && canSellRestricted
-                      ? "grid-cols-[minmax(240px,1.35fr)_minmax(190px,1fr)_minmax(220px,1.15fr)_170px_90px_125px_120px_44px]"
-                      : canUseNonVat
-                        ? "grid-cols-[minmax(250px,1.4fr)_minmax(200px,1fr)_minmax(240px,1.2fr)_90px_125px_120px_44px]"
-                        : canSellRestricted
-                          ? "grid-cols-[minmax(250px,1.4fr)_minmax(250px,1.25fr)_170px_90px_125px_120px_44px]"
-                          : "grid-cols-[minmax(280px,1.45fr)_minmax(280px,1.3fr)_90px_125px_120px_44px]"
+                    canUseNonVat
+                      ? "grid-cols-[minmax(250px,1.4fr)_minmax(200px,1fr)_minmax(240px,1.2fr)_90px_125px_120px_44px]"
+                      : "grid-cols-[minmax(280px,1.45fr)_minmax(280px,1.3fr)_90px_125px_120px_44px]"
                   }`}
                 >
                   <Select
@@ -981,17 +999,7 @@ export default function InvoiceFormPage() {
 
                               <p className="mt-0.5 truncate text-xs text-muted-foreground">
                                 {product.sku || "No SKU"} ·{" "}
-                                {canSellRestricted
-                                  ? `Regular ${number(
-                                      product.available_regular_quantity ??
-                                        product.available_stock,
-                                    )} · Restricted ${number(
-                                      product.available_restricted_quantity,
-                                    )}`
-                                  : `${number(
-                                      product.available_regular_quantity ??
-                                        product.available_stock,
-                                    )} available`}
+                                {`${number(product.available_stock)} available`}
                               </p>
                             </div>
 
@@ -1065,51 +1073,6 @@ export default function InvoiceFormPage() {
                     }
                     className="h-10 w-full"
                   />
-
-                  {canSellRestricted && (
-                    <div className="space-y-1.5">
-                      <Select
-                        value={item.stock_classification || "REGULAR"}
-                        onValueChange={(value) =>
-                          updateItem(index, {
-                            stock_classification: value,
-                          })
-                        }
-                      >
-                        <SelectTrigger className="h-10 w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-
-                        <SelectContent>
-                          <SelectItem value="REGULAR">
-                            Regular · {number(item.available_regular_quantity)}{" "}
-                            available
-                          </SelectItem>
-
-                          <SelectItem
-                            value="RESTRICTED"
-                            disabled={
-                              number(item.available_restricted_quantity) <= 0
-                            }
-                          >
-                            Restricted ·{" "}
-                            {number(item.available_restricted_quantity)}{" "}
-                            available
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-
-                      <p className="px-1 text-[10px] leading-4 text-muted-foreground">
-                        {item.stock_classification === "RESTRICTED"
-                          ? `${number(
-                              item.available_restricted_quantity,
-                            )} restricted available`
-                          : `${number(
-                              item.available_regular_quantity,
-                            )} regular available`}
-                      </p>
-                    </div>
-                  )}
 
                   <Input
                     type="number"
@@ -1308,6 +1271,15 @@ export default function InvoiceFormPage() {
       <div className="flex justify-end gap-2">
         <Button asChild variant="ghost">
           <Link to="/sales/invoices">Cancel</Link>
+        </Button>
+
+        <Button
+          type="button"
+          variant="outline"
+          onClick={downloadInvoicePdf}
+        >
+          <Download className="mr-2 h-4 w-4" />
+          Download PDF
         </Button>
 
         <Button
