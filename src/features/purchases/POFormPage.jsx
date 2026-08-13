@@ -88,9 +88,14 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 const money = (value) => {
   const parsed = Number(value || 0);
-
   return Number.isFinite(parsed) ? parsed : 0;
 };
+
+const formatAmount = (value) =>
+  money(value).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 const emptyItem = () => ({
   product: "",
@@ -204,9 +209,7 @@ export default function POFormPage() {
       ),
 
     enabled: Boolean(form.branch),
-
     staleTime: 0,
-
     retry: false,
   });
 
@@ -247,7 +250,6 @@ export default function POFormPage() {
     queryFn: async () => unwrap(await api.get(`/purchases/orders/${id}/`)),
 
     enabled: edit,
-
     staleTime: 0,
   });
 
@@ -255,9 +257,7 @@ export default function POFormPage() {
     const merged = new Map();
 
     normalizeList(supplierResponse).forEach((supplier) => {
-      if (!supplier?.id) {
-        return;
-      }
+      if (!supplier?.id) return;
 
       const supplierBranchId = getRelationId(
         supplier.branch,
@@ -464,7 +464,9 @@ export default function POFormPage() {
       (candidate) => String(candidate.id) === String(item.product),
     );
 
-    if (!selected) return "";
+    if (!selected) {
+      return "";
+    }
 
     return [selected.product_name, selected.sku].filter(Boolean).join(" · ");
   };
@@ -499,6 +501,12 @@ export default function POFormPage() {
     );
   };
 
+  /*
+   * IMPORTANT
+   *
+   * total = amount BEFORE VAT.
+   * VAT is calculated separately.
+   */
   const calculations = React.useMemo(
     () =>
       form.items.map((item) => {
@@ -513,8 +521,11 @@ export default function POFormPage() {
         return {
           gross,
           discount,
+          taxable,
           vat,
-          total: taxable + vat,
+
+          // Total column excludes VAT.
+          total: taxable,
         };
       }),
 
@@ -528,11 +539,22 @@ export default function POFormPage() {
     0,
   );
 
+  const taxableTotal = calculations.reduce(
+    (sum, item) => sum + item.taxable,
+    0,
+  );
+
   const vat = calculations.reduce((sum, item) => sum + item.vat, 0);
 
+  /*
+   * Document payable total.
+   *
+   * VAT remains part of the actual PO payable
+   * amount, but is displayed separately from
+   * each line Total.
+   */
   const total =
-    subtotal -
-    lineDiscounts -
+    taxableTotal -
     money(form.discount_amount) +
     vat +
     money(form.shipping_amount) +
@@ -607,7 +629,11 @@ export default function POFormPage() {
         discount_amount: money(form.discount_amount),
 
         items: form.items.map((item) => ({
-          ...(item.id ? { id: item.id } : {}),
+          ...(item.id
+            ? {
+                id: item.id,
+              }
+            : {}),
 
           product: Number(item.product),
 
@@ -709,12 +735,15 @@ export default function POFormPage() {
 
     setForm((current) => ({
       ...current,
+
       items: [...current.items, emptyItem()],
     }));
   };
 
   const submit = (targetStatus) => {
-    if (!validate()) return;
+    if (!validate()) {
+      return;
+    }
 
     save.mutate({
       targetStatus,
@@ -835,7 +864,7 @@ export default function POFormPage() {
                               ? "Select a branch to load suppliers."
                               : "No active suppliers are available for this branch."}
 
-                        {suppliersError ? (
+                        {suppliersError && (
                           <button
                             type="button"
                             className="mt-2 block w-full text-xs font-medium text-blue-600"
@@ -843,7 +872,7 @@ export default function POFormPage() {
                           >
                             Retry supplier loading
                           </button>
-                        ) : null}
+                        )}
                       </div>
                     )}
                   </div>
@@ -1000,14 +1029,11 @@ export default function POFormPage() {
                 </div>
 
                 <p className="text-[11px] font-medium text-blue-600 dark:text-blue-400">
-                  Net {selectedSupplier.payment_terms_days || 0}
-                  {" · "}
-                  Credit used{" "}
+                  Net {selectedSupplier.payment_terms_days || 0} · Credit used{" "}
                   <CurrencyText
                     value={selectedSupplier.outstanding_balance || 0}
-                  />
-                  {" / "}
-                  <CurrencyText value={selectedSupplier.credit_limit || 0} />
+                  />{" "}
+                  / <CurrencyText value={selectedSupplier.credit_limit || 0} />
                 </p>
               </div>
             )}
@@ -1025,16 +1051,18 @@ export default function POFormPage() {
             </div>
 
             <div className="p-5">
-              <div className="hidden grid-cols-[minmax(250px,1fr)_80px_110px_110px_36px] gap-3 px-1 pb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500 md:grid">
-                <span>Item</span>
+              <div className="hidden grid-cols-[minmax(0,1.6fr)_90px_120px_110px_120px_40px] items-center gap-3 px-3 pb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500 md:grid">
+                <span className="text-left">Item</span>
 
                 <span className="text-right">Qty</span>
 
                 <span className="text-right">Unit Cost</span>
 
+                <span className="text-right">VAT</span>
+
                 <span className="text-right">Total</span>
 
-                <span />
+                <span className="text-center"> </span>
               </div>
 
               <div className="space-y-3">
@@ -1053,7 +1081,7 @@ export default function POFormPage() {
                       key={item.id || index}
                       className="relative rounded-xl border border-slate-200 p-3 dark:border-white/10"
                     >
-                      <div className="grid gap-3 md:grid-cols-[minmax(280px,1fr)_90px_120px_120px_36px]">
+                      <div className="grid items-center gap-3 md:grid-cols-[minmax(0,1.6fr)_90px_120px_110px_120px_40px]">
                         <div className="grid min-w-0 gap-2 sm:grid-cols-2">
                           <div className="relative z-30">
                             <Input
@@ -1062,7 +1090,6 @@ export default function POFormPage() {
                               onFocus={() =>
                                 setProductSearchOpen((current) => ({
                                   ...current,
-
                                   [index]: true,
                                 }))
                               }
@@ -1071,22 +1098,18 @@ export default function POFormPage() {
 
                                 setProductSearches((current) => ({
                                   ...current,
-
                                   [index]: value,
                                 }));
 
                                 setProductSearchOpen((current) => ({
                                   ...current,
-
                                   [index]: true,
                                 }));
 
                                 if (item.product) {
                                   updateItem(index, {
                                     product: "",
-
                                     variant: "",
-
                                     unit_price: 0,
                                   });
                                 }
@@ -1095,7 +1118,6 @@ export default function POFormPage() {
                                 if (event.key === "Escape") {
                                   setProductSearchOpen((current) => ({
                                     ...current,
-
                                     [index]: false,
                                   }));
                                 }
@@ -1152,13 +1174,11 @@ export default function POFormPage() {
 
                                         setProductSearches((current) => ({
                                           ...current,
-
                                           [index]: label,
                                         }));
 
                                         setProductSearchOpen((current) => ({
                                           ...current,
-
                                           [index]: false,
                                         }));
                                       }}
@@ -1167,11 +1187,11 @@ export default function POFormPage() {
                                         {productOption.product_name}
                                       </span>
 
-                                      {productOption.sku ? (
+                                      {productOption.sku && (
                                         <span className="mt-0.5 text-xs text-muted-foreground">
                                           {productOption.sku}
                                         </span>
-                                      ) : null}
+                                      )}
                                     </button>
                                   ))
                                 ) : (
@@ -1202,7 +1222,7 @@ export default function POFormPage() {
                                 variant: value,
 
                                 unit_price:
-                                  selectedVariant?.purchase_price ||
+                                  selectedVariant?.purchase_price ??
                                   item.unit_price,
                               });
                             }}
@@ -1266,17 +1286,21 @@ export default function POFormPage() {
                           aria-label="Unit cost"
                         />
 
-                        <div className="flex h-10 items-center justify-end rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-medium dark:border-white/10 dark:bg-white/[0.025]">
-                          <CurrencyText
-                            value={calculations[index]?.total || 0}
-                            currency={form.currency}
-                          />
+                        {/* VAT COLUMN - NO CURRENCY PREFIX */}
+                        <div className="flex h-10 items-center justify-end rounded-md border border-slate-200 bg-slate-50 px-3 text-sm tabular-nums dark:border-white/10 dark:bg-white/[0.025]">
+                          {formatAmount(calculations[index]?.vat || 0)}
+                        </div>
+
+                        {/* TOTAL EXCLUDES VAT + NO AED PREFIX */}
+                        <div className="flex h-10 items-center justify-end rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-semibold tabular-nums dark:border-white/10 dark:bg-white/[0.025]">
+                          {formatAmount(calculations[index]?.total || 0)}
                         </div>
 
                         <Button
                           type="button"
                           size="icon"
                           variant="ghost"
+                          className="justify-self-center"
                           disabled={form.items.length === 1}
                           onClick={() =>
                             setForm((current) => ({
@@ -1322,6 +1346,23 @@ export default function POFormPage() {
                   <CurrencyText value={subtotal} currency={form.currency} />
                 </div>
 
+                {lineDiscounts > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Line discounts</span>
+
+                    <CurrencyText
+                      value={lineDiscounts}
+                      currency={form.currency}
+                    />
+                  </div>
+                )}
+
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Taxable amount</span>
+
+                  <CurrencyText value={taxableTotal} currency={form.currency} />
+                </div>
+
                 <div className="flex justify-between">
                   <span className="text-slate-500">VAT (5%)</span>
 
@@ -1338,7 +1379,7 @@ export default function POFormPage() {
                 </div>
 
                 <div className="flex justify-between border-t border-slate-200 pt-3 font-semibold dark:border-white/10">
-                  <span>Total</span>
+                  <span>Grand Total</span>
 
                   <CurrencyText value={total} currency={form.currency} />
                 </div>
