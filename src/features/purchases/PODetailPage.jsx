@@ -33,8 +33,8 @@ const STATUS_LABELS = {
 const DEFAULT_TRANSITIONS = {
   DRAFT: ["PENDING_APPROVAL", "CANCELLED"],
   PENDING_APPROVAL: ["DRAFT", "APPROVED", "CANCELLED"],
-  APPROVED: ["PARTIALLY_RECEIVED", "RECEIVED", "CANCELLED"],
-  PARTIALLY_RECEIVED: ["RECEIVED", "CANCELLED"],
+  APPROVED: [],
+  PARTIALLY_RECEIVED: [],
   RECEIVED: [],
   CANCELLED: [],
 };
@@ -228,7 +228,12 @@ export default function PODetailPage() {
               Print
             </Button>
 
-            {!["RECEIVED", "CANCELLED"].includes(purchaseOrder.status) && (
+            {![
+              "APPROVED",
+              "PARTIALLY_RECEIVED",
+              "RECEIVED",
+              "CANCELLED",
+            ].includes(purchaseOrder.status) && (
               <Button asChild>
                 <Link to={`/purchases/orders/${id}/edit`}>
                   <Edit3 className="mr-2 h-4 w-4" />
@@ -474,47 +479,45 @@ export default function PODetailPage() {
         </div>
 
         <aside className="space-y-5">
-          <section className="rounded-2xl border bg-card p-5">
-            <h2 className="font-semibold">Update Status</h2>
+          {purchaseOrder.status === "PENDING_APPROVAL" ? (
+            <section className="rounded-2xl border bg-card p-5">
+              <h2 className="font-semibold">Approval Status</h2>
 
-            <p className="mt-1 text-sm text-muted-foreground">
-              Current status:{" "}
-              <strong>
-                {STATUS_LABELS[purchaseOrder.status] || purchaseOrder.status}
-              </strong>
-            </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Current status:{" "}
+                <strong>
+                  {STATUS_LABELS[purchaseOrder.status] || purchaseOrder.status}
+                </strong>
+              </p>
 
-            {allowedStatuses.length ? (
-              <>
-                <select
-                  className="mt-4 h-10 w-full rounded-md border bg-background px-3"
-                  value={selectedStatus}
-                  onChange={(event) => setSelectedStatus(event.target.value)}
-                >
-                  <option value="">Select new status</option>
+              {allowedStatuses.length ? (
+                <>
+                  <select
+                    className="mt-4 h-10 w-full rounded-md border bg-background px-3"
+                    value={selectedStatus}
+                    onChange={(event) => setSelectedStatus(event.target.value)}
+                  >
+                    <option value="">Select action</option>
 
-                  {allowedStatuses.map((status) => (
-                    <option key={status} value={status}>
-                      {STATUS_LABELS[status] || status}
-                    </option>
-                  ))}
-                </select>
+                    {allowedStatuses.map((status) => (
+                      <option key={status} value={status}>
+                        {STATUS_LABELS[status] || status}
+                      </option>
+                    ))}
+                  </select>
 
-                <Button
-                  type="button"
-                  className="mt-3 w-full"
-                  disabled={!selectedStatus || updateStatus.isPending}
-                  onClick={() => updateStatus.mutate(selectedStatus)}
-                >
-                  {updateStatus.isPending ? "Updating..." : "Update Status"}
-                </Button>
-              </>
-            ) : (
-              <div className="mt-4 rounded-xl bg-muted p-4 text-sm text-muted-foreground">
-                This purchase order is in a final status and cannot be changed.
-              </div>
-            )}
-          </section>
+                  <Button
+                    type="button"
+                    className="mt-3 w-full"
+                    disabled={!selectedStatus || updateStatus.isPending}
+                    onClick={() => updateStatus.mutate(selectedStatus)}
+                  >
+                    {updateStatus.isPending ? "Updating..." : "Update Status"}
+                  </Button>
+                </>
+              ) : null}
+            </section>
+          ) : null}
 
           <section className="rounded-2xl border bg-card p-5">
             <h2 className="font-semibold">Order Summary</h2>
@@ -558,16 +561,43 @@ export default function PODetailPage() {
             </div>
           </section>
 
-          {purchaseOrder.status === "APPROVED" ||
-          purchaseOrder.status === "PARTIALLY_RECEIVED" ? (
-            <Button asChild className="w-full">
-              <Link
-                to={`/purchases/grn/new?purchase_order=${purchaseOrder.id}`}
-              >
-                <Truck className="mr-2 h-4 w-4" />
-                Create GRN
-              </Link>
-            </Button>
+          {purchaseOrder.status === "APPROVED" ? (
+            <section className="overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-sm dark:border-blue-500/20 dark:from-blue-500/10 dark:via-background dark:to-indigo-500/10">
+              <div className="p-5">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
+                    <Truck className="h-5 w-5" />
+                  </div>
+
+                  <div className="min-w-0">
+                    <h2 className="font-semibold text-slate-950 dark:text-white">
+                      Shipment Required
+                    </h2>
+
+                    <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-400">
+                      This purchase order is approved. Log the incoming shipment
+                      before creating the GRN.
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  asChild
+                  className="mt-5 h-11 w-full bg-blue-600 font-semibold text-white shadow-sm hover:bg-blue-700"
+                >
+                  <Link
+                    to={`/shipments/new?purchase_order=${purchaseOrder.id}`}
+                  >
+                    <Truck className="mr-2 h-4 w-4" />
+                    Log Shipment
+                  </Link>
+                </Button>
+
+                <p className="mt-3 text-center text-[11px] text-slate-500">
+                  Next: Shipment → GRN → Stock Receipt
+                </p>
+              </div>
+            </section>
           ) : null}
         </aside>
       </div>

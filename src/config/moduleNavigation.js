@@ -174,20 +174,19 @@ export const modules = [
         permission: "purchase.purchase_orders.view",
       },
       {
-        id: "purchase-grn",
-        label: "Goods Received Notes",
-        to: "/purchases/grn",
-        icon: PackageCheck,
-        permission: "purchase.grn.view",
-      },
-      {
         id: "purchase-shipments",
         label: "Shipments",
         to: "/shipments",
         icon: Truck,
         permission: "purchase.shipments.view",
       },
-
+      {
+        id: "purchase-grn",
+        label: "Goods Received Notes",
+        to: "/purchases/grn",
+        icon: PackageCheck,
+        permission: "purchase.grn.view",
+      },
       {
         id: "purchase-supplier-bills",
         label: "Supplier Bills",

@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -75,6 +75,9 @@ export default function ShipmentFormPage() {
   const edit = Boolean(id);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+
+  const purchaseOrderParam = searchParams.get("purchase_order") || "";
 
   const { branchId } = useActiveBranchFilter();
 
@@ -113,13 +116,29 @@ export default function ShipmentFormPage() {
   const [productSearchOpen, setProductSearchOpen] = React.useState({});
 
   React.useEffect(() => {
-    if (!edit && branchId) {
+    if (!edit && branchId && !purchaseOrderParam) {
       setForm((current) => ({
         ...current,
         branch: String(branchId),
       }));
     }
-  }, [branchId, edit]);
+  }, [branchId, edit, purchaseOrderParam]);
+
+  const { data: sourcePurchaseOrder, isLoading: sourcePurchaseOrderLoading } =
+    useQuery({
+      queryKey: ["shipment-source-purchase-order", purchaseOrderParam],
+
+      queryFn: async () =>
+        unwrap(
+          await api.get(`/purchases/orders/${purchaseOrderParam}/`, {
+            skipGlobalErrorToast: true,
+          }),
+        ),
+
+      enabled: !edit && Boolean(purchaseOrderParam),
+      staleTime: 0,
+      retry: false,
+    });
 
   const { data: optionResponse, isLoading: optionsLoading } = useQuery({
     queryKey: ["shipment-form-options", form.branch],
@@ -141,6 +160,110 @@ export default function ShipmentFormPage() {
   const purchaseOrders = normalizeList(options.purchase_orders);
 
   const suppliers = normalizeList(options.suppliers);
+
+  const mapPurchaseOrderItems = React.useCallback(
+    (order) =>
+      (order?.items || []).map((item) => ({
+        product: optionValue(
+          item.product_id ?? item.product?.id ?? item.product,
+        ),
+
+        variant: optionValue(
+          item.variant_id ?? item.variant?.id ?? item.variant,
+        ),
+
+        product_name:
+          item.product_name ||
+          item.product?.product_name ||
+          item.product?.name ||
+          "",
+
+        sku: item.sku || item.variant?.sku || item.product?.sku || "",
+
+        brand_name: item.brand_name || item.product?.brand_name || "",
+
+        condition: "NEW",
+
+        expected_quantity: Number(
+          item.quantity ??
+            item.ordered_quantity ??
+            item.remaining_quantity ??
+            0,
+        ),
+
+        // Shipment is logged before GRN.
+        // These quantities are unknown until physical receipt/checking.
+        received_quantity: 0,
+        accepted_quantity: 0,
+        rejected_quantity: 0,
+
+        unit_cost: Number(
+          item.unit_price ?? item.unit_cost ?? item.purchase_price ?? 0,
+        ),
+
+        vat_percentage: Number(item.vat_percentage ?? item.vat_rate ?? 5),
+
+        rack: "",
+        serial_number: "",
+        batch_number: "",
+        remarks: "",
+      })),
+    [],
+  );
+
+  React.useEffect(() => {
+    if (edit || !purchaseOrderParam || !sourcePurchaseOrder) {
+      return;
+    }
+
+    const order = sourcePurchaseOrder;
+
+    const sourceSupplierId = optionValue(
+      order.supplier_id ?? order.supplier?.id ?? order.supplier,
+    );
+
+    const sourceBranchId = optionValue(
+      order.branch_id ?? order.branch?.id ?? order.branch,
+    );
+
+    setForm((current) => ({
+      ...current,
+
+      shipment_type: "PURCHASE",
+
+      purchase_order: optionValue(order.id),
+
+      supplier: sourceSupplierId,
+
+      branch: sourceBranchId || current.branch,
+
+      expected_date: order.expected_delivery_date || current.expected_date,
+
+      shipment_method: current.shipment_method || "Purchase Receipt",
+
+      status: "DRAFT",
+
+      notes:
+        current.notes ||
+        `Shipment against Purchase Order ${order.po_number || order.id}.`,
+
+      items: mapPurchaseOrderItems(order),
+    }));
+
+    setPurchaseOrderSearch(order.po_number || `PO ${order.id}`);
+
+    setSupplierSearch(
+      order.supplier_name ||
+        order.supplier?.supplier_name ||
+        order.supplier?.name ||
+        "",
+    );
+
+    setPurchaseOrderSearchOpen(false);
+    setSupplierSearchOpen(false);
+    setProductSearches({});
+    setProductSearchOpen({});
+  }, [edit, purchaseOrderParam, sourcePurchaseOrder, mapPurchaseOrderItems]);
 
   const filteredPurchaseOrders = React.useMemo(() => {
     const search = purchaseOrderSearch.trim().toLowerCase();
@@ -409,40 +532,7 @@ export default function ShipmentFormPage() {
 
       expected_date: order.expected_delivery_date || current.expected_date,
 
-      items: (order.items || []).map((item) => ({
-        product: optionValue(
-          item.product_id ?? item.product?.id ?? item.product,
-        ),
-
-        variant: optionValue(
-          item.variant_id ?? item.variant?.id ?? item.variant,
-        ),
-
-        product_name: item.product_name || "",
-
-        sku: item.sku || "",
-
-        brand_name: item.brand_name || "",
-
-        condition: "NEW",
-
-        expected_quantity: Number(item.quantity || 0),
-
-        received_quantity: Number(item.quantity || 0),
-
-        accepted_quantity: Number(item.quantity || 0),
-
-        rejected_quantity: 0,
-
-        unit_cost: Number(item.unit_price || 0),
-
-        vat_percentage: Number(item.vat_percentage ?? 5),
-
-        rack: "",
-        serial_number: "",
-        batch_number: "",
-        remarks: "",
-      })),
+      items: mapPurchaseOrderItems(order),
     }));
   };
 
@@ -786,6 +876,12 @@ export default function ShipmentFormPage() {
     save.mutate();
   };
 
+  if (!edit && purchaseOrderParam && sourcePurchaseOrderLoading) {
+    return (
+      <div className="card-surface p-6">Loading purchase order details...</div>
+    );
+  }
+
   if (edit && existingLoading) {
     return <div className="card-surface p-6">Loading shipment...</div>;
   }
@@ -794,7 +890,11 @@ export default function ShipmentFormPage() {
     <div className="purchase-module-page purchase-workspace mx-auto max-w-[1500px] space-y-5 pb-10">
       <PageHeader
         title={edit ? "Edit Shipment" : "New Shipment"}
-        subtitle="Receive purchased items and add accepted quantities to branch stock"
+        subtitle={
+          purchaseOrderParam
+            ? "Shipment details pre-filled from the approved purchase order"
+            : "Log an incoming supplier shipment against a purchase order"
+        }
         actions={
           <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
             {form.status.replace(/_/g, " ")}
@@ -851,9 +951,13 @@ export default function ShipmentFormPage() {
             <Input
               className="mt-2"
               value={purchaseOrderSearch}
-              disabled={optionsLoading}
+              disabled={optionsLoading || Boolean(purchaseOrderParam)}
               autoComplete="off"
-              onFocus={() => setPurchaseOrderSearchOpen(true)}
+              onFocus={() => {
+                if (!purchaseOrderParam) {
+                  setPurchaseOrderSearchOpen(true);
+                }
+              }}
               onChange={(event) => {
                 const value = event.target.value;
 
@@ -925,9 +1029,13 @@ export default function ShipmentFormPage() {
             <Input
               className="mt-2"
               value={supplierSearch}
-              disabled={optionsLoading}
+              disabled={optionsLoading || Boolean(purchaseOrderParam)}
               autoComplete="off"
-              onFocus={() => setSupplierSearchOpen(true)}
+              onFocus={() => {
+                if (!purchaseOrderParam) {
+                  setSupplierSearchOpen(true);
+                }
+              }}
               onChange={(event) => {
                 const value = event.target.value;
 
@@ -1003,7 +1111,7 @@ export default function ShipmentFormPage() {
             <Select
               value={form.branch}
               onValueChange={(value) => updateForm("branch", value)}
-              disabled={Boolean(branchId)}
+              disabled={Boolean(branchId) || Boolean(purchaseOrderParam)}
             >
               <SelectTrigger className="mt-2">
                 <SelectValue placeholder="Select branch" />
