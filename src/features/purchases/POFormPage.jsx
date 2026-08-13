@@ -54,6 +54,7 @@ const normalizeList = (value) => {
   if (Array.isArray(normalized)) return normalized;
   if (Array.isArray(normalized?.results)) return normalized.results;
   if (Array.isArray(normalized?.data)) return normalized.data;
+
   if (Array.isArray(normalized?.data?.results)) {
     return normalized.data.results;
   }
@@ -87,6 +88,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 const money = (value) => {
   const parsed = Number(value || 0);
+
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
@@ -123,6 +125,7 @@ function ApprovalStep({ number, title, detail, complete = false }) {
         <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
           {title}
         </p>
+
         <p className="mt-0.5 text-xs text-slate-500">{detail}</p>
       </div>
     </div>
@@ -131,10 +134,15 @@ function ApprovalStep({ number, title, detail, complete = false }) {
 
 export default function POFormPage() {
   const { id } = useParams();
+
   const edit = Boolean(id);
+
   const navigate = useNavigate();
+
   const queryClient = useQueryClient();
+
   const { branchId } = useActiveBranchFilter();
+
   const activeBranchId = normalizeBranchId(branchId);
 
   const [form, setForm] = React.useState({
@@ -155,9 +163,13 @@ export default function POFormPage() {
   });
 
   const [errors, setErrors] = React.useState({});
+
   const [supplierSearch, setSupplierSearch] = React.useState("");
+
   const [supplierSearchOpen, setSupplierSearchOpen] = React.useState(false);
+
   const [productSearches, setProductSearches] = React.useState({});
+
   const [productSearchOpen, setProductSearchOpen] = React.useState({});
 
   React.useEffect(() => {
@@ -176,6 +188,7 @@ export default function POFormPage() {
     refetch: refetchSuppliers,
   } = useQuery({
     queryKey: ["supplier-options", "purchase-order-form", form.branch || null],
+
     queryFn: async () =>
       normalizePayload(
         await api.get("/suppliers/", {
@@ -185,16 +198,21 @@ export default function POFormPage() {
             ordering: "supplier_name",
             branch: form.branch || undefined,
           },
+
           skipGlobalErrorToast: true,
         }),
       ),
+
     enabled: Boolean(form.branch),
+
     staleTime: 0,
+
     retry: false,
   });
 
   const { data: branchResponse } = useQuery({
     queryKey: ["branch-options", "purchase-order-form"],
+
     queryFn: async () =>
       normalizePayload(
         await api.get("/branches/", {
@@ -209,6 +227,7 @@ export default function POFormPage() {
 
   const { data: productResponse } = useQuery({
     queryKey: ["product-options", "purchase-order-form", form.branch],
+
     queryFn: async () =>
       normalizePayload(
         await api.get("/products/", {
@@ -224,8 +243,11 @@ export default function POFormPage() {
 
   const { data: existing, isLoading: existingLoading } = useQuery({
     queryKey: ["purchase-order", id],
+
     queryFn: async () => unwrap(await api.get(`/purchases/orders/${id}/`)),
+
     enabled: edit,
+
     staleTime: 0,
   });
 
@@ -262,18 +284,26 @@ export default function POFormPage() {
       if (existingSupplierId && !merged.has(String(existingSupplierId))) {
         merged.set(String(existingSupplierId), {
           id: existingSupplierId,
+
           supplier_name:
             existing.supplier_name ||
             existing.supplier?.supplier_name ||
             existing.supplier?.name ||
             `Supplier ${existingSupplierId}`,
+
           supplier_code:
             existing.supplier_code || existing.supplier?.supplier_code || "",
+
           contact_person: existing.supplier?.contact_person || "",
+
           email: existing.supplier?.email || "",
+
           branch_id: getRelationId(existing.branch, existing.branch_id),
+
           payment_terms_days: existing.supplier?.payment_terms_days || 0,
+
           credit_limit: existing.supplier?.credit_limit || 0,
+
           outstanding_balance: existing.supplier?.outstanding_balance || 0,
         });
       }
@@ -345,29 +375,48 @@ export default function POFormPage() {
 
     setForm({
       po_number: existing.po_number || "",
+
       supplier: String(getRelationId(existing.supplier, existing.supplier_id)),
+
       branch: String(getRelationId(existing.branch, existing.branch_id)),
+
       order_date: existing.order_date || today(),
+
       expected_delivery_date: existing.expected_delivery_date || "",
+
       currency: existing.currency || "AED",
+
       supplier_reference: existing.supplier_reference || "",
+
       shipping_amount: existing.shipping_amount || 0,
+
       other_charges: existing.other_charges || 0,
+
       discount_amount: existing.discount_amount || 0,
+
       notes: existing.notes || "",
+
       terms_conditions: existing.terms_conditions || "",
+
       status: existing.status || "DRAFT",
+
       items:
         (existing.items || []).length > 0
           ? existing.items.map((item) => ({
               id: item.id,
+
               product: String(item.product?.id || item.product || ""),
+
               variant: item.variant
                 ? String(item.variant?.id || item.variant)
                 : "",
+
               description: item.description || "",
+
               quantity: item.quantity || 1,
+
               unit_price: item.unit_price || 0,
+
               discount_amount: item.discount_amount || 0,
             }))
           : [emptyItem()],
@@ -389,8 +438,14 @@ export default function POFormPage() {
   const updateItem = (index, patch) => {
     setForm((current) => ({
       ...current,
+
       items: current.items.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, ...patch } : item,
+        itemIndex === index
+          ? {
+              ...item,
+              ...patch,
+            }
+          : item,
       ),
     }));
 
@@ -418,6 +473,7 @@ export default function POFormPage() {
     const selected = products.find(
       (candidate) => String(candidate.id) === String(item.product),
     );
+
     const selectedLabel = selected
       ? [selected.product_name, selected.sku].filter(Boolean).join(" · ")
       : "";
@@ -449,6 +505,7 @@ export default function POFormPage() {
         const gross = money(item.quantity) * money(item.unit_price);
 
         const discount = money(item.discount_amount);
+
         const taxable = Math.max(0, gross - discount);
 
         const vat = (taxable * 5) / 100;
@@ -460,6 +517,7 @@ export default function POFormPage() {
           total: taxable + vat,
         };
       }),
+
     [form.items],
   );
 
@@ -503,7 +561,11 @@ export default function POFormPage() {
           "Selected supplier does not belong to the selected branch.";
       }
     }
-    if (!form.order_date) next.order_date = "Order date is required.";
+
+    if (!form.order_date) {
+      next.order_date = "Order date is required.";
+    }
+
     if (!form.expected_delivery_date) {
       next.expected_delivery_date = "Expected delivery is required.";
     }
@@ -521,6 +583,7 @@ export default function POFormPage() {
     }
 
     setErrors(next);
+
     return Object.keys(next).length === 0;
   };
 
@@ -528,23 +591,40 @@ export default function POFormPage() {
     mutationFn: async ({ targetStatus }) => {
       const body = {
         ...form,
+
         po_number: form.po_number || undefined,
+
         supplier: Number(form.supplier),
+
         branch: Number(form.branch),
+
         status: targetStatus,
+
         shipping_amount: money(form.shipping_amount),
+
         other_charges: money(form.other_charges),
+
         discount_amount: money(form.discount_amount),
+
         items: form.items.map((item) => ({
           ...(item.id ? { id: item.id } : {}),
+
           product: Number(item.product),
+
           variant: item.variant ? Number(item.variant) : null,
+
           description: item.description || "",
+
           quantity: Number(item.quantity || 0),
+
           tax_treatment: "STANDARD_VAT",
+
           tax_reason: "",
+
           unit_price: money(item.unit_price),
+
           discount_amount: money(item.discount_amount),
+
           vat_percentage: 5,
         })),
       };
@@ -565,6 +645,7 @@ export default function POFormPage() {
         queryClient.invalidateQueries({
           queryKey: ["purchase-orders"],
         }),
+
         queryClient.invalidateQueries({
           queryKey: ["purchase-orders-summary"],
         }),
@@ -585,11 +666,15 @@ export default function POFormPage() {
 
     onError: (error) => {
       const details = getApiErrorDetails(error);
+
       const next = {};
 
       (details.errors || []).forEach(({ field, message }) => {
         const root = field?.split(/[.[]/)[0];
-        if (root) next[root] = message;
+
+        if (root) {
+          next[root] = message;
+        }
       });
 
       setErrors((current) => ({
@@ -618,6 +703,7 @@ export default function POFormPage() {
       toast.error(
         "Complete the current line item before adding another product.",
       );
+
       return;
     }
 
@@ -629,7 +715,10 @@ export default function POFormPage() {
 
   const submit = (targetStatus) => {
     if (!validate()) return;
-    save.mutate({ targetStatus });
+
+    save.mutate({
+      targetStatus,
+    });
   };
 
   if (edit && existingLoading) {
@@ -637,6 +726,7 @@ export default function POFormPage() {
   }
 
   const orderLabel = form.po_number || "Auto-generated";
+
   const orderStatus = form.status === "DRAFT" ? "Draft" : form.status;
 
   return (
@@ -657,6 +747,7 @@ export default function POFormPage() {
             <h2 className="font-semibold text-slate-950 dark:text-white">
               Order details
             </h2>
+
             <p className="mt-1 text-xs text-slate-500">
               Who this order goes to and when it is needed by
             </p>
@@ -678,6 +769,7 @@ export default function POFormPage() {
                     const value = event.target.value;
 
                     setSupplierSearch(value);
+
                     setSupplierSearchOpen(true);
 
                     if (
@@ -706,9 +798,11 @@ export default function POFormPage() {
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => {
                             updateForm("supplier", String(supplier.id));
+
                             setSupplierSearch(
                               supplier.supplier_name || supplier.name || "",
                             );
+
                             setSupplierSearchOpen(false);
                           }}
                         >
@@ -764,6 +858,7 @@ export default function POFormPage() {
                 <Label>
                   Order date <span className="text-red-500">*</span>
                 </Label>
+
                 <Input
                   type="date"
                   value={form.order_date}
@@ -778,6 +873,7 @@ export default function POFormPage() {
                 <Label>
                   Expected delivery <span className="text-red-500">*</span>
                 </Label>
+
                 <Input
                   type="date"
                   min={form.order_date}
@@ -787,6 +883,7 @@ export default function POFormPage() {
                   }
                   className="mt-2"
                 />
+
                 {errors.expected_delivery_date && (
                   <p className="mt-1 text-xs text-red-500">
                     {errors.expected_delivery_date}
@@ -798,30 +895,43 @@ export default function POFormPage() {
             <div className="mt-4 grid gap-4 md:grid-cols-3">
               <div>
                 <Label>Branch</Label>
+
                 <Select
                   value={form.branch}
                   onValueChange={(value) => {
                     setSupplierSearch("");
+
                     setSupplierSearchOpen(false);
+
                     setProductSearches({});
+
                     setProductSearchOpen({});
 
                     setForm((current) => ({
                       ...current,
+
                       branch: value,
+
                       supplier: "",
+
                       items: current.items.map((item) => ({
                         ...item,
+
                         product: "",
+
                         variant: "",
+
                         unit_price: 0,
                       })),
                     }));
 
                     setErrors((current) => ({
                       ...current,
+
                       branch: "",
+
                       supplier: "",
+
                       items: "",
                     }));
                   }}
@@ -830,6 +940,7 @@ export default function POFormPage() {
                   <SelectTrigger className="mt-2">
                     <SelectValue placeholder="Select branch" />
                   </SelectTrigger>
+
                   <SelectContent>
                     {branches.map((branch) => (
                       <SelectItem key={branch.id} value={String(branch.id)}>
@@ -842,6 +953,7 @@ export default function POFormPage() {
 
               <div>
                 <Label>Currency</Label>
+
                 <Select
                   value={form.currency}
                   onValueChange={(value) => updateForm("currency", value)}
@@ -849,6 +961,7 @@ export default function POFormPage() {
                   <SelectTrigger className="mt-2">
                     <SelectValue />
                   </SelectTrigger>
+
                   <SelectContent>
                     {["AED", "USD", "EUR", "INR"].map((currency) => (
                       <SelectItem key={currency} value={currency}>
@@ -861,6 +974,7 @@ export default function POFormPage() {
 
               <div>
                 <Label>Reference</Label>
+
                 <Input
                   value={form.supplier_reference}
                   onChange={(event) =>
@@ -878,6 +992,7 @@ export default function POFormPage() {
                   <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
                     {selectedSupplier.supplier_name}
                   </p>
+
                   <p className="mt-0.5 text-[11px] text-slate-500">
                     {getSupplierMeta(selectedSupplier) ||
                       "Supplier contact details not available"}
@@ -885,11 +1000,14 @@ export default function POFormPage() {
                 </div>
 
                 <p className="text-[11px] font-medium text-blue-600 dark:text-blue-400">
-                  Net {selectedSupplier.payment_terms_days || 0} · Credit used{" "}
+                  Net {selectedSupplier.payment_terms_days || 0}
+                  {" · "}
+                  Credit used{" "}
                   <CurrencyText
                     value={selectedSupplier.outstanding_balance || 0}
-                  />{" "}
-                  / <CurrencyText value={selectedSupplier.credit_limit || 0} />
+                  />
+                  {" / "}
+                  <CurrencyText value={selectedSupplier.credit_limit || 0} />
                 </p>
               </div>
             )}
@@ -900,6 +1018,7 @@ export default function POFormPage() {
               <h2 className="font-semibold text-slate-950 dark:text-white">
                 Line items
               </h2>
+
               <p className="mt-1 text-xs text-slate-500">
                 Items on this order with quantity and unit cost
               </p>
@@ -908,9 +1027,13 @@ export default function POFormPage() {
             <div className="p-5">
               <div className="hidden grid-cols-[minmax(250px,1fr)_80px_110px_110px_36px] gap-3 px-1 pb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500 md:grid">
                 <span>Item</span>
+
                 <span className="text-right">Qty</span>
+
                 <span className="text-right">Unit Cost</span>
+
                 <span className="text-right">Total</span>
+
                 <span />
               </div>
 
@@ -922,6 +1045,7 @@ export default function POFormPage() {
                   );
 
                   const variants = getVariants(product);
+
                   const filteredProducts = getFilteredProducts(index, item);
 
                   return (
@@ -938,6 +1062,7 @@ export default function POFormPage() {
                               onFocus={() =>
                                 setProductSearchOpen((current) => ({
                                   ...current,
+
                                   [index]: true,
                                 }))
                               }
@@ -946,17 +1071,22 @@ export default function POFormPage() {
 
                                 setProductSearches((current) => ({
                                   ...current,
+
                                   [index]: value,
                                 }));
+
                                 setProductSearchOpen((current) => ({
                                   ...current,
+
                                   [index]: true,
                                 }));
 
                                 if (item.product) {
                                   updateItem(index, {
                                     product: "",
+
                                     variant: "",
+
                                     unit_price: 0,
                                   });
                                 }
@@ -965,6 +1095,7 @@ export default function POFormPage() {
                                 if (event.key === "Escape") {
                                   setProductSearchOpen((current) => ({
                                     ...current,
+
                                     [index]: false,
                                   }));
                                 }
@@ -985,7 +1116,25 @@ export default function POFormPage() {
                                       }
                                       onClick={() => {
                                         const firstVariant =
-                                          productOption?.variants?.[0];
+                                          productOption?.variants?.find(
+                                            (variant) =>
+                                              variant.is_active !== false &&
+                                              !variant.is_base,
+                                          ) || productOption?.variants?.[0];
+
+                                        const productPrice = money(
+                                          firstVariant?.purchase_price ??
+                                            productOption?.purchase_price ??
+                                            productOption?.cost_price ??
+                                            productOption?.unit_cost ??
+                                            0,
+                                        );
+
+                                        console.log(
+                                          "Selected Product Price:",
+                                          productPrice,
+                                        );
+
                                         const label = [
                                           productOption.product_name,
                                           productOption.sku,
@@ -995,16 +1144,21 @@ export default function POFormPage() {
 
                                         updateItem(index, {
                                           product: String(productOption.id),
+
                                           variant: "",
-                                          unit_price:
-                                            firstVariant?.purchase_price || 0,
+
+                                          unit_price: productPrice,
                                         });
+
                                         setProductSearches((current) => ({
                                           ...current,
+
                                           [index]: label,
                                         }));
+
                                         setProductSearchOpen((current) => ({
                                           ...current,
+
                                           [index]: false,
                                         }));
                                       }}
@@ -1012,6 +1166,7 @@ export default function POFormPage() {
                                       <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
                                         {productOption.product_name}
                                       </span>
+
                                       {productOption.sku ? (
                                         <span className="mt-0.5 text-xs text-muted-foreground">
                                           {productOption.sku}
@@ -1032,7 +1187,10 @@ export default function POFormPage() {
                             value={item.variant || "__base__"}
                             onValueChange={(value) => {
                               if (value === "__base__") {
-                                updateItem(index, { variant: "" });
+                                updateItem(index, {
+                                  variant: "",
+                                });
+
                                 return;
                               }
 
@@ -1042,6 +1200,7 @@ export default function POFormPage() {
 
                               updateItem(index, {
                                 variant: value,
+
                                 unit_price:
                                   selectedVariant?.purchase_price ||
                                   item.unit_price,
@@ -1056,10 +1215,12 @@ export default function POFormPage() {
                                 }
                               />
                             </SelectTrigger>
+
                             <SelectContent>
                               <SelectItem value="__base__">
                                 Base product
                               </SelectItem>
+
                               {variants.map((variant) => (
                                 <SelectItem
                                   key={variant.id}
@@ -1120,6 +1281,7 @@ export default function POFormPage() {
                           onClick={() =>
                             setForm((current) => ({
                               ...current,
+
                               items: current.items.filter(
                                 (_, itemIndex) => itemIndex !== index,
                               ),
@@ -1156,21 +1318,28 @@ export default function POFormPage() {
               <div className="mt-6 ml-auto max-w-xs space-y-2 border-t border-slate-200 pt-4 text-sm dark:border-white/10">
                 <div className="flex justify-between">
                   <span className="text-slate-500">Subtotal</span>
+
                   <CurrencyText value={subtotal} currency={form.currency} />
                 </div>
+
                 <div className="flex justify-between">
                   <span className="text-slate-500">VAT (5%)</span>
+
                   <CurrencyText value={vat} currency={form.currency} />
                 </div>
+
                 <div className="flex justify-between">
                   <span className="text-slate-500">Shipping</span>
+
                   <CurrencyText
                     value={form.shipping_amount}
                     currency={form.currency}
                   />
                 </div>
+
                 <div className="flex justify-between border-t border-slate-200 pt-3 font-semibold dark:border-white/10">
                   <span>Total</span>
+
                   <CurrencyText value={total} currency={form.currency} />
                 </div>
               </div>
@@ -1212,6 +1381,7 @@ export default function POFormPage() {
         <aside className="space-y-5">
           <section className="card-surface p-5">
             <h2 className="font-semibold">Order summary</h2>
+
             <p className="mt-1 text-xs text-slate-500">
               {orderLabel} · {form.items.length} item
               {form.items.length === 1 ? "" : "s"}
@@ -1220,30 +1390,42 @@ export default function POFormPage() {
             <div className="mt-5 space-y-3 text-sm">
               <div className="flex justify-between gap-3">
                 <span className="text-slate-500">Supplier</span>
+
                 <span className="text-right font-medium">
                   {selectedSupplier?.supplier_name || "—"}
                 </span>
               </div>
+
               <div className="flex justify-between">
                 <span className="text-slate-500">Items</span>
+
                 <span className="font-medium">{form.items.length}</span>
               </div>
+
               <div className="flex justify-between">
                 <span className="text-slate-500">Subtotal</span>
+
                 <CurrencyText value={subtotal} currency={form.currency} />
               </div>
+
               <div className="flex justify-between">
                 <span className="text-slate-500">VAT</span>
+
                 <CurrencyText value={vat} currency={form.currency} />
               </div>
+
               <div className="flex justify-between border-t border-slate-200 pt-3 font-semibold dark:border-white/10">
                 <span>Total amount</span>
+
                 <CurrencyText value={total} currency={form.currency} />
               </div>
+
               <div className="flex items-center justify-between border-t border-slate-200 pt-3 dark:border-white/10">
                 <span className="text-slate-500">Status</span>
+
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs dark:bg-white/10">
                   <Circle className="h-2 w-2 fill-current" />
+
                   {orderStatus}
                 </span>
               </div>
@@ -1252,6 +1434,7 @@ export default function POFormPage() {
 
           <section className="card-surface p-5">
             <h2 className="font-semibold">Approval flow</h2>
+
             <p className="mt-1 text-xs text-slate-500">
               Runs automatically once sent
             </p>
@@ -1263,16 +1446,19 @@ export default function POFormPage() {
                 detail="You · just now"
                 complete
               />
+
               <ApprovalStep
                 number="2"
                 title="Pending approval"
                 detail="Assigned approver"
               />
+
               <ApprovalStep
                 number="3"
                 title="Sent to supplier"
                 detail="Auto-emailed on approval"
               />
+
               <ApprovalStep
                 number="4"
                 title="Receipt tracking"
