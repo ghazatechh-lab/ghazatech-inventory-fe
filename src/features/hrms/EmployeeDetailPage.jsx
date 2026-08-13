@@ -186,7 +186,8 @@ export default function EmployeeDetailPage() {
             ["overview", "Basic Details"],
             ["leave", "Leave History"],
             ["attendance", "Attendance"],
-            ["payroll", "Payroll & Salary"],
+            ["salary", "Salary Revision"],
+            ["payroll", "Payroll"],
             ["documents", "Documents"],
           ].map(([value, label]) => (
             <button
@@ -584,66 +585,97 @@ export default function EmployeeDetailPage() {
         </section>
       )}
 
-      {activeTab === "payroll" && (
+      {activeTab === "salary" && (
         <section className="space-y-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-3 rounded-2xl border bg-gradient-to-r from-blue-50/70 via-background to-cyan-50/50 p-4 sm:flex-row sm:items-center sm:justify-between dark:from-blue-500/5 dark:to-cyan-500/5">
             <div>
-              <h2 className="text-xl font-semibold">Salary History</h2>
-              <p className="text-sm text-muted-foreground">
-                Effective-dated salary ledger, from joining to today
-              </p>
-            </div>
-            <Button
-              onClick={openRevision}
-              className="bg-blue-600 text-white hover:bg-blue-700"
-            >
-              <Plus className="mr-2 h-4 w-4" /> Add Revision
-            </Button>
-          </div>
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600/10 text-blue-600">
+                  <TrendingUp className="h-4 w-4" />
+                </div>
 
-          <section className="card-surface p-4">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <select
-                className="h-10 min-w-[260px] rounded-md border bg-background px-3 text-sm"
-                value={employee.id}
-                disabled
-              >
-                <option value={employee.id}>
-                  {employee.full_name} —{" "}
-                  {employee.designation_name || "Employee"}
-                </option>
-              </select>
-              <div className="grid grid-cols-3 gap-6">
-                <div className="text-right">
-                  <p className="text-[10px] uppercase text-muted-foreground">
-                    Joining Salary
+                <div>
+                  <h2 className="text-base font-semibold">Salary Revision</h2>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Track joining salary and effective-dated revisions.
                   </p>
-                  <p className="font-semibold">
-                    <CurrencyText value={joiningSalary} />
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] uppercase text-muted-foreground">
-                    Current Salary
-                  </p>
-                  <p className="font-semibold text-blue-600">
-                    <CurrencyText value={currentSalary} />
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] uppercase text-muted-foreground">
-                    Total Growth
-                  </p>
-                  <p className="font-semibold text-emerald-600">+{growth}%</p>
                 </div>
               </div>
             </div>
+
+            <Button
+              onClick={openRevision}
+              size="sm"
+              className="bg-blue-600 text-white shadow-sm hover:bg-blue-700"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Revision
+            </Button>
+          </div>
+
+          <section className="card-surface overflow-hidden p-0">
+            <div className="border-b bg-muted/20 px-5 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Salary Overview
+              </p>
+            </div>
+
+            <div className="grid gap-4 p-4 md:p-5 xl:grid-cols-[minmax(280px,1.35fr)_repeat(3,minmax(150px,0.55fr))] xl:items-center">
+              <div>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">
+                  Employee
+                </p>
+
+                <select
+                  className="h-11 w-full rounded-md border bg-background px-3 text-sm"
+                  value={employee.id}
+                  disabled
+                >
+                  <option value={employee.id}>
+                    {employee.full_name} —{" "}
+                    {employee.designation_name || "Employee"}
+                  </option>
+                </select>
+              </div>
+
+              <SalaryMetric
+                label="Joining Salary"
+                value={<CurrencyText value={joiningSalary} />}
+              />
+
+              <SalaryMetric
+                label="Current Salary"
+                value={<CurrencyText value={currentSalary} />}
+                valueClassName="text-blue-600"
+              />
+
+              <SalaryMetric
+                label="Total Growth"
+                value={`${growth >= 0 ? "+" : ""}${growth}%`}
+                valueClassName={
+                  growth >= 0 ? "text-emerald-600" : "text-red-600"
+                }
+              />
+            </div>
           </section>
 
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-            <section className="card-surface p-5">
-              <h3 className="font-semibold">Revision Timeline</h3>
-              <div className="relative mt-5">
+          <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+            <section className="card-surface min-h-[420px] overflow-hidden p-0">
+              <div className="flex items-center justify-between border-b bg-muted/20 px-5 py-4">
+                <div>
+                  <h3 className="font-semibold">Revision Timeline</h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Chronological salary changes for this employee.
+                  </p>
+                </div>
+
+                <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-600 dark:bg-blue-500/10">
+                  {sortedHistory.length} record
+                  {sortedHistory.length === 1 ? "" : "s"}
+                </span>
+              </div>
+
+              <div className="relative p-5">
                 <div className="absolute bottom-5 left-[7px] top-5 w-px bg-slate-200" />
                 {sortedHistory.map((item, index) => {
                   const previous = sortedHistory[index + 1];
@@ -653,7 +685,7 @@ export default function EmployeeDetailPage() {
                   return (
                     <div
                       key={item.id}
-                      className="relative flex gap-4 pb-7 last:pb-0"
+                      className="relative flex gap-4 pb-6 last:pb-0"
                     >
                       <div
                         className={
@@ -662,7 +694,7 @@ export default function EmployeeDetailPage() {
                             : "relative z-10 mt-1 h-4 w-4 rounded-full border-4 border-slate-100 bg-slate-400"
                         }
                       />
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-0 flex-1 rounded-xl border bg-background p-4 shadow-sm">
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <p className="font-medium">{item.reason_display}</p>
@@ -680,25 +712,21 @@ export default function EmployeeDetailPage() {
                             }
                           />
                         </div>
-                        <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                          <div>
-                            <p className="text-xs text-muted-foreground">
-                              Basic
-                            </p>
-                            <CurrencyText value={item.basic_salary} />
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">
-                              Allowances
-                            </p>
-                            <CurrencyText value={item.allowances} />
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">
-                              Total
-                            </p>
-                            <CurrencyText value={item.total_salary} />
-                          </div>
+                        <div className="mt-4 grid gap-4 border-t pt-4 sm:grid-cols-3">
+                          <RevisionValue
+                            label="Basic Salary"
+                            value={<CurrencyText value={item.basic_salary} />}
+                          />
+
+                          <RevisionValue
+                            label="Allowances"
+                            value={<CurrencyText value={item.allowances} />}
+                          />
+
+                          <RevisionValue
+                            label="Total Salary"
+                            value={<CurrencyText value={item.total_salary} />}
+                          />
                         </div>
                         {previous && increase !== 0 && (
                           <p className="mt-3 text-xs font-medium text-emerald-600">
@@ -722,63 +750,92 @@ export default function EmployeeDetailPage() {
               </div>
             </section>
 
-            <div className="space-y-5">
-              <section className="card-surface p-5">
-                <h3 className="font-semibold">Current Structure</h3>
-                <div className="mt-4 space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Basic Salary</span>
-                    <CurrencyText value={employee.basic_salary} />
+            <div className="space-y-4">
+              <section className="card-surface overflow-hidden p-0">
+                <div className="border-b bg-muted/20 px-5 py-4">
+                  <h3 className="font-semibold">Current Structure</h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Current active salary package.
+                  </p>
+                </div>
+
+                <div className="space-y-4 p-5 text-sm">
+                  <StructureRow
+                    label="Basic Salary"
+                    value={<CurrencyText value={employee.basic_salary} />}
+                  />
+
+                  <StructureRow
+                    label="Allowances"
+                    value={<CurrencyText value={employee.allowances} />}
+                  />
+
+                  <div className="border-t pt-4">
+                    <StructureRow
+                      label="Total Package"
+                      value={<CurrencyText value={employee.total_salary} />}
+                      strong
+                    />
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Allowances</span>
-                    <CurrencyText value={employee.allowances} />
-                  </div>
-                  <div className="flex justify-between border-t pt-3 font-semibold">
-                    <span>Total Package</span>
-                    <CurrencyText value={employee.total_salary} />
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">
-                      Effective From
-                    </span>
-                    <span>
-                      {sortedHistory[0]?.effective_from ||
-                        employee.joining_date ||
-                        "—"}
-                    </span>
-                  </div>
+
+                  <StructureRow
+                    label="Effective From"
+                    value={
+                      sortedHistory[0]?.effective_from ||
+                      employee.joining_date ||
+                      "—"
+                    }
+                  />
                 </div>
               </section>
 
-              <section className="card-surface p-5">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold">Salary Growth</h3>
-                  <TrendingUp className="h-4 w-4 text-emerald-500" />
+              <section className="card-surface overflow-hidden p-0">
+                <div className="flex items-center justify-between border-b bg-muted/20 px-5 py-4">
+                  <div>
+                    <h3 className="font-semibold">Salary Growth</h3>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Salary progression over time.
+                    </p>
+                  </div>
+
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10">
+                    <TrendingUp className="h-4 w-4" />
+                  </div>
                 </div>
-                <div className="mt-6 flex h-40 items-end gap-4">
-                  {chartItems.map((item) => {
-                    const value = Number(item.total_salary || 0);
-                    const height = Math.max(
-                      18,
-                      Math.round((value / maxSalary) * 100),
-                    );
-                    return (
-                      <div
-                        key={item.id}
-                        className="flex flex-1 flex-col items-center justify-end gap-2"
-                      >
-                        <div
-                          className="w-full rounded-t-md bg-blue-100"
-                          style={{ height: `${height}%` }}
-                          title={`AED ${value.toLocaleString("en-US")}`}
-                        />
-                        <span className="text-[10px] text-muted-foreground">
-                          {String(item.effective_from || "").slice(0, 4)}
-                        </span>
-                      </div>
-                    );
-                  })}
+
+                <div className="p-5">
+                  {chartItems.length ? (
+                    <div className="flex h-40 items-end gap-4">
+                      {chartItems.map((item) => {
+                        const value = Number(item.total_salary || 0);
+                        const height = Math.max(
+                          18,
+                          Math.round((value / maxSalary) * 100),
+                        );
+
+                        return (
+                          <div
+                            key={item.id}
+                            className="flex flex-1 flex-col items-center justify-end gap-2"
+                          >
+                            <div
+                              className="w-full rounded-t-md bg-blue-100"
+                              style={{ height: `${height}%` }}
+                              title={`AED ${value.toLocaleString("en-US")}`}
+                            />
+
+                            <span className="text-[10px] text-muted-foreground">
+                              {String(item.effective_from || "").slice(0, 4)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
+                      No salary growth data available.
+                    </div>
+                  )}
                 </div>
               </section>
             </div>
@@ -843,112 +900,63 @@ export default function EmployeeDetailPage() {
         </section>
       )}
 
-      {["leave", "payroll"].includes(activeTab) && (
-        <div className="grid gap-5">
-          {activeTab === "leave" && (
-            <section className="card-surface p-5">
-              <div className="flex items-center gap-3">
-                <CalendarDays className="h-5 w-5 text-blue-600" />
-                <h2 className="font-semibold">Leave History & Balances</h2>
+      {activeTab === "leave" && (
+        <section className="card-surface p-5">
+          <div className="flex items-center gap-3">
+            <CalendarDays className="h-5 w-5 text-blue-600" />
+            <h2 className="font-semibold">Leave History & Balances</h2>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {(profile?.leave_balances || []).map((balance) => (
+              <div key={balance.id} className="rounded-xl border p-3">
+                <p className="font-medium">{balance.leave_type_name}</p>
+                <p className="text-sm text-muted-foreground">
+                  Remaining: {balance.remaining_days} day(s)
+                </p>
               </div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {(profile?.leave_balances || []).map((balance) => (
-                  <div key={balance.id} className="rounded-xl border p-3">
-                    <p className="font-medium">{balance.leave_type_name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Remaining: {balance.remaining_days} day(s)
+            ))}
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {(profile?.leaves || []).slice(0, 10).map((leave) => (
+              <div key={leave.id} className="rounded-xl border p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-medium">{leave.leave_type_name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      <DateText value={leave.from_date} /> –{" "}
+                      <DateText value={leave.to_date} /> · {leave.days} day(s)
                     </p>
                   </div>
-                ))}
-              </div>
-              <div className="mt-4 space-y-3">
-                {(profile?.leaves || []).slice(0, 10).map((leave) => (
-                  <div key={leave.id} className="rounded-xl border p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-medium">{leave.leave_type_name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          <DateText value={leave.from_date} /> –{" "}
-                          <DateText value={leave.to_date} /> · {leave.days}{" "}
-                          day(s)
-                        </p>
-                      </div>
-                      <StatusBadge status={leave.status} />
-                    </div>
-                    <div className="mt-2 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
-                      <p>
-                        <span className="font-medium text-foreground">
-                          Reason:
-                        </span>{" "}
-                        {leave.reason || "—"}
-                      </p>
-                      <p>
-                        <span className="font-medium text-foreground">
-                          Actioned by:
-                        </span>{" "}
-                        {leave.actioned_by_name || "—"}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
 
-          {activeTab === "payroll" && (
-            <section className="card-surface p-5">
-              <div className="flex items-center gap-3">
-                <WalletCards className="h-5 w-5 text-blue-600" />
-                <h2 className="font-semibold">Payroll History</h2>
+                  <StatusBadge status={leave.status} />
+                </div>
+
+                <div className="mt-2 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+                  <p>
+                    <span className="font-medium text-foreground">Reason:</span>{" "}
+                    {leave.reason || "—"}
+                  </p>
+
+                  <p>
+                    <span className="font-medium text-foreground">
+                      Actioned by:
+                    </span>{" "}
+                    {leave.actioned_by_name || "—"}
+                  </p>
+                </div>
               </div>
-              <div className="mt-4 space-y-3">
-                {(profile?.payroll || []).slice(0, 12).map((entry) => (
-                  <div key={entry.id} className="rounded-xl border p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-medium">{entry.period}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Payable days:{" "}
-                          {entry.payable_days || entry.total_period_days || 30}/
-                          {entry.total_period_days || 30} · Unpaid leave:{" "}
-                          {entry.unpaid_leave_days || 0}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <CurrencyText value={entry.net_salary} />
-                        <div className="mt-1">
-                          <StatusBadge status={entry.status} />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-3 grid gap-2 border-t pt-3 text-xs sm:grid-cols-4">
-                      <div>
-                        <p className="text-muted-foreground">Basic</p>
-                        <CurrencyText value={entry.basic_salary} />
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Allowances</p>
-                        <CurrencyText value={entry.allowances} />
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Deductions</p>
-                        <CurrencyText value={entry.deductions} />
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Method</p>
-                        <p className="font-medium">
-                          {String(
-                            entry.salary_calculation_method || "FULL_MONTH",
-                          ).replace(/_/g, " ")}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {activeTab === "payroll" && (
+        <EmployeePayrollHistory
+          entries={profile?.payroll || []}
+          employeeId={id}
+        />
       )}
 
       {revisionOpen && (
@@ -1078,5 +1086,338 @@ export default function EmployeeDetailPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function SalaryMetric({ label, value, valueClassName = "" }) {
+  return (
+    <div className="rounded-xl border bg-background px-4 py-3 shadow-sm xl:text-right">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        {label}
+      </p>
+
+      <div
+        className={`mt-1 whitespace-nowrap text-[15px] font-semibold ${valueClassName}`}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function RevisionValue({ label, value }) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <div className="mt-1 whitespace-nowrap font-medium">{value}</div>
+    </div>
+  );
+}
+
+function StructureRow({ label, value, strong = false }) {
+  return (
+    <div className="grid grid-cols-[1fr_auto] items-center gap-4">
+      <span className={strong ? "font-semibold" : "text-muted-foreground"}>
+        {label}
+      </span>
+
+      <div
+        className={`whitespace-nowrap text-right ${strong ? "font-semibold" : "font-medium"}`}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function EmployeePayrollHistory({ entries, employeeId }) {
+  const payrollEntries = Array.isArray(entries) ? entries : [];
+
+  const paidEntries = payrollEntries.filter(
+    (entry) => String(entry.status || "").toUpperCase() === "PAID",
+  );
+
+  const lastTwelvePaid = paidEntries.slice(0, 12);
+
+  const totalPaid = lastTwelvePaid.reduce(
+    (sum, entry) => sum + Number(entry.net_salary || 0),
+    0,
+  );
+
+  const averageNet = lastTwelvePaid.length
+    ? totalPaid / lastTwelvePaid.length
+    : 0;
+
+  const onTimeRate = paidEntries.length
+    ? Math.round(
+        (paidEntries.filter((entry) => Boolean(entry.paid_at)).length /
+          paidEntries.length) *
+          100,
+      )
+    : 0;
+
+  const latestPayroll = payrollEntries[0];
+
+  return (
+    <section className="space-y-4">
+      <div className="flex flex-col gap-3 rounded-2xl border bg-gradient-to-r from-blue-50/70 via-background to-cyan-50/50 p-4 sm:flex-row sm:items-center sm:justify-between dark:from-blue-500/5 dark:to-cyan-500/5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600/10 text-blue-600">
+            <WalletCards className="h-4 w-4" />
+          </div>
+
+          <div>
+            <h2 className="text-base font-semibold">Payroll History</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Monthly payroll, payable days, deductions, allowances, and net
+              salary.
+            </p>
+          </div>
+        </div>
+
+        {latestPayroll && (
+          <div className="rounded-xl border bg-background px-4 py-2.5 shadow-sm">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Latest Payroll
+            </p>
+
+            <div className="mt-1 flex items-center gap-3">
+              <span className="font-semibold">
+                {latestPayroll.period || "—"}
+              </span>
+              <StatusBadge status={latestPayroll.status} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <PayrollMetric
+          label="Total Paid (12 Mo)"
+          value={<CurrencyText value={totalPaid} />}
+          description={`${lastTwelvePaid.length} paid payroll record${
+            lastTwelvePaid.length === 1 ? "" : "s"
+          }`}
+          icon="total"
+        />
+
+        <PayrollMetric
+          label="Avg Net / Month"
+          value={<CurrencyText value={averageNet} />}
+          description="Average across paid payroll"
+          icon="average"
+        />
+
+        <PayrollMetric
+          label="On-Time Rate"
+          value={`${onTimeRate}%`}
+          valueClassName="text-emerald-600"
+          description="Payroll records with payment timestamp"
+          icon="rate"
+        />
+      </div>
+
+      <section className="card-surface overflow-hidden">
+        <div className="flex flex-col gap-2 border-b bg-muted/20 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="font-semibold">Monthly Payroll Records</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Latest payroll periods are shown first.
+            </p>
+          </div>
+
+          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-600 dark:bg-blue-500/10">
+            {payrollEntries.length} record
+            {payrollEntries.length === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1000px] text-sm">
+            <thead className="border-b bg-muted/40">
+              <tr>
+                <PayrollTh>Period</PayrollTh>
+                <PayrollTh>Status</PayrollTh>
+                <PayrollTh>Payable Days</PayrollTh>
+                <PayrollTh right>Deductions</PayrollTh>
+                <PayrollTh right>Allowances</PayrollTh>
+                <PayrollTh>Method</PayrollTh>
+                <PayrollTh right>Net</PayrollTh>
+                <PayrollTh right>Action</PayrollTh>
+              </tr>
+            </thead>
+
+            <tbody>
+              {payrollEntries.slice(0, 24).map((entry) => {
+                const payableDays = Number(entry.payable_days || 0);
+
+                const totalPeriodDays = Number(
+                  entry.total_period_days || payableDays || 0,
+                );
+
+                const totalDeductions =
+                  Number(entry.deductions || 0) +
+                  Number(entry.advance_deduction || 0);
+
+                return (
+                  <tr
+                    key={entry.id}
+                    className="border-b transition hover:bg-blue-50/30 dark:hover:bg-blue-500/5"
+                  >
+                    <td className="px-4 py-4">
+                      <div className="font-semibold text-foreground">
+                        {entry.period || "—"}
+                      </div>
+
+                      {entry.payroll_date && (
+                        <div className="mt-0.5 text-[11px] text-muted-foreground">
+                          <DateText value={entry.payroll_date} />
+                        </div>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-4">
+                      <StatusBadge status={entry.status} />
+                    </td>
+
+                    <td className="px-4 py-4">
+                      <div className="font-medium tabular-nums">
+                        {payableDays.toFixed(2)} / {totalPeriodDays.toFixed(2)}
+                      </div>
+
+                      {Number(entry.unpaid_leave_days || 0) > 0 && (
+                        <div className="mt-0.5 text-[11px] text-amber-600">
+                          {Number(entry.unpaid_leave_days || 0).toFixed(2)}{" "}
+                          unpaid
+                        </div>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-4 text-right tabular-nums">
+                      <div className="font-medium text-red-500">
+                        <CurrencyText value={totalDeductions} />
+                      </div>
+
+                      {Number(entry.advance_deduction || 0) > 0 && (
+                        <div className="mt-0.5 text-[11px] text-muted-foreground">
+                          Incl. advance
+                        </div>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-4 text-right tabular-nums">
+                      <CurrencyText value={entry.allowances || 0} />
+                    </td>
+
+                    <td className="px-4 py-4">
+                      <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                        {String(
+                          entry.salary_calculation_method || "FULL",
+                        ).replace(/_/g, " ")}
+                      </span>
+                    </td>
+
+                    <td className="px-4 py-4 text-right">
+                      <div className="font-semibold tabular-nums text-emerald-600">
+                        <CurrencyText value={entry.net_salary || 0} />
+                      </div>
+                    </td>
+
+                    <td className="px-4 py-4 text-right">
+                      <Button
+                        asChild
+                        size="sm"
+                        variant="outline"
+                        className="h-8 rounded-lg px-3 text-xs"
+                      >
+                        <Link to={`/hrms/payroll?employee=${employeeId}`}>
+                          View Payroll
+                        </Link>
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {!payrollEntries.length && (
+                <tr>
+                  <td colSpan="8" className="px-4 py-14 text-center">
+                    <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-muted">
+                      <WalletCards className="h-5 w-5 text-muted-foreground" />
+                    </div>
+
+                    <h3 className="mt-3 font-semibold">No payroll history</h3>
+
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Payroll records for this employee will appear here.
+                    </p>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  );
+}
+
+function PayrollMetric({
+  label,
+  value,
+  valueClassName = "",
+  description = "",
+  icon = "total",
+}) {
+  const iconStyles = {
+    total: "bg-blue-50 text-blue-600 dark:bg-blue-500/10",
+    average: "bg-violet-50 text-violet-600 dark:bg-violet-500/10",
+    rate: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10",
+  };
+
+  return (
+    <div className="card-surface p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            {label}
+          </p>
+
+          <div className={`mt-2 text-xl font-semibold ${valueClassName}`}>
+            {value}
+          </div>
+
+          {description && (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {description}
+            </p>
+          )}
+        </div>
+
+        <div
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+            iconStyles[icon] || iconStyles.total
+          }`}
+        >
+          {icon === "rate" ? (
+            <TrendingUp className="h-4 w-4" />
+          ) : (
+            <WalletCards className="h-4 w-4" />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PayrollTh({ children, right = false }) {
+  return (
+    <th
+      className={`px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground ${
+        right ? "text-right" : "text-left"
+      }`}
+    >
+      {children}
+    </th>
   );
 }
