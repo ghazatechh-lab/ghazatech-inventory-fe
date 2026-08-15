@@ -561,7 +561,7 @@ export default function PODetailPage() {
             </div>
           </section>
 
-          {purchaseOrder.status === "APPROVED" ? (
+          {["APPROVED", "PARTIALLY_RECEIVED"].includes(purchaseOrder.status) ? (
             <section className="overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-indigo-50 shadow-sm dark:border-blue-500/20 dark:from-blue-500/10 dark:via-background dark:to-indigo-500/10">
               <div className="p-5">
                 <div className="flex items-start gap-3">

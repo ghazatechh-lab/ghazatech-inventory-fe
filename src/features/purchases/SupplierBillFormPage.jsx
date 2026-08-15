@@ -1021,7 +1021,7 @@ export default function SupplierBillFormPage() {
     }
 
     if (!form.grn) {
-      nextErrors.grn = "Select a confirmed GRN.";
+      nextErrors.grn = "Select an approved, confirmed GRN with QC passed.";
     }
 
     if (!form.branch) {
@@ -1674,7 +1674,7 @@ export default function SupplierBillFormPage() {
           </div>
 
           <div>
-            <Label htmlFor="grn">Confirmed GRN *</Label>
+            <Label htmlFor="grn">Approved & QC Passed GRN *</Label>
 
             <select
               id="grn"
@@ -1687,8 +1687,8 @@ export default function SupplierBillFormPage() {
                 {!form.purchase_order
                   ? "Select Purchase Order first"
                   : availableGrns.length
-                    ? "Select confirmed GRN"
-                    : "No confirmed GRN for this PO"}
+                    ? "Select approved QC-passed GRN"
+                    : "No approved QC-passed GRN for this PO"}
               </option>
 
               {availableGrns.map((grn) => (
@@ -1762,7 +1762,7 @@ export default function SupplierBillFormPage() {
                 </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-8 xl:items-start">
                 <div className="xl:col-span-2">
                   <Label>Product *</Label>
 
@@ -1780,11 +1780,6 @@ export default function SupplierBillFormPage() {
                 <div>
                   <Label>Bill Quantity *</Label>
 
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    Accepted: {numberValue(item.received_quantity)} · Available:{" "}
-                    {numberValue(item.available_bill_quantity)}
-                  </p>
-
                   <Input
                     className="mt-2"
                     type="number"
@@ -1796,6 +1791,11 @@ export default function SupplierBillFormPage() {
                       updateItem(index, "quantity", event.target.value)
                     }
                   />
+
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Accepted: {numberValue(item.received_quantity)} · Available:{" "}
+                    {numberValue(item.available_bill_quantity)}
+                  </p>
 
                   <FieldError message={errors[`item_${index}_quantity`]} />
                 </div>

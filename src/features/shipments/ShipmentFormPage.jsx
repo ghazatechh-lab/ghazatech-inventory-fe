@@ -70,6 +70,9 @@ const emptyItem = () => ({
 const optionValue = (value) =>
   value === null || value === undefined ? "" : String(value);
 
+const canCreateShipmentForPurchaseOrder = (order) =>
+  ["APPROVED", "PARTIALLY_RECEIVED"].includes(order?.status);
+
 export default function ShipmentFormPage() {
   const { id } = useParams();
   const edit = Boolean(id);
@@ -218,6 +221,15 @@ export default function ShipmentFormPage() {
 
     const order = sourcePurchaseOrder;
 
+    if (!canCreateShipmentForPurchaseOrder(order)) {
+      toast.error("Purchase order approval required", {
+        description:
+          "A shipment can only be created after the purchase order is approved.",
+      });
+      navigate(`/purchases/orders/${order.id}`);
+      return;
+    }
+
     const sourceSupplierId = optionValue(
       order.supplier_id ?? order.supplier?.id ?? order.supplier,
     );
@@ -263,7 +275,13 @@ export default function ShipmentFormPage() {
     setSupplierSearchOpen(false);
     setProductSearches({});
     setProductSearchOpen({});
-  }, [edit, purchaseOrderParam, sourcePurchaseOrder, mapPurchaseOrderItems]);
+  }, [
+    edit,
+    purchaseOrderParam,
+    sourcePurchaseOrder,
+    mapPurchaseOrderItems,
+    navigate,
+  ]);
 
   const filteredPurchaseOrders = React.useMemo(() => {
     const search = purchaseOrderSearch.trim().toLowerCase();
@@ -359,7 +377,19 @@ export default function ShipmentFormPage() {
 
   const shipmentTypes = normalizeList(options.shipment_types);
 
-  const shipmentStatuses = normalizeList(options.shipment_statuses);
+  const shipmentStatuses = React.useMemo(() => {
+    const statuses = normalizeList(options.shipment_statuses);
+
+    if (form.shipment_type === "PURCHASE") {
+      return statuses.filter((item) => item.value !== "DELIVERED");
+    }
+
+    if (form.shipment_type === "SALES") {
+      return statuses.filter((item) => item.value !== "RECEIVED");
+    }
+
+    return statuses;
+  }, [options.shipment_statuses, form.shipment_type]);
 
   const conditions = normalizeList(options.conditions);
 

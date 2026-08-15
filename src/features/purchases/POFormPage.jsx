@@ -415,11 +415,11 @@ export default function POFormPage() {
   };
 
   const getFilteredProducts = (index, item) => {
+    // Never offer a product that is already selected on any PO line,
+    // including the current line. This keeps duplicate products out of
+    // the picker entirely instead of only rejecting them after selection.
     const selectedProductIds = new Set(
-      form.items
-        .filter((_, itemIndex) => itemIndex !== index)
-        .map((line) => String(line.product || ""))
-        .filter(Boolean),
+      form.items.map((line) => String(line.product || "")).filter(Boolean),
     );
 
     const availableProducts = products.filter(
@@ -693,6 +693,7 @@ export default function POFormPage() {
                   autoComplete="off"
                   disabled={!form.branch || suppliersLoading}
                   onFocus={() => setSupplierSearchOpen(true)}
+                  onBlur={() => setSupplierSearchOpen(false)}
                   onChange={(event) => {
                     const value = event.target.value;
 
@@ -950,7 +951,7 @@ export default function POFormPage() {
                     >
                       <div className="grid gap-3 md:grid-cols-[minmax(280px,1fr)_90px_120px_120px_36px]">
                         <div className="grid min-w-0 gap-2 sm:grid-cols-2">
-                          <div className="relative z-30">
+                          <div className="relative">
                             <Input
                               value={getProductSearchValue(index, item)}
                               autoComplete="off"
@@ -958,6 +959,12 @@ export default function POFormPage() {
                                 setProductSearchOpen((current) => ({
                                   ...current,
                                   [index]: true,
+                                }))
+                              }
+                              onBlur={() =>
+                                setProductSearchOpen((current) => ({
+                                  ...current,
+                                  [index]: false,
                                 }))
                               }
                               onChange={(event) => {
@@ -992,7 +999,7 @@ export default function POFormPage() {
                             />
 
                             {productSearchOpen[index] ? (
-                              <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-background p-1 shadow-xl dark:border-white/10">
+                              <div className="mt-1 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-background p-1 shadow-xl dark:border-white/10">
                                 {filteredProducts.length ? (
                                   filteredProducts.map((productOption) => (
                                     <button

@@ -138,38 +138,11 @@ export default function GRNFormPage() {
   const racks = list(options.racks);
   const qualityStatuses = list(options.quality_statuses);
 
-  const { data: purchaseOrderResponse } = useQuery({
-    queryKey: ["grn-purchase-orders-fallback", form.branch],
-    queryFn: async () =>
-      unwrap(
-        await api.get("/purchases/orders/", {
-          params: {
-            branch: form.branch || undefined,
-            page_size: 500,
-            ordering: "-order_date",
-          },
-        }),
-      ),
-    staleTime: 30_000,
-  });
-
-  const fallbackOrders = list(purchaseOrderResponse).filter((order) =>
-    ["APPROVED", "PARTIALLY_RECEIVED"].includes(
-      String(order.status || "").toUpperCase(),
-    ),
-  );
-
-  const orders = React.useMemo(() => {
-    const merged = new Map();
-
-    [...optionOrders, ...fallbackOrders].forEach((order) => {
-      if (order?.id) {
-        merged.set(String(order.id), order);
-      }
-    });
-
-    return Array.from(merged.values());
-  }, [optionOrders, fallbackOrders]);
+  // The backend GRN form-options endpoint is the source of truth for PO
+  // eligibility. It intentionally returns only POs whose shipment has been
+  // received/confirmed, so do not merge the generic PO list here (that would
+  // re-introduce unconfirmed shipments into this selector).
+  const orders = optionOrders;
 
   /*
    * Some purchase form-options responses do not include receivers.
