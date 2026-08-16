@@ -8,6 +8,7 @@ import {
   PackageCheck,
   Printer,
   RefreshCcw,
+  ReceiptText,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -234,6 +235,17 @@ export default function GRNDetailPage() {
                 {confirmShipment.isPending
                   ? "Confirming..."
                   : "Confirm Shipment"}
+              </Button>
+            ) : null}
+
+            {grnConfirmed ? (
+              <Button asChild>
+                <Link
+                  to={`/purchases/supplier-bills/new?grn=${record.id}&purchase_order=${purchaseOrderId}&supplier=${getRelationId(record.supplier, record.supplier_id)}&branch=${getRelationId(record.branch, record.branch_id)}`}
+                >
+                  <ReceiptText className="mr-2 h-4 w-4" />
+                  Create Supplier Bill
+                </Link>
               </Button>
             ) : null}
 

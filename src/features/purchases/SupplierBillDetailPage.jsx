@@ -9,6 +9,7 @@ import {
   Pencil,
   ReceiptText,
   WalletCards,
+  HandCoins,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -112,6 +113,11 @@ export default function SupplierBillDetailPage() {
   const allocations = normalizeList(
     bill.payment_allocations || bill.allocations,
   );
+  const billStatus = String(bill.status || "").toUpperCase();
+  const canRecordPayment =
+    Boolean(bill.approved_at) &&
+    numberValue(bill.balance_due) > 0 &&
+    !["PAID", "CANCELLED"].includes(billStatus);
 
   return (
     <div className="purchase-module-page purchase-workspace mx-auto max-w-7xl space-y-5 pb-10">
@@ -126,6 +132,17 @@ export default function SupplierBillDetailPage() {
                 Back
               </Link>
             </Button>
+
+            {canRecordPayment ? (
+              <Button asChild>
+                <Link
+                  to={`/purchases/supplier-payments/new?bill=${bill.id}&supplier=${bill.supplier?.id || bill.supplier || ""}&branch=${bill.branch?.id || bill.branch || ""}`}
+                >
+                  <HandCoins className="mr-2 h-4 w-4" />
+                  Record Supplier Payment
+                </Link>
+              </Button>
+            ) : null}
 
             {!bill.approved_at ? (
               <Button asChild variant="outline">

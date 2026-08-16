@@ -1,14 +1,52 @@
 import React from "react";
-import { cn } from "@/lib/utils";
 
-export function PageHeader({ title, subtitle, actions, className }) {
+import { useAuth } from "@/lib/auth";
+import { canChangeActiveBranch } from "@/lib/permissions";
+import { BranchSelector } from "@/components/common/BranchSelector";
+
+export function PageHeader({
+  title,
+  subtitle,
+  actions,
+  eyebrow,
+  className = "",
+  children,
+}) {
+  const { user } = useAuth();
+
+  const canSwitchBranch = canChangeActiveBranch(user);
+
   return (
-    <div className={cn("flex items-start justify-between gap-4 mb-6", className)} data-testid="page-header">
+    <div
+      className={`flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between ${className}`}
+    >
       <div className="min-w-0">
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white">{title}</h1>
-        {subtitle && <p className="text-sm text-slate-400 mt-1">{subtitle}</p>}
+        {eyebrow ? (
+          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            {eyebrow}
+          </p>
+        ) : null}
+
+        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+          {title}
+        </h1>
+
+        {subtitle ? (
+          <p className="mt-1.5 max-w-3xl text-sm leading-6 text-muted-foreground">
+            {subtitle}
+          </p>
+        ) : null}
+
+        {children}
       </div>
-      {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        {canSwitchBranch ? <BranchSelector /> : null}
+
+        {actions}
+      </div>
     </div>
   );
 }
+
+export default PageHeader;

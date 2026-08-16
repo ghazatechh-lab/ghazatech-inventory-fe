@@ -1,5 +1,10 @@
 import React from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -360,10 +365,16 @@ export default function SupplierBillFormPage() {
   const isEdit = Boolean(id);
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const queryClient = useQueryClient();
 
   const { branchId } = useActiveBranchFilter();
+  const requestedGrnId = searchParams.get("grn") || "";
+  const requestedPurchaseOrderId = searchParams.get("purchase_order") || "";
+  const requestedSupplierId = searchParams.get("supplier") || "";
+  const requestedBranchId = searchParams.get("branch") || "";
+  const prefillAppliedRef = React.useRef(false);
 
   const [form, setForm] = React.useState(() => createInitialForm(branchId));
 
@@ -377,6 +388,21 @@ export default function SupplierBillFormPage() {
     React.useState(false);
 
   const [statusAction, setStatusAction] = React.useState("DRAFT");
+
+  React.useEffect(() => {
+    if (isEdit) return;
+    setForm((current) => ({
+      ...current,
+      purchase_order: requestedPurchaseOrderId || current.purchase_order,
+      supplier: requestedSupplierId || current.supplier,
+      branch: requestedBranchId || current.branch,
+    }));
+  }, [
+    isEdit,
+    requestedPurchaseOrderId,
+    requestedSupplierId,
+    requestedBranchId,
+  ]);
 
   const optionsQuery = useQuery({
     queryKey: ["supplier-bill-form-options", form.branch, isEdit ? id : null],
@@ -468,23 +494,6 @@ export default function SupplierBillFormPage() {
 
   const optionBranches = normalizeList(options.branches);
 
-  const { data: fallbackPurchaseOrderResponse } = useQuery({
-    queryKey: ["supplier-bill-purchase-orders", form.branch],
-    queryFn: async () =>
-      normalizePayload(
-        await api.get("/purchases/orders/", {
-          params: {
-            branch: form.branch || branchId || undefined,
-            page_size: 500,
-            ordering: "-order_date",
-          },
-          skipGlobalErrorToast: true,
-        }),
-      ),
-    staleTime: 30000,
-    retry: false,
-  });
-
   const { data: fallbackSupplierResponse } = useQuery({
     queryKey: ["supplier-bill-suppliers", form.branch],
     queryFn: async () =>
@@ -520,7 +529,6 @@ export default function SupplierBillFormPage() {
     const merged = new Map();
     [
       ...optionPurchaseOrders,
-      ...normalizeList(fallbackPurchaseOrderResponse),
       ...(existingQuery.data?.purchase_order
         ? [
             {
@@ -544,7 +552,7 @@ export default function SupplierBillFormPage() {
         if (order?.id) merged.set(String(order.id), order);
       });
     return Array.from(merged.values());
-  }, [optionPurchaseOrders, fallbackPurchaseOrderResponse, existingQuery.data]);
+  }, [optionPurchaseOrders, existingQuery.data]);
 
   const suppliers = React.useMemo(() => {
     const merged = new Map();
@@ -932,86 +940,98 @@ export default function SupplierBillFormPage() {
     }));
   }
 
-  function applyGrn(grnId) {
-    if (!grnId) {
-      updateField("grn", "");
+  const applyGrn = React.useCallback(
+    (grnId) => {
+      if (!grnId) {
+        setForm((current) => ({ ...current, grn: "" }));
+        return;
+      }
 
+      const grn =
+        availableGrns.find((item) => String(item.id) === String(grnId)) ||
+        grns.find((item) => String(item.id) === String(grnId));
+
+      if (!grn) {
+        setForm((current) => ({ ...current, grn: String(grnId) }));
+        return;
+      }
+
+      const grnItems = normalizeList(grn.items);
+
+      const linkedSupplierId = grn.supplier_id ?? getId(grn.supplier);
+      setForm((current) => ({
+        ...current,
+
+        grn: String(grn.id),
+
+        purchase_order: String(
+          grn.purchase_order_id ??
+            getId(grn.purchase_order) ??
+            current.purchase_order,
+        ),
+
+        supplier: String(
+          grn.supplier_id ?? getId(grn.supplier) ?? current.supplier,
+        ),
+
+        branch: String(grn.branch_id ?? getId(grn.branch) ?? current.branch),
+
+        items: grnItems.length
+          ? grnItems.map((item) =>
+              calculateItem({
+                product: String(item.product_id ?? getId(item.product)),
+
+                variant:
+                  (item.variant_id ?? getId(item.variant))
+                    ? String(item.variant_id ?? getId(item.variant))
+                    : "",
+
+                grn_item: String(item.id),
+
+                product_name:
+                  item.product_name || item.product?.product_name || "",
+
+                sku: item.sku || item.product?.sku || "",
+
+                variant_name: item.variant_name || "",
+
+                received_quantity: numberValue(
+                  item.accepted_quantity ?? item.received_quantity,
+                ),
+
+                available_bill_quantity: numberValue(
+                  item.available_bill_quantity ??
+                    item.accepted_quantity ??
+                    item.received_quantity,
+                ),
+
+                quantity: numberValue(
+                  item.available_bill_quantity ??
+                    item.accepted_quantity ??
+                    item.received_quantity,
+                ),
+
+                unit_price: numberValue(item.unit_price ?? item.unit_cost),
+
+                discount_amount: 0,
+
+                vat_percentage: numberValue(item.vat_percentage ?? 5),
+              }),
+            )
+          : current.items,
+      }));
+    },
+    [availableGrns, grns],
+  );
+
+  React.useEffect(() => {
+    if (isEdit || prefillAppliedRef.current || !requestedGrnId || !grns.length)
       return;
-    }
-
-    const grn = availableGrns.find((item) => String(item.id) === String(grnId));
-
-    if (!grn) {
-      updateField("grn", grnId);
-
+    if (!grns.some((item) => String(item.id) === String(requestedGrnId)))
       return;
-    }
-
-    const grnItems = normalizeList(grn.items);
-
-    const linkedSupplierId = grn.supplier_id ?? getId(grn.supplier);
-    setForm((current) => ({
-      ...current,
-
-      grn: String(grn.id),
-
-      purchase_order: String(
-        grn.purchase_order_id ??
-          getId(grn.purchase_order) ??
-          current.purchase_order,
-      ),
-
-      supplier: String(
-        grn.supplier_id ?? getId(grn.supplier) ?? current.supplier,
-      ),
-
-      branch: String(grn.branch_id ?? getId(grn.branch) ?? current.branch),
-
-      items: grnItems.length
-        ? grnItems.map((item) =>
-            calculateItem({
-              product: String(item.product_id ?? getId(item.product)),
-
-              variant:
-                (item.variant_id ?? getId(item.variant))
-                  ? String(item.variant_id ?? getId(item.variant))
-                  : "",
-
-              grn_item: String(item.id),
-
-              product_name:
-                item.product_name || item.product?.product_name || "",
-
-              sku: item.sku || item.product?.sku || "",
-
-              variant_name: item.variant_name || "",
-
-              received_quantity: numberValue(
-                item.accepted_quantity ?? item.received_quantity,
-              ),
-
-              available_bill_quantity: numberValue(
-                item.available_bill_quantity ??
-                  item.accepted_quantity ??
-                  item.received_quantity,
-              ),
-
-              quantity: numberValue(
-                item.available_bill_quantity ??
-                  item.accepted_quantity ??
-                  item.received_quantity,
-              ),
-
-              unit_price: numberValue(item.unit_price ?? item.unit_cost),
-
-              discount_amount: 0,
-
-              vat_percentage: numberValue(item.vat_percentage ?? 5),
-            }),
-          )
-        : current.items,
-    }));
-  }
+    prefillAppliedRef.current = true;
+    applyGrn(String(requestedGrnId));
+  }, [isEdit, requestedGrnId, grns, availableGrns, applyGrn]);
 
   function validateForm() {
     const nextErrors = {};

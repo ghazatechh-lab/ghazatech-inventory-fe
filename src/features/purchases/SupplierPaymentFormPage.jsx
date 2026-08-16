@@ -1,5 +1,10 @@
 import React from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import {
   ArrowLeft,
   Banknote,
@@ -209,10 +214,15 @@ export default function SupplierPaymentFormPage() {
   const isEdit = Boolean(id);
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const queryClient = useQueryClient();
 
   const { branchId } = useActiveBranchFilter();
+  const requestedBillId = searchParams.get("bill") || "";
+  const requestedSupplierId = searchParams.get("supplier") || "";
+  const requestedBranchId = searchParams.get("branch") || "";
+  const prefillAppliedRef = React.useRef(false);
 
   const [form, setForm] = React.useState(() => createInitialForm(branchId));
 
@@ -232,10 +242,15 @@ export default function SupplierPaymentFormPage() {
     opening_balance: "0",
   });
 
-  const [cashForm, setCashForm] = React.useState({
-    opening_balance: "0",
-    register_date: today(),
-  });
+  React.useEffect(() => {
+    if (isEdit) return;
+    if (!requestedSupplierId && !requestedBranchId) return;
+    setForm((current) => ({
+      ...current,
+      supplier: requestedSupplierId || current.supplier,
+      branch: requestedBranchId || current.branch,
+    }));
+  }, [isEdit, requestedSupplierId, requestedBranchId]);
 
   const existingQuery = useQuery({
     queryKey: ["supplier-payment", id],
@@ -575,6 +590,35 @@ export default function SupplierPaymentFormPage() {
     });
   }, [openBills, form.supplier]);
 
+  React.useEffect(() => {
+    if (
+      isEdit ||
+      prefillAppliedRef.current ||
+      !requestedBillId ||
+      !form.allocations.length
+    )
+      return;
+    if (
+      !form.allocations.some(
+        (allocation) => String(allocation.bill) === String(requestedBillId),
+      )
+    )
+      return;
+    prefillAppliedRef.current = true;
+    setForm((current) => ({
+      ...current,
+      allocations: current.allocations.map((allocation) =>
+        String(allocation.bill) === String(requestedBillId)
+          ? {
+              ...allocation,
+              selected: true,
+              amount: numberValue(allocation.balance_due),
+            }
+          : allocation,
+      ),
+    }));
+  }, [isEdit, requestedBillId, form.allocations]);
+
   const createBankAccountMutation = useMutation({
     mutationFn: async () => {
       if (!form.branch) {
@@ -624,52 +668,6 @@ export default function SupplierPaymentFormPage() {
         details.general ||
           Object.values(details)[0] ||
           "Unable to add bank account.",
-      );
-    },
-  });
-
-  const createCashRegisterMutation = useMutation({
-    mutationFn: async () => {
-      if (!form.branch) {
-        throw new Error("Select a branch before adding a cash register.");
-      }
-
-      return normalizeResponse(
-        await api.post(
-          "/finance/cash-register/",
-          {
-            branch: Number(form.branch),
-            opening_balance: numberValue(cashForm.opening_balance),
-            total_cash_sales: 0,
-            total_cash_expenses: 0,
-            closing_balance: numberValue(cashForm.opening_balance),
-            register_date: cashForm.register_date,
-            status: "OPEN",
-          },
-          { skipGlobalErrorToast: true },
-        ),
-      );
-    },
-    onSuccess: async (created) => {
-      await Promise.all([
-        cashRegistersQuery.refetch(),
-        paymentOptionsQuery.refetch(),
-        queryClient.invalidateQueries({ queryKey: ["cash-register"] }),
-      ]);
-      setForm((current) => ({
-        ...current,
-        cash_register: created?.id ? String(created.id) : current.cash_register,
-      }));
-      setFinanceDialog(null);
-      setCashForm({ opening_balance: "0", register_date: today() });
-      toast.success("Cash register added and selected.");
-    },
-    onError: (error) => {
-      const details = getApiErrors(error);
-      toast.error(
-        details.general ||
-          Object.values(details)[0] ||
-          "Unable to add cash register.",
       );
     },
   });
@@ -1301,18 +1299,7 @@ export default function SupplierPaymentFormPage() {
 
           {form.payment_method === "CASH" ? (
             <div>
-              <div className="flex items-center justify-between gap-3">
-                <Label htmlFor="cash_register">Cash Register *</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={!form.branch}
-                  onClick={() => setFinanceDialog("cash")}
-                >
-                  <Plus className="mr-1 h-4 w-4" /> Add Cash Register
-                </Button>
-              </div>
+              <Label htmlFor="cash_register">Cash Register *</Label>
 
               <select
                 id="cash_register"
@@ -1748,18 +1735,14 @@ export default function SupplierPaymentFormPage() {
         </Button>
       </div>
 
-      {financeDialog ? (
+      {financeDialog === "bank" ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-lg rounded-2xl border bg-background shadow-xl">
             <div className="flex items-center justify-between border-b p-5">
               <div>
-                <h2 className="text-lg font-semibold">
-                  {financeDialog === "bank"
-                    ? "Add Bank Account"
-                    : "Add Cash Register"}
-                </h2>
+                <h2 className="text-lg font-semibold">Add Bank Account</h2>
                 <p className="text-sm text-muted-foreground">
-                  The new record will be created for the selected branch and
+                  The new account will be created for the selected branch and
                   loaded automatically.
                 </p>
               </div>
@@ -1772,101 +1755,62 @@ export default function SupplierPaymentFormPage() {
               </Button>
             </div>
 
-            {financeDialog === "bank" ? (
-              <div className="grid gap-4 p-5 md:grid-cols-2">
-                <div>
-                  <Label>Bank Name *</Label>
-                  <Input
-                    value={bankForm.bank_name}
-                    onChange={(e) =>
-                      setBankForm((v) => ({ ...v, bank_name: e.target.value }))
-                    }
-                  />
-                </div>
-                <div>
-                  <Label>Account Name *</Label>
-                  <Input
-                    value={bankForm.account_name}
-                    onChange={(e) =>
-                      setBankForm((v) => ({
-                        ...v,
-                        account_name: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div>
-                  <Label>Account Number *</Label>
-                  <Input
-                    value={bankForm.account_number}
-                    onChange={(e) =>
-                      setBankForm((v) => ({
-                        ...v,
-                        account_number: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div>
-                  <Label>IBAN Number</Label>
-                  <Input
-                    value={bankForm.iban_number}
-                    onChange={(e) =>
-                      setBankForm((v) => ({
-                        ...v,
-                        iban_number: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <Label>Opening Balance</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={bankForm.opening_balance}
-                    onChange={(e) =>
-                      setBankForm((v) => ({
-                        ...v,
-                        opening_balance: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
+            <div className="grid gap-4 p-5 md:grid-cols-2">
+              <div>
+                <Label>Bank Name *</Label>
+                <Input
+                  value={bankForm.bank_name}
+                  onChange={(e) =>
+                    setBankForm((v) => ({ ...v, bank_name: e.target.value }))
+                  }
+                />
               </div>
-            ) : (
-              <div className="grid gap-4 p-5 md:grid-cols-2">
-                <div>
-                  <Label>Register Date *</Label>
-                  <Input
-                    type="date"
-                    value={cashForm.register_date}
-                    onChange={(e) =>
-                      setCashForm((v) => ({
-                        ...v,
-                        register_date: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div>
-                  <Label>Opening Balance</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={cashForm.opening_balance}
-                    onChange={(e) =>
-                      setCashForm((v) => ({
-                        ...v,
-                        opening_balance: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
+              <div>
+                <Label>Account Name *</Label>
+                <Input
+                  value={bankForm.account_name}
+                  onChange={(e) =>
+                    setBankForm((v) => ({ ...v, account_name: e.target.value }))
+                  }
+                />
               </div>
-            )}
+              <div>
+                <Label>Account Number *</Label>
+                <Input
+                  value={bankForm.account_number}
+                  onChange={(e) =>
+                    setBankForm((v) => ({
+                      ...v,
+                      account_number: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+              <div>
+                <Label>IBAN Number</Label>
+                <Input
+                  value={bankForm.iban_number}
+                  onChange={(e) =>
+                    setBankForm((v) => ({ ...v, iban_number: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Opening Balance</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={bankForm.opening_balance}
+                  onChange={(e) =>
+                    setBankForm((v) => ({
+                      ...v,
+                      opening_balance: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+            </div>
 
             <div className="flex justify-end gap-3 border-t p-5">
               <Button
@@ -1880,23 +1824,13 @@ export default function SupplierPaymentFormPage() {
                 type="button"
                 disabled={
                   createBankAccountMutation.isPending ||
-                  createCashRegisterMutation.isPending ||
-                  (financeDialog === "bank" &&
-                    (!bankForm.bank_name.trim() ||
-                      !bankForm.account_name.trim() ||
-                      !bankForm.account_number.trim())) ||
-                  (financeDialog === "cash" && !cashForm.register_date)
+                  !bankForm.bank_name.trim() ||
+                  !bankForm.account_name.trim() ||
+                  !bankForm.account_number.trim()
                 }
-                onClick={() => {
-                  if (financeDialog === "bank") {
-                    createBankAccountMutation.mutate();
-                  } else {
-                    createCashRegisterMutation.mutate();
-                  }
-                }}
+                onClick={() => createBankAccountMutation.mutate()}
               >
-                {createBankAccountMutation.isPending ||
-                createCashRegisterMutation.isPending ? (
+                {createBankAccountMutation.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Plus className="mr-2 h-4 w-4" />

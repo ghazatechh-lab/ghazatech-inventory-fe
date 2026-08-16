@@ -7,6 +7,7 @@ import {
   Package,
   Printer,
   RefreshCcw,
+  ClipboardCheck,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -155,6 +156,18 @@ export default function ShipmentDetailPage() {
     ? shipment.tracking_logs
     : [];
 
+  const shipmentType = String(shipment.shipment_type || "").toUpperCase();
+  const shipmentStatus = String(shipment.status || "").toUpperCase();
+  const qcStatus = String(shipment.qc_status || "").toUpperCase();
+  const purchaseOrderId =
+    shipment.purchase_order?.id || shipment.purchase_order || "";
+  const shipmentBranchId = shipment.branch?.id || shipment.branch || "";
+  const canCreateGrn =
+    shipmentType === "PURCHASE" &&
+    ["RECEIVED", "COMPLETED"].includes(shipmentStatus) &&
+    ["PASSED", "PASSED_WITH_REJECTIONS"].includes(qcStatus) &&
+    Boolean(purchaseOrderId);
+
   return (
     <div className="purchase-module-page purchase-workspace space-y-6">
       <PageHeader
@@ -177,7 +190,18 @@ export default function ShipmentDetailPage() {
               Print
             </Button>
 
-            <Button asChild>
+            {canCreateGrn ? (
+              <Button asChild>
+                <Link
+                  to={`/purchases/grn/new?purchase_order=${purchaseOrderId}&branch=${shipmentBranchId}`}
+                >
+                  <ClipboardCheck className="mr-2 h-4 w-4" />
+                  Create GRN
+                </Link>
+              </Button>
+            ) : null}
+
+            <Button asChild variant={canCreateGrn ? "outline" : "default"}>
               <Link to={`/shipments/${id}/edit`}>
                 <Edit3 className="mr-2 h-4 w-4" />
                 Edit

@@ -154,7 +154,7 @@ import VehicleCheckoutPage from "@/features/fleet/VehicleCheckoutPage";
 import TripLogPage from "@/features/fleet/TripLogPage";
 import ServiceManagementPage from "@/features/serviceRepairs/ServiceManagementPage";
 import ServiceHistoryPage from "@/features/serviceRepairs/ServiceHistoryPage";
-import SalaryCertificatesPage from "@/features/hrms/SalaryCertificatesPage";
+import CertificatesLettersPage from "@/features/hrms/CertificatesLettersPage";
 
 /* -------------------------------------------------------------------------- */
 /* Finance                                                                    */
@@ -167,10 +167,10 @@ import GeneralLedgerPage from "@/features/finance/GeneralLedgerPage";
 import ReceivablesPage from "@/features/finance/ReceivablesPage";
 import PayablesPage from "@/features/finance/PayablesPage";
 import BankAccountsPage from "@/features/finance/BankAccountsPage";
+import CashRegistersPage from "@/features/finance/CashRegistersPage";
 import FixedAssetsPage from "@/features/finance/FixedAssetsPage";
 import TaxPage from "@/features/finance/TaxPage";
 import BudgetingPage from "@/features/finance/BudgetingPage";
-import FinancialReportsPage from "@/features/finance/FinancialReportsPage";
 import PeriodClosePage from "@/features/finance/PeriodClosePage";
 import BranchConsolidationPage from "@/features/finance/BranchConsolidationPage";
 
@@ -721,12 +721,17 @@ export default function App() {
               />
 
               <Route
-                path="/hrms/salary-certificates"
+                path="/hrms/certificates-letters"
                 element={
                   <ProtectedRoute allow={["ADMIN"]}>
-                    <SalaryCertificatesPage />
+                    <CertificatesLettersPage />
                   </ProtectedRoute>
                 }
+              />
+
+              <Route
+                path="/hrms/salary-certificates"
+                element={<Navigate to="/hrms/certificates-letters" replace />}
               />
 
               <Route
@@ -800,6 +805,15 @@ export default function App() {
               />
 
               <Route
+                path="/finance/cash-registers"
+                element={
+                  <ProtectedRoute permission="accounting.bank_cash.view">
+                    <CashRegistersPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
                 path="/finance/fixed-assets"
                 element={
                   <ProtectedRoute permission="accounting.fixed_assets.view">
@@ -828,11 +842,7 @@ export default function App() {
 
               <Route
                 path="/finance/reports"
-                element={
-                  <ProtectedRoute permission="accounting.financial_reports.view">
-                    <FinancialReportsPage />
-                  </ProtectedRoute>
-                }
+                element={<Navigate to="/reports/finance" replace />}
               />
 
               <Route
@@ -861,14 +871,32 @@ export default function App() {
               <Route path="/fleet/returns" element={<VehicleCheckoutPage />} />
               <Route path="/fleet/trips" element={<TripLogPage />} />
 
-              {/* Service & Repair */}
+              {/* Sales · Service & Repair */}
+              <Route
+                path="/sales/service"
+                element={
+                  <ProtectedRoute permission="sales.invoices.view">
+                    <ServiceManagementPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/sales/service/history"
+                element={
+                  <ProtectedRoute permission="sales.invoices.view">
+                    <ServiceHistoryPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Backward-compatible redirects for old service bookmarks */}
               <Route
                 path="/service-repairs"
-                element={<ServiceManagementPage />}
+                element={<Navigate to="/sales/service" replace />}
               />
               <Route
                 path="/service-repairs/history"
-                element={<ServiceHistoryPage />}
+                element={<Navigate to="/sales/service/history" replace />}
               />
 
               {/* Reports */}

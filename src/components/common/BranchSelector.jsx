@@ -4,8 +4,7 @@ import { Building2, Check, ChevronDown, Loader2 } from "lucide-react";
 
 import api, { unwrap } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { canViewAllBranches, hasPermission } from "@/lib/permissions";
-import { getAccessibleBranches, getUserBranchId } from "@/lib/branchAccess";
+import { canChangeActiveBranch, canViewAllBranches } from "@/lib/permissions";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,115 +15,158 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const normalizeBranches = (value) => {
-  if (Array.isArray(value)) {
-    return value;
-  }
-
-  if (Array.isArray(value?.results)) {
-    return value.results;
-  }
-
-  if (Array.isArray(value?.data)) {
-    return value.data;
-  }
-
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.results)) return value.results;
+  if (Array.isArray(value?.data)) return value.data;
   if (Array.isArray(value?.data?.results)) {
     return value.data.results;
   }
-
   return [];
 };
+
+const getAssignedBranchId = (user) =>
+  user?.branch?.id ?? user?.branch_id ?? user?.branch_detail?.id ?? null;
+
+const getBranchLabel = (branch) =>
+  branch?.branch_code ||
+  branch?.branch_name ||
+  (branch?.id ? `Branch ${branch.id}` : "Select branch");
 
 export function BranchSelector() {
   const { user, branchOverride, setBranchOverride } = useAuth();
 
-  const viewAllBranches = canViewAllBranches(user);
-  const canSwitchBranch =
-    viewAllBranches || hasPermission(user, "branches.switch");
+  const canSwitch = canChangeActiveBranch(user);
+  const canSelectAll = canViewAllBranches(user);
+
+  const assignedBranchId = getAssignedBranchId(user);
 
   const { data, isLoading, isFetching } = useQuery({
-    /*
-     * This key must match the
-     * invalidation used in
-     * BranchFormPage.
-     */
-    queryKey: ["branches-select"],
+    queryKey: ["branches-select", canSwitch, canSelectAll, assignedBranchId],
 
     queryFn: async () => {
-      const response = await api.get("/branches/", {
-        params: {
-          page_size: 500,
-          ordering: "branch_code",
-          is_active: true,
-        },
-      });
+      const response = await api.get("/branches/selector-options/");
 
       return unwrap(response);
     },
 
+    enabled: canSwitch,
+
     staleTime: 0,
-
     refetchOnMount: "always",
-
     refetchOnWindowFocus: true,
   });
 
-  const branches = React.useMemo(
-    () => getAccessibleBranches(normalizeBranches(data), user),
-    [data, user],
-  );
+  const branches = React.useMemo(() => normalizeBranches(data), [data]);
 
-  const current = React.useMemo(
+  const assignedBranch = React.useMemo(
     () =>
-      branches.find((branch) => String(branch.id) === String(branchOverride)),
-    [branches, branchOverride],
+      branches.find(
+        (branch) => String(branch.id) === String(assignedBranchId),
+      ) || null,
+    [branches, assignedBranchId],
   );
 
   /*
-   * If the selected branch was deleted
-   * or became inactive, automatically
-   * return to All branches.
+   * IMPORTANT:
+   *
+   * null means "All Branches" only for users who actually have
+   * branches.view_all.
+   *
+   * A branches.switch-only user must always have one concrete branch
+   * selected. This prevents older branch-filter code from accidentally
+   * interpreting null as cross-branch access.
    */
   React.useEffect(() => {
-    if (!viewAllBranches) {
-      const assignedBranchId = getUserBranchId(user);
-
-      if (
-        assignedBranchId &&
-        String(branchOverride || "") !== String(assignedBranchId)
-      ) {
-        setBranchOverride(assignedBranchId);
-      }
-
+    if (!canSwitch || canSelectAll || isLoading) {
       return;
     }
 
-    if (branchOverride && !isLoading && branches.length > 0 && !current) {
+    const selectedStillExists = branches.some(
+      (branch) => String(branch.id) === String(branchOverride),
+    );
+
+    if (branchOverride && selectedStillExists) {
+      return;
+    }
+
+    const fallbackId = assignedBranch?.id ?? branches[0]?.id ?? null;
+
+    if (fallbackId !== null) {
+      setBranchOverride(Number(fallbackId));
+    }
+  }, [
+    canSwitch,
+    canSelectAll,
+    isLoading,
+    branches,
+    branchOverride,
+    assignedBranch,
+    setBranchOverride,
+  ]);
+
+  /*
+   * If an All-Branches user selected a branch that later becomes
+   * inactive/deleted, safely return them to All Branches.
+   */
+  React.useEffect(() => {
+    if (!canSwitch || !canSelectAll || !branchOverride || isLoading) {
+      return;
+    }
+
+    const selectedStillExists = branches.some(
+      (branch) => String(branch.id) === String(branchOverride),
+    );
+
+    if (!selectedStillExists) {
       setBranchOverride(null);
     }
   }, [
-    branchOverride,
-    branches,
-    current,
+    canSwitch,
+    canSelectAll,
     isLoading,
+    branches,
+    branchOverride,
     setBranchOverride,
-    user,
-    viewAllBranches,
   ]);
 
-  const currentLabel =
-    current?.branch_code ||
-    current?.branch_name ||
-    (viewAllBranches ? "All branches" : "Assigned branch");
-
-  if (!canSwitchBranch) {
-    return (
-      <div className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 shadow-sm dark:border-white/10 dark:bg-white/[0.02] dark:text-slate-300 dark:shadow-none">
-        <Building2 className="h-3.5 w-3.5 text-slate-500" />
-        <span className="max-w-[160px] truncate">{currentLabel}</span>
-      </div>
-    );
+  if (!canSwitch) {
+    return null;
   }
+
+  const effectiveBranchId = canSelectAll
+    ? branchOverride
+    : (branchOverride ?? assignedBranchId);
+
+  const currentBranch =
+    branches.find(
+      (branch) => String(branch.id) === String(effectiveBranchId),
+    ) || null;
+
+  const showingAll =
+    canSelectAll &&
+    (branchOverride === null ||
+      branchOverride === undefined ||
+      branchOverride === "");
+
+  const currentLabel = showingAll
+    ? "All branches"
+    : getBranchLabel(currentBranch || assignedBranch);
+
+  const selectSpecificBranch = (branchId) => {
+    if (!canSwitch || !branchId) {
+      return;
+    }
+
+    setBranchOverride(Number(branchId));
+  };
+
+  const selectAllBranches = () => {
+    if (!canSelectAll) {
+      return;
+    }
+
+    setBranchOverride(null);
+  };
 
   return (
     <DropdownMenu>
@@ -132,7 +174,8 @@ export function BranchSelector() {
         <button
           type="button"
           className="flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-white/10 dark:bg-white/[0.02] dark:text-slate-300 dark:shadow-none dark:hover:bg-white/5"
-          aria-label="Select branch"
+          aria-label="Select active branch"
+          disabled={isLoading}
         >
           {isLoading || isFetching ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" />
@@ -140,49 +183,70 @@ export function BranchSelector() {
             <Building2 className="h-3.5 w-3.5 text-slate-500" />
           )}
 
-          <span className="max-w-[160px] truncate">{currentLabel}</span>
+          <span className="max-w-[170px] truncate">
+            {isLoading ? "Loading branches..." : currentLabel}
+          </span>
 
           <ChevronDown className="h-3 w-3 text-slate-500" />
         </button>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-72">
-        <DropdownMenuLabel>Filter data by branch</DropdownMenuLabel>
+        <DropdownMenuLabel>Active working branch</DropdownMenuLabel>
+
+        <div className="px-2 pb-2 text-[11px] leading-4 text-muted-foreground">
+          {canSelectAll
+            ? "You can work in a specific branch or view all branches."
+            : "You can change the branch you are currently working in."}
+        </div>
 
         <DropdownMenuSeparator />
 
-        {viewAllBranches && (
-          <DropdownMenuItem onClick={() => setBranchOverride(null)}>
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              <Building2 className="h-4 w-4 shrink-0 text-slate-500" />
+        {canSelectAll && (
+          <>
+            <DropdownMenuItem
+              onClick={selectAllBranches}
+              className="cursor-pointer"
+            >
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <Building2 className="h-4 w-4 shrink-0 text-slate-500" />
 
-              <span className="truncate">All branches</span>
-            </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium">All branches</div>
 
-            {!branchOverride && (
-              <Check className="ml-2 h-4 w-4 shrink-0 text-blue-500" />
-            )}
-          </DropdownMenuItem>
+                  <div className="truncate text-[11px] text-muted-foreground">
+                    Combined branch data
+                  </div>
+                </div>
+              </div>
+
+              {showingAll && (
+                <Check className="ml-2 h-4 w-4 shrink-0 text-blue-500" />
+              )}
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+          </>
         )}
 
         {branches.map((branch) => {
-          const selected = String(branchOverride) === String(branch.id);
-
-          const branchCode = branch.branch_code || `Branch ${branch.id}`;
-
-          const branchName = branch.branch_name || branch.name || "";
+          const selected =
+            !showingAll && String(effectiveBranchId) === String(branch.id);
 
           return (
             <DropdownMenuItem
               key={branch.id}
-              onClick={() => setBranchOverride(branch.id)}
+              onClick={() => selectSpecificBranch(branch.id)}
+              className="cursor-pointer"
             >
               <div className="min-w-0 flex-1">
-                <div className="truncate font-medium">{branchCode}</div>
+                <div className="truncate font-medium">
+                  {branch.branch_code || `Branch ${branch.id}`}
+                </div>
 
-                {branchName && (
-                  <div className="truncate text-[11px] text-slate-500">
-                    {branchName}
+                {branch.branch_name && (
+                  <div className="truncate text-[11px] text-muted-foreground">
+                    {branch.branch_name}
                   </div>
                 )}
               </div>
@@ -195,8 +259,8 @@ export function BranchSelector() {
         })}
 
         {!isLoading && !branches.length && (
-          <div className="px-3 py-5 text-center text-xs text-slate-500">
-            No active branches found.
+          <div className="px-3 py-5 text-center text-xs text-muted-foreground">
+            No active branches are available.
           </div>
         )}
       </DropdownMenuContent>

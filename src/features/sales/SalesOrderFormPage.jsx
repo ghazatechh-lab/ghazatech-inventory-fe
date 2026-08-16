@@ -6,7 +6,7 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Save, Trash2, X } from "lucide-react";
+import { Check, ChevronsUpDown, Plus, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
@@ -24,6 +24,21 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { CurrencyText } from "@/components/common/CurrencyText";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+import InlineCustomerDialog from "./InlineCustomerDialog";
 
 const normalizeList = (value) => {
   if (Array.isArray(value)) return value;
@@ -46,6 +61,17 @@ const number = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const getProductPrice = (product) =>
+  number(
+    product?.retail_price ??
+      product?.selling_price ??
+      product?.sale_price ??
+      product?.unit_price ??
+      product?.price ??
+      product?.variant?.retail_price ??
+      0,
+  );
+
 const emptyItem = () => ({
   product: "",
   variant: "",
@@ -55,6 +81,298 @@ const emptyItem = () => ({
   vat_percentage: 5,
   available_stock: 0,
 });
+
+function ProductSearchPicker({ products, value, onSelect, getPrice }) {
+  const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState("");
+  const searchRef = React.useRef(null);
+
+  const normalizedSearch = search.trim().toLowerCase();
+
+  const filteredProducts = React.useMemo(() => {
+    if (!normalizedSearch) return products;
+
+    return products.filter((product) =>
+      [
+        product.product_name,
+        product.variant_name,
+        product.sku,
+        product.barcode,
+      ].some((field) =>
+        String(field || "")
+          .toLowerCase()
+          .includes(normalizedSearch),
+      ),
+    );
+  }, [products, normalizedSearch]);
+
+  const selectedProduct = React.useMemo(
+    () =>
+      products.find(
+        (product) =>
+          `${product.product_id || product.id}:${product.variant_id || ""}` ===
+          String(value || ""),
+      ),
+    [products, value],
+  );
+
+  const focusSearch = React.useCallback(() => {
+    window.setTimeout(() => {
+      searchRef.current?.focus();
+      searchRef.current?.select?.();
+    }, 0);
+  }, []);
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (nextOpen) {
+          setSearch("");
+          focusSearch();
+        }
+      }}
+    >
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="h-10 w-full justify-between px-3 font-normal"
+        >
+          <div className="min-w-0 text-left">
+            <div className="truncate text-sm">
+              {selectedProduct
+                ? [selectedProduct.product_name, selectedProduct.variant_name]
+                    .filter(Boolean)
+                    .join(" — ")
+                : "Search or select product"}
+            </div>
+            {selectedProduct && (
+              <div className="truncate text-[11px] text-muted-foreground">
+                {[
+                  selectedProduct.sku || "No SKU",
+                  selectedProduct.barcode,
+                  `${number(selectedProduct.available_stock)} available`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </div>
+            )}
+          </div>
+
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+
+      <PopoverContent
+        align="start"
+        className="w-[var(--radix-popover-trigger-width)] min-w-[420px] max-w-[min(620px,calc(100vw-2rem))] p-0"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          focusSearch();
+        }}
+      >
+        <Command shouldFilter={false}>
+          <CommandInput
+            ref={searchRef}
+            value={search}
+            onValueChange={setSearch}
+            placeholder="Search product, variant, SKU or barcode..."
+          />
+
+          <CommandList className="max-h-[340px]">
+            {!filteredProducts.length && (
+              <CommandEmpty>No matching products found.</CommandEmpty>
+            )}
+
+            <CommandGroup>
+              {filteredProducts.map((product) => {
+                const optionValue = `${
+                  product.product_id || product.id
+                }:${product.variant_id || ""}`;
+
+                const selected = String(value || "") === optionValue;
+
+                return (
+                  <CommandItem
+                    key={optionValue}
+                    value={`${product.product_name || ""} ${product.variant_name || ""} ${product.sku || ""} ${product.barcode || ""}`}
+                    onSelect={() => {
+                      onSelect(optionValue);
+                      setSearch("");
+                      setOpen(false);
+                    }}
+                    className="my-1 cursor-pointer py-2.5"
+                  >
+                    <Check
+                      className={cn(
+                        "h-4 w-4 shrink-0",
+                        selected ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold">
+                        {product.product_name}
+                        {product.variant_name
+                          ? ` — ${product.variant_name}`
+                          : ""}
+                      </div>
+
+                      <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {[
+                          product.sku || "No SKU",
+                          product.barcode,
+                          `${number(product.available_stock)} available`,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </div>
+                    </div>
+
+                    <span className="ml-3 shrink-0 text-sm font-semibold text-blue-600 dark:text-blue-300">
+                      AED {getPrice(product).toFixed(2)}
+                    </span>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function CustomerSearchPicker({
+  customers,
+  filteredCustomers,
+  value,
+  search,
+  onSearchChange,
+  onSelect,
+}) {
+  const [open, setOpen] = React.useState(false);
+  const searchRef = React.useRef(null);
+
+  const selectedCustomer = React.useMemo(
+    () => customers.find((customer) => String(customer.id) === String(value)),
+    [customers, value],
+  );
+
+  const focusSearch = React.useCallback(() => {
+    window.setTimeout(() => {
+      searchRef.current?.focus();
+      searchRef.current?.select?.();
+    }, 0);
+  }, []);
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (nextOpen) {
+          onSearchChange("");
+          focusSearch();
+        }
+      }}
+    >
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="mt-2 h-10 w-full justify-between px-3 font-normal"
+        >
+          <div className="min-w-0 text-left">
+            <div className="truncate text-sm">
+              {selectedCustomer?.customer_name || "Search or select customer"}
+            </div>
+            {selectedCustomer && (
+              <div className="truncate text-[11px] text-muted-foreground">
+                {[
+                  selectedCustomer.customer_code,
+                  selectedCustomer.phone || selectedCustomer.phone_number,
+                  selectedCustomer.email,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </div>
+            )}
+          </div>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+
+      <PopoverContent
+        align="start"
+        className="w-[var(--radix-popover-trigger-width)] min-w-[360px] max-w-[min(520px,calc(100vw-2rem))] p-0"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          focusSearch();
+        }}
+      >
+        <Command shouldFilter={false}>
+          <CommandInput
+            ref={searchRef}
+            value={search}
+            onValueChange={onSearchChange}
+            placeholder="Search name, phone, email or customer code..."
+          />
+          <CommandList className="max-h-[320px]">
+            {!filteredCustomers.length && (
+              <CommandEmpty>No customers match your search.</CommandEmpty>
+            )}
+            <CommandGroup>
+              {filteredCustomers.map((customer) => {
+                const isSelected = String(customer.id) === String(value);
+
+                return (
+                  <CommandItem
+                    key={customer.id}
+                    value={`${customer.customer_name || ""} ${customer.customer_code || ""} ${customer.phone || customer.phone_number || ""} ${customer.email || ""}`}
+                    onSelect={() => {
+                      onSelect(String(customer.id));
+                      onSearchChange("");
+                      setOpen(false);
+                    }}
+                    className="my-1 cursor-pointer py-2.5"
+                  >
+                    <Check
+                      className={cn(
+                        "h-4 w-4 shrink-0",
+                        isSelected ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold">
+                        {customer.customer_name}
+                      </div>
+                      <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {[
+                          customer.customer_code,
+                          customer.phone || customer.phone_number,
+                          customer.email,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || "Customer"}
+                      </div>
+                    </div>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export default function SalesOrderFormPage() {
   const { id } = useParams();
@@ -66,6 +384,7 @@ export default function SalesOrderFormPage() {
   const { branchId } = useActiveBranchFilter();
 
   const [errors, setErrors] = React.useState({});
+  const [customerSearch, setCustomerSearch] = React.useState("");
   const [form, setForm] = React.useState({
     quotation: quotationId || "",
     branch: branchId ? String(branchId) : "",
@@ -118,6 +437,18 @@ export default function SalesOrderFormPage() {
   const salespeople = normalizeList(options.salespeople);
   const products = normalizeList(options.products);
   const quotations = normalizeList(options.quotations);
+
+  const filteredCustomers = React.useMemo(() => {
+    const query = customerSearch.trim().toLowerCase();
+
+    if (!query) return customers;
+
+    return customers.filter((customer) =>
+      [customer.customer_name, customer.phone, customer.email]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query)),
+    );
+  }, [customers, customerSearch]);
 
   React.useEffect(() => {
     const source = existing || sourceQuotation;
@@ -244,21 +575,22 @@ export default function SalesOrderFormPage() {
     }));
   };
 
-  const selectProduct = (index, productId) => {
+  const selectProduct = (index, optionValue) => {
+    const [productId, variantId = ""] = String(optionValue || "").split(":");
+
     const product = products.find(
-      (item) => String(item.id) === String(productId),
+      (item) =>
+        String(item.product_id || item.id) === String(productId) &&
+        String(item.variant_id || "") === String(variantId),
     );
 
     updateItem(index, {
       product: productId,
-      variant: "",
+      variant: variantId,
       description: product?.description || product?.product_name || "",
-      unit_price: number(
-        product?.selling_price ||
-          product?.sale_price ||
-          product?.unit_price ||
-          0,
-      ),
+      unit_price: getProductPrice(product),
+      vat_percentage: number(product?.vat_percentage ?? product?.vat_rate ?? 5),
+      available_stock: number(product?.available_stock),
     });
   };
 
@@ -530,21 +862,30 @@ export default function SalesOrderFormPage() {
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <div>
             <Label>Customer *</Label>
-            <Select
+
+            <CustomerSearchPicker
+              customers={customers}
+              filteredCustomers={filteredCustomers}
               value={form.customer}
-              onValueChange={(value) => updateForm("customer", value)}
-            >
-              <SelectTrigger className="mt-2">
-                <SelectValue placeholder="Select customer" />
-              </SelectTrigger>
-              <SelectContent className="max-h-72">
-                {customers.map((customer) => (
-                  <SelectItem key={customer.id} value={String(customer.id)}>
-                    {customer.customer_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              search={customerSearch}
+              onSearchChange={setCustomerSearch}
+              onSelect={(value) => updateForm("customer", value)}
+            />
+
+            <InlineCustomerDialog
+              branchId={form.branch}
+              onCreated={(customer) => {
+                queryClient.invalidateQueries({
+                  queryKey: ["sales-order-form-options"],
+                });
+                updateForm("customer", String(customer.id));
+                setCustomerSearch("");
+              }}
+            />
+
+            {errors.customer && (
+              <p className="mt-1 text-xs text-red-500">{errors.customer}</p>
+            )}
           </div>
 
           <div>
@@ -730,25 +1071,16 @@ export default function SalesOrderFormPage() {
                   key={item.id || index}
                   className="grid grid-cols-[minmax(200px,1fr)_minmax(220px,1fr)_80px_110px_120px_90px_140px_40px] items-center gap-3 border-b border-slate-100 py-2 last:border-b-0 dark:border-white/5"
                 >
-                  <Select
-                    value={item.product || "__none__"}
-                    onValueChange={(value) =>
-                      selectProduct(index, value === "__none__" ? "" : value)
+                  <ProductSearchPicker
+                    products={products}
+                    value={
+                      item.product
+                        ? `${item.product}:${item.variant || ""}`
+                        : ""
                     }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select product" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-72">
-                      <SelectItem value="__none__">Select product</SelectItem>
-                      {products.map((product) => (
-                        <SelectItem key={product.id} value={String(product.id)}>
-                          {product.product_name}
-                          {product.sku ? ` · ${product.sku}` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onSelect={(value) => selectProduct(index, value)}
+                    getPrice={getProductPrice}
+                  />
 
                   <Input
                     value={item.description}

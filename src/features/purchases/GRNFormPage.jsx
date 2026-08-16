@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileText, Save, Send, UploadCloud, X } from "lucide-react";
 import { toast } from "sonner";
@@ -89,8 +89,12 @@ export default function GRNFormPage() {
   const { id } = useParams();
   const edit = Boolean(id);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { branchId } = useActiveBranchFilter();
+  const requestedPurchaseOrderId = searchParams.get("purchase_order") || "";
+  const requestedBranchId = searchParams.get("branch") || "";
+  const prefillAppliedRef = React.useRef(false);
 
   const [files, setFiles] = React.useState([]);
   const [errors, setErrors] = React.useState({});
@@ -101,7 +105,7 @@ export default function GRNFormPage() {
     grn_number: "",
     purchase_order: "",
     supplier: "",
-    branch: branchId ? String(branchId) : "",
+    branch: requestedBranchId || (branchId ? String(branchId) : ""),
     received_date: today(),
     received_by: "",
     warehouse_location: "",
@@ -111,13 +115,14 @@ export default function GRNFormPage() {
   });
 
   React.useEffect(() => {
-    if (!edit && branchId) {
-      setForm((current) => ({
-        ...current,
-        branch: String(branchId),
-      }));
+    if (!edit && requestedBranchId) {
+      setForm((current) => ({ ...current, branch: String(requestedBranchId) }));
+      return;
     }
-  }, [branchId, edit]);
+    if (!edit && branchId) {
+      setForm((current) => ({ ...current, branch: String(branchId) }));
+    }
+  }, [branchId, edit, requestedBranchId]);
 
   const { data: optionsResponse } = useQuery({
     queryKey: ["grn-form-options", form.branch],
@@ -328,161 +333,172 @@ export default function GRNFormPage() {
     }));
   };
 
-  const selectPO = async (value) => {
-    let order = orders.find((item) => String(item.id) === String(value));
+  const selectPO = React.useCallback(
+    async (value) => {
+      let order = orders.find((item) => String(item.id) === String(value));
 
-    if (!order) {
-      toast.error("Selected purchase order could not be loaded.");
-      return;
-    }
-
-    let rawItems = getPurchaseOrderItems(order);
-
-    if (!rawItems.length) {
-      try {
-        const detailResponse = unwrap(
-          await api.get(`/purchases/orders/${value}/`),
-        );
-
-        order = detailResponse?.data || detailResponse || order;
-        rawItems = getPurchaseOrderItems(order);
-      } catch (error) {
-        console.error("[GRN PO item diagnostic] Detail request failed", {
-          purchaseOrderId: value,
-          error,
-        });
-        toast.error("Unable to load purchase-order items.");
+      if (!order) {
+        toast.error("Selected purchase order could not be loaded.");
         return;
       }
-    }
 
-    setPurchaseOrderSearch(order.po_number || "");
-    setPurchaseOrderSearchOpen(false);
+      let rawItems = getPurchaseOrderItems(order);
 
-    const supplierId = getPk(
-      order.supplier_id,
-      order.supplier,
-      order.supplier?.id,
-    );
+      if (!rawItems.length) {
+        try {
+          const detailResponse = unwrap(
+            await api.get(`/purchases/orders/${value}/`),
+          );
 
-    const branchValue = getPk(order.branch_id, order.branch, order.branch?.id);
+          order = detailResponse?.data || detailResponse || order;
+          rawItems = getPurchaseOrderItems(order);
+        } catch (error) {
+          console.error("[GRN PO item diagnostic] Detail request failed", {
+            purchaseOrderId: value,
+            error,
+          });
+          toast.error("Unable to load purchase-order items.");
+          return;
+        }
+      }
 
-    const itemDiagnostics = [];
+      setPurchaseOrderSearch(order.po_number || "");
+      setPurchaseOrderSearchOpen(false);
 
-    const normalizedItems = rawItems
-      .map((item, itemIndex) => {
-        const productId = getPk(
-          item.product_id,
-          item.product?.id,
-          item.product,
-        );
-
-        const variantId = getPk(
-          item.variant_id,
-          item.variant?.id,
-          item.variant,
-        );
-
-        const orderedQuantity = num(
-          item.quantity ?? item.ordered_quantity ?? 0,
-        );
-
-        const previouslyReceived = num(
-          item.previously_received_quantity ?? item.received_grn_quantity ?? 0,
-        );
-
-        const remaining = Math.max(
-          0,
-          num(item.remaining_quantity ?? orderedQuantity - previouslyReceived),
-        );
-
-        const normalized = {
-          po_item_id: getPk(item.po_item_id, item.id),
-          product: productId ? String(productId) : "",
-          variant: variantId ? String(variantId) : "",
-          product_name: getText(
-            item.product_name,
-            item.product?.product_name,
-            item.product?.name,
-          ),
-          sku: getText(item.sku, item.variant?.sku, item.product?.sku),
-          ordered_quantity: orderedQuantity,
-          previously_received_quantity: previouslyReceived,
-          received_quantity: remaining,
-          damaged_quantity: 0,
-          accepted_quantity: remaining,
-          quality_status: "QC_PASSED",
-          rack: "",
-          remarks: "",
-        };
-
-        itemDiagnostics.push({
-          index: itemIndex,
-          raw: item,
-          normalized,
-          excludedReason: !productId
-            ? "Missing product ID"
-            : orderedQuantity <= 0
-              ? "Ordered quantity is zero"
-              : remaining <= 0
-                ? "No remaining quantity"
-                : "Included",
-        });
-
-        return normalized;
-      })
-      .filter(
-        (item) =>
-          getPk(item.product) &&
-          num(item.ordered_quantity) > 0 &&
-          num(item.received_quantity) > 0,
+      const supplierId = getPk(
+        order.supplier_id,
+        order.supplier,
+        order.supplier?.id,
       );
 
-    console.groupCollapsed(
-      `[GRN PO item diagnostic] ${order.po_number || value}`,
-    );
-    console.log("Purchase order", order);
-    console.log("Raw item count", rawItems.length, rawItems);
-    console.table(
-      itemDiagnostics.map((entry) => ({
-        index: entry.index,
-        product: entry.normalized.product,
-        product_name: entry.normalized.product_name,
-        ordered: entry.normalized.ordered_quantity,
-        previous: entry.normalized.previously_received_quantity,
-        remaining: entry.normalized.received_quantity,
-        result: entry.excludedReason,
-      })),
-    );
-    console.log("Items loaded into GRN", normalizedItems);
-    console.groupEnd();
+      const branchValue = getPk(
+        order.branch_id,
+        order.branch,
+        order.branch?.id,
+      );
 
-    if (!rawItems.length) {
-      toast.error("The selected purchase order has no item lines.", {
-        description:
-          "Open the browser console and check the GRN PO item diagnostic.",
-      });
-      return;
-    }
+      const itemDiagnostics = [];
 
-    if (!normalizedItems.length) {
-      toast.error("No receivable PO items were found.", {
-        description:
-          "The console diagnostic shows whether product IDs, quantities, or remaining balances are missing.",
-      });
-      return;
-    }
+      const normalizedItems = rawItems
+        .map((item, itemIndex) => {
+          const productId = getPk(
+            item.product_id,
+            item.product?.id,
+            item.product,
+          );
 
-    setForm((current) => ({
-      ...current,
-      purchase_order: String(order.id),
-      supplier: supplierId ? String(supplierId) : "",
-      branch: branchValue ? String(branchValue) : "",
-      items: normalizedItems,
-    }));
+          const variantId = getPk(
+            item.variant_id,
+            item.variant?.id,
+            item.variant,
+          );
 
-    setErrors({});
-  };
+          const orderedQuantity = num(
+            item.quantity ?? item.ordered_quantity ?? 0,
+          );
+
+          const previouslyReceived = num(
+            item.previously_received_quantity ??
+              item.received_grn_quantity ??
+              0,
+          );
+
+          const remaining = Math.max(
+            0,
+            num(
+              item.remaining_quantity ?? orderedQuantity - previouslyReceived,
+            ),
+          );
+
+          const normalized = {
+            po_item_id: getPk(item.po_item_id, item.id),
+            product: productId ? String(productId) : "",
+            variant: variantId ? String(variantId) : "",
+            product_name: getText(
+              item.product_name,
+              item.product?.product_name,
+              item.product?.name,
+            ),
+            sku: getText(item.sku, item.variant?.sku, item.product?.sku),
+            ordered_quantity: orderedQuantity,
+            previously_received_quantity: previouslyReceived,
+            received_quantity: remaining,
+            damaged_quantity: 0,
+            accepted_quantity: remaining,
+            quality_status: "QC_PASSED",
+            rack: "",
+            remarks: "",
+          };
+
+          itemDiagnostics.push({
+            index: itemIndex,
+            raw: item,
+            normalized,
+            excludedReason: !productId
+              ? "Missing product ID"
+              : orderedQuantity <= 0
+                ? "Ordered quantity is zero"
+                : remaining <= 0
+                  ? "No remaining quantity"
+                  : "Included",
+          });
+
+          return normalized;
+        })
+        .filter(
+          (item) =>
+            getPk(item.product) &&
+            num(item.ordered_quantity) > 0 &&
+            num(item.received_quantity) > 0,
+        );
+
+      console.groupCollapsed(
+        `[GRN PO item diagnostic] ${order.po_number || value}`,
+      );
+      console.log("Purchase order", order);
+      console.log("Raw item count", rawItems.length, rawItems);
+      console.table(
+        itemDiagnostics.map((entry) => ({
+          index: entry.index,
+          product: entry.normalized.product,
+          product_name: entry.normalized.product_name,
+          ordered: entry.normalized.ordered_quantity,
+          previous: entry.normalized.previously_received_quantity,
+          remaining: entry.normalized.received_quantity,
+          result: entry.excludedReason,
+        })),
+      );
+      console.log("Items loaded into GRN", normalizedItems);
+      console.groupEnd();
+
+      if (!rawItems.length) {
+        toast.error("The selected purchase order has no item lines.", {
+          description:
+            "Open the browser console and check the GRN PO item diagnostic.",
+        });
+        return;
+      }
+
+      if (!normalizedItems.length) {
+        toast.error("No receivable PO items were found.", {
+          description:
+            "The console diagnostic shows whether product IDs, quantities, or remaining balances are missing.",
+        });
+        return;
+      }
+
+      setForm((current) => ({
+        ...current,
+        purchase_order: String(order.id),
+        supplier: supplierId ? String(supplierId) : "",
+        branch: branchValue ? String(branchValue) : "",
+        items: normalizedItems,
+      }));
+
+      setErrors({});
+    },
+    [orders],
+  );
 
   const totalOrdered = form.items.reduce(
     (sum, item) => sum + num(item.ordered_quantity),
@@ -514,6 +530,24 @@ export default function GRNFormPage() {
         )
       ? "FULL_RECEIPT"
       : "PARTIAL_RECEIPT";
+
+  React.useEffect(() => {
+    if (
+      edit ||
+      prefillAppliedRef.current ||
+      !requestedPurchaseOrderId ||
+      !orders.length
+    )
+      return;
+    if (
+      !orders.some(
+        (order) => String(order.id) === String(requestedPurchaseOrderId),
+      )
+    )
+      return;
+    prefillAppliedRef.current = true;
+    selectPO(String(requestedPurchaseOrderId));
+  }, [edit, requestedPurchaseOrderId, orders, selectPO]);
 
   const validate = () => {
     const next = {};

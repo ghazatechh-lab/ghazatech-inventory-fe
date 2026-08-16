@@ -21,8 +21,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export default function InlineCustomerDialog({ onCreated }) {
-  const { branchId } = useActiveBranchFilter();
+export default function InlineCustomerDialog({
+  onCreated,
+  branchId: requestedBranchId,
+}) {
+  const { branchId: activeBranchId } = useActiveBranchFilter();
+  const branchId = requestedBranchId || activeBranchId;
   const [open, setOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [form, setForm] = React.useState({
@@ -36,6 +40,10 @@ export default function InlineCustomerDialog({ onCreated }) {
   const save = async () => {
     if (!form.customer_name.trim())
       return toast.error("Customer name is required.");
+
+    if (!branchId)
+      return toast.error("Select a branch before creating a customer.");
+
     setSaving(true);
     try {
       const customer = unwrap(

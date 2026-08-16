@@ -1,14 +1,10 @@
 const normalizePermissionCodes = (value) => {
-  if (!value) {
-    return [];
-  }
+  if (!value) return [];
 
   if (Array.isArray(value)) {
     return value
       .map((item) => {
-        if (typeof item === "string") {
-          return item.trim();
-        }
+        if (typeof item === "string") return item.trim();
 
         if (item && typeof item === "object") {
           return String(
@@ -28,9 +24,7 @@ const normalizePermissionCodes = (value) => {
   if (typeof value === "string") {
     const trimmed = value.trim();
 
-    if (!trimmed) {
-      return [];
-    }
+    if (!trimmed) return [];
 
     try {
       return normalizePermissionCodes(JSON.parse(trimmed));
@@ -73,53 +67,26 @@ export const describeRoleAccess = (role) => {
         permission === `${prefix}.*` || permission.startsWith(`${prefix}.`),
     );
 
-  if (hasPrefix("inventory")) {
-    capabilities.push("inventory");
-  }
-
-  if (hasPrefix("sales")) {
-    capabilities.push("sales");
-  }
+  if (hasPrefix("inventory")) capabilities.push("inventory");
+  if (hasPrefix("sales")) capabilities.push("sales");
 
   if (hasPrefix("purchase") || hasPrefix("purchases")) {
     capabilities.push("purchases");
   }
 
-  if (hasPrefix("hrms")) {
-    capabilities.push("HRMS");
-  }
+  if (hasPrefix("hrms")) capabilities.push("HRMS");
 
   if (hasPrefix("accounting") || hasPrefix("finance")) {
     capabilities.push("accounting");
   }
 
-  if (hasPrefix("reports")) {
-    capabilities.push("reports");
-  }
+  if (hasPrefix("reports")) capabilities.push("reports");
 
   if (hasPrefix("settings") || hasPrefix("branches")) {
     capabilities.push("settings");
   }
 
   const special = [];
-
-  if (permissions.includes("sales.selling.regular")) {
-    special.push("regular stock sales");
-  }
-
-  if (
-    permissions.includes("sales.non_vat.use") ||
-    permissions.includes("sales.selling.non_vat")
-  ) {
-    special.push("Non-VAT sales");
-  }
-
-  if (
-    permissions.includes("sales.vat.manage") ||
-    permissions.includes("sales.selling.vat")
-  ) {
-    special.push("VAT sales");
-  }
 
   if (
     permissions.includes("inventory.restricted_stock.sell") ||
@@ -135,12 +102,12 @@ export const describeRoleAccess = (role) => {
     special.push("discount or price override");
   }
 
-  if (permissions.includes("branches.view_all")) {
-    special.push("view all branches");
+  if (permissions.includes("branches.switch")) {
+    special.push("change active branch");
   }
 
-  if (permissions.includes("branches.switch")) {
-    special.push("switch active branch");
+  if (permissions.includes("branches.view_all")) {
+    special.push("view all branches");
   }
 
   if (!capabilities.length && !special.length) {

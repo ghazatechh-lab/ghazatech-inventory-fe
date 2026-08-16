@@ -128,7 +128,7 @@ export function ServiceHero({ title, description, actions }) {
       <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.22em] !text-cyan-200">
-            Service Operations
+            Sales · Service Operations
           </p>
           <h1 className="mt-3 text-3xl font-black tracking-tight !text-white drop-shadow-sm md:text-4xl">
             {title}

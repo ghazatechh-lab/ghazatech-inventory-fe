@@ -6,7 +6,15 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Plus, Save, Trash2, UserPlus } from "lucide-react";
+import {
+  Check,
+  ChevronsUpDown,
+  Download,
+  Plus,
+  Save,
+  Trash2,
+  UserPlus,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
@@ -26,6 +34,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CurrencyText } from "@/components/common/CurrencyText";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import { downloadSalesPdf, findSalesCustomer } from "@/lib/salesPdf";
 import InlineCustomerDialog from "./InlineCustomerDialog";
 
@@ -78,10 +100,173 @@ const emptyItem = () => ({
   available_stock: 0,
 });
 
-const isInvoiceEditLocked = (paymentStatus) =>
-  ["PAID", "VOID"].includes(
-    String(paymentStatus || "").toUpperCase(),
+function ProductSearchPicker({ products, value, onSelect, getPrice }) {
+  const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState("");
+  const searchRef = React.useRef(null);
+
+  const normalizedSearch = search.trim().toLowerCase();
+
+  const filteredProducts = React.useMemo(() => {
+    if (!normalizedSearch) return products;
+
+    return products.filter((product) =>
+      [
+        product.product_name,
+        product.variant_name,
+        product.sku,
+        product.barcode,
+      ].some((field) =>
+        String(field || "")
+          .toLowerCase()
+          .includes(normalizedSearch),
+      ),
+    );
+  }, [products, normalizedSearch]);
+
+  const selectedProduct = React.useMemo(
+    () =>
+      products.find(
+        (product) =>
+          `${product.product_id || product.id}:${product.variant_id || ""}` ===
+          String(value || ""),
+      ),
+    [products, value],
   );
+
+  const focusSearch = React.useCallback(() => {
+    window.setTimeout(() => {
+      searchRef.current?.focus();
+      searchRef.current?.select?.();
+    }, 0);
+  }, []);
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (nextOpen) {
+          setSearch("");
+          focusSearch();
+        }
+      }}
+    >
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="h-10 w-full justify-between px-3 font-normal"
+        >
+          <div className="min-w-0 text-left">
+            <div className="truncate text-sm">
+              {selectedProduct
+                ? [selectedProduct.product_name, selectedProduct.variant_name]
+                    .filter(Boolean)
+                    .join(" — ")
+                : "Search or select product"}
+            </div>
+            {selectedProduct && (
+              <div className="truncate text-[11px] text-muted-foreground">
+                {[
+                  selectedProduct.sku || "No SKU",
+                  selectedProduct.barcode,
+                  `${number(selectedProduct.available_stock)} available`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </div>
+            )}
+          </div>
+
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+
+      <PopoverContent
+        align="start"
+        className="w-[var(--radix-popover-trigger-width)] min-w-[420px] max-w-[min(620px,calc(100vw-2rem))] p-0"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          focusSearch();
+        }}
+      >
+        <Command shouldFilter={false}>
+          <CommandInput
+            ref={searchRef}
+            value={search}
+            onValueChange={setSearch}
+            placeholder="Search product, variant, SKU or barcode..."
+          />
+
+          <CommandList className="max-h-[340px]">
+            {!filteredProducts.length && (
+              <CommandEmpty>No matching products found.</CommandEmpty>
+            )}
+
+            <CommandGroup>
+              {filteredProducts.map((product) => {
+                const optionValue = `${
+                  product.product_id || product.id
+                }:${product.variant_id || ""}`;
+
+                const selected = String(value || "") === optionValue;
+
+                return (
+                  <CommandItem
+                    key={optionValue}
+                    value={`${product.product_name || ""} ${product.variant_name || ""} ${product.sku || ""} ${product.barcode || ""}`}
+                    onSelect={() => {
+                      onSelect(optionValue);
+                      setSearch("");
+                      setOpen(false);
+                    }}
+                    className="my-1 cursor-pointer py-2.5"
+                  >
+                    <Check
+                      className={cn(
+                        "h-4 w-4 shrink-0",
+                        selected ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold">
+                        {product.product_name}
+                        {product.variant_name
+                          ? ` — ${product.variant_name}`
+                          : ""}
+                      </div>
+
+                      <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {[
+                          product.sku || "No SKU",
+                          product.barcode,
+                          `${number(product.available_stock)} available`,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </div>
+                    </div>
+
+                    <span className="ml-3 shrink-0 text-sm font-semibold text-blue-600 dark:text-blue-300">
+                      AED {getPrice(product).toFixed(2)}
+                    </span>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+const isInvoiceEditLocked = (paymentStatus) =>
+  ["PAID", "VOID"].includes(String(paymentStatus || "").toUpperCase());
 
 export default function InvoiceFormPage() {
   const { id } = useParams();
@@ -98,6 +283,8 @@ export default function InvoiceFormPage() {
   const { branchId } = useActiveBranchFilter();
 
   const [errors, setErrors] = React.useState({});
+  const [customerSearch, setCustomerSearch] = React.useState("");
+  const [customerDropdownOpen, setCustomerDropdownOpen] = React.useState(false);
 
   const [form, setForm] = React.useState({
     sales_order: salesOrderId || "",
@@ -114,6 +301,9 @@ export default function InvoiceFormPage() {
     send_payment_reminders: false,
     discount_amount: 0,
     shipping_amount: 0,
+    vat_treatment: "STANDARD_VAT",
+    vat_percentage: 5,
+    vat_reason: "",
     paid_amount: 0,
     notes: "",
     sale_type: salesOrderId ? "ORDER" : "STANDALONE",
@@ -137,7 +327,6 @@ export default function InvoiceFormPage() {
       navigate(`/sales/invoices/${id}`, { replace: true });
     }
   }, [existing, id, isEdit, navigate]);
-
 
   const { data: sourceOrder } = useQuery({
     queryKey: ["invoice-source-order", salesOrderId],
@@ -163,9 +352,70 @@ export default function InvoiceFormPage() {
 
   const customers = normalizeList(options.customers);
 
+  const filteredCustomers = React.useMemo(() => {
+    const query = customerSearch.trim().toLowerCase();
+
+    if (!query) return customers;
+
+    return customers.filter((customer) =>
+      [
+        customer.customer_name,
+        customer.phone,
+        customer.email,
+        customer.customer_code,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query)),
+    );
+  }, [customers, customerSearch]);
+
+  const selectedCustomer = React.useMemo(
+    () =>
+      customers.find(
+        (customer) => String(customer.id) === String(form.customer || ""),
+      ) || null,
+    [customers, form.customer],
+  );
+
   const salespeople = normalizeList(options.salespeople);
 
-  const products = normalizeList(options.products);
+  const products = React.useMemo(() => {
+    const source = normalizeList(options.products);
+    const unique = new Map();
+
+    source.forEach((product) => {
+      const productId = product.product_id || product.id;
+      const variantId = product.variant_id || "";
+      const key = `${productId}:${variantId}`;
+
+      if (!unique.has(key)) {
+        unique.set(key, {
+          ...product,
+          product_id: productId,
+          option_key: key,
+        });
+        return;
+      }
+
+      // If duplicate API rows exist for the same product/variant,
+      // keep one option and retain the highest available stock value.
+      const existing = unique.get(key);
+
+      unique.set(key, {
+        ...existing,
+        available_stock: Math.max(
+          Number(existing.available_stock || 0),
+          Number(product.available_stock || 0),
+        ),
+        current_stock: Math.max(
+          Number(existing.current_stock || 0),
+          Number(product.current_stock || 0),
+        ),
+      });
+    });
+
+    return Array.from(unique.values());
+  }, [options.products]);
 
   const salesOrders = normalizeList(options.sales_orders);
 
@@ -267,6 +517,14 @@ export default function InvoiceFormPage() {
 
       shipping_amount: number(source.shipping_amount),
 
+      vat_treatment: source.items?.[0]?.tax_treatment || "STANDARD_VAT",
+
+      vat_percentage: number(
+        source.items?.[0]?.tax_rate ?? source.items?.[0]?.vat_percentage ?? 5,
+      ),
+
+      vat_reason: source.items?.[0]?.tax_reason || "",
+
       paid_amount: number(existing?.paid_amount),
 
       notes: existing?.notes || "",
@@ -367,19 +625,13 @@ export default function InvoiceFormPage() {
   }, [form.invoice_date, form.payment_terms]);
 
   const calculatedItems = form.items.map((item) => {
-    const values = calculateTaxLine({
-      quantity: item.quantity,
-      unitPrice: item.unit_price,
-      treatment: item.tax_treatment || "STANDARD_VAT",
-      taxRate: item.tax_rate ?? item.vat_percentage ?? 5,
-      inclusive: Boolean(item.tax_inclusive),
-    });
+    const lineSubtotal = number(item.quantity) * number(item.unit_price);
 
     return {
       ...item,
-      subtotal: values.taxable,
-      vat_amount: values.tax,
-      line_total: values.total,
+      subtotal: lineSubtotal,
+      vat_amount: 0,
+      line_total: lineSubtotal,
     };
   });
 
@@ -388,10 +640,12 @@ export default function InvoiceFormPage() {
     0,
   );
 
-  const vatAmount = calculatedItems.reduce(
-    (sum, item) => sum + item.vat_amount,
-    0,
-  );
+  const commonVatRate =
+    form.vat_treatment === "STANDARD_VAT"
+      ? number(form.vat_percentage || 5)
+      : 0;
+
+  const vatAmount = (subtotal * commonVatRate) / 100;
 
   const total =
     subtotal +
@@ -561,11 +815,11 @@ export default function InvoiceFormPage() {
 
           unit_price: money(item.unit_price),
 
-          vat_percentage: number(item.tax_rate ?? item.vat_percentage ?? 5),
-          tax_rate: number(item.tax_rate ?? item.vat_percentage ?? 5),
-          tax_treatment: item.tax_treatment || "STANDARD_VAT",
-          tax_reason: String(item.tax_reason || "").trim(),
-          tax_inclusive: Boolean(item.tax_inclusive),
+          vat_percentage: commonVatRate,
+          tax_rate: commonVatRate,
+          tax_treatment: form.vat_treatment || "STANDARD_VAT",
+          tax_reason: String(form.vat_reason || "").trim(),
+          tax_inclusive: false,
         })),
       };
 
@@ -619,7 +873,10 @@ export default function InvoiceFormPage() {
       return;
     }
 
-    if (!calculatedItems.length || !calculatedItems.some((item) => item.product)) {
+    if (
+      !calculatedItems.length ||
+      !calculatedItems.some((item) => item.product)
+    ) {
       toast.error("Add at least one invoice item before downloading PDF.");
       return;
     }
@@ -627,10 +884,7 @@ export default function InvoiceFormPage() {
     try {
       downloadSalesPdf({
         type: "INVOICE",
-        number:
-          form.invoice_number ||
-          existing?.invoice_number ||
-          "DRAFT",
+        number: form.invoice_number || existing?.invoice_number || "DRAFT",
         date: form.invoice_date,
         secondaryLabel: "Due Date",
         secondaryValue: form.due_date,
@@ -802,33 +1056,102 @@ export default function InvoiceFormPage() {
         </p>
 
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <div>
-            <Label>Customer *</Label>
+          <div className="relative">
+            <div className="flex items-center justify-between gap-3">
+              <Label>Customer *</Label>
 
-            <Select
-              value={form.customer}
-              onValueChange={(value) => updateForm("customer", value)}
-            >
-              <SelectTrigger className="mt-2">
-                <SelectValue placeholder="Select customer" />
-              </SelectTrigger>
+              <InlineCustomerDialog
+                branchId={form.branch}
+                onCreated={async (customer) => {
+                  updateForm("customer", String(customer.id));
+                  setCustomerSearch(customer.customer_name || "");
+                  setCustomerDropdownOpen(false);
 
-              <SelectContent className="max-h-72">
-                {customers.map((customer) => (
-                  <SelectItem key={customer.id} value={String(customer.id)}>
-                    {customer.customer_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <InlineCustomerDialog
-              onCreated={(customer) => {
-                queryClient.invalidateQueries({
-                  queryKey: ["sales-invoice-form-options"],
-                });
-                updateForm("customer", String(customer.id));
-              }}
-            />
+                  await queryClient.invalidateQueries({
+                    queryKey: ["sales-invoice-form-options"],
+                  });
+                }}
+              />
+            </div>
+
+            <div className="relative mt-2">
+              <Input
+                value={
+                  customerDropdownOpen
+                    ? customerSearch
+                    : selectedCustomer?.customer_name || customerSearch
+                }
+                placeholder="Search customer by name, phone, email..."
+                autoComplete="off"
+                onFocus={() => {
+                  setCustomerSearch(selectedCustomer?.customer_name || "");
+                  setCustomerDropdownOpen(true);
+                }}
+                onChange={(event) => {
+                  setCustomerSearch(event.target.value);
+                  setCustomerDropdownOpen(true);
+
+                  if (form.customer) {
+                    updateForm("customer", "");
+                  }
+                }}
+                onBlur={() => {
+                  window.setTimeout(() => {
+                    setCustomerDropdownOpen(false);
+
+                    if (selectedCustomer) {
+                      setCustomerSearch(selectedCustomer.customer_name || "");
+                    }
+                  }, 150);
+                }}
+              />
+
+              {customerDropdownOpen && (
+                <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 max-h-72 overflow-y-auto rounded-xl border bg-background p-1 shadow-xl">
+                  {filteredCustomers.length ? (
+                    filteredCustomers.map((customer) => (
+                      <button
+                        key={customer.id}
+                        type="button"
+                        className="flex w-full items-start justify-between gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-muted"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => {
+                          updateForm("customer", String(customer.id));
+                          setCustomerSearch(customer.customer_name || "");
+                          setCustomerDropdownOpen(false);
+                        }}
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium">
+                            {customer.customer_name}
+                          </span>
+
+                          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                            {[customer.phone, customer.email]
+                              .filter(Boolean)
+                              .join(" · ") || "No phone or email"}
+                          </span>
+                        </span>
+
+                        {customer.customer_code && (
+                          <span className="shrink-0 text-xs text-muted-foreground">
+                            {customer.customer_code}
+                          </span>
+                        )}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                      No customers found. Use Add Customer to create one.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {errors.customer && (
+              <p className="mt-1 text-xs text-red-500">{errors.customer}</p>
+            )}
           </div>
 
           <div>
@@ -935,17 +1258,9 @@ export default function InvoiceFormPage() {
         </div>
 
         <div className="overflow-x-auto p-5">
-          <div className={canUseNonVat ? "min-w-[1160px]" : "min-w-[980px]"}>
-            <div
-              className={`grid items-center gap-3 border-b border-slate-200 pb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:border-white/10 ${
-                canUseNonVat
-                  ? "grid-cols-[minmax(250px,1.4fr)_minmax(200px,1fr)_minmax(240px,1.2fr)_90px_125px_120px_44px]"
-                  : "grid-cols-[minmax(280px,1.45fr)_minmax(280px,1.3fr)_90px_125px_120px_44px]"
-              }`}
-            >
+          <div className="min-w-[980px]">
+            <div className="grid grid-cols-[minmax(280px,1.45fr)_minmax(280px,1.3fr)_90px_125px_120px_44px] items-center gap-3 border-b border-slate-200 pb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground dark:border-white/10">
               <span>Item</span>
-
-              {canUseNonVat && <span>Tax treatment</span>}
 
               <span>Description</span>
 
@@ -959,110 +1274,18 @@ export default function InvoiceFormPage() {
               {calculatedItems.map((item, index) => (
                 <div
                   key={item.id || index}
-                  className={`grid items-start gap-3 py-4 ${
-                    canUseNonVat
-                      ? "grid-cols-[minmax(250px,1.4fr)_minmax(200px,1fr)_minmax(240px,1.2fr)_90px_125px_120px_44px]"
-                      : "grid-cols-[minmax(280px,1.45fr)_minmax(280px,1.3fr)_90px_125px_120px_44px]"
-                  }`}
+                  className="grid grid-cols-[minmax(280px,1.45fr)_minmax(280px,1.3fr)_90px_125px_120px_44px] items-start gap-3 py-4"
                 >
-                  <Select
+                  <ProductSearchPicker
+                    products={products}
                     value={
                       item.product
                         ? `${item.product}:${item.variant || ""}`
-                        : "__none__"
+                        : ""
                     }
-                    onValueChange={(value) =>
-                      selectProduct(index, value === "__none__" ? "" : value)
-                    }
-                  >
-                    <SelectTrigger className="h-10 w-full">
-                      <SelectValue placeholder="Select product" />
-                    </SelectTrigger>
-
-                    <SelectContent className="max-h-80 min-w-[360px] rounded-xl p-1">
-                      <SelectItem value="__none__">Select product</SelectItem>
-
-                      {products.map((product) => (
-                        <SelectItem
-                          key={`${product.product_id || product.id}:${product.variant_id || ""}`}
-                          value={`${product.product_id || product.id}:${product.variant_id || ""}`}
-                          className="my-1 cursor-pointer rounded-lg py-2.5"
-                        >
-                          <div className="flex w-full min-w-0 items-center justify-between gap-4">
-                            <div className="min-w-0 text-left">
-                              <p className="truncate text-sm font-semibold">
-                                {product.product_name}
-                                {product.variant_name
-                                  ? ` — ${product.variant_name}`
-                                  : ""}
-                              </p>
-
-                              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                                {product.sku || "No SKU"} ·{" "}
-                                {`${number(product.available_stock)} available`}
-                              </p>
-                            </div>
-
-                            <span className="shrink-0 text-sm font-semibold text-blue-600 dark:text-blue-300">
-                              AED {getProductPrice(product).toFixed(2)}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {canUseNonVat && (
-                    <div className="space-y-2">
-                      <Select
-                        value={item.tax_treatment || "STANDARD_VAT"}
-                        onValueChange={(value) =>
-                          updateItem(index, {
-                            tax_treatment: value,
-                            tax_rate: value === "STANDARD_VAT" ? 5 : 0,
-                            vat_percentage: value === "STANDARD_VAT" ? 5 : 0,
-                            tax_reason:
-                              value === "STANDARD_VAT" ? "" : item.tax_reason,
-                          })
-                        }
-                      >
-                        <SelectTrigger className="h-10 w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-
-                        <SelectContent>
-                          <SelectItem value="STANDARD_VAT">
-                            Standard VAT (5%)
-                          </SelectItem>
-                          <SelectItem value="ZERO_RATED">
-                            Zero Rated (0%)
-                          </SelectItem>
-                          <SelectItem value="EXEMPT">
-                            Exempt / Non-VAT
-                          </SelectItem>
-                          <SelectItem value="OUT_OF_SCOPE">
-                            Out of Scope / Non-VAT
-                          </SelectItem>
-                          <SelectItem value="REVERSE_CHARGE">
-                            Reverse Charge
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-
-                      {item.tax_treatment !== "STANDARD_VAT" && (
-                        <Input
-                          value={item.tax_reason || ""}
-                          onChange={(event) =>
-                            updateItem(index, {
-                              tax_reason: event.target.value,
-                            })
-                          }
-                          placeholder="Reason / legal reference"
-                          className="h-9 text-xs"
-                        />
-                      )}
-                    </div>
-                  )}
+                    onSelect={(value) => selectProduct(index, value)}
+                    getPrice={getProductPrice}
+                  />
 
                   <Input
                     value={item.description}
@@ -1138,10 +1361,63 @@ export default function InvoiceFormPage() {
                 <CurrencyText value={subtotal} currency={form.currency} />
               </div>
 
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">VAT</span>
+              <div className="space-y-2 border-t pt-3">
+                <div className="flex items-center justify-between gap-4">
+                  <Label className="text-muted-foreground">VAT</Label>
+                  <Select
+                    value={form.vat_treatment}
+                    onValueChange={(value) =>
+                      setForm((current) => ({
+                        ...current,
+                        vat_treatment: value,
+                        vat_percentage: value === "STANDARD_VAT" ? 5 : 0,
+                        vat_reason:
+                          value === "STANDARD_VAT" ? "" : current.vat_reason,
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="h-8 w-44">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="STANDARD_VAT">
+                        Standard VAT (5%)
+                      </SelectItem>
+                      {canUseNonVat && (
+                        <>
+                          <SelectItem value="ZERO_RATED">
+                            Zero Rated (0%)
+                          </SelectItem>
+                          <SelectItem value="EXEMPT">Exempt (0%)</SelectItem>
+                          <SelectItem value="OUT_OF_SCOPE">
+                            Out of Scope (0%)
+                          </SelectItem>
+                          <SelectItem value="REVERSE_CHARGE">
+                            Reverse Charge
+                          </SelectItem>
+                        </>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                <CurrencyText value={vatAmount} currency={form.currency} />
+                {form.vat_treatment !== "STANDARD_VAT" && (
+                  <Input
+                    value={form.vat_reason}
+                    onChange={(event) =>
+                      updateForm("vat_reason", event.target.value)
+                    }
+                    placeholder="VAT reason / legal reference"
+                    className="h-8"
+                  />
+                )}
+
+                <div className="flex justify-between font-medium">
+                  <span className="text-muted-foreground">
+                    VAT ({commonVatRate}%)
+                  </span>
+                  <CurrencyText value={vatAmount} currency={form.currency} />
+                </div>
               </div>
 
               <div className="flex items-center justify-between gap-4">
@@ -1273,11 +1549,7 @@ export default function InvoiceFormPage() {
           <Link to="/sales/invoices">Cancel</Link>
         </Button>
 
-        <Button
-          type="button"
-          variant="outline"
-          onClick={downloadInvoicePdf}
-        >
+        <Button type="button" variant="outline" onClick={downloadInvoicePdf}>
           <Download className="mr-2 h-4 w-4" />
           Download PDF
         </Button>

@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Edit, Mail } from "lucide-react";
+import { CreditCard, Download, Edit, Mail } from "lucide-react";
 import { toast } from "sonner";
 
 import api, { unwrap } from "@/lib/api";
@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import InvoicePaymentDialog from "./InvoicePaymentDialog";
 
 const getEntityId = (value) => {
   if (value === null || value === undefined || value === "") return "";
@@ -17,18 +18,19 @@ const getEntityId = (value) => {
   return String(value);
 };
 
-const isInvoiceEditLocked = (paymentStatus) =>
-  ["PAID", "VOID"].includes(
-    String(paymentStatus || "").toUpperCase(),
-  );
-
 export default function InvoiceDetailPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
+  const [paymentOpen, setPaymentOpen] = React.useState(false);
 
-  const { data: invoice, isLoading } = useQuery({
+  const {
+    data: invoice,
+    isLoading,
+    refetch: refetchInvoice,
+  } = useQuery({
     queryKey: ["sales-invoice", id],
     queryFn: async () => unwrap(await api.get(`/sales/invoices/${id}/`)),
+    staleTime: 0,
   });
 
   const invoiceCustomerId = getEntityId(invoice?.customer);
@@ -61,6 +63,11 @@ export default function InvoiceDetailPage() {
     return <div className="card-surface p-6">Invoice not found.</div>;
   }
 
+  const balanceDue = Number(invoice.balance_due || 0);
+  const paymentStatus = String(invoice.payment_status || "").toUpperCase();
+  const canRecordPayment =
+    balanceDue > 0 && !["PAID", "VOID", "CANCELLED"].includes(paymentStatus);
+
   const downloadInvoicePdf = () => {
     try {
       downloadSalesPdf({
@@ -71,10 +78,9 @@ export default function InvoiceDetailPage() {
         secondaryValue: invoice.due_date,
         paymentTerms: invoice.payment_terms,
         customerPo: invoice.customer_po_number,
-        customer:
-          customerDetail || {
-            customer_name: invoice.customer_name || "Customer",
-          },
+        customer: customerDetail || {
+          customer_name: invoice.customer_name || "Customer",
+        },
         items: invoice.items || [],
         products: [],
         subtotal: invoice.subtotal,
@@ -95,8 +101,6 @@ export default function InvoiceDetailPage() {
     }
   };
 
-  const editLocked = isInvoiceEditLocked(invoice.payment_status);
-
   return (
     <div className="sales-module-page sales-workspace mx-auto max-w-6xl space-y-5">
       <PageHeader
@@ -104,6 +108,17 @@ export default function InvoiceDetailPage() {
         subtitle="Invoice details, balance, and payment status"
         actions={
           <div className="flex flex-wrap gap-2">
+            {canRecordPayment && (
+              <Button
+                type="button"
+                onClick={() => setPaymentOpen(true)}
+                className="bg-emerald-600 text-white hover:bg-emerald-700"
+              >
+                <CreditCard className="mr-2 h-4 w-4" />
+                Record Payment
+              </Button>
+            )}
+
             <Button
               type="button"
               variant="outline"
@@ -117,36 +132,24 @@ export default function InvoiceDetailPage() {
               type="button"
               variant="outline"
               onClick={() => sendReminder.mutate()}
-              disabled={sendReminder.isPending}
+              disabled={sendReminder.isPending || !canRecordPayment}
             >
               <Mail className="mr-2 h-4 w-4" />
               Send Reminder
             </Button>
 
-            {!editLocked && (
-              <Button
-                asChild
-                className="bg-blue-600 text-white hover:bg-blue-700"
-              >
-                <Link to={`/sales/invoices/${id}/edit`}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit
-                </Link>
-              </Button>
-            )}
+            <Button
+              asChild
+              className="bg-blue-600 text-white hover:bg-blue-700"
+            >
+              <Link to={`/sales/invoices/${id}/edit`}>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
+              </Link>
+            </Button>
           </div>
         }
       />
-
-      {editLocked && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
-          <p className="font-semibold">This invoice is read-only.</p>
-          <p className="mt-1 text-xs leading-5">
-            {String(invoice.payment_status || "").replaceAll("_", " ")} invoices
-            cannot be edited.
-          </p>
-        </div>
-      )}
 
       <section className="card-surface p-5">
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
@@ -314,6 +317,15 @@ export default function InvoiceDetailPage() {
           </p>
         )}
       </section>
+
+      <InvoicePaymentDialog
+        invoice={invoice}
+        open={paymentOpen}
+        onClose={() => setPaymentOpen(false)}
+        onSaved={async () => {
+          await refetchInvoice();
+        }}
+      />
     </div>
   );
 }

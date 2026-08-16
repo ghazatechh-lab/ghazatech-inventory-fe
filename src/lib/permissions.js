@@ -72,8 +72,45 @@ export const getUserPermissions = (user) => {
           addPermission(permissions, code);
         }
       });
+    } else if (typeof collection === "string") {
+      const raw = collection.trim();
+
+      if (!raw) return;
+
+      try {
+        const parsed = JSON.parse(raw);
+
+        if (Array.isArray(parsed)) {
+          parsed.forEach((value) => addPermission(permissions, value));
+          return;
+        }
+
+        if (parsed && typeof parsed === "object") {
+          Object.entries(parsed).forEach(([code, allowed]) => {
+            if (allowed === true) {
+              addPermission(permissions, code);
+            }
+          });
+          return;
+        }
+      } catch {
+        raw
+          .split(",")
+          .map((value) => value.trim())
+          .filter(Boolean)
+          .forEach((value) => addPermission(permissions, value));
+      }
     }
   });
+
+  // Compatibility with older branch permission codes.
+  if (permissions.has("branches.branches.view_all")) {
+    permissions.add("branches.view_all");
+  }
+
+  if (permissions.has("branches.branch_access.view_all")) {
+    permissions.add("branches.view_all");
+  }
 
   return permissions;
 };
@@ -86,9 +123,11 @@ const moduleAliases = {
 };
 
 const candidateCodes = (code) => {
-  const candidates = new Set([code]);
+  const normalized = normalizeCode(code);
 
-  const parts = String(code).split(".");
+  const candidates = new Set([normalized]);
+
+  const parts = normalized.split(".");
 
   if (parts.length && moduleAliases[parts[0]]) {
     candidates.add([moduleAliases[parts[0]], ...parts.slice(1)].join("."));
@@ -119,7 +158,7 @@ export const hasPermission = (user, code) => {
 
     const parts = candidate.split(".");
 
-    if (permissions.has(`${parts[0]}.*`)) {
+    if (parts.length && permissions.has(`${parts[0]}.*`)) {
       return true;
     }
 
@@ -165,5 +204,28 @@ export const filterByPermission = (values, user) =>
     (value) => !value.permission || hasPermission(user, value.permission),
   );
 
+export const canChangeActiveBranch = (user) =>
+  isAdmin(user) ||
+  hasPermission(user, "branches.switch") ||
+  hasPermission(user, "branches.view_all");
+
 export const canViewAllBranches = (user) =>
   isAdmin(user) || hasPermission(user, "branches.view_all");
+
+export const canView = (user, resource) =>
+  hasPermission(user, `${resource}.view`);
+
+export const canCreate = (user, resource) =>
+  hasPermission(user, `${resource}.create`);
+
+export const canEdit = (user, resource) =>
+  hasPermission(user, `${resource}.edit`);
+
+export const canDelete = (user, resource) =>
+  hasPermission(user, `${resource}.delete`);
+
+export const canApprove = (user, resource) =>
+  hasPermission(user, `${resource}.approve`);
+
+export const canExport = (user, resource) =>
+  hasPermission(user, `${resource}.export`);

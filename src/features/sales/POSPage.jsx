@@ -81,6 +81,9 @@ const createForm = (branchId) => ({
   cash_amount: 0,
   card_amount: 0,
   discount_amount: 0,
+  vat_treatment: "STANDARD_VAT",
+  vat_percentage: 5,
+  vat_reason: "",
   notes: "",
   status: "PAID",
   items: [emptyItem()],
@@ -173,23 +176,16 @@ export default function POSPage() {
   }, [rawProducts, stock]);
 
   const calculatedItems = form.items.map((item) => {
-    const values = calculateTaxLine({
-      quantity: item.quantity,
-      unitPrice: item.unit_price,
-      treatment: item.tax_treatment || "STANDARD_VAT",
-      taxRate: item.tax_rate ?? item.vat_percentage ?? 5,
-      inclusive: Boolean(item.tax_inclusive),
-    });
-
     const selectedAvailable = number(item.available_stock);
+    const lineSubtotal = number(item.quantity) * number(item.unit_price);
 
     return {
       ...item,
       available_stock: selectedAvailable,
       has_enough_stock: selectedAvailable >= number(item.quantity),
-      subtotal: values.taxable,
-      vat_amount: values.tax,
-      line_total: values.total,
+      subtotal: lineSubtotal,
+      vat_amount: 0,
+      line_total: lineSubtotal,
     };
   });
 
@@ -198,10 +194,12 @@ export default function POSPage() {
     0,
   );
 
-  const vatAmount = calculatedItems.reduce(
-    (sum, item) => sum + item.vat_amount,
-    0,
-  );
+  const commonVatRate =
+    form.vat_treatment === "STANDARD_VAT"
+      ? number(form.vat_percentage || 5)
+      : 0;
+
+  const vatAmount = (subtotal * commonVatRate) / 100;
 
   const total = Math.max(
     0,
@@ -411,11 +409,11 @@ export default function POSPage() {
 
           unit_price: number(item.unit_price),
 
-          vat_percentage: number(item.tax_rate ?? item.vat_percentage ?? 5),
-          tax_rate: number(item.tax_rate ?? item.vat_percentage ?? 5),
-          tax_treatment: item.tax_treatment || "STANDARD_VAT",
-          tax_reason: "",
-          tax_inclusive: Boolean(item.tax_inclusive),
+          vat_percentage: commonVatRate,
+          tax_rate: commonVatRate,
+          tax_treatment: form.vat_treatment || "STANDARD_VAT",
+          tax_reason: String(form.vat_reason || "").trim(),
+          tax_inclusive: false,
         })),
       };
 
@@ -723,9 +721,7 @@ export default function POSPage() {
                 <Label>Items</Label>
 
                 <div className="relative mt-2 overflow-visible rounded-xl border">
-                  <div
-                    className={`grid gap-3 border-b bg-slate-50 px-3 py-3 text-[10px] uppercase tracking-wider text-muted-foreground dark:bg-white/[0.025] ${"grid-cols-[minmax(320px,1fr)_80px_120px_120px_44px]"}`}
-                  >
+                  <div className="grid grid-cols-[minmax(320px,1fr)_80px_120px_120px_44px] items-center gap-3 border-b bg-slate-50 px-3 py-3 text-[10px] uppercase tracking-wider text-muted-foreground dark:bg-white/[0.025]">
                     <span>Product</span>
 
                     <span className="text-right">Qty</span>
@@ -737,7 +733,7 @@ export default function POSPage() {
                   {calculatedItems.map((item, index) => (
                     <div
                       key={index}
-                      className={`relative grid items-center gap-3 border-b px-3 py-3 last:border-b-0 ${"grid-cols-[minmax(320px,1fr)_80px_120px_120px_44px]"}`}
+                      className="relative grid grid-cols-[minmax(320px,1fr)_80px_120px_120px_44px] items-start gap-3 border-b px-3 py-3 last:border-b-0"
                     >
                       <div className="min-w-0 space-y-1.5">
                         <div className="relative">
@@ -750,7 +746,7 @@ export default function POSPage() {
                               searchProduct(index, event.target.value);
                               setOpenProductIndex(index);
                             }}
-                            placeholder="Search by product, SKU, or barcode"
+                            placeholder="Search product, variant, SKU or barcode"
                             className="h-11 rounded-xl border-slate-200 bg-background pl-9 pr-9 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-white/10"
                           />
 
@@ -881,61 +877,6 @@ export default function POSPage() {
                           )}
                         </div>
 
-                        {canUseNonVat && (
-                          <div className="grid gap-2 sm:grid-cols-[180px_1fr]">
-                            <Select
-                              value={item.tax_treatment || "STANDARD_VAT"}
-                              onValueChange={(value) =>
-                                updateItem(index, {
-                                  tax_treatment: value,
-                                  tax_rate: value === "STANDARD_VAT" ? 5 : 0,
-                                  vat_percentage:
-                                    value === "STANDARD_VAT" ? 5 : 0,
-                                  tax_reason:
-                                    value === "STANDARD_VAT"
-                                      ? ""
-                                      : item.tax_reason,
-                                })
-                              }
-                            >
-                              <SelectTrigger className="h-9">
-                                <SelectValue />
-                              </SelectTrigger>
-
-                              <SelectContent>
-                                <SelectItem value="STANDARD_VAT">
-                                  Standard VAT (5%)
-                                </SelectItem>
-                                <SelectItem value="ZERO_RATED">
-                                  Zero Rated (0%)
-                                </SelectItem>
-                                <SelectItem value="EXEMPT">
-                                  Exempt / Non-VAT
-                                </SelectItem>
-                                <SelectItem value="OUT_OF_SCOPE">
-                                  Out of Scope / Non-VAT
-                                </SelectItem>
-                                <SelectItem value="REVERSE_CHARGE">
-                                  Reverse Charge
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-
-                            {item.tax_treatment !== "STANDARD_VAT" && (
-                              <Input
-                                value={item.tax_reason || ""}
-                                onChange={(event) =>
-                                  updateItem(index, {
-                                    tax_reason: event.target.value,
-                                  })
-                                }
-                                placeholder="Reason / legal reference"
-                                className="h-9 text-xs"
-                              />
-                            )}
-                          </div>
-                        )}
-
                         {item.product && (
                           <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-xs dark:bg-white/[0.035]">
                             <span
@@ -966,7 +907,7 @@ export default function POSPage() {
                             quantity: event.target.value,
                           })
                         }
-                        className="text-right"
+                        className="h-11 text-right"
                       />
 
                       <Input
@@ -979,10 +920,10 @@ export default function POSPage() {
                             unit_price: event.target.value,
                           })
                         }
-                        className="text-right"
+                        className="h-11 text-right"
                       />
 
-                      <div className="text-right font-semibold">
+                      <div className="flex h-11 items-center justify-end text-right font-semibold">
                         <CurrencyText value={item.line_total} />
                       </div>
 
@@ -990,6 +931,7 @@ export default function POSPage() {
                         type="button"
                         size="icon"
                         variant="ghost"
+                        className="h-11 w-11"
                         onClick={() =>
                           setForm((current) => ({
                             ...current,
@@ -1130,9 +1072,67 @@ export default function POSPage() {
                     </span>
                   </div>
 
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">VAT</span>
-                    <CurrencyText value={vatAmount} />
+                  <div className="space-y-2 border-t pt-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <Label className="text-muted-foreground">VAT</Label>
+                      <Select
+                        value={form.vat_treatment}
+                        onValueChange={(value) =>
+                          setForm((current) => ({
+                            ...current,
+                            vat_treatment: value,
+                            vat_percentage: value === "STANDARD_VAT" ? 5 : 0,
+                            vat_reason:
+                              value === "STANDARD_VAT"
+                                ? ""
+                                : current.vat_reason,
+                          }))
+                        }
+                      >
+                        <SelectTrigger className="h-8 w-44">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="STANDARD_VAT">
+                            Standard VAT (5%)
+                          </SelectItem>
+                          {canUseNonVat && (
+                            <>
+                              <SelectItem value="ZERO_RATED">
+                                Zero Rated (0%)
+                              </SelectItem>
+                              <SelectItem value="EXEMPT">
+                                Exempt (0%)
+                              </SelectItem>
+                              <SelectItem value="OUT_OF_SCOPE">
+                                Out of Scope (0%)
+                              </SelectItem>
+                              <SelectItem value="REVERSE_CHARGE">
+                                Reverse Charge
+                              </SelectItem>
+                            </>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {form.vat_treatment !== "STANDARD_VAT" && (
+                      <Input
+                        value={form.vat_reason}
+                        onChange={(event) =>
+                          updateForm("vat_reason", event.target.value)
+                        }
+                        placeholder="VAT reason / legal reference"
+                        className="h-8"
+                      />
+                    )}
+
+                    <div className="flex justify-between font-medium">
+                      <span className="text-muted-foreground">
+                        VAT ({commonVatRate}%)
+                      </span>
+                      <CurrencyText value={vatAmount} />
+                    </div>
                   </div>
 
                   <div className="flex justify-between border-t pt-3 text-base font-semibold">

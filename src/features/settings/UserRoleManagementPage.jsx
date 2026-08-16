@@ -32,35 +32,13 @@ import { PERMISSION_GROUPS } from "@/config/permissionGroups";
 import { describeRoleAccess } from "./role_description";
 
 const normalizeList = (value) => {
-  if (Array.isArray(value)) {
-    return value;
-  }
-
-  if (Array.isArray(value?.results)) {
-    return value.results;
-  }
-
-  if (Array.isArray(value?.data)) {
-    return value.data;
-  }
-
-  if (Array.isArray(value?.data?.results)) {
-    return value.data.results;
-  }
-
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.results)) return value.results;
+  if (Array.isArray(value?.data)) return value.data;
+  if (Array.isArray(value?.data?.results)) return value.data.results;
   return [];
 };
 
-/**
- * Convert every supported permission representation into string[].
- *
- * Supported API formats:
- * 1. ["inventory.products.view"]
- * 2. [{ code: "inventory.products.view" }]
- * 3. '{"inventory.products.view": true}'
- * 4. {"inventory": {"products": {"view": true}}}
- * 5. "inventory.products.view,inventory.products.create"
- */
 const PERMISSION_CODE_ALIASES = {
   "branches.branches.view_all": "branches.view_all",
   "branches.branch_access.view_all": "branches.view_all",
@@ -68,7 +46,6 @@ const PERMISSION_CODE_ALIASES = {
 
 const canonicalPermissionCode = (code) => {
   const normalized = String(code || "").trim();
-
   return PERMISSION_CODE_ALIASES[normalized] || normalized;
 };
 
@@ -90,7 +67,6 @@ const normalizePermissions = (value) => {
         value.flatMap((item) => {
           if (typeof item === "string") {
             const code = canonicalPermissionCode(item);
-
             return code ? [code] : [];
           }
 
@@ -150,6 +126,7 @@ const normalizePermissions = (value) => {
         if (path.length) {
           codes.push(canonicalPermissionCode(path.join(".")));
         }
+
         return;
       }
 
@@ -166,10 +143,11 @@ const normalizePermissions = (value) => {
               item.code || item.permission_code || item.permission || item.name;
 
             if (typeof code === "string" && code.trim()) {
-              codes.push(code.trim());
+              codes.push(canonicalPermissionCode(code));
             }
           }
         });
+
         return;
       }
 
@@ -233,52 +211,50 @@ const emptyRole = {
 };
 
 const ACCESS_PROFILES = {
-  REGULAR_SALES: {
-    label: "Regular Sales",
+  BRANCH_SWITCH: {
+    label: "Change Active Branch",
     description:
-      "Allows normal sales of regular stock using standard sales permissions.",
-    permissions: ["sales.selling.regular"],
+      "Allows the role to change the active working branch from the application header.",
+    permissions: ["branches.switch"],
   },
-  NON_VAT_SALES: {
-    label: "Non-VAT Sales",
+
+  VIEW_ALL_BRANCHES: {
+    label: "View All Branches",
     description:
-      "Allows selected roles to sell regular stock using the Non-VAT option.",
-    permissions: [
-      "sales.selling.regular",
-      "sales.selling.non_vat",
-      "sales.non_vat.view",
-      "sales.non_vat.use",
-      "sales.non_vat.manage",
-    ],
+      "Allows the role to switch branches and use the All Branches option.",
+    permissions: ["branches.switch", "branches.view_all"],
   },
-  VAT_SALES: {
-    label: "VAT Sales",
-    description:
-      "Allows selected roles to sell regular stock using standard VAT.",
-    permissions: [
-      "sales.selling.regular",
-      "sales.selling.vat",
-      "sales.vat.view",
-      "sales.vat.manage",
-    ],
-  },
-  RESTRICTED_STOCK_SALES: {
-    label: "Restricted Stock Sales",
-    description:
-      "Allows selected roles to view and sell stock classified as restricted.",
-    permissions: [
-      "sales.selling.restricted",
-      "inventory.restricted_stock.view",
-      "inventory.restricted_stock.sell",
-    ],
-  },
+
   PRICE_OVERRIDE: {
     label: "Discount & Price Override",
     description:
-      "Allows selected roles to apply discounts and override selling prices.",
+      "Allows selected roles to apply sales discounts and override default selling prices.",
     permissions: ["sales.selling.discount", "sales.selling.price_override"],
   },
 };
+
+const OBSOLETE_TRANSACTION_VAT_PERMISSIONS = new Set([
+  "sales.selling.vat",
+  "sales.selling.non_vat",
+  "purchases.stock_purchase.vat",
+  "purchases.stock_purchase.non_vat",
+]);
+
+const isObsoleteTransactionVatPermission = (code) =>
+  OBSOLETE_TRANSACTION_VAT_PERMISSIONS.has(code) ||
+  code.startsWith("sales.vat.") ||
+  code.startsWith("sales.non_vat.") ||
+  code.startsWith("purchases.vat.") ||
+  code.startsWith("purchases.non_vat.");
+
+const cleanPermissionCodes = (value) =>
+  Array.from(
+    new Set(
+      normalizePermissions(value)
+        .map(canonicalPermissionCode)
+        .filter((code) => !isObsoleteTransactionVatPermission(code)),
+    ),
+  );
 
 export default function UserRoleManagementPage() {
   const queryClient = useQueryClient();
@@ -293,10 +269,11 @@ export default function UserRoleManagementPage() {
   const [editingRole, setEditingRole] = React.useState(null);
 
   const [permissionTab, setPermissionTab] = React.useState("special");
+
   const [permissionSearch, setPermissionSearch] = React.useState("");
 
   const [bulkOpen, setBulkOpen] = React.useState(false);
-  const [bulkProfile, setBulkProfile] = React.useState("NON_VAT_SALES");
+  const [bulkProfile, setBulkProfile] = React.useState("BRANCH_SWITCH");
   const [bulkRoleIds, setBulkRoleIds] = React.useState([]);
 
   const { data: usersData, isLoading: usersLoading } = useQuery({
@@ -363,7 +340,7 @@ export default function UserRoleManagementPage() {
   );
 
   const rolePermissions = React.useMemo(
-    () => normalizePermissions(roleForm.permissions),
+    () => cleanPermissionCodes(roleForm.permissions),
     [roleForm.permissions],
   );
 
@@ -409,6 +386,16 @@ export default function UserRoleManagementPage() {
             .map((resource) => ({
               ...resource,
               actions: (resource.actions || []).filter((action) => {
+                const code = buildCatalogPermissionCode(
+                  group,
+                  resource,
+                  action,
+                );
+
+                if (isObsoleteTransactionVatPermission(code)) {
+                  return false;
+                }
+
                 const search = permissionSearch.trim().toLowerCase();
 
                 if (!search) {
@@ -421,7 +408,7 @@ export default function UserRoleManagementPage() {
                   resource.label,
                   resource.resource,
                   action,
-                  buildCatalogPermissionCode(group, resource, action),
+                  code,
                 ]
                   .filter(Boolean)
                   .some((value) =>
@@ -501,13 +488,11 @@ export default function UserRoleManagementPage() {
 
   const roleMutation = useMutation({
     mutationFn: () => {
-      const permissions = normalizePermissions(roleForm.permissions).map(
-        canonicalPermissionCode,
-      );
+      const permissions = cleanPermissionCodes(roleForm.permissions);
 
       const payload = {
         ...roleForm,
-        permissions: Array.from(new Set(permissions)),
+        permissions,
       };
 
       return editingRole
@@ -553,7 +538,7 @@ export default function UserRoleManagementPage() {
 
       await Promise.all(
         selectedRoles.map((role) => {
-          const currentPermissions = normalizePermissions(role.permissions);
+          const currentPermissions = cleanPermissionCodes(role.permissions);
 
           const permissions = Array.from(
             new Set([...currentPermissions, ...profile.permissions]),
@@ -583,7 +568,9 @@ export default function UserRoleManagementPage() {
       ]);
 
       toast.success(
-        `${ACCESS_PROFILES[bulkProfile].label} assigned to ${bulkRoleIds.length} role(s).`,
+        `${ACCESS_PROFILES[bulkProfile].label} assigned to ${
+          bulkRoleIds.length
+        } role(s).`,
       );
 
       setBulkOpen(false);
@@ -627,7 +614,7 @@ export default function UserRoleManagementPage() {
             name: role.name || "",
             code: role.code || "",
             description: role.description || "",
-            permissions: normalizePermissions(role.permissions),
+            permissions: cleanPermissionCodes(role.permissions),
             is_active:
               role.is_active === undefined ? true : Boolean(role.is_active),
           }
@@ -641,7 +628,7 @@ export default function UserRoleManagementPage() {
     const normalizedCode = canonicalPermissionCode(code);
 
     setRoleForm((current) => {
-      const currentPermissions = normalizePermissions(current.permissions);
+      const currentPermissions = cleanPermissionCodes(current.permissions);
 
       return {
         ...current,
@@ -655,12 +642,12 @@ export default function UserRoleManagementPage() {
   };
 
   const toggleResource = (group, resource, actions) => {
-    const permissionCodes = actions.map((action) =>
-      buildCatalogPermissionCode(group, resource, action),
-    );
+    const permissionCodes = actions
+      .map((action) => buildCatalogPermissionCode(group, resource, action))
+      .filter((code) => !isObsoleteTransactionVatPermission(code));
 
     setRoleForm((current) => {
-      const currentPermissions = normalizePermissions(current.permissions);
+      const currentPermissions = cleanPermissionCodes(current.permissions);
 
       const allSelected = permissionCodes.every((code) =>
         currentPermissions.includes(code),
@@ -676,10 +663,12 @@ export default function UserRoleManagementPage() {
   };
 
   const togglePermissionCodes = (codes) => {
-    const normalizedCodes = codes.map(canonicalPermissionCode);
+    const normalizedCodes = codes
+      .map(canonicalPermissionCode)
+      .filter((code) => !isObsoleteTransactionVatPermission(code));
 
     setRoleForm((current) => {
-      const currentPermissions = normalizePermissions(current.permissions);
+      const currentPermissions = cleanPermissionCodes(current.permissions);
 
       const allSelected = normalizedCodes.every((code) =>
         currentPermissions.includes(code),
@@ -864,7 +853,7 @@ export default function UserRoleManagementPage() {
               type="button"
               variant="outline"
               onClick={() => {
-                setBulkProfile("NON_VAT_SALES");
+                setBulkProfile("BRANCH_SWITCH");
                 setBulkRoleIds([]);
                 setBulkOpen(true);
               }}
@@ -886,7 +875,7 @@ export default function UserRoleManagementPage() {
               </div>
             ) : (
               roles.map((role) => {
-                const permissions = normalizePermissions(role.permissions);
+                const permissions = cleanPermissionCodes(role.permissions);
 
                 return (
                   <div key={role.id} className="card-surface p-5">
@@ -912,7 +901,10 @@ export default function UserRoleManagementPage() {
                       </p>
 
                       <p className="mt-1 text-sm leading-5">
-                        {describeRoleAccess(role)}
+                        {describeRoleAccess({
+                          ...role,
+                          permissions,
+                        })}
                       </p>
                     </div>
 
@@ -950,716 +942,753 @@ export default function UserRoleManagementPage() {
       </Tabs>
 
       {bulkOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-background shadow-2xl">
-            <div className="flex items-start justify-between border-b p-5">
-              <div>
-                <h2 className="text-xl font-semibold">
-                  Assign Access to Multiple Roles
-                </h2>
-
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Choose one access profile and assign it to several roles at
-                  once.
-                </p>
-              </div>
-
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                onClick={() => setBulkOpen(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div className="space-y-5 p-5">
-              <div>
-                <Label>Access Profile</Label>
-
-                <Select value={bulkProfile} onValueChange={setBulkProfile}>
-                  <SelectTrigger className="mt-2">
-                    <SelectValue />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {Object.entries(ACCESS_PROFILES).map(([key, profile]) => (
-                      <SelectItem key={key} value={key}>
-                        {profile.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50/60 p-4 dark:border-blue-900 dark:bg-blue-950/20">
-                  <p className="font-medium text-blue-800 dark:text-blue-200">
-                    {ACCESS_PROFILES[bulkProfile].label}
-                  </p>
-
-                  <p className="mt-1 text-sm text-blue-700 dark:text-blue-300">
-                    {ACCESS_PROFILES[bulkProfile].description}
-                  </p>
-
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {ACCESS_PROFILES[bulkProfile].permissions.map(
-                      (permission) => (
-                        <code
-                          key={permission}
-                          className="rounded bg-background px-2 py-1 text-[10px]"
-                        >
-                          {permission}
-                        </code>
-                      ),
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between">
-                  <Label>Select Roles</Label>
-
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      setBulkRoleIds(
-                        roles
-                          .filter(
-                            (role) =>
-                              String(role.code || "").toUpperCase() !== "ADMIN",
-                          )
-                          .map((role) => String(role.id)),
-                      )
-                    }
-                  >
-                    Select all non-admin roles
-                  </Button>
-                </div>
-
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  {roles
-                    .filter(
-                      (role) =>
-                        String(role.code || "").toUpperCase() !== "ADMIN",
-                    )
-                    .map((role) => {
-                      const checked = bulkRoleIds.includes(String(role.id));
-
-                      return (
-                        <label
-                          key={role.id}
-                          className={`cursor-pointer rounded-xl border p-4 transition ${
-                            checked
-                              ? "border-blue-500 bg-blue-50/70"
-                              : "hover:border-blue-300"
-                          }`}
-                        >
-                          <div className="flex items-start gap-3">
-                            <input
-                              type="checkbox"
-                              className="mt-1"
-                              checked={checked}
-                              onChange={(event) =>
-                                setBulkRoleIds((current) =>
-                                  event.target.checked
-                                    ? [...current, String(role.id)]
-                                    : current.filter(
-                                        (id) => id !== String(role.id),
-                                      ),
-                                )
-                              }
-                            />
-
-                            <div>
-                              <p className="font-medium">{role.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {role.code}
-                              </p>
-                              <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                                {describeRoleAccess(role)}
-                              </p>
-                            </div>
-                          </div>
-                        </label>
-                      );
-                    })}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between border-t p-5">
-              <p className="text-sm text-muted-foreground">
-                {bulkRoleIds.length} role(s) selected
-              </p>
-
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setBulkOpen(false)}
-                >
-                  Cancel
-                </Button>
-
-                <Button
-                  type="button"
-                  disabled={
-                    !bulkRoleIds.length || bulkPermissionMutation.isPending
-                  }
-                  onClick={() => bulkPermissionMutation.mutate()}
-                >
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                  Assign Access
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <BulkAccessModal
+          roles={roles}
+          bulkProfile={bulkProfile}
+          setBulkProfile={setBulkProfile}
+          bulkRoleIds={bulkRoleIds}
+          setBulkRoleIds={setBulkRoleIds}
+          pending={bulkPermissionMutation.isPending}
+          onClose={() => setBulkOpen(false)}
+          onSave={() => bulkPermissionMutation.mutate()}
+        />
       )}
 
       {userOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              userMutation.mutate();
-            }}
-            className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-background shadow-2xl"
-          >
-            <div className="flex justify-between border-b p-5">
-              <div>
-                <h2 className="text-xl font-semibold">
-                  {editingUser ? "Edit User" : "Create User"}
-                </h2>
+        <UserModal
+          editingUser={editingUser}
+          userForm={userForm}
+          setUserForm={setUserForm}
+          roles={roles}
+          employees={employees}
+          branches={branches}
+          employeeRequired={employeeRequired}
+          pending={userMutation.isPending}
+          onClose={() => setUserOpen(false)}
+          onSave={() => userMutation.mutate()}
+        />
+      )}
 
-                <p className="text-sm text-muted-foreground">
-                  Non-admin users must be linked to an employee code.
-                </p>
+      {roleOpen && (
+        <RoleModal
+          editingRole={editingRole}
+          roleForm={roleForm}
+          setRoleForm={setRoleForm}
+          permissionTab={permissionTab}
+          setPermissionTab={setPermissionTab}
+          permissionSearch={permissionSearch}
+          setPermissionSearch={setPermissionSearch}
+          specialPermissionGroups={specialPermissionGroups}
+          filteredCatalog={filteredCatalog}
+          rolePermissions={rolePermissions}
+          selectedSpecialCount={selectedSpecialCount}
+          catalogPermissionCodes={catalogPermissionCodes}
+          togglePermission={togglePermission}
+          toggleResource={toggleResource}
+          togglePermissionCodes={togglePermissionCodes}
+          pending={roleMutation.isPending}
+          onClose={() => setRoleOpen(false)}
+          onSave={() => roleMutation.mutate()}
+        />
+      )}
+    </div>
+  );
+}
+
+function BulkAccessModal({
+  roles,
+  bulkProfile,
+  setBulkProfile,
+  bulkRoleIds,
+  setBulkRoleIds,
+  pending,
+  onClose,
+  onSave,
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-background shadow-2xl">
+        <div className="flex items-start justify-between border-b p-5">
+          <div>
+            <h2 className="text-xl font-semibold">
+              Assign Access to Multiple Roles
+            </h2>
+
+            <p className="mt-1 text-sm text-muted-foreground">
+              Choose one access profile and assign it to several roles at once.
+            </p>
+          </div>
+
+          <Button type="button" size="icon" variant="ghost" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="space-y-5 p-5">
+          <div>
+            <Label>Access Profile</Label>
+
+            <Select value={bulkProfile} onValueChange={setBulkProfile}>
+              <SelectTrigger className="mt-2">
+                <SelectValue />
+              </SelectTrigger>
+
+              <SelectContent>
+                {Object.entries(ACCESS_PROFILES).map(([key, profile]) => (
+                  <SelectItem key={key} value={key}>
+                    {profile.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50/60 p-4 dark:border-blue-900 dark:bg-blue-950/20">
+              <p className="font-medium text-blue-800 dark:text-blue-200">
+                {ACCESS_PROFILES[bulkProfile].label}
+              </p>
+
+              <p className="mt-1 text-sm text-blue-700 dark:text-blue-300">
+                {ACCESS_PROFILES[bulkProfile].description}
+              </p>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {ACCESS_PROFILES[bulkProfile].permissions.map((permission) => (
+                  <code
+                    key={permission}
+                    className="rounded bg-background px-2 py-1 text-[10px]"
+                  >
+                    {permission}
+                  </code>
+                ))}
               </div>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between">
+              <Label>Select Roles</Label>
 
               <Button
                 type="button"
-                size="icon"
+                size="sm"
                 variant="ghost"
-                onClick={() => setUserOpen(false)}
+                onClick={() =>
+                  setBulkRoleIds(
+                    roles
+                      .filter(
+                        (role) =>
+                          String(role.code || "").toUpperCase() !== "ADMIN",
+                      )
+                      .map((role) => String(role.id)),
+                  )
+                }
               >
-                <X className="h-4 w-4" />
+                Select all non-admin roles
               </Button>
             </div>
 
-            <div className="grid gap-4 p-5 md:grid-cols-2">
-              {[
-                ["Full Name", "full_name"],
-                ["Email", "email"],
-                ["Username", "username"],
-                [
-                  editingUser ? "New Password (optional)" : "Password",
-                  "password",
-                ],
-                ["Phone", "phone_number"],
-              ].map(([label, key]) => (
-                <div key={key}>
-                  <Label>{label}</Label>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              {roles
+                .filter(
+                  (role) => String(role.code || "").toUpperCase() !== "ADMIN",
+                )
+                .map((role) => {
+                  const checked = bulkRoleIds.includes(String(role.id));
 
-                  <Input
-                    type={key === "password" ? "password" : "text"}
-                    value={userForm[key]}
-                    onChange={(event) =>
-                      setUserForm((current) => ({
-                        ...current,
-                        [key]: event.target.value,
-                      }))
-                    }
-                    className="mt-2"
-                    required={
-                      ["email", "username"].includes(key) ||
-                      (!editingUser && key === "password")
-                    }
-                  />
-                </div>
+                  return (
+                    <label
+                      key={role.id}
+                      className={`cursor-pointer rounded-xl border p-4 transition ${
+                        checked
+                          ? "border-blue-500 bg-blue-50/70 dark:bg-blue-950/20"
+                          : "hover:border-blue-300"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={checked}
+                          onChange={(event) =>
+                            setBulkRoleIds((current) =>
+                              event.target.checked
+                                ? [...current, String(role.id)]
+                                : current.filter(
+                                    (id) => id !== String(role.id),
+                                  ),
+                            )
+                          }
+                        />
+
+                        <div>
+                          <p className="font-medium">{role.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {role.code}
+                          </p>
+                          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                            {describeRoleAccess(role)}
+                          </p>
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between border-t p-5">
+          <p className="text-sm text-muted-foreground">
+            {bulkRoleIds.length} role(s) selected
+          </p>
+
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+
+            <Button
+              type="button"
+              disabled={!bulkRoleIds.length || pending}
+              onClick={onSave}
+            >
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              Assign Access
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UserModal({
+  editingUser,
+  userForm,
+  setUserForm,
+  roles,
+  employees,
+  branches,
+  employeeRequired,
+  pending,
+  onClose,
+  onSave,
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSave();
+        }}
+        className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-background shadow-2xl"
+      >
+        <div className="flex justify-between border-b p-5">
+          <div>
+            <h2 className="text-xl font-semibold">
+              {editingUser ? "Edit User" : "Create User"}
+            </h2>
+
+            <p className="text-sm text-muted-foreground">
+              Non-admin users must be linked to an employee code.
+            </p>
+          </div>
+
+          <Button type="button" size="icon" variant="ghost" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="grid gap-4 p-5 md:grid-cols-2">
+          {[
+            ["Full Name", "full_name"],
+            ["Email", "email"],
+            ["Username", "username"],
+            [editingUser ? "New Password (optional)" : "Password", "password"],
+            ["Phone", "phone_number"],
+          ].map(([label, key]) => (
+            <div key={key}>
+              <Label>{label}</Label>
+
+              <Input
+                type={key === "password" ? "password" : "text"}
+                value={userForm[key]}
+                onChange={(event) =>
+                  setUserForm((current) => ({
+                    ...current,
+                    [key]: event.target.value,
+                  }))
+                }
+                className="mt-2"
+                required={
+                  ["email", "username"].includes(key) ||
+                  (!editingUser && key === "password")
+                }
+              />
+            </div>
+          ))}
+
+          <div>
+            <Label>Role *</Label>
+
+            <select
+              className="mt-2 h-10 w-full rounded-md border bg-background px-3"
+              value={userForm.role}
+              onChange={(event) =>
+                setUserForm((current) => ({
+                  ...current,
+                  role: event.target.value,
+                  employee: "",
+                }))
+              }
+              required
+            >
+              <option value="">Select role</option>
+
+              {roles
+                .filter((role) => role.is_active !== false)
+                .map((role) => (
+                  <option key={role.id} value={role.id}>
+                    {role.name} ({role.code})
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          {employeeRequired && (
+            <div>
+              <Label>Employee *</Label>
+
+              <select
+                className="mt-2 h-10 w-full rounded-md border bg-background px-3"
+                value={userForm.employee}
+                onChange={(event) =>
+                  setUserForm((current) => ({
+                    ...current,
+                    employee: event.target.value,
+                  }))
+                }
+                required
+              >
+                <option value="">Select employee</option>
+
+                {employees.map((employee) => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.full_name ||
+                      employee.name ||
+                      employee.employee_name}{" "}
+                    {employee.employee_code
+                      ? `· ${employee.employee_code}`
+                      : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <Label>Assigned Branch</Label>
+
+            <select
+              className="mt-2 h-10 w-full rounded-md border bg-background px-3"
+              value={userForm.branch}
+              onChange={(event) =>
+                setUserForm((current) => ({
+                  ...current,
+                  branch: event.target.value,
+                }))
+              }
+            >
+              <option value="">No branch / all branches</option>
+
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.branch_name || branch.name || branch.branch_code}
+                </option>
               ))}
+            </select>
 
-              <div>
-                <Label>Role *</Label>
+            <p className="mt-1 text-xs text-muted-foreground">
+              This is the user's default branch. Give the role{" "}
+              <code>branches.switch</code> to allow changing branch from the
+              header.
+            </p>
+          </div>
 
-                <select
-                  className="mt-2 h-10 w-full rounded-md border bg-background px-3"
-                  value={userForm.role}
-                  onChange={(event) =>
-                    setUserForm((current) => ({
-                      ...current,
-                      role: event.target.value,
-                      employee: "",
-                    }))
-                  }
-                  required
-                >
-                  <option value="">Select role</option>
+          <label className="md:col-span-2 flex items-center gap-3 rounded-xl border p-4">
+            <input
+              type="checkbox"
+              checked={userForm.is_active}
+              onChange={(event) =>
+                setUserForm((current) => ({
+                  ...current,
+                  is_active: event.target.checked,
+                }))
+              }
+            />
 
-                  {roles
-                    .filter((role) => role.is_active)
-                    .map((role) => (
-                      <option key={role.id} value={role.id}>
-                        {role.name}
-                      </option>
-                    ))}
-                </select>
-              </div>
+            <div>
+              <p className="font-medium">Active User</p>
+              <p className="text-xs text-muted-foreground">
+                Inactive users cannot sign in.
+              </p>
+            </div>
+          </label>
+        </div>
 
-              {employeeRequired && (
-                <div>
-                  <Label>Employee Code *</Label>
+        <div className="flex justify-end gap-2 border-t p-5">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
 
-                  <select
-                    className="mt-2 h-10 w-full rounded-md border bg-background px-3"
-                    value={userForm.employee}
-                    onChange={(event) => {
-                      const employee = employees.find(
-                        (item) => String(item.id) === event.target.value,
-                      );
+          <Button type="submit" disabled={pending}>
+            {pending
+              ? "Saving..."
+              : editingUser
+                ? "Update User"
+                : "Create User"}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}
 
-                      setUserForm((current) => ({
-                        ...current,
-                        employee: event.target.value,
-                        branch: employee?.branch
-                          ? String(employee.branch)
-                          : current.branch,
-                        full_name:
-                          current.full_name || employee?.full_name || "",
-                      }));
-                    }}
-                    required
-                  >
-                    <option value="">Select employee</option>
+function RoleModal({
+  editingRole,
+  roleForm,
+  setRoleForm,
+  permissionTab,
+  setPermissionTab,
+  permissionSearch,
+  setPermissionSearch,
+  specialPermissionGroups,
+  filteredCatalog,
+  rolePermissions,
+  selectedSpecialCount,
+  catalogPermissionCodes,
+  togglePermission,
+  toggleResource,
+  togglePermissionCodes,
+  pending,
+  onClose,
+  onSave,
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSave();
+        }}
+        className="flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-background shadow-2xl"
+      >
+        <div className="flex items-start justify-between border-b p-5">
+          <div>
+            <h2 className="text-xl font-semibold">
+              {editingRole ? "Edit Role" : "Create Role"}
+            </h2>
 
-                    {employees.map((employee) => (
-                      <option key={employee.id} value={employee.id}>
-                        {employee.employee_code} — {employee.full_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+            <p className="mt-1 text-sm text-muted-foreground">
+              Configure normal module permissions and special operational
+              access.
+            </p>
+          </div>
 
-              <div>
-                <Label>Branch</Label>
+          <Button type="button" size="icon" variant="ghost" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
 
-                <select
-                  className="mt-2 h-10 w-full rounded-md border bg-background px-3"
-                  value={userForm.branch}
-                  onChange={(event) =>
-                    setUserForm((current) => ({
-                      ...current,
-                      branch: event.target.value,
-                    }))
-                  }
-                >
-                  <option value="">All / Employee branch</option>
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <Label>Role Name *</Label>
+              <Input
+                className="mt-2"
+                value={roleForm.name}
+                onChange={(event) =>
+                  setRoleForm((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
+                }
+                required
+              />
+            </div>
 
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.branch_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <div>
+              <Label>Role Code *</Label>
+              <Input
+                className="mt-2"
+                value={roleForm.code}
+                onChange={(event) =>
+                  setRoleForm((current) => ({
+                    ...current,
+                    code: event.target.value.toUpperCase().replace(/\s+/g, "_"),
+                  }))
+                }
+                disabled={editingRole?.code === "ADMIN"}
+                required
+              />
+            </div>
 
-              <label className="flex items-center gap-2">
+            <label className="flex items-end">
+              <div className="flex h-10 w-full items-center gap-3 rounded-md border px-3">
                 <input
                   type="checkbox"
-                  checked={userForm.is_active}
+                  checked={roleForm.is_active}
                   onChange={(event) =>
-                    setUserForm((current) => ({
+                    setRoleForm((current) => ({
                       ...current,
                       is_active: event.target.checked,
                     }))
                   }
                 />
-                Active user
-              </label>
-            </div>
 
-            <div className="flex justify-end gap-2 border-t p-5">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setUserOpen(false)}
-              >
-                Cancel
-              </Button>
-
-              <Button disabled={userMutation.isPending}>Save User</Button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {roleOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              roleMutation.mutate();
-            }}
-            className="max-h-[94vh] w-full max-w-6xl overflow-y-auto rounded-2xl bg-background shadow-2xl"
-          >
-            <div className="flex justify-between border-b p-5">
-              <div>
-                <h2 className="text-xl font-semibold">
-                  {editingRole ? "Edit Role" : "Create Role"}
-                </h2>
-
-                <p className="text-sm text-muted-foreground">
-                  Select exactly which operations this role can access.
-                </p>
+                <span className="text-sm">Active</span>
               </div>
+            </label>
 
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                onClick={() => setRoleOpen(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+            <div className="md:col-span-3">
+              <Label>Description</Label>
+              <Textarea
+                className="mt-2"
+                rows={3}
+                value={roleForm.description}
+                onChange={(event) =>
+                  setRoleForm((current) => ({
+                    ...current,
+                    description: event.target.value,
+                  }))
+                }
+              />
             </div>
+          </div>
 
-            <div className="grid gap-4 p-5 md:grid-cols-2">
-              <div>
-                <Label>Role Name *</Label>
-
-                <Input
-                  value={roleForm.name}
-                  onChange={(event) =>
-                    setRoleForm((current) => ({
-                      ...current,
-                      name: event.target.value,
-                    }))
-                  }
-                  className="mt-2"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label>Role Code *</Label>
-
-                <Input
-                  value={roleForm.code}
-                  onChange={(event) =>
-                    setRoleForm((current) => ({
-                      ...current,
-                      code: event.target.value
-                        .toUpperCase()
-                        .replace(/\s+/g, "_"),
-                    }))
-                  }
-                  className="mt-2"
-                  required
-                  disabled={editingRole?.code === "ADMIN"}
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <Label>Description</Label>
-
-                <Textarea
-                  value={roleForm.description}
-                  onChange={(event) =>
-                    setRoleForm((current) => ({
-                      ...current,
-                      description: event.target.value,
-                    }))
-                  }
-                  className="mt-2"
-                />
-              </div>
-            </div>
-
-            <div className="border-t">
-              <div className="sticky top-0 z-10 border-b bg-background/95 px-5 py-4 backdrop-blur">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <ShieldCheck className="h-5 w-5 text-blue-600" />
-
-                      <h3 className="text-lg font-semibold">
-                        Permission Access
-                      </h3>
-                    </div>
-
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Configure sensitive access first, then assign regular
-                      module permissions.
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 text-xs">
-                    <span className="rounded-full bg-blue-50 px-3 py-1.5 font-medium text-blue-700">
-                      {rolePermissions.length} selected
-                    </span>
-
-                    <span className="rounded-full bg-amber-50 px-3 py-1.5 font-medium text-amber-700">
-                      {selectedSpecialCount} special access
-                    </span>
-                  </div>
+          <div className="mt-6 rounded-2xl border">
+            <div className="border-b p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h3 className="font-semibold">Permissions</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {rolePermissions.length} selected · VAT treatment is part of
+                    normal transaction access and is no longer a restricted
+                    permission.
+                  </p>
                 </div>
 
-                <div className="relative mt-4">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
+                <div className="relative w-full lg:w-80">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
+                    className="pl-9"
                     value={permissionSearch}
                     onChange={(event) =>
                       setPermissionSearch(event.target.value)
                     }
-                    placeholder="Search permission name or code..."
-                    className="pl-9"
+                    placeholder="Search permissions..."
                   />
                 </div>
               </div>
+            </div>
 
-              <Tabs
-                value={permissionTab}
-                onValueChange={setPermissionTab}
-                className="p-5"
+            <div className="flex gap-2 overflow-x-auto border-b p-2">
+              <button
+                type="button"
+                onClick={() => setPermissionTab("special")}
+                className={`rounded-lg px-4 py-2 text-sm font-medium ${
+                  permissionTab === "special"
+                    ? "bg-blue-600 text-white"
+                    : "text-muted-foreground hover:bg-muted"
+                }`}
               >
-                <TabsList className="grid w-full grid-cols-2 lg:w-[520px]">
-                  <TabsTrigger value="special">
-                    Special Access
-                    <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] text-amber-700">
-                      Sensitive
-                    </span>
-                  </TabsTrigger>
+                Important Access ({selectedSpecialCount})
+              </button>
 
-                  <TabsTrigger value="all">All Module Permissions</TabsTrigger>
-                </TabsList>
+              <button
+                type="button"
+                onClick={() => setPermissionTab("catalog")}
+                className={`rounded-lg px-4 py-2 text-sm font-medium ${
+                  permissionTab === "catalog"
+                    ? "bg-blue-600 text-white"
+                    : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                All Permissions
+              </button>
+            </div>
 
-                <TabsContent value="special" className="mt-5 space-y-4">
-                  <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
-                    <h4 className="font-semibold text-amber-800">
-                      Special Access Permissions
-                    </h4>
-
-                    <p className="mt-1 text-sm text-amber-700">
-                      These permissions control VAT, Non-VAT, selling price,
-                      stock classification, restricted stock and other sensitive
-                      operations.
-                    </p>
-                  </div>
-
-                  {specialPermissionGroups.map((group) => {
-                    const codes = group.permissions.map(
-                      (permission) => permission.code,
-                    );
-
-                    const selectedCount = codes.filter((code) =>
-                      rolePermissions.includes(code),
-                    ).length;
-
-                    const allSelected =
-                      codes.length > 0 && selectedCount === codes.length;
-
-                    return (
-                      <section
-                        key={group.key}
-                        className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-                      >
-                        <div className="flex flex-col gap-3 border-b bg-muted/25 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <h4 className="font-semibold">{group.label}</h4>
-
-                            <p className="text-xs text-muted-foreground">
-                              {selectedCount} of {codes.length} selected
-                            </p>
-                          </div>
-
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant={allSelected ? "default" : "outline"}
-                            onClick={() => togglePermissionCodes(codes)}
-                          >
-                            {allSelected ? "Clear Group" : "Select Group"}
-                          </Button>
-                        </div>
-
-                        <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
-                          {group.permissions.map((permission) => {
-                            const checked = rolePermissions.includes(
-                              permission.code,
-                            );
-
-                            return (
-                              <label
-                                key={permission.code}
-                                className={`cursor-pointer rounded-xl border p-4 transition ${
-                                  checked
-                                    ? "border-blue-500 bg-blue-50/70 ring-1 ring-blue-500/20"
-                                    : "hover:border-blue-300 hover:bg-muted/30"
-                                }`}
-                              >
-                                <div className="flex items-start gap-3">
-                                  <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    onChange={() =>
-                                      togglePermission(permission.code)
-                                    }
-                                    className="mt-1 h-4 w-4"
-                                  />
-
-                                  <div className="min-w-0">
-                                    <span className="block font-medium">
-                                      {permission.label}
-                                    </span>
-
-                                    {permission.description && (
-                                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                                        {permission.description}
-                                      </span>
-                                    )}
-
-                                    <code className="mt-2 block break-all rounded bg-background/70 px-2 py-1 text-[10px] text-muted-foreground">
-                                      {permission.code}
-                                    </code>
-                                  </div>
-                                </div>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </section>
-                    );
-                  })}
-
-                  {!specialPermissionGroups.length && (
-                    <div className="rounded-xl border p-8 text-center text-sm text-muted-foreground">
-                      No special access permissions match your search.
+            {permissionTab === "special" ? (
+              <div className="space-y-5 p-4">
+                {specialPermissionGroups.map((group) => (
+                  <div key={group.key} className="rounded-xl border p-4">
+                    <div>
+                      <h4 className="font-semibold">{group.label}</h4>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {group.description}
+                      </p>
                     </div>
-                  )}
-                </TabsContent>
 
-                <TabsContent value="all" className="mt-5 space-y-5">
-                  {filteredCatalog.map((group) => (
-                    <section
-                      key={group.module}
-                      className="overflow-hidden rounded-2xl border"
-                    >
-                      <div className="border-b bg-muted/35 px-5 py-4">
-                        <h3 className="font-semibold">{group.label}</h3>
+                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      {group.permissions.map((permission) => {
+                        const checked = rolePermissions.includes(
+                          permission.code,
+                        );
 
-                        <code className="mt-1 block text-[10px] text-muted-foreground">
-                          {group.module}
-                        </code>
-                      </div>
+                        return (
+                          <label
+                            key={permission.code}
+                            className={`cursor-pointer rounded-xl border p-3 ${
+                              checked
+                                ? "border-blue-500 bg-blue-50/60 dark:bg-blue-950/20"
+                                : "hover:border-blue-300"
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <input
+                                type="checkbox"
+                                className="mt-1"
+                                checked={checked}
+                                onChange={() =>
+                                  togglePermission(permission.code)
+                                }
+                              />
 
-                      <div className="divide-y">
-                        {(group.resources || []).map((resource) => {
-                          const actions = Array.isArray(resource.actions)
-                            ? resource.actions
-                            : [];
-
-                          const codes = actions.map((action) =>
-                            buildCatalogPermissionCode(group, resource, action),
-                          );
-
-                          const checked =
-                            codes.length > 0 &&
-                            codes.every((code) =>
-                              rolePermissions.includes(code),
-                            );
-
-                          return (
-                            <div key={resource.resource} className="p-5">
-                              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div>
-                                  <h4 className="font-medium">
-                                    {resource.label}
-                                  </h4>
-
-                                  <code className="text-[10px] text-muted-foreground">
-                                    {group.module}.{resource.resource}
-                                  </code>
-                                </div>
-
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant={checked ? "default" : "outline"}
-                                  onClick={() =>
-                                    toggleResource(group, resource, actions)
-                                  }
-                                >
-                                  {checked
-                                    ? "Clear Resource"
-                                    : "Select Resource"}
-                                </Button>
-                              </div>
-
-                              <div className="mt-4 flex flex-wrap gap-2">
-                                {actions.map((action) => {
-                                  const code = `${group.module}.${resource.resource}.${action}`;
-
-                                  const selected =
-                                    rolePermissions.includes(code);
-
-                                  return (
-                                    <label
-                                      key={action}
-                                      className={`cursor-pointer rounded-lg border px-3 py-2 text-sm transition ${
-                                        selected
-                                          ? "border-blue-500 bg-blue-50 text-blue-700"
-                                          : "hover:border-blue-300"
-                                      }`}
-                                    >
-                                      <input
-                                        type="checkbox"
-                                        checked={selected}
-                                        onChange={() => togglePermission(code)}
-                                        className="mr-2"
-                                      />
-
-                                      <span className="capitalize">
-                                        {action.replace(/_/g, " ")}
-                                      </span>
-                                    </label>
-                                  );
-                                })}
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {permission.label}
+                                </p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  {permission.description}
+                                </p>
+                                <code className="mt-2 inline-block rounded bg-muted px-2 py-1 text-[10px]">
+                                  {permission.code}
+                                </code>
                               </div>
                             </div>
-                          );
-                        })}
-                      </div>
-                    </section>
-                  ))}
-
-                  {!filteredCatalog.length && (
-                    <div className="rounded-xl border p-8 text-center text-sm text-muted-foreground">
-                      No module permissions match your search.
+                          </label>
+                        );
+                      })}
                     </div>
-                  )}
-                </TabsContent>
-              </Tabs>
-            </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-5 p-4">
+                {filteredCatalog.map((group) => (
+                  <div key={group.module} className="rounded-xl border">
+                    <div className="border-b bg-muted/30 px-4 py-3">
+                      <h4 className="font-semibold">{group.label}</h4>
+                    </div>
 
-            <div className="flex justify-end gap-2 border-t p-5">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setRoleOpen(false)}
-              >
-                Cancel
-              </Button>
+                    <div className="divide-y">
+                      {(group.resources || []).map((resource) => {
+                        const permissionCodes = (resource.actions || []).map(
+                          (action) =>
+                            buildCatalogPermissionCode(group, resource, action),
+                        );
 
-              <Button disabled={roleMutation.isPending}>Save Role</Button>
-            </div>
-          </form>
+                        const allSelected = permissionCodes.every((code) =>
+                          rolePermissions.includes(code),
+                        );
+
+                        return (
+                          <div key={resource.resource} className="p-4">
+                            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                              <div>
+                                <p className="font-medium">{resource.label}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {resource.resource}
+                                </p>
+                              </div>
+
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  toggleResource(
+                                    group,
+                                    resource,
+                                    resource.actions || [],
+                                  )
+                                }
+                              >
+                                {allSelected ? "Clear" : "Select all"}
+                              </Button>
+                            </div>
+
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {(resource.actions || []).map((action) => {
+                                const code = buildCatalogPermissionCode(
+                                  group,
+                                  resource,
+                                  action,
+                                );
+
+                                const checked = rolePermissions.includes(code);
+
+                                return (
+                                  <label
+                                    key={code}
+                                    className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-xs ${
+                                      checked
+                                        ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-300"
+                                        : "hover:border-blue-300"
+                                    }`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={() => togglePermission(code)}
+                                    />
+
+                                    <span>
+                                      {String(action)
+                                        .replace(/_/g, " ")
+                                        .replace(/\b\w/g, (char) =>
+                                          char.toUpperCase(),
+                                        )}
+                                    </span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+
+                {!filteredCatalog.length && (
+                  <div className="py-12 text-center text-sm text-muted-foreground">
+                    No permissions match your search.
+                  </div>
+                )}
+
+                <div className="rounded-xl border bg-muted/20 p-4 text-xs text-muted-foreground">
+                  Catalog permissions available: {catalogPermissionCodes.size}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      )}
+
+        <div className="flex justify-end gap-2 border-t p-5">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+
+          <Button type="submit" disabled={pending}>
+            {pending
+              ? "Saving..."
+              : editingRole
+                ? "Update Role"
+                : "Create Role"}
+          </Button>
+        </div>
+      </form>
     </div>
   );
 }

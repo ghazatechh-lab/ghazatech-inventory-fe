@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown,
@@ -353,6 +354,17 @@ export default function ChartOfAccountsPage() {
     // when the active branch selector changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branchId]);
+
+  React.useEffect(() => {
+    if (!open) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
 
   const parentOptions = React.useMemo(
     () =>
@@ -781,253 +793,279 @@ export default function ChartOfAccountsPage() {
         ))}
       </section>
 
-      {open && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/65 p-4">
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-
-              if (!save.isPending) {
-                save.mutate();
+      {open &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/65 p-3 sm:p-5"
+            role="dialog"
+            aria-modal="true"
+            aria-label={editing ? "Edit Account" : "New Account"}
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget && !save.isPending) {
+                setOpen(false);
               }
             }}
-            className="mx-auto my-4 w-full max-w-4xl overflow-hidden rounded-2xl bg-background shadow-2xl"
           >
-            <div className="flex items-start justify-between border-b p-6">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                  Finance & Accounting · Chart of Accounts
-                </p>
-                <h2 className="mt-2 text-2xl font-semibold">
-                  {editing ? "Edit Account" : "New Account"}
-                </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Fields marked with an asterisk are required before the account
-                  can be saved and posted to.
-                </p>
-              </div>
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                onClick={() => setOpen(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
 
-            <div className="divide-y">
-              <FormSection number="01" title="Identity">
-                <Field
-                  label="Account code *"
-                  hint="5 digits. First digit sets the type."
-                >
-                  <Input
-                    maxLength={5}
-                    inputMode="numeric"
-                    placeholder="e.g. 10200"
-                    value={form.code}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        code: event.target.value.replace(/\D/g, "").slice(0, 5),
-                      })
-                    }
-                    required
-                  />
-                </Field>
-                <Field label="Account name *">
-                  <Input
-                    placeholder="e.g. Bank — Branch 2"
-                    value={form.name}
-                    onChange={(event) =>
-                      setForm({ ...form, name: event.target.value })
-                    }
-                    required
-                  />
-                </Field>
-              </FormSection>
-
-              <FormSection number="02" title="Classification">
-                <Field label="Type *">
-                  <Select
-                    value={form.account_type}
-                    onChange={(event) => setType(event.target.value)}
-                    options={TYPE_OPTIONS.map((item) => [
-                      item.value,
-                      item.label,
-                    ])}
-                    required
-                  />
-                </Field>
-                <Field label="Sub-type *">
-                  <Select
-                    value={form.sub_type}
-                    onChange={(event) =>
-                      setForm({ ...form, sub_type: event.target.value })
-                    }
-                    options={SUBTYPE_OPTIONS[form.account_type] || []}
-                    required
-                  />
-                </Field>
-                <Field label="Parent account" full>
-                  <Select
-                    value={form.parent}
-                    onChange={(event) =>
-                      setForm({ ...form, parent: event.target.value })
-                    }
-                    options={[
-                      ["", "— None (top-level account) —"],
-                      ...parentOptions.map((account) => [
-                        String(account.id),
-                        `${account.code} — ${account.name}`,
-                      ]),
-                    ]}
-                  />
-                  <div className="mt-2 rounded-lg border border-dashed px-3 py-2 font-mono text-xs text-muted-foreground">
-                    Hierarchy preview:{" "}
-                    {
-                      TYPE_OPTIONS.find(
-                        (item) => item.value === form.account_type,
-                      )?.prefix
-                    }
-                    xxxx{" "}
-                    {
-                      TYPE_OPTIONS.find(
-                        (item) => item.value === form.account_type,
-                      )?.label
-                    }{" "}
-                    →{" "}
-                    {parentOptions.find(
-                      (item) => String(item.id) === String(form.parent),
-                    )?.name || "top level"}{" "}
-                    → {form.name || "(new account)"}
-                  </div>
-                </Field>
-              </FormSection>
-
-              <FormSection number="03" title="Balance & tax">
-                <Field label="Normal balance *">
-                  <div className="grid grid-cols-2 overflow-hidden rounded-md border">
-                    {["DEBIT", "CREDIT"].map((value) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() =>
-                          setForm({ ...form, normal_balance: value })
-                        }
-                        className={`h-10 text-sm font-medium ${form.normal_balance === value ? "bg-slate-800 text-white" : "bg-background"}`}
-                      >
-                        {value === "DEBIT" ? "Debit" : "Credit"}
-                      </button>
-                    ))}
-                  </div>
-                </Field>
-                <Field label="Opening balance (AED)">
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={form.opening_balance}
-                    onChange={(event) =>
-                      setForm({ ...form, opening_balance: event.target.value })
-                    }
-                  />
-                </Field>
-                <Field label="Tax treatment" full>
-                  <Select
-                    value={form.tax_treatment}
-                    onChange={(event) =>
-                      setForm({ ...form, tax_treatment: event.target.value })
-                    }
-                    options={[
-                      ["NOT_APPLICABLE", "Not Applicable"],
-                      ["VAT_STANDARD", "VAT Applicable — Standard 5%"],
-                      ["VAT_ZERO", "VAT Zero-rated"],
-                      ["VAT_EXEMPT", "VAT Exempt"],
-                      ["VAT_INPUT", "VAT Input / Recoverable"],
-                      ["VAT_OUTPUT", "VAT Output / Payable"],
-                    ]}
-                  />
-                </Field>
-              </FormSection>
-
-              <FormSection number="04" title="Restrictions & status">
-                <Field label="Branch restriction" full>
-                  <Select
-                    value={form.branch}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        branch: event.target.value,
-                        parent: "",
-                      })
-                    }
-                    options={[
-                      ["", "All branches"],
-                      ...branches.map((branch) => [
-                        String(branch.id),
-                        branch.branch_name || branch.branch_code,
-                      ]),
-                    ]}
-                  />
-                </Field>
-                <ToggleRow
-                  title="Active"
-                  description="Inactive accounts remain available for reporting but cannot be selected on new journal entries."
-                  checked={form.is_active}
-                  onChange={(checked) =>
-                    setForm({ ...form, is_active: checked })
-                  }
-                />
-                <ToggleRow
-                  title="Lock from posting"
-                  description="Blocks all new entries to this account, including approved journals. Useful for accounts under review."
-                  checked={form.lock_from_posting}
-                  onChange={(checked) =>
-                    setForm({ ...form, lock_from_posting: checked })
-                  }
-                />
-                <Field label="Internal notes" full>
-                  <Textarea
-                    rows={3}
-                    value={form.notes}
-                    onChange={(event) =>
-                      setForm({ ...form, notes: event.target.value })
-                    }
-                  />
-                </Field>
-              </FormSection>
-            </div>
-
-            <div className="flex items-center justify-between border-t bg-muted/20 p-5">
-              <p className="text-xs text-muted-foreground">
-                Changes are not saved until you confirm.
-              </p>
-              <div className="flex gap-2">
+                if (!save.isPending) {
+                  save.mutate();
+                }
+              }}
+              onMouseDown={(event) => event.stopPropagation()}
+              className="flex max-h-[calc(100vh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl sm:max-h-[calc(100vh-2.5rem)]"
+            >
+              <div className="flex shrink-0 items-start justify-between gap-4 border-b bg-background px-5 py-4 sm:px-6 sm:py-5">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Finance & Accounting · Chart of Accounts
+                  </p>
+                  <h2 className="mt-1.5 text-xl font-semibold sm:text-2xl">
+                    {editing ? "Edit Account" : "New Account"}
+                  </h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Fields marked with an asterisk are required before the
+                    account can be saved and posted to.
+                  </p>
+                </div>
                 <Button
                   type="button"
-                  variant="outline"
+                  size="icon"
+                  variant="ghost"
+                  className="shrink-0"
                   onClick={() => setOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
                   disabled={save.isPending}
-                  className="bg-blue-600 text-white hover:bg-blue-700 disabled:text-white/80"
                 >
-                  {save.isPending
-                    ? "Saving..."
-                    : editing
-                      ? "Update Account"
-                      : "Save Account"}
+                  <X className="h-4 w-4" />
                 </Button>
               </div>
-            </div>
-          </form>
-        </div>
-      )}
+
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                <div className="divide-y">
+                  <FormSection number="01" title="Identity">
+                    <Field
+                      label="Account code *"
+                      hint="5 digits. First digit sets the type."
+                    >
+                      <Input
+                        maxLength={5}
+                        inputMode="numeric"
+                        placeholder="e.g. 10200"
+                        value={form.code}
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            code: event.target.value
+                              .replace(/\D/g, "")
+                              .slice(0, 5),
+                          })
+                        }
+                        required
+                      />
+                    </Field>
+                    <Field label="Account name *">
+                      <Input
+                        placeholder="e.g. Bank — Branch 2"
+                        value={form.name}
+                        onChange={(event) =>
+                          setForm({ ...form, name: event.target.value })
+                        }
+                        required
+                      />
+                    </Field>
+                  </FormSection>
+
+                  <FormSection number="02" title="Classification">
+                    <Field label="Type *">
+                      <Select
+                        value={form.account_type}
+                        onChange={(event) => setType(event.target.value)}
+                        options={TYPE_OPTIONS.map((item) => [
+                          item.value,
+                          item.label,
+                        ])}
+                        required
+                      />
+                    </Field>
+                    <Field label="Sub-type *">
+                      <Select
+                        value={form.sub_type}
+                        onChange={(event) =>
+                          setForm({ ...form, sub_type: event.target.value })
+                        }
+                        options={SUBTYPE_OPTIONS[form.account_type] || []}
+                        required
+                      />
+                    </Field>
+                    <Field label="Parent account" full>
+                      <Select
+                        value={form.parent}
+                        onChange={(event) =>
+                          setForm({ ...form, parent: event.target.value })
+                        }
+                        options={[
+                          ["", "— None (top-level account) —"],
+                          ...parentOptions.map((account) => [
+                            String(account.id),
+                            `${account.code} — ${account.name}`,
+                          ]),
+                        ]}
+                      />
+                      <div className="mt-2 rounded-lg border border-dashed px-3 py-2 font-mono text-xs text-muted-foreground">
+                        Hierarchy preview:{" "}
+                        {
+                          TYPE_OPTIONS.find(
+                            (item) => item.value === form.account_type,
+                          )?.prefix
+                        }
+                        xxxx{" "}
+                        {
+                          TYPE_OPTIONS.find(
+                            (item) => item.value === form.account_type,
+                          )?.label
+                        }{" "}
+                        →{" "}
+                        {parentOptions.find(
+                          (item) => String(item.id) === String(form.parent),
+                        )?.name || "top level"}{" "}
+                        → {form.name || "(new account)"}
+                      </div>
+                    </Field>
+                  </FormSection>
+
+                  <FormSection number="03" title="Balance & tax">
+                    <Field label="Normal balance *">
+                      <div className="grid grid-cols-2 overflow-hidden rounded-md border">
+                        {["DEBIT", "CREDIT"].map((value) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() =>
+                              setForm({ ...form, normal_balance: value })
+                            }
+                            className={`h-10 text-sm font-medium ${form.normal_balance === value ? "bg-slate-800 text-white" : "bg-background"}`}
+                          >
+                            {value === "DEBIT" ? "Debit" : "Credit"}
+                          </button>
+                        ))}
+                      </div>
+                    </Field>
+                    <Field label="Opening balance (AED)">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={form.opening_balance}
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            opening_balance: event.target.value,
+                          })
+                        }
+                      />
+                    </Field>
+                    <Field label="Tax treatment" full>
+                      <Select
+                        value={form.tax_treatment}
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            tax_treatment: event.target.value,
+                          })
+                        }
+                        options={[
+                          ["NOT_APPLICABLE", "Not Applicable"],
+                          ["VAT_STANDARD", "VAT Applicable — Standard 5%"],
+                          ["VAT_ZERO", "VAT Zero-rated"],
+                          ["VAT_EXEMPT", "VAT Exempt"],
+                          ["VAT_INPUT", "VAT Input / Recoverable"],
+                          ["VAT_OUTPUT", "VAT Output / Payable"],
+                        ]}
+                      />
+                    </Field>
+                  </FormSection>
+
+                  <FormSection number="04" title="Restrictions & status">
+                    <Field label="Branch restriction" full>
+                      <Select
+                        value={form.branch}
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            branch: event.target.value,
+                            parent: "",
+                          })
+                        }
+                        options={[
+                          ["", "All branches"],
+                          ...branches.map((branch) => [
+                            String(branch.id),
+                            branch.branch_name || branch.branch_code,
+                          ]),
+                        ]}
+                      />
+                    </Field>
+                    <ToggleRow
+                      title="Active"
+                      description="Inactive accounts remain available for reporting but cannot be selected on new journal entries."
+                      checked={form.is_active}
+                      onChange={(checked) =>
+                        setForm({ ...form, is_active: checked })
+                      }
+                    />
+                    <ToggleRow
+                      title="Lock from posting"
+                      description="Blocks all new entries to this account, including approved journals. Useful for accounts under review."
+                      checked={form.lock_from_posting}
+                      onChange={(checked) =>
+                        setForm({ ...form, lock_from_posting: checked })
+                      }
+                    />
+                    <Field label="Internal notes" full>
+                      <Textarea
+                        rows={3}
+                        value={form.notes}
+                        onChange={(event) =>
+                          setForm({ ...form, notes: event.target.value })
+                        }
+                      />
+                    </Field>
+                  </FormSection>
+                </div>
+              </div>
+
+              <div className="flex shrink-0 flex-col gap-3 border-t bg-background px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                <p className="text-xs text-muted-foreground">
+                  Changes are not saved until you confirm.
+                </p>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setOpen(false)}
+                    disabled={save.isPending}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={save.isPending}
+                    className="bg-blue-600 text-white hover:bg-blue-700 disabled:text-white/80"
+                  >
+                    {save.isPending
+                      ? "Saving..."
+                      : editing
+                        ? "Update Account"
+                        : "Save Account"}
+                  </Button>
+                </div>
+              </div>
+            </form>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
