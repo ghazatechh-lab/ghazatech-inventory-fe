@@ -4,8 +4,8 @@ import {
   Download,
   Eye,
   History,
+  Pencil,
   Plus,
-  Search,
   X,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -18,24 +18,33 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CurrencyText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { MetricCard } from "@/components/sales/MetricCard";
 import { normalizeList } from "./hrmsUtils";
-import PayrollDetailModal from "./PayrollDetailModal";
 
-const today = new Date().toISOString().slice(0, 10);
+const PAGE_SIZE = 12;
+
+const getLocalDateValue = () => {
+  const date = new Date();
+  const timezoneOffset = date.getTimezoneOffset();
+
+  return new Date(date.getTime() - timezoneOffset * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+};
+
+const today = getLocalDateValue();
 const currentPeriod = today.slice(0, 7);
-
-const PAYROLL_STATUS_OPTIONS = [
-  ["PENDING", "Pending"],
-  ["PROCESSING", "Processing"],
-  ["PAID", "Paid"],
-  ["FAILED", "Failed"],
-  ["CANCELLED", "Cancelled"],
-];
 
 const numberValue = (value) => {
   const parsed = Number(value || 0);
@@ -60,22 +69,30 @@ export default function PayrollPage() {
   const [period, setPeriod] = React.useState(currentPeriod);
   const [advancePeriod, setAdvancePeriod] = React.useState(currentPeriod);
   const [advanceSearch, setAdvanceSearch] = React.useState("");
+  const [advancePage, setAdvancePage] = React.useState(1);
+  const [payrollEmployeeSearch, setPayrollEmployeeSearch] = React.useState("");
+  const [advanceEmployeeSearch, setAdvanceEmployeeSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("");
 
   const [payrollOpen, setPayrollOpen] = React.useState(false);
   const [advanceOpen, setAdvanceOpen] = React.useState(false);
   const [advanceDetail, setAdvanceDetail] = React.useState(null);
-  const [payrollDetail, setPayrollDetail] = React.useState(null);
+  const [editingPayroll, setEditingPayroll] = React.useState(null);
+  const [editPayrollForm, setEditPayrollForm] = React.useState({
+    payroll_date: today,
+    basic_salary: "",
+    allowances: "",
+    deductions: "",
+    paid_by: "",
+  });
 
   const [payrollDate, setPayrollDate] = React.useState(today);
-  const [payrollStatus, setPayrollStatus] = React.useState("PENDING");
   const [paidBy, setPaidBy] = React.useState("");
   const [selectedBranch, setSelectedBranch] = React.useState(
     branchId ? String(branchId) : "",
   );
   const [selectedEmployees, setSelectedEmployees] = React.useState([]);
   const [payableDays, setPayableDays] = React.useState({});
-  const [employeeSearch, setEmployeeSearch] = React.useState("");
 
   const [advanceForm, setAdvanceForm] = React.useState({
     ...emptyAdvance,
@@ -99,13 +116,21 @@ export default function PayrollPage() {
     period: advancePeriod,
   };
 
-  const advancesQuery = useListQuery(
-    "salary-advances",
-    "/hrms/salary-advances/",
-    advanceParams,
-  );
-
-  const { setQ: setAdvanceQuery } = advancesQuery;
+  const advancesQuery = useQuery({
+    queryKey: ["salary-advances", advancePage, advanceSearch, advanceParams],
+    queryFn: async () =>
+      unwrap(
+        await api.get("/hrms/salary-advances/", {
+          params: {
+            ...advanceParams,
+            page: advancePage,
+            page_size: PAGE_SIZE,
+            search: advanceSearch || undefined,
+          },
+        }),
+      ),
+    placeholderData: (previousData) => previousData,
+  });
 
   const { data: summary = {} } = useQuery({
     queryKey: ["payroll-summary", params],
@@ -149,16 +174,8 @@ export default function PayrollPage() {
     enabled: payrollOpen && Boolean(period),
   });
 
-  React.useEffect(() => {
-    setAdvanceQuery(advanceSearch);
-  }, [advanceSearch, setAdvanceQuery]);
-
-  const data = query.data || {
-    results: [],
-    count: 0,
-  };
-
-  const advanceData = advancesQuery.query.data || {
+  const data = query.data || { results: [], count: 0 };
+  const advanceData = advancesQuery.data || {
     results: [],
     count: 0,
   };
@@ -167,15 +184,45 @@ export default function PayrollPage() {
   const eligible = normalizeList(eligibleResponse);
   const advanceEmployees = normalizeList(advanceOptions.employees);
 
-  const filteredEligible = eligible.filter((employee) => {
-    const needle = employeeSearch.trim().toLowerCase();
+  const filteredEligibleEmployees = React.useMemo(() => {
+    const search = payrollEmployeeSearch.trim().toLowerCase();
 
-    if (!needle) return true;
+    if (!search) {
+      return eligible;
+    }
 
-    return [employee.full_name, employee.employee_code, employee.branch_name]
-      .filter(Boolean)
-      .some((value) => String(value).toLowerCase().includes(needle));
-  });
+    return eligible.filter((employee) =>
+      [
+        employee.full_name,
+        employee.employee_code,
+        employee.branch_name,
+        employee.designation_name,
+        employee.department_name,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(search)),
+    );
+  }, [eligible, payrollEmployeeSearch]);
+
+  const filteredAdvanceEmployees = React.useMemo(() => {
+    const search = advanceEmployeeSearch.trim().toLowerCase();
+
+    if (!search) {
+      return advanceEmployees;
+    }
+
+    return advanceEmployees.filter((employee) =>
+      [
+        employee.full_name,
+        employee.employee_code,
+        employee.branch_name,
+        employee.designation_name,
+        employee.department_name,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(search)),
+    );
+  }, [advanceEmployees, advanceEmployeeSearch]);
 
   const selectedAdvanceEmployee = advanceEmployees.find(
     (employee) => String(employee.id) === String(advanceForm.employee),
@@ -187,20 +234,12 @@ export default function PayrollPage() {
 
   const selectedTotal = selectedRows.reduce((sum, employee) => {
     const totalDays = numberValue(employee.total_period_days) || 30;
-
     const days = numberValue(
-      payableDays[employee.id] ?? employee.suggested_payable_days ?? totalDays,
+      payableDays[employee.id] ?? employee.suggested_payable_days,
     );
-
     const gross = numberValue(employee.gross_salary) * (days / totalDays);
 
-    return (
-      sum +
-      Math.max(
-        0,
-        gross - numberValue(employee.advance_received ?? employee.advance_paid),
-      )
-    );
+    return sum + Math.max(0, gross - numberValue(employee.advance_received));
   }, 0);
 
   const refreshAll = async () => {
@@ -222,25 +261,21 @@ export default function PayrollPage() {
 
   const openPayrollModal = () => {
     setPayrollDate(today);
-    setPayrollStatus("PENDING");
+    setPaidBy("");
+    setPayrollEmployeeSearch("");
     setSelectedBranch(branchId ? String(branchId) : "");
     setSelectedEmployees([]);
     setPayableDays({});
-    setEmployeeSearch("");
-
-    setPaidBy("");
-
     setPayrollOpen(true);
   };
 
   const openAdvanceModal = () => {
+    setAdvanceEmployeeSearch("");
     setAdvanceForm({
       ...emptyAdvance,
       period,
     });
-
     setSelectedBranch(branchId ? String(branchId) : "");
-
     setAdvanceOpen(true);
   };
 
@@ -253,8 +288,7 @@ export default function PayrollPage() {
             period,
             payroll_date: payrollDate,
             branch: selectedBranch ? Number(selectedBranch) : null,
-            status: payrollStatus,
-            paid_by: payrollStatus === "PAID" ? paidBy.trim() : "",
+            paid_by: paidBy.trim(),
             employee_ids: selectedEmployees,
             payable_days: Object.fromEntries(
               selectedEmployees.map((employeeId) => [
@@ -273,17 +307,63 @@ export default function PayrollPage() {
 
     onSuccess: async () => {
       await refreshAll();
-
-      toast.success(`Payroll generated with ${payrollStatus} status.`);
-
+      toast.success("Payroll generated successfully.");
       setPayrollOpen(false);
       setActiveTab("previous");
+      setPage(1);
     },
 
     onError: (error) => {
       const details = getApiErrorDetails(error);
-
       toast.error(details.title || "Unable to generate payroll", {
+        description: details.summary || details.message,
+      });
+    },
+  });
+
+  const openPayrollEdit = (row) => {
+    setEditingPayroll(row);
+    setEditPayrollForm({
+      payroll_date: row.payroll_date || today,
+      basic_salary: String(row.basic_salary ?? 0),
+      allowances: String(row.allowances ?? 0),
+      deductions: String(row.deductions ?? 0),
+      paid_by: row.paid_by || "",
+    });
+  };
+
+  const payrollEditMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingPayroll?.id) {
+        throw new Error("Payroll entry is missing.");
+      }
+
+      return unwrap(
+        await api.patch(
+          `/hrms/payroll/${editingPayroll.id}/`,
+          {
+            payroll_date: editPayrollForm.payroll_date,
+            basic_salary: numberValue(editPayrollForm.basic_salary),
+            allowances: numberValue(editPayrollForm.allowances),
+            deductions: numberValue(editPayrollForm.deductions),
+            paid_by: editPayrollForm.paid_by.trim(),
+          },
+          {
+            skipGlobalErrorToast: true,
+          },
+        ),
+      );
+    },
+
+    onSuccess: async () => {
+      await refreshAll();
+      toast.success("Payroll salary updated successfully.");
+      setEditingPayroll(null);
+    },
+
+    onError: (error) => {
+      const details = getApiErrorDetails(error);
+      toast.error(details.title || "Unable to update payroll salary", {
         description: details.summary || details.message,
       });
     },
@@ -308,16 +388,14 @@ export default function PayrollPage() {
 
     onSuccess: async () => {
       await refreshAll();
-
       toast.success("Advance salary recorded successfully.");
-
       setAdvanceOpen(false);
       setActiveTab("advances");
+      setAdvancePage(1);
     },
 
     onError: (error) => {
       const details = getApiErrorDetails(error);
-
       toast.error(details.title || "Unable to save advance salary", {
         description: details.summary || details.message,
       });
@@ -330,13 +408,13 @@ export default function PayrollPage() {
       return;
     }
 
-    if (!selectedEmployees.length) {
-      toast.error("Select at least one employee.");
+    if (!paidBy.trim()) {
+      toast.error("Enter Paid By.");
       return;
     }
 
-    if (payrollStatus === "PAID" && !paidBy) {
-      toast.error("Enter Paid By when creating a Paid payroll.");
+    if (!selectedEmployees.length) {
+      toast.error("Select at least one employee.");
       return;
     }
 
@@ -354,6 +432,28 @@ export default function PayrollPage() {
       return;
     }
 
+    if (!advanceForm.period) {
+      toast.error("Select a deduction period.");
+      return;
+    }
+
+    if (advanceForm.period < currentPeriod) {
+      toast.error(
+        "Previous months cannot be selected as the deduction period.",
+      );
+      return;
+    }
+
+    if (!advanceForm.advance_date) {
+      toast.error("Select an advance date.");
+      return;
+    }
+
+    if (advanceForm.advance_date < today) {
+      toast.error("Previous dates cannot be selected for advance salary.");
+      return;
+    }
+
     if (!advanceForm.paid_by.trim()) {
       toast.error("Enter Paid By.");
       return;
@@ -362,98 +462,87 @@ export default function PayrollPage() {
     advanceMutation.mutate();
   };
 
-  const exportPayroll = async () => {
-    try {
-      const response = await api.get("/hrms/payroll-runs/export/", {
-        params,
-        responseType: "blob",
-      });
+  const submitPayrollEdit = () => {
+    const basicSalary = numberValue(editPayrollForm.basic_salary);
+    const allowances = numberValue(editPayrollForm.allowances);
+    const deductions = numberValue(editPayrollForm.deductions);
 
-      const url = URL.createObjectURL(new Blob([response.data]));
-
-      const link = document.createElement("a");
-
-      link.href = url;
-      link.download = `payroll-${period}.csv`;
-      link.click();
-
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      const details = getApiErrorDetails(error);
-
-      toast.error(details.title || "Unable to export payroll");
+    if (!editPayrollForm.payroll_date) {
+      toast.error("Payroll date is required.");
+      return;
     }
+
+    if (basicSalary < 0 || allowances < 0 || deductions < 0) {
+      toast.error("Salary values cannot be negative.");
+      return;
+    }
+
+    if (deductions > basicSalary + allowances) {
+      toast.error("Deductions cannot exceed gross salary.");
+      return;
+    }
+
+    payrollEditMutation.mutate();
+  };
+
+  const exportPayroll = async () => {
+    const response = await api.get("/hrms/payroll-runs/export/", {
+      params,
+      responseType: "blob",
+    });
+
+    const url = URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `payroll-${period}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const previousSalaryColumns = [
     {
-      key: "period",
-      header: "Period",
+      key: "employee",
+      header: "Employee",
       cell: (row) => (
         <div>
-          <p className="font-semibold">{row.period || "—"}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {row.employee_name || row.employee_code || ""}
-          </p>
+          <p className="font-medium">{row.employee_name}</p>
+          <p className="text-xs text-muted-foreground">{row.employee_code}</p>
         </div>
       ),
     },
+    { key: "period", header: "Period" },
+    { key: "payroll_date", header: "Payroll Date" },
     {
-      key: "status",
-      header: "Status",
-      cell: (row) => <StatusBadge status={row.status} />,
+      key: "gross_salary",
+      header: "Gross Salary",
+      align: "right",
+      cell: (row) => <CurrencyText value={row.gross_salary} />,
     },
     {
-      key: "payable_days",
-      header: "Payable Days",
-      cell: (row) => (
-        <span className="font-mono text-xs">
-          {numberValue(row.payable_days).toFixed(2)}
-          {" / "}
-          {numberValue(row.total_period_days || row.payable_days).toFixed(2)}
-        </span>
-      ),
-    },
-    {
-      key: "deductions",
-      header: "Deductions",
+      key: "advance_deduction",
+      header: "Advance Deduction",
       align: "right",
       cell: (row) => (
-        <CurrencyText
-          value={
-            numberValue(row.deductions) + numberValue(row.advance_deduction)
-          }
-        />
-      ),
-    },
-    {
-      key: "allowances",
-      header: "Allowances",
-      align: "right",
-      cell: (row) => <CurrencyText value={row.allowances || 0} />,
-    },
-    {
-      key: "method",
-      header: "Method",
-      cell: (row) => (
-        <span>
-          {row.salary_calculation_method_display ||
-            row.salary_calculation_method ||
-            row.salary_type_display ||
-            row.salary_type ||
-            "Full"}
+        <span className="text-amber-600">
+          <CurrencyText value={row.advance_deduction} />
         </span>
       ),
     },
     {
       key: "net_salary",
-      header: "Net",
+      header: "Remaining Payroll",
       align: "right",
       cell: (row) => (
         <span className="font-semibold">
-          <CurrencyText value={row.balance_payable ?? row.net_salary ?? 0} />
+          <CurrencyText value={row.balance_payable ?? row.net_salary} />
         </span>
       ),
+    },
+    { key: "paid_by", header: "Paid By" },
+    {
+      key: "status",
+      header: "Status",
+      cell: (row) => <StatusBadge status={row.status} />,
     },
     {
       key: "actions",
@@ -465,19 +554,10 @@ export default function PayrollPage() {
             type="button"
             size="sm"
             variant="outline"
-            onClick={async () => {
-              try {
-                const detail = unwrap(
-                  await api.get(`/hrms/payroll/${row.id}/`),
-                );
-                setPayrollDetail(detail);
-              } catch {
-                setPayrollDetail(row);
-              }
-            }}
+            onClick={() => openPayrollEdit(row)}
           >
-            <Eye className="mr-2 h-4 w-4" />
-            View Payroll
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit
           </Button>
 
           <Button
@@ -492,7 +572,8 @@ export default function PayrollPage() {
               )
             }
           >
-            View Payslip
+            <Eye className="mr-2 h-4 w-4" />
+            Payslip
           </Button>
         </div>
       ),
@@ -506,19 +587,12 @@ export default function PayrollPage() {
       cell: (row) => (
         <div>
           <p className="font-medium">{row.employee_name}</p>
-
           <p className="text-xs text-muted-foreground">{row.employee_code}</p>
         </div>
       ),
     },
-    {
-      key: "period",
-      header: "Deduction Period",
-    },
-    {
-      key: "advance_date",
-      header: "Advance Date",
-    },
+    { key: "period", header: "Deduction Period" },
+    { key: "advance_date", header: "Advance Date" },
     {
       key: "salary_at_time",
       header: "Current Salary",
@@ -531,10 +605,7 @@ export default function PayrollPage() {
       align: "right",
       cell: (row) => <CurrencyText value={row.amount} />,
     },
-    {
-      key: "paid_by",
-      header: "Paid By",
-    },
+    { key: "paid_by", header: "Paid By" },
     {
       key: "status",
       header: "Status",
@@ -545,24 +616,36 @@ export default function PayrollPage() {
       header: "Actions",
       align: "right",
       cell: (row) => (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => setAdvanceDetail(row)}
-        >
-          <Eye className="mr-2 h-4 w-4" />
-          View Details
-        </Button>
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setAdvanceDetail(row)}
+          >
+            <Eye className="mr-2 h-4 w-4" />
+            View Details
+          </Button>
+        </div>
       ),
     },
   ];
 
+  const totalPayrollPages = Math.max(
+    1,
+    Math.ceil(numberValue(data.count) / PAGE_SIZE),
+  );
+
+  const totalAdvancePages = Math.max(
+    1,
+    Math.ceil(numberValue(advanceData.count) / PAGE_SIZE),
+  );
+
   return (
-    <div className="space-y-5">
+    <div className="hrms-module-page hrms-workspace space-y-5">
       <PageHeader
         title="Payroll"
-        subtitle="Review payroll history, update status, manage advances, and generate salary records."
+        subtitle="Review previous salaries, manage advance salary, and generate payroll from the action button"
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={exportPayroll}>
@@ -591,22 +674,18 @@ export default function PayrollPage() {
           label="Employees"
           value={summary.employees_on_payroll || 0}
         />
-
         <MetricCard
           label="Gross Salary"
           value={<CurrencyText value={summary.total_gross || 0} />}
         />
-
         <MetricCard
           label="Advance Paid"
           value={<CurrencyText value={summary.total_advances || 0} />}
         />
-
         <MetricCard
           label="Advance Deducted"
           value={<CurrencyText value={summary.total_advance_deductions || 0} />}
         />
-
         <MetricCard
           label="Remaining Payroll"
           value={<CurrencyText value={summary.total_net || 0} />}
@@ -619,7 +698,6 @@ export default function PayrollPage() {
             <History className="mr-2 h-4 w-4" />
             Salary History
           </TabsTrigger>
-
           <TabsTrigger value="advances">
             <Banknote className="mr-2 h-4 w-4" />
             Advance Salary
@@ -641,26 +719,26 @@ export default function PayrollPage() {
               <div className="md:col-span-2">
                 <SearchInput
                   value={q}
-                  onChange={setQ}
+                  onChange={(value) => {
+                    setQ(value);
+                    setPage(1);
+                  }}
                   placeholder="Search employee, code, period or payer"
                 />
               </div>
 
               <select
-                className="h-10 rounded-md border bg-background px-3"
                 value={statusFilter}
                 onChange={(event) => {
                   setStatusFilter(event.target.value);
                   setPage(1);
                 }}
+                className="h-10 rounded-md border bg-background px-3 text-sm"
               >
                 <option value="">All statuses</option>
-
-                {PAYROLL_STATUS_OPTIONS.map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
+                <option value="PENDING">Pending</option>
+                <option value="PAID">Paid</option>
+                <option value="CANCELLED">Cancelled</option>
               </select>
             </div>
 
@@ -669,64 +747,274 @@ export default function PayrollPage() {
               data={data.results || []}
               isLoading={query.isLoading || query.isFetching}
               page={page}
-              total={data.count || 0}
-              onPageChange={setPage}
-              emptyTitle="No payroll found"
-              emptyDescription="Generate payroll for the selected period."
+              pageSize={PAGE_SIZE}
+              total={Number(data.count || 0)}
+              onPageChange={(nextPage) => {
+                if (nextPage < 1 || nextPage > totalPayrollPages) {
+                  return;
+                }
+                setPage(nextPage);
+              }}
             />
           </section>
         </TabsContent>
 
         <TabsContent value="advances" className="mt-4">
           <section className="card-surface overflow-hidden">
-            <div className="grid gap-3 border-b p-4 md:grid-cols-3">
+            <div className="flex flex-col gap-4 border-b p-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h2 className="font-semibold">Advance Salary History</h2>
+                <p className="text-xs text-muted-foreground">
+                  Paid advances are deducted automatically during payroll.
+                </p>
+              </div>
+
+              <Button onClick={openAdvanceModal}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Advance
+              </Button>
+            </div>
+
+            <div className="grid gap-3 border-b p-4 md:grid-cols-[220px_1fr]">
               <Input
                 type="month"
                 value={advancePeriod}
-                onChange={(event) => setAdvancePeriod(event.target.value)}
+                onChange={(event) => {
+                  setAdvancePeriod(event.target.value);
+                  setAdvancePage(1);
+                }}
               />
 
-              <div className="relative md:col-span-2">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-
-                <Input
-                  value={advanceSearch}
-                  onChange={(event) => setAdvanceSearch(event.target.value)}
-                  className="pl-9"
-                  placeholder="Search advance salary..."
-                />
-              </div>
+              <SearchInput
+                value={advanceSearch}
+                onChange={(value) => {
+                  setAdvanceSearch(value);
+                  setAdvancePage(1);
+                }}
+                placeholder="Search employee, code, paid by or reference number"
+              />
             </div>
 
             <DataTable
               columns={advanceColumns}
               data={advanceData.results || []}
-              isLoading={
-                advancesQuery.query.isLoading || advancesQuery.query.isFetching
-              }
-              page={advancesQuery.page}
-              total={advanceData.count || 0}
-              onPageChange={advancesQuery.setPage}
-              emptyTitle="No salary advances"
-              emptyDescription="No advance salary records were found."
+              isLoading={advancesQuery.isLoading || advancesQuery.isFetching}
+              page={advancePage}
+              pageSize={PAGE_SIZE}
+              total={Number(advanceData.count || 0)}
+              onPageChange={(nextPage) => {
+                if (nextPage < 1 || nextPage > totalAdvancePages) {
+                  return;
+                }
+                setAdvancePage(nextPage);
+              }}
             />
           </section>
         </TabsContent>
       </Tabs>
 
-      {payrollOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-          <div className="flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-background shadow-2xl">
+      {editingPayroll && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-background shadow-2xl">
             <div className="flex items-start justify-between border-b px-6 py-5">
               <div>
-                <h2 className="text-xl font-semibold">Generate Payroll</h2>
-
+                <h2 className="text-xl font-semibold">Edit Payroll Salary</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Select the initial payroll status when creating payroll.
-                  Status can be updated later from View Payroll.
+                  Update the salary values for this generated payroll entry.
                 </p>
               </div>
 
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                onClick={() => setEditingPayroll(null)}
+                disabled={payrollEditMutation.isPending}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            <div className="grid gap-4 p-6 md:grid-cols-2">
+              <div>
+                <Label>Employee</Label>
+                <Input
+                  className="mt-2"
+                  value={[
+                    editingPayroll.employee_code,
+                    editingPayroll.employee_name,
+                  ]
+                    .filter(Boolean)
+                    .join(" — ")}
+                  disabled
+                />
+              </div>
+
+              <div>
+                <Label>Period</Label>
+                <Input
+                  className="mt-2"
+                  value={editingPayroll.period || ""}
+                  disabled
+                />
+              </div>
+
+              <div>
+                <Label>Payroll Date *</Label>
+                <Input
+                  type="date"
+                  className="mt-2"
+                  value={editPayrollForm.payroll_date}
+                  onChange={(event) =>
+                    setEditPayrollForm((current) => ({
+                      ...current,
+                      payroll_date: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div>
+                <Label>Paid By</Label>
+                <Input
+                  className="mt-2"
+                  value={editPayrollForm.paid_by}
+                  onChange={(event) =>
+                    setEditPayrollForm((current) => ({
+                      ...current,
+                      paid_by: event.target.value,
+                    }))
+                  }
+                  placeholder="Payer / payment source"
+                />
+              </div>
+
+              <div>
+                <Label>Basic Salary *</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="mt-2"
+                  value={editPayrollForm.basic_salary}
+                  onChange={(event) =>
+                    setEditPayrollForm((current) => ({
+                      ...current,
+                      basic_salary: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div>
+                <Label>Allowances</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="mt-2"
+                  value={editPayrollForm.allowances}
+                  onChange={(event) =>
+                    setEditPayrollForm((current) => ({
+                      ...current,
+                      allowances: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div>
+                <Label>Deductions</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="mt-2"
+                  value={editPayrollForm.deductions}
+                  onChange={(event) =>
+                    setEditPayrollForm((current) => ({
+                      ...current,
+                      deductions: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div>
+                <Label>Calculated Gross Salary</Label>
+                <Input
+                  className="mt-2"
+                  value={(
+                    numberValue(editPayrollForm.basic_salary) +
+                    numberValue(editPayrollForm.allowances)
+                  ).toFixed(2)}
+                  disabled
+                />
+              </div>
+
+              <div className="md:col-span-2 rounded-xl border bg-muted/30 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    Calculated Net Salary
+                  </span>
+                  <span className="text-lg font-semibold">
+                    <CurrencyText
+                      value={Math.max(
+                        0,
+                        numberValue(editPayrollForm.basic_salary) +
+                          numberValue(editPayrollForm.allowances) -
+                          numberValue(editPayrollForm.deductions),
+                      )}
+                    />
+                  </span>
+                </div>
+
+                {numberValue(editingPayroll.advance_deduction) > 0 ? (
+                  <p className="mt-2 text-xs text-amber-600">
+                    Existing advance deduction: AED{" "}
+                    {numberValue(editingPayroll.advance_deduction).toFixed(2)}.
+                    Advance deduction remains linked to this payroll entry.
+                  </p>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t px-6 py-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditingPayroll(null)}
+                disabled={payrollEditMutation.isPending}
+              >
+                Cancel
+              </Button>
+
+              <Button
+                type="button"
+                onClick={submitPayrollEdit}
+                disabled={payrollEditMutation.isPending}
+                className="bg-blue-600 text-white hover:bg-blue-700"
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                {payrollEditMutation.isPending
+                  ? "Updating..."
+                  : "Update Salary"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {payrollOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-background shadow-2xl">
+            <div className="flex items-start justify-between border-b px-6 py-5">
+              <div>
+                <h2 className="text-xl font-semibold">Generate Payroll</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Salary and advance deductions are calculated automatically.
+                </p>
+              </div>
               <Button
                 size="icon"
                 variant="ghost"
@@ -737,99 +1025,72 @@ export default function PayrollPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                <Field label="Pay Period *">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div>
+                  <Label>Pay Period *</Label>
                   <Input
                     type="month"
+                    className="mt-2"
                     value={period}
                     onChange={(event) => {
                       setPeriod(event.target.value);
-                      setSelectedEmployees([]);
+                      setPage(1);
                     }}
                   />
-                </Field>
+                </div>
 
-                <Field label="Payroll Date *">
+                <div>
+                  <Label>Payroll Date *</Label>
                   <Input
                     type="date"
+                    className="mt-2"
                     value={payrollDate}
                     onChange={(event) => setPayrollDate(event.target.value)}
                   />
-                </Field>
+                </div>
 
-                <Field label="Branch">
-                  <select
-                    className="h-10 w-full rounded-md border bg-background px-3"
-                    value={selectedBranch}
-                    onChange={(event) => {
-                      setSelectedBranch(event.target.value);
+                <div>
+                  <Label>Branch</Label>
+                  <Select
+                    value={selectedBranch || "__all__"}
+                    onValueChange={(value) => {
+                      setSelectedBranch(value === "__all__" ? "" : value);
                       setSelectedEmployees([]);
                     }}
                   >
-                    <option value="">All branches</option>
+                    <SelectTrigger className="mt-2">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All branches</SelectItem>
+                      {branches.map((branch) => (
+                        <SelectItem key={branch.id} value={String(branch.id)}>
+                          {branch.branch_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                    {branches.map((branch) => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.branch_name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-
-                <Field label="Initial Status *">
-                  <select
-                    className="h-10 w-full rounded-md border bg-background px-3"
-                    value={payrollStatus}
-                    onChange={(event) => setPayrollStatus(event.target.value)}
-                  >
-                    {PAYROLL_STATUS_OPTIONS.map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-
-                <Field
-                  label={payrollStatus === "PAID" ? "Paid By *" : "Paid By"}
-                >
+                <div>
+                  <Label>Paid By *</Label>
                   <Input
+                    className="mt-2"
                     value={paidBy}
-                    disabled={payrollStatus !== "PAID"}
                     onChange={(event) => setPaidBy(event.target.value)}
-                    placeholder={
-                      payrollStatus === "PAID"
-                        ? "Enter payer name"
-                        : "Not required"
-                    }
-                  />
-                </Field>
-              </div>
-
-              <div className="mt-5">
-                <Label>Search Eligible Employees</Label>
-
-                <div className="relative mt-2">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-
-                  <Input
-                    className="pl-9"
-                    value={employeeSearch}
-                    onChange={(event) => setEmployeeSearch(event.target.value)}
-                    placeholder="Search employee name or code"
+                    placeholder="Enter payer name / source"
                   />
                 </div>
               </div>
 
               <div className="mt-6 flex items-center justify-between">
                 <Label>Eligible Employees</Label>
-
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() =>
                     setSelectedEmployees(
-                      filteredEligible
+                      filteredEligibleEmployees
                         .filter((item) => !item.already_generated)
                         .map((item) => item.id),
                     )
@@ -839,30 +1100,33 @@ export default function PayrollPage() {
                 </Button>
               </div>
 
+              <div className="mt-3">
+                <SearchInput
+                  value={payrollEmployeeSearch}
+                  onChange={setPayrollEmployeeSearch}
+                  placeholder="Search employee name, code, branch or designation"
+                />
+              </div>
+
               <div className="mt-3 max-h-[430px] divide-y overflow-y-auto rounded-xl border">
                 {eligibleLoading ? (
                   <p className="p-8 text-center text-muted-foreground">
                     Loading employees...
                   </p>
-                ) : filteredEligible.length ? (
-                  filteredEligible.map((employee) => {
+                ) : filteredEligibleEmployees.length ? (
+                  filteredEligibleEmployees.map((employee) => {
                     const totalDays =
                       numberValue(employee.total_period_days) || 30;
-
                     const days = numberValue(
                       payableDays[employee.id] ??
-                        employee.suggested_payable_days ??
-                        totalDays,
+                        employee.suggested_payable_days,
                     );
-
                     const gross =
                       numberValue(employee.gross_salary) * (days / totalDays);
-
-                    const advance = numberValue(
-                      employee.advance_received ?? employee.advance_paid,
+                    const remaining = Math.max(
+                      0,
+                      gross - numberValue(employee.advance_received),
                     );
-
-                    const remaining = Math.max(0, gross - advance);
 
                     return (
                       <label
@@ -884,11 +1148,9 @@ export default function PayrollPage() {
 
                         <div>
                           <p className="font-medium">{employee.full_name}</p>
-
                           <p className="text-xs text-muted-foreground">
                             {employee.employee_code} · {employee.branch_name}
                           </p>
-
                           <p className="mt-1 text-xs text-muted-foreground">
                             Monthly salary:{" "}
                             <CurrencyText value={employee.gross_salary} />
@@ -897,16 +1159,13 @@ export default function PayrollPage() {
 
                         <div>
                           <Label className="text-xs">Payable Days</Label>
-
                           <Input
                             type="number"
                             className="mt-1"
-                            min="0"
-                            max={employee.employment_days || totalDays}
                             value={
                               payableDays[employee.id] ??
                               employee.suggested_payable_days ??
-                              totalDays
+                              0
                             }
                             disabled={employee.already_generated}
                             onChange={(event) =>
@@ -922,9 +1181,8 @@ export default function PayrollPage() {
                           <p className="text-xs text-muted-foreground">
                             Advance Deduction
                           </p>
-
                           <p className="font-medium text-amber-600">
-                            <CurrencyText value={advance} />
+                            <CurrencyText value={employee.advance_received} />
                           </p>
                         </div>
 
@@ -932,11 +1190,9 @@ export default function PayrollPage() {
                           <p className="text-xs text-muted-foreground">
                             Remaining Payroll
                           </p>
-
                           <p className="font-semibold text-emerald-600">
                             <CurrencyText value={remaining} />
                           </p>
-
                           {employee.already_generated && (
                             <p className="text-xs text-amber-600">
                               Already generated
@@ -948,7 +1204,9 @@ export default function PayrollPage() {
                   })
                 ) : (
                   <p className="p-8 text-center text-muted-foreground">
-                    No eligible employees found.
+                    {payrollEmployeeSearch
+                      ? "No employees match your search."
+                      : "No eligible employees found."}
                   </p>
                 )}
               </div>
@@ -959,7 +1217,6 @@ export default function PayrollPage() {
                 <p className="text-xs text-muted-foreground">
                   Selected payroll total
                 </p>
-
                 <p className="text-lg font-semibold">
                   <CurrencyText value={selectedTotal} />
                 </p>
@@ -969,14 +1226,11 @@ export default function PayrollPage() {
                 <Button variant="outline" onClick={() => setPayrollOpen(false)}>
                   Cancel
                 </Button>
-
                 <Button
                   onClick={submitPayroll}
                   disabled={generateMutation.isPending}
                 >
-                  {generateMutation.isPending
-                    ? "Generating..."
-                    : "Generate Payroll"}
+                  Generate Payroll
                 </Button>
               </div>
             </div>
@@ -984,18 +1238,138 @@ export default function PayrollPage() {
         </div>
       )}
 
-      {advanceOpen && (
+      {advanceDetail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-background shadow-2xl">
+          <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-background shadow-2xl">
             <div className="flex items-start justify-between border-b px-6 py-5">
               <div>
-                <h2 className="text-xl font-semibold">Add Advance Salary</h2>
-
+                <h2 className="text-xl font-semibold">
+                  Advance Salary Details
+                </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Record advance salary for an employee.
+                  Complete information for the selected advance salary record.
                 </p>
               </div>
 
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                onClick={() => setAdvanceDetail(null)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            <div className="grid gap-4 p-6 md:grid-cols-2">
+              <div className="rounded-xl border p-4 md:col-span-2">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Employee
+                </p>
+                <p className="mt-1 text-lg font-semibold">
+                  {advanceDetail.employee_name}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {advanceDetail.employee_code}
+                  {advanceDetail.branch_name
+                    ? ` · ${advanceDetail.branch_name}`
+                    : ""}
+                </p>
+              </div>
+
+              <div>
+                <Label>Deduction Period</Label>
+                <Input
+                  className="mt-2"
+                  value={advanceDetail.period || ""}
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <Label>Advance Date</Label>
+                <Input
+                  className="mt-2"
+                  value={advanceDetail.advance_date || ""}
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <Label>Current Salary</Label>
+                <div className="mt-2 flex h-10 items-center rounded-md border bg-muted/30 px-3 font-medium">
+                  <CurrencyText value={advanceDetail.salary_at_time} />
+                </div>
+              </div>
+
+              <div>
+                <Label>Advance Paid</Label>
+                <div className="mt-2 flex h-10 items-center rounded-md border bg-muted/30 px-3 font-semibold">
+                  <CurrencyText value={advanceDetail.amount} />
+                </div>
+              </div>
+
+              <div>
+                <Label>Paid By</Label>
+                <Input
+                  className="mt-2"
+                  value={advanceDetail.paid_by || ""}
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <Label>Status</Label>
+                <div className="mt-2 flex h-10 items-center rounded-md border px-3">
+                  <StatusBadge status={advanceDetail.status} />
+                </div>
+              </div>
+
+              <div className="md:col-span-2">
+                <Label>Reference Number</Label>
+                <Input
+                  className="mt-2"
+                  value={advanceDetail.reference_number || ""}
+                  readOnly
+                  placeholder="No reference number"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <Label>Notes</Label>
+                <Textarea
+                  className="mt-2"
+                  rows={4}
+                  value={advanceDetail.notes || ""}
+                  readOnly
+                  placeholder="No notes"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end border-t px-6 py-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setAdvanceDetail(null)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {advanceOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-background shadow-2xl">
+            <div className="flex items-start justify-between border-b px-6 py-5">
+              <div>
+                <h2 className="text-xl font-semibold">Add Advance Salary</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  The employee salary is fetched automatically.
+                </p>
+              </div>
               <Button
                 size="icon"
                 variant="ghost"
@@ -1006,58 +1380,79 @@ export default function PayrollPage() {
             </div>
 
             <div className="grid gap-4 p-6 md:grid-cols-2">
-              <Field label="Employee *">
-                <select
-                  className="h-10 w-full rounded-md border bg-background px-3"
+              <div className="md:col-span-2">
+                <Label>Employee *</Label>
+                <Select
                   value={advanceForm.employee}
-                  onChange={(event) =>
+                  onValueChange={(value) => {
                     setAdvanceForm((current) => ({
                       ...current,
-                      employee: event.target.value,
-                    }))
-                  }
+                      employee: value,
+                    }));
+                    setAdvanceEmployeeSearch("");
+                  }}
                 >
-                  <option value="">Select employee</option>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Select employee" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72 p-0">
+                    <div
+                      className="sticky top-0 z-10 border-b bg-popover p-2"
+                      onKeyDown={(event) => event.stopPropagation()}
+                    >
+                      <Input
+                        value={advanceEmployeeSearch}
+                        onChange={(event) =>
+                          setAdvanceEmployeeSearch(event.target.value)
+                        }
+                        placeholder="Search employee name or code"
+                        onClick={(event) => event.stopPropagation()}
+                      />
+                    </div>
 
-                  {advanceEmployees.map((employee) => (
-                    <option key={employee.id} value={employee.id}>
-                      {employee.full_name} — {employee.employee_code}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+                    <div className="max-h-60 overflow-y-auto p-1">
+                      {filteredAdvanceEmployees.length ? (
+                        filteredAdvanceEmployees.map((employee) => (
+                          <SelectItem
+                            key={employee.id}
+                            value={String(employee.id)}
+                          >
+                            {employee.employee_code} — {employee.full_name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                          No employees match your search.
+                        </div>
+                      )}
+                    </div>
+                  </SelectContent>
+                </Select>
+              </div>
 
-              <Field label="Deduction Period *">
+              <div>
+                <Label>Current Monthly Salary</Label>
                 <Input
-                  type="month"
-                  value={advanceForm.period}
-                  onChange={(event) =>
-                    setAdvanceForm((current) => ({
-                      ...current,
-                      period: event.target.value,
-                    }))
+                  className="mt-2"
+                  readOnly
+                  value={
+                    selectedAdvanceEmployee
+                      ? numberValue(
+                          selectedAdvanceEmployee.total_salary,
+                        ).toFixed(2)
+                      : ""
                   }
+                  placeholder="Fetched automatically"
                 />
-              </Field>
+              </div>
 
-              <Field label="Advance Date *">
-                <Input
-                  type="date"
-                  value={advanceForm.advance_date}
-                  onChange={(event) =>
-                    setAdvanceForm((current) => ({
-                      ...current,
-                      advance_date: event.target.value,
-                    }))
-                  }
-                />
-              </Field>
-
-              <Field label="Advance Amount *">
+              <div>
+                <Label>Advance Amount *</Label>
                 <Input
                   type="number"
-                  min="0"
+                  min="0.01"
                   step="0.01"
+                  className="mt-2"
                   value={advanceForm.amount}
                   onChange={(event) =>
                     setAdvanceForm((current) => ({
@@ -1066,10 +1461,44 @@ export default function PayrollPage() {
                     }))
                   }
                 />
-              </Field>
+              </div>
 
-              <Field label="Paid By *">
+              <div>
+                <Label>Deduction Period *</Label>
                 <Input
+                  type="month"
+                  min={currentPeriod}
+                  className="mt-2"
+                  value={advanceForm.period}
+                  onChange={(event) =>
+                    setAdvanceForm((current) => ({
+                      ...current,
+                      period: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div>
+                <Label>Advance Date *</Label>
+                <Input
+                  type="date"
+                  min={today}
+                  className="mt-2"
+                  value={advanceForm.advance_date}
+                  onChange={(event) =>
+                    setAdvanceForm((current) => ({
+                      ...current,
+                      advance_date: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div>
+                <Label>Paid By *</Label>
+                <Input
+                  className="mt-2"
                   value={advanceForm.paid_by}
                   onChange={(event) =>
                     setAdvanceForm((current) => ({
@@ -1077,11 +1506,14 @@ export default function PayrollPage() {
                       paid_by: event.target.value,
                     }))
                   }
+                  placeholder="Cash, bank, manager name, etc."
                 />
-              </Field>
+              </div>
 
-              <Field label="Reference">
+              <div>
+                <Label>Reference Number</Label>
                 <Input
+                  className="mt-2"
                   value={advanceForm.reference_number}
                   onChange={(event) =>
                     setAdvanceForm((current) => ({
@@ -1090,161 +1522,38 @@ export default function PayrollPage() {
                     }))
                   }
                 />
-              </Field>
-
-              <div className="md:col-span-2">
-                <Field label="Notes">
-                  <Textarea
-                    rows={3}
-                    value={advanceForm.notes}
-                    onChange={(event) =>
-                      setAdvanceForm((current) => ({
-                        ...current,
-                        notes: event.target.value,
-                      }))
-                    }
-                  />
-                </Field>
               </div>
 
-              {selectedAdvanceEmployee && (
-                <div className="rounded-xl border bg-muted/20 p-4 md:col-span-2">
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <Info
-                      label="Employee"
-                      value={selectedAdvanceEmployee.full_name}
-                    />
-
-                    <Info
-                      label="Branch"
-                      value={selectedAdvanceEmployee.branch_name || "—"}
-                    />
-
-                    <div>
-                      <p className="text-xs text-muted-foreground">
-                        Current Salary
-                      </p>
-
-                      <p className="mt-1 font-semibold">
-                        <CurrencyText
-                          value={
-                            selectedAdvanceEmployee.total_salary ||
-                            selectedAdvanceEmployee.basic_salary
-                          }
-                        />
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
+              <div className="md:col-span-2">
+                <Label>Notes</Label>
+                <Textarea
+                  className="mt-2"
+                  rows={3}
+                  value={advanceForm.notes}
+                  onChange={(event) =>
+                    setAdvanceForm((current) => ({
+                      ...current,
+                      notes: event.target.value,
+                    }))
+                  }
+                />
+              </div>
             </div>
 
             <div className="flex justify-end gap-2 border-t px-6 py-4">
               <Button variant="outline" onClick={() => setAdvanceOpen(false)}>
                 Cancel
               </Button>
-
               <Button
                 onClick={submitAdvance}
                 disabled={advanceMutation.isPending}
               >
-                {advanceMutation.isPending ? "Saving..." : "Save Advance"}
+                Save Advance Salary
               </Button>
             </div>
           </div>
         </div>
       )}
-
-      {advanceDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-background shadow-2xl">
-            <div className="flex items-start justify-between border-b px-6 py-5">
-              <div>
-                <h2 className="text-xl font-semibold">
-                  Advance Salary Details
-                </h2>
-
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Complete information for the selected advance.
-                </p>
-              </div>
-
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => setAdvanceDetail(null)}
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
-
-            <div className="grid gap-4 p-6 md:grid-cols-2">
-              <Info label="Employee" value={advanceDetail.employee_name} />
-
-              <Info label="Employee Code" value={advanceDetail.employee_code} />
-
-              <Info label="Period" value={advanceDetail.period} />
-
-              <Info label="Advance Date" value={advanceDetail.advance_date} />
-
-              <Info label="Paid By" value={advanceDetail.paid_by || "—"} />
-
-              <Info label="Status" value={advanceDetail.status} />
-
-              <div>
-                <p className="text-xs text-muted-foreground">Advance Amount</p>
-
-                <p className="mt-1 font-semibold">
-                  <CurrencyText value={advanceDetail.amount} />
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs text-muted-foreground">
-                  Remaining Amount
-                </p>
-
-                <p className="mt-1 font-semibold">
-                  <CurrencyText value={advanceDetail.remaining_amount} />
-                </p>
-              </div>
-            </div>
-
-            <div className="flex justify-end border-t px-6 py-4">
-              <Button variant="outline" onClick={() => setAdvanceDetail(null)}>
-                Close
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {payrollDetail && (
-        <PayrollDetailModal
-          payroll={payrollDetail}
-          onClose={() => setPayrollDetail(null)}
-          onUpdated={(updated) => setPayrollDetail(updated)}
-        />
-      )}
-    </div>
-  );
-}
-
-function Field({ label, children }) {
-  return (
-    <div>
-      <Label>{label}</Label>
-      <div className="mt-2">{children}</div>
-    </div>
-  );
-}
-
-function Info({ label, value }) {
-  return (
-    <div className="rounded-xl border bg-muted/20 p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-
-      <p className="mt-1 font-semibold">{value || "—"}</p>
     </div>
   );
 }

@@ -1578,82 +1578,84 @@ export default function SupplierBillFormPage() {
             <FieldError message={errors.branch} />
           </div>
 
-          <div className="relative">
+          <div>
             <Label htmlFor="purchase_order">Purchase Order *</Label>
-            <Input
-              id="purchase_order"
-              className="mt-2"
-              value={purchaseOrderSearch}
-              autoComplete="off"
-              disabled={optionsQuery.isLoading}
-              onFocus={() => setPurchaseOrderSearchOpen(true)}
-              onChange={(event) => {
-                const value = event.target.value;
-                setPurchaseOrderSearch(value);
-                setPurchaseOrderSearchOpen(true);
 
-                const selectedLabel = selectedPurchaseOrder
-                  ? [
-                      selectedPurchaseOrder.po_number,
-                      selectedPurchaseOrder.supplier_name,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")
-                  : "";
+            <div className="relative mt-2">
+              <Input
+                id="purchase_order"
+                value={purchaseOrderSearch}
+                autoComplete="off"
+                disabled={optionsQuery.isLoading}
+                onFocus={() => setPurchaseOrderSearchOpen(true)}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setPurchaseOrderSearch(value);
+                  setPurchaseOrderSearchOpen(true);
 
-                if (selectedPurchaseOrder && value !== selectedLabel) {
-                  setForm((current) => ({
-                    ...current,
-                    purchase_order: "",
-                    grn: "",
-                    supplier: "",
-                    items: [createEmptyItem()],
-                  }));
-                }
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  setPurchaseOrderSearchOpen(false);
-                }
-              }}
-              placeholder="Search and select purchase order"
-            />
+                  const selectedLabel = selectedPurchaseOrder
+                    ? [
+                        selectedPurchaseOrder.po_number,
+                        selectedPurchaseOrder.supplier_name,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")
+                    : "";
 
-            {purchaseOrderSearchOpen ? (
-              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-background p-1 shadow-xl dark:border-white/10">
-                {filteredPurchaseOrders.length ? (
-                  filteredPurchaseOrders.map((purchaseOrder) => (
-                    <button
-                      key={purchaseOrder.id}
-                      type="button"
-                      className="flex w-full flex-col rounded-lg px-3 py-2.5 text-left transition hover:bg-slate-100 dark:hover:bg-white/5"
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() =>
-                        applyPurchaseOrder(String(purchaseOrder.id))
-                      }
-                    >
-                      <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                        {purchaseOrder.po_number || `PO ${purchaseOrder.id}`}
-                      </span>
-                      <span className="mt-0.5 text-xs text-muted-foreground">
-                        {[
-                          purchaseOrder.supplier_name,
-                          purchaseOrder.branch_code ||
-                            purchaseOrder.branch_name,
-                          purchaseOrder.status,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>
-                    </button>
-                  ))
-                ) : (
-                  <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                    No Purchase Orders match your search.
-                  </div>
-                )}
-              </div>
-            ) : null}
+                  if (selectedPurchaseOrder && value !== selectedLabel) {
+                    setForm((current) => ({
+                      ...current,
+                      purchase_order: "",
+                      grn: "",
+                      supplier: "",
+                      items: [createEmptyItem()],
+                    }));
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    setPurchaseOrderSearchOpen(false);
+                  }
+                }}
+                placeholder="Search and select purchase order"
+              />
+
+              {purchaseOrderSearchOpen ? (
+                <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-background p-1 shadow-xl dark:border-white/10">
+                  {filteredPurchaseOrders.length ? (
+                    filteredPurchaseOrders.map((purchaseOrder) => (
+                      <button
+                        key={purchaseOrder.id}
+                        type="button"
+                        className="flex w-full flex-col rounded-lg px-3 py-2.5 text-left transition hover:bg-slate-100 dark:hover:bg-white/5"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() =>
+                          applyPurchaseOrder(String(purchaseOrder.id))
+                        }
+                      >
+                        <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                          {purchaseOrder.po_number || `PO ${purchaseOrder.id}`}
+                        </span>
+                        <span className="mt-0.5 text-xs text-muted-foreground">
+                          {[
+                            purchaseOrder.supplier_name,
+                            purchaseOrder.branch_code ||
+                              purchaseOrder.branch_name,
+                            purchaseOrder.status,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                      No Purchase Orders match your search.
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
 
             <FieldError message={errors.purchase_order} />
           </div>

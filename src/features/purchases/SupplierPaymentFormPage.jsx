@@ -64,6 +64,8 @@ const PAYMENT_METHODS = [
   },
 ];
 
+const BANK_BACKED_METHODS = ["BANK_TRANSFER", "CHEQUE", "CARD", "ONLINE"];
+
 function today() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -843,7 +845,10 @@ export default function SupplierPaymentFormPage() {
         "Allocation must be greater than zero and cannot exceed the bill balance.";
     }
 
-    if (form.payment_method === "BANK_TRANSFER" && !form.bank_account) {
+    if (
+      BANK_BACKED_METHODS.includes(form.payment_method) &&
+      !form.bank_account
+    ) {
       nextErrors.bank_account =
         "Select the bank account used for this payment.";
     }
@@ -1225,8 +1230,9 @@ export default function SupplierPaymentFormPage() {
 
                   payment_method: value,
 
-                  bank_account:
-                    value === "BANK_TRANSFER" ? current.bank_account : "",
+                  bank_account: BANK_BACKED_METHODS.includes(value)
+                    ? current.bank_account
+                    : "",
 
                   cash_register: value === "CASH" ? current.cash_register : "",
 
@@ -1245,10 +1251,14 @@ export default function SupplierPaymentFormPage() {
             </select>
           </div>
 
-          {form.payment_method === "BANK_TRANSFER" ? (
+          {BANK_BACKED_METHODS.includes(form.payment_method) ? (
             <div>
               <div className="flex items-center justify-between gap-3">
-                <Label htmlFor="bank_account">Bank Account *</Label>
+                <Label htmlFor="bank_account">
+                  {form.payment_method === "ONLINE"
+                    ? "Online Payment Bank Account *"
+                    : "Bank Account *"}
+                </Label>
                 <Button
                   type="button"
                   variant="outline"

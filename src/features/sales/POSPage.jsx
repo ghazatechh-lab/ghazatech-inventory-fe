@@ -1,19 +1,22 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import {
+  Banknote,
+  CreditCard,
   Download,
   Plus,
+  ReceiptText,
   Save,
   Search,
+  ShoppingCart,
   Trash2,
-  X,
   UserPlus,
+  X,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
-import { calculateTaxLine, canUseNonVatSale } from "@/lib/taxAccess";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -91,10 +94,6 @@ const createForm = (branchId) => ({
 
 export default function POSPage() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
-
-  const canUseNonVat = canUseNonVatSale(user);
-
   const { branchId, branchParams } = useActiveBranchFilter();
 
   const [open, setOpen] = React.useState(false);
@@ -104,6 +103,8 @@ export default function POSPage() {
   const [form, setForm] = React.useState(() => createForm(branchId));
 
   const [openProductIndex, setOpenProductIndex] = React.useState(null);
+  const productInputRefs = React.useRef({});
+  const [productMenuRect, setProductMenuRect] = React.useState(null);
 
   const { query, q, setQ, page, setPage } = useListQuery(
     "pos-sales",
@@ -120,6 +121,18 @@ export default function POSPage() {
         }),
       ),
   });
+
+  const { data: branchOptionsResponse } = useQuery({
+    queryKey: ["pos-branch-options"],
+    queryFn: async () => unwrap(await api.get("/branches/selector-options/")),
+    enabled: open,
+    staleTime: 60_000,
+  });
+
+  const branchOptions = React.useMemo(
+    () => normalizeList(branchOptionsResponse),
+    [branchOptionsResponse],
+  );
 
   const { data: optionsResponse } = useQuery({
     queryKey: ["pos-form-options", form.branch],
@@ -155,24 +168,44 @@ export default function POSPage() {
       ]),
     );
 
-    return rawProducts
-      .map((product) => {
-        const key = `${
-          product.product_id || product.id
-        }:${product.variant_id || ""}`;
+    const unique = new Map();
 
-        const stockRow = stockByKey.get(key) || {};
+    rawProducts.forEach((product) => {
+      const productId = product.product_id || product.id;
+      const variantId = product.variant_id || "";
+      const key = `${productId}:${variantId}`;
+      const stockRow = stockByKey.get(key) || {};
 
-        const available = number(
-          product.available_stock ?? stockRow.available_stock ?? 0,
-        );
+      const available = number(
+        product.available_stock ??
+          stockRow.available_stock ??
+          stockRow.current_stock ??
+          product.current_stock ??
+          0,
+      );
 
-        return {
-          ...product,
-          available_stock: available,
-        };
-      })
-      .filter((product) => number(product.available_stock) > 0);
+      const normalized = {
+        ...product,
+        product_id: productId,
+        variant_id: variantId || null,
+        available_stock: available,
+      };
+
+      if (!unique.has(key)) {
+        unique.set(key, normalized);
+        return;
+      }
+
+      const existing = unique.get(key);
+
+      unique.set(key, {
+        ...existing,
+        ...normalized,
+        available_stock: Math.max(number(existing.available_stock), available),
+      });
+    });
+
+    return Array.from(unique.values());
   }, [rawProducts, stock]);
 
   const calculatedItems = form.items.map((item) => {
@@ -327,6 +360,24 @@ export default function POSPage() {
     setOpenProductIndex(null);
     setForm(createForm(branchId));
     setOpen(true);
+  };
+
+  const changeSaleBranch = (value) => {
+    setOpenProductIndex(null);
+
+    setForm((current) => ({
+      ...current,
+      branch: value,
+      customer: "",
+      cashier: "",
+      items: [emptyItem()],
+    }));
+
+    setErrors((current) => ({
+      ...current,
+      branch: "",
+      items: "",
+    }));
   };
 
   const close = () => {
@@ -546,13 +597,69 @@ export default function POSPage() {
     [],
   );
 
+  const updateProductMenuPosition = React.useCallback((index) => {
+    const element = productInputRefs.current[index];
+
+    if (!element) {
+      setProductMenuRect(null);
+      return;
+    }
+
+    const rect = element.getBoundingClientRect();
+
+    setProductMenuRect({
+      left: rect.left,
+      top: rect.bottom + 6,
+      width: rect.width,
+    });
+  }, []);
+
+  React.useEffect(() => {
+    if (openProductIndex === null) {
+      setProductMenuRect(null);
+      return;
+    }
+
+    updateProductMenuPosition(openProductIndex);
+
+    const handleReposition = () => updateProductMenuPosition(openProductIndex);
+
+    window.addEventListener("resize", handleReposition);
+    window.addEventListener("scroll", handleReposition, true);
+
+    return () => {
+      window.removeEventListener("resize", handleReposition);
+      window.removeEventListener("scroll", handleReposition, true);
+    };
+  }, [openProductIndex, updateProductMenuPosition]);
+
+  React.useEffect(() => {
+    if (openProductIndex === null) return undefined;
+
+    const handlePointerDown = (event) => {
+      const input = productInputRefs.current[openProductIndex];
+
+      if (input?.contains(event.target)) return;
+
+      if (event.target.closest?.("[data-pos-product-menu='true']")) {
+        return;
+      }
+
+      setOpenProductIndex(null);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [openProductIndex]);
+
   return (
-    <div className="sales-module-page sales-workspace mx-auto max-w-7xl space-y-5">
+    <div className="sales-module-page sales-workspace mx-auto max-w-[1500px] space-y-5 pb-10">
       <PageHeader
         title="Direct Sale / POS"
-        subtitle="Walk-in and counter sales processed without a quotation"
+        subtitle="Fast counter sales with branch stock, common VAT, and instant payment"
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={exportSales}>
               <Download className="mr-2 h-4 w-4" />
               Export
@@ -598,12 +705,15 @@ export default function POSPage() {
 
       <SalesDocumentFlow />
 
-      <section className="card-surface overflow-hidden">
-        <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 dark:border-white/10 md:flex-row md:items-center md:justify-between">
+      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+        <div className="flex flex-col gap-3 border-b bg-muted/20 px-5 py-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="font-semibold">Direct Sale / POS</h2>
+            <div className="flex items-center gap-2">
+              <ReceiptText className="h-4 w-4 text-blue-600" />
+              <h2 className="font-semibold">POS Transactions</h2>
+            </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Walk-in and counter sales processed without a prior quotation
+              Recent direct sales for the active branch
             </p>
           </div>
 
@@ -630,533 +740,725 @@ export default function POSPage() {
       </section>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/50">
-          <div className="flex h-full w-full max-w-5xl flex-col bg-background shadow-2xl">
-            <div className="flex items-start justify-between border-b px-5 py-4">
-              <div>
-                <h2 className="text-xl font-semibold">New Sale</h2>
-
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Receipt number will be generated automatically · draft
-                </p>
-              </div>
-
-              <Button type="button" size="icon" variant="ghost" onClick={close}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div className="flex-1 space-y-5 overflow-y-auto p-5">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <Label>Customer</Label>
-
-                  <Select
-                    value={form.customer || "__walkin__"}
-                    onValueChange={(value) =>
-                      updateForm(
-                        "customer",
-                        value === "__walkin__" ? "" : value,
-                      )
-                    }
-                  >
-                    <SelectTrigger className="mt-2">
-                      <SelectValue />
-                    </SelectTrigger>
-
-                    <SelectContent className="max-h-72">
-                      <SelectItem value="__walkin__">
-                        Walk-in Customer
-                      </SelectItem>
-
-                      {customers.map((customer) => (
-                        <SelectItem
-                          key={customer.id}
-                          value={String(customer.id)}
-                        >
-                          {customer.customer_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <InlineCustomerDialog
-                    onCreated={(customer) => {
-                      queryClient.invalidateQueries({
-                        queryKey: ["pos-form-options"],
-                      });
-                      updateForm("customer", String(customer.id));
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <Label>Cashier *</Label>
-
-                  <Select
-                    value={form.cashier}
-                    onValueChange={(value) => updateForm("cashier", value)}
-                  >
-                    <SelectTrigger className="mt-2">
-                      <SelectValue placeholder="Select cashier" />
-                    </SelectTrigger>
-
-                    <SelectContent className="max-h-72">
-                      {cashiers.map((cashier) => (
-                        <SelectItem key={cashier.id} value={String(cashier.id)}>
-                          {cashier.display_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {errors.cashier && (
-                    <p className="mt-1 text-xs text-red-500">
-                      {errors.cashier}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <Label>Items</Label>
-
-                <div className="relative mt-2 overflow-visible rounded-xl border">
-                  <div className="grid grid-cols-[minmax(320px,1fr)_80px_120px_120px_44px] items-center gap-3 border-b bg-slate-50 px-3 py-3 text-[10px] uppercase tracking-wider text-muted-foreground dark:bg-white/[0.025]">
-                    <span>Product</span>
-
-                    <span className="text-right">Qty</span>
-                    <span className="text-right">Unit price</span>
-                    <span className="text-right">Line total</span>
-                    <span />
+        <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/60 p-3 backdrop-blur-[2px] sm:p-5">
+          <div className="mx-auto flex min-h-full max-w-[1450px] items-center justify-center">
+            <div className="flex max-h-[calc(100vh-2rem)] w-full flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl sm:max-h-[calc(100vh-3rem)]">
+              <div className="flex shrink-0 items-start justify-between gap-4 border-b bg-gradient-to-r from-blue-50/80 via-background to-background px-5 py-4 dark:from-blue-500/10 sm:px-6">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="mt-0.5 rounded-xl bg-blue-600 p-2.5 text-white shadow-sm">
+                    <ShoppingCart className="h-5 w-5" />
                   </div>
 
-                  {calculatedItems.map((item, index) => (
-                    <div
-                      key={index}
-                      className="relative grid grid-cols-[minmax(320px,1fr)_80px_120px_120px_44px] items-start gap-3 border-b px-3 py-3 last:border-b-0"
-                    >
-                      <div className="min-w-0 space-y-1.5">
-                        <div className="relative">
-                          <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
-                          <Input
-                            value={item.query}
-                            onFocus={() => setOpenProductIndex(index)}
-                            onChange={(event) => {
-                              searchProduct(index, event.target.value);
-                              setOpenProductIndex(index);
-                            }}
-                            placeholder="Search product, variant, SKU or barcode"
-                            className="h-11 rounded-xl border-slate-200 bg-background pl-9 pr-9 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-white/10"
-                          />
-
-                          {item.query && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                updateItem(index, {
-                                  product: "",
-                                  variant: "",
-                                  query: "",
-                                  unit_price: 0,
-                                  available_stock: 0,
-                                });
-                                setOpenProductIndex(index);
-                              }}
-                              className="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full p-0.5 text-muted-foreground hover:bg-slate-100 hover:text-foreground dark:hover:bg-white/10"
-                              aria-label="Clear selected product"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-
-                          {openProductIndex === index && (
-                            <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-[100] max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-background p-1.5 shadow-2xl dark:border-white/10">
-                              {!optionsResponse && (
-                                <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                                  Loading products...
-                                </div>
-                              )}
-
-                              {products
-                                .filter((product) => {
-                                  const term = String(item.query || "")
-                                    .trim()
-                                    .toLowerCase();
-
-                                  if (!term || item.product) return true;
-
-                                  return [
-                                    product.product_name,
-                                    product.variant_name,
-                                    product.sku,
-                                    product.barcode,
-                                  ].some((value) =>
-                                    String(value || "")
-                                      .toLowerCase()
-                                      .includes(term),
-                                  );
-                                })
-                                .map((product) => {
-                                  const optionValue = `${
-                                    product.product_id || product.id
-                                  }:${product.variant_id || ""}`;
-                                  const isSelected =
-                                    optionValue ===
-                                    `${item.product}:${item.variant || ""}`;
-
-                                  return (
-                                    <button
-                                      key={optionValue}
-                                      type="button"
-                                      onMouseDown={(event) =>
-                                        event.preventDefault()
-                                      }
-                                      onClick={() =>
-                                        selectProduct(index, optionValue)
-                                      }
-                                      className={`flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${
-                                        isSelected
-                                          ? "bg-blue-50 ring-1 ring-blue-200 dark:bg-blue-500/10 dark:ring-blue-500/30"
-                                          : "hover:bg-slate-50 dark:hover:bg-white/[0.05]"
-                                      }`}
-                                    >
-                                      <div className="min-w-0">
-                                        <p className="truncate text-sm font-semibold text-foreground">
-                                          {product.product_name}
-                                          {product.variant_name
-                                            ? ` — ${product.variant_name}`
-                                            : ""}
-                                        </p>
-                                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                                          {product.sku ||
-                                            product.barcode ||
-                                            "No SKU"}
-                                          {product.barcode && product.sku
-                                            ? ` · ${product.barcode}`
-                                            : ""}
-                                          {` · ${number(product.available_stock)} available`}
-                                        </p>
-                                      </div>
-
-                                      <div className="shrink-0 text-right">
-                                        <p className="text-sm font-bold text-blue-600 dark:text-blue-300">
-                                          AED{" "}
-                                          {getProductPrice(product).toFixed(2)}
-                                        </p>
-                                        <p className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-                                          Select
-                                        </p>
-                                      </div>
-                                    </button>
-                                  );
-                                })}
-
-                              {products.filter((product) => {
-                                const term = String(item.query || "")
-                                  .trim()
-                                  .toLowerCase();
-                                if (!term || item.product) return true;
-                                return [
-                                  product.product_name,
-                                  product.variant_name,
-                                  product.sku,
-                                  product.barcode,
-                                ].some((value) =>
-                                  String(value || "")
-                                    .toLowerCase()
-                                    .includes(term),
-                                );
-                              }).length === 0 && (
-                                <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                                  No products with available stock were found
-                                  for the selected branch.
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {item.product && (
-                          <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-xs dark:bg-white/[0.035]">
-                            <span
-                              className={
-                                item.has_enough_stock
-                                  ? "font-medium text-emerald-600"
-                                  : "font-medium text-red-500"
-                              }
-                            >
-                              {item.has_enough_stock
-                                ? `${item.available_stock} available in selected branch`
-                                : `Only ${item.available_stock} available`}
-                            </span>
-                            <span className="font-semibold text-blue-600 dark:text-blue-300">
-                              AED {number(item.unit_price).toFixed(2)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      <Input
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        value={item.quantity}
-                        onChange={(event) =>
-                          updateItem(index, {
-                            quantity: event.target.value,
-                          })
-                        }
-                        className="h-11 text-right"
-                      />
-
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.unit_price}
-                        onChange={(event) =>
-                          updateItem(index, {
-                            unit_price: event.target.value,
-                          })
-                        }
-                        className="h-11 text-right"
-                      />
-
-                      <div className="flex h-11 items-center justify-end text-right font-semibold">
-                        <CurrencyText value={item.line_total} />
-                      </div>
-
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        className="h-11 w-11"
-                        onClick={() =>
-                          setForm((current) => ({
-                            ...current,
-                            items: current.items.filter(
-                              (_, itemIndex) => itemIndex !== index,
-                            ),
-                          }))
-                        }
-                      >
-                        <Trash2 className="h-4 w-4 text-red-400" />
-                      </Button>
-                    </div>
-                  ))}
+                  <div className="min-w-0">
+                    <h2 className="text-xl font-semibold">New Direct Sale</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Add products, select payment, and complete the counter
+                      sale.
+                    </p>
+                  </div>
                 </div>
 
                 <Button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  className="mt-3"
-                  onClick={() =>
-                    setForm((current) => ({
-                      ...current,
-                      items: [...current.items, emptyItem()],
-                    }))
-                  }
+                  size="icon"
+                  variant="ghost"
+                  onClick={close}
+                  disabled={saveMutation.isPending}
+                  className="shrink-0"
                 >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Item
+                  <X className="h-4 w-4" />
                 </Button>
-
-                {errors.items && (
-                  <p className="mt-2 text-xs text-red-500">{errors.items}</p>
-                )}
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <Label>Payment Method</Label>
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <div className="grid gap-5 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_350px] lg:p-6">
+                  <div className="min-w-0 space-y-5">
+                    <section className="rounded-2xl border bg-card p-4 shadow-sm">
+                      <div className="mb-4 flex items-center justify-between">
+                        <div>
+                          <h3 className="font-semibold">Sale Details</h3>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            Walk-in customer is allowed. Cashier is required.
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
+                          Receipt Auto
+                        </span>
+                      </div>
 
-                  <div className="mt-2 grid grid-cols-3 gap-2">
-                    {[
-                      ["CASH", "Cash"],
-                      ["CARD", "Card"],
-                      ["SPLIT", "Split"],
-                    ].map(([value, label]) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => updateForm("payment_method", value)}
-                        className={
-                          form.payment_method === value
-                            ? "rounded-lg border border-blue-500 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-600 dark:bg-blue-500/10 dark:text-blue-300"
-                            : "rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-white/10"
-                        }
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        <div>
+                          <Label>Branch *</Label>
 
-                <div>
-                  <Label>Discount (AED)</Label>
+                          <Select
+                            value={form.branch}
+                            onValueChange={changeSaleBranch}
+                            disabled={Boolean(branchId)}
+                          >
+                            <SelectTrigger className="mt-2 h-11">
+                              <SelectValue placeholder="Select branch" />
+                            </SelectTrigger>
 
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={form.discount_amount}
-                    onChange={(event) =>
-                      updateForm("discount_amount", event.target.value)
-                    }
-                    className="mt-2"
-                  />
-                </div>
-              </div>
+                            <SelectContent className="max-h-72">
+                              {branchOptions.map((branch) => (
+                                <SelectItem
+                                  key={branch.id}
+                                  value={String(branch.id)}
+                                >
+                                  {[branch.branch_code, branch.branch_name]
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
 
-              {form.payment_method === "SPLIT" && (
-                <div className="grid gap-4 rounded-xl border p-4 md:grid-cols-2">
-                  <div>
-                    <Label>Cash Amount</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={form.cash_amount}
-                      onChange={(event) =>
-                        updateForm("cash_amount", event.target.value)
-                      }
-                      className="mt-2"
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Card Amount</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={form.card_amount}
-                      onChange={(event) =>
-                        updateForm("card_amount", event.target.value)
-                      }
-                      className="mt-2"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {errors.payment_method && (
-                <p className="text-xs text-red-500">{errors.payment_method}</p>
-              )}
-
-              <div>
-                <Label>Notes (Optional)</Label>
-
-                <Textarea
-                  rows={4}
-                  value={form.notes}
-                  onChange={(event) => updateForm("notes", event.target.value)}
-                  placeholder="Add a note for this sale"
-                  className="mt-2"
-                />
-              </div>
-
-              <div className="rounded-xl bg-slate-50 p-5 dark:bg-white/[0.025]">
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <CurrencyText value={subtotal} />
-                  </div>
-
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Discount</span>
-                    <span>
-                      − <CurrencyText value={form.discount_amount} />
-                    </span>
-                  </div>
-
-                  <div className="space-y-2 border-t pt-3">
-                    <div className="flex items-center justify-between gap-4">
-                      <Label className="text-muted-foreground">VAT</Label>
-                      <Select
-                        value={form.vat_treatment}
-                        onValueChange={(value) =>
-                          setForm((current) => ({
-                            ...current,
-                            vat_treatment: value,
-                            vat_percentage: value === "STANDARD_VAT" ? 5 : 0,
-                            vat_reason:
-                              value === "STANDARD_VAT"
-                                ? ""
-                                : current.vat_reason,
-                          }))
-                        }
-                      >
-                        <SelectTrigger className="h-8 w-44">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="STANDARD_VAT">
-                            Standard VAT (5%)
-                          </SelectItem>
-                          {canUseNonVat && (
-                            <>
-                              <SelectItem value="ZERO_RATED">
-                                Zero Rated (0%)
-                              </SelectItem>
-                              <SelectItem value="EXEMPT">
-                                Exempt (0%)
-                              </SelectItem>
-                              <SelectItem value="OUT_OF_SCOPE">
-                                Out of Scope (0%)
-                              </SelectItem>
-                              <SelectItem value="REVERSE_CHARGE">
-                                Reverse Charge
-                              </SelectItem>
-                            </>
+                          {branchId ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Using the active branch selected for this page.
+                            </p>
+                          ) : (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Select a branch to load its available POS
+                              products.
+                            </p>
                           )}
-                        </SelectContent>
-                      </Select>
-                    </div>
 
-                    {form.vat_treatment !== "STANDARD_VAT" && (
-                      <Input
-                        value={form.vat_reason}
+                          {errors.branch && (
+                            <p className="mt-1 text-xs text-red-500">
+                              {errors.branch}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <Label>Customer</Label>
+
+                          <Select
+                            value={form.customer || "__walkin__"}
+                            onValueChange={(value) =>
+                              updateForm(
+                                "customer",
+                                value === "__walkin__" ? "" : value,
+                              )
+                            }
+                          >
+                            <SelectTrigger className="mt-2 h-11">
+                              <SelectValue />
+                            </SelectTrigger>
+
+                            <SelectContent className="max-h-72">
+                              <SelectItem value="__walkin__">
+                                Walk-in Customer
+                              </SelectItem>
+
+                              {customers.map((customer) => (
+                                <SelectItem
+                                  key={customer.id}
+                                  value={String(customer.id)}
+                                >
+                                  {customer.customer_name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+
+                          <InlineCustomerDialog
+                            branchId={form.branch}
+                            onCreated={(customer) => {
+                              queryClient.invalidateQueries({
+                                queryKey: ["pos-form-options"],
+                              });
+                              updateForm("customer", String(customer.id));
+                            }}
+                          />
+                        </div>
+
+                        <div>
+                          <Label>Cashier *</Label>
+
+                          <Select
+                            value={form.cashier}
+                            onValueChange={(value) =>
+                              updateForm("cashier", value)
+                            }
+                          >
+                            <SelectTrigger className="mt-2 h-11">
+                              <SelectValue placeholder="Select cashier" />
+                            </SelectTrigger>
+
+                            <SelectContent className="max-h-72">
+                              {cashiers.map((cashier) => (
+                                <SelectItem
+                                  key={cashier.id}
+                                  value={String(cashier.id)}
+                                >
+                                  {cashier.display_name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+
+                          {errors.cashier && (
+                            <p className="mt-1 text-xs text-red-500">
+                              {errors.cashier}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </section>
+
+                    <section className="relative overflow-visible rounded-2xl border bg-card shadow-sm">
+                      <div className="flex flex-col gap-3 border-b px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <h3 className="font-semibold">Sale Items</h3>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            Search by product, variant, SKU, or barcode.
+                          </p>
+                        </div>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setForm((current) => ({
+                              ...current,
+                              items: [...current.items, emptyItem()],
+                            }))
+                          }
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add Item
+                        </Button>
+                      </div>
+
+                      <div className="overflow-x-auto overflow-y-visible">
+                        <div className="relative min-w-[860px] overflow-visible">
+                          <div className="grid grid-cols-[minmax(380px,1fr)_90px_130px_130px_46px] items-center gap-3 border-b bg-muted/30 px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            <span>Product</span>
+                            <span className="text-right">Qty</span>
+                            <span className="text-right">Unit Price</span>
+                            <span className="text-right">Line Total</span>
+                            <span />
+                          </div>
+
+                          {calculatedItems.map((item, index) => (
+                            <div
+                              key={index}
+                              className="relative z-10 grid grid-cols-[minmax(380px,1fr)_90px_130px_130px_46px] items-start gap-3 border-b px-4 py-4 last:border-b-0 focus-within:z-[80]"
+                            >
+                              <div className="min-w-0 space-y-2">
+                                <div className="relative">
+                                  <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
+                                  <Input
+                                    ref={(node) => {
+                                      productInputRefs.current[index] = node;
+                                    }}
+                                    value={item.query}
+                                    onFocus={() => {
+                                      setOpenProductIndex(index);
+                                      requestAnimationFrame(() =>
+                                        updateProductMenuPosition(index),
+                                      );
+                                    }}
+                                    onChange={(event) => {
+                                      searchProduct(index, event.target.value);
+                                      setOpenProductIndex(index);
+                                      requestAnimationFrame(() =>
+                                        updateProductMenuPosition(index),
+                                      );
+                                    }}
+                                    placeholder="Search product, variant, SKU or barcode"
+                                    className="h-11 rounded-xl pl-9 pr-9"
+                                  />
+
+                                  {item.query && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        updateItem(index, {
+                                          product: "",
+                                          variant: "",
+                                          query: "",
+                                          unit_price: 0,
+                                          available_stock: 0,
+                                        });
+                                        setOpenProductIndex(index);
+                                      }}
+                                      className="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                                      aria-label="Clear selected product"
+                                    >
+                                      <X className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
+
+                                  {openProductIndex === index &&
+                                    productMenuRect &&
+                                    createPortal(
+                                      <div
+                                        data-pos-product-menu="true"
+                                        className="fixed z-[99999] max-h-[360px] min-h-[80px] overflow-y-auto rounded-xl border bg-background p-1.5 shadow-2xl"
+                                        style={{
+                                          left: productMenuRect.left,
+                                          top: productMenuRect.top,
+                                          width: productMenuRect.width,
+                                        }}
+                                      >
+                                        {!form.branch ? (
+                                          <div className="px-3 py-7 text-center text-sm text-muted-foreground">
+                                            Select a branch first to load
+                                            products.
+                                          </div>
+                                        ) : !optionsResponse ? (
+                                          <div className="px-3 py-7 text-center text-sm text-muted-foreground">
+                                            Loading products...
+                                          </div>
+                                        ) : null}
+
+                                        {form.branch &&
+                                          products
+                                            .filter((product) => {
+                                              const term = String(
+                                                item.query || "",
+                                              )
+                                                .trim()
+                                                .toLowerCase();
+
+                                              if (!term || item.product)
+                                                return true;
+
+                                              return [
+                                                product.product_name,
+                                                product.variant_name,
+                                                product.sku,
+                                                product.barcode,
+                                              ].some((value) =>
+                                                String(value || "")
+                                                  .toLowerCase()
+                                                  .includes(term),
+                                              );
+                                            })
+                                            .map((product) => {
+                                              const optionValue = `${
+                                                product.product_id || product.id
+                                              }:${product.variant_id || ""}`;
+
+                                              const isSelected =
+                                                optionValue ===
+                                                `${item.product}:${item.variant || ""}`;
+
+                                              return (
+                                                <button
+                                                  key={optionValue}
+                                                  type="button"
+                                                  onMouseDown={(event) =>
+                                                    event.preventDefault()
+                                                  }
+                                                  onClick={() => {
+                                                    selectProduct(
+                                                      index,
+                                                      optionValue,
+                                                    );
+                                                    setOpenProductIndex(null);
+                                                  }}
+                                                  className={`flex w-full items-center justify-between gap-4 rounded-lg px-3 py-3 text-left transition ${
+                                                    isSelected
+                                                      ? "bg-blue-50 ring-1 ring-blue-200 dark:bg-blue-500/10 dark:ring-blue-500/30"
+                                                      : "hover:bg-muted/60"
+                                                  }`}
+                                                >
+                                                  <div className="min-w-0">
+                                                    <p className="truncate text-sm font-semibold">
+                                                      {product.product_name}
+                                                      {product.variant_name
+                                                        ? ` — ${product.variant_name}`
+                                                        : ""}
+                                                    </p>
+                                                    <p className="mt-1 truncate text-xs text-muted-foreground">
+                                                      {[
+                                                        product.sku || "No SKU",
+                                                        product.barcode,
+                                                        `${number(
+                                                          product.available_stock,
+                                                        )} available`,
+                                                      ]
+                                                        .filter(Boolean)
+                                                        .join(" · ")}
+                                                    </p>
+                                                  </div>
+
+                                                  <div className="shrink-0 text-right">
+                                                    <p className="font-bold text-blue-600 dark:text-blue-300">
+                                                      AED{" "}
+                                                      {getProductPrice(
+                                                        product,
+                                                      ).toFixed(2)}
+                                                    </p>
+                                                  </div>
+                                                </button>
+                                              );
+                                            })}
+
+                                        {form.branch &&
+                                          optionsResponse &&
+                                          products.filter((product) => {
+                                            const term = String(
+                                              item.query || "",
+                                            )
+                                              .trim()
+                                              .toLowerCase();
+
+                                            if (!term || item.product)
+                                              return true;
+
+                                            return [
+                                              product.product_name,
+                                              product.variant_name,
+                                              product.sku,
+                                              product.barcode,
+                                            ].some((value) =>
+                                              String(value || "")
+                                                .toLowerCase()
+                                                .includes(term),
+                                            );
+                                          }).length === 0 && (
+                                            <div className="px-3 py-7 text-center text-sm text-muted-foreground">
+                                              No POS products were returned for
+                                              this branch.
+                                            </div>
+                                          )}
+                                      </div>,
+                                      document.body,
+                                    )}
+                                </div>
+
+                                {item.product && (
+                                  <div
+                                    className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-xs ${
+                                      item.has_enough_stock
+                                        ? "border-emerald-200 bg-emerald-50/60 dark:border-emerald-500/20 dark:bg-emerald-500/10"
+                                        : "border-red-200 bg-red-50/60 dark:border-red-500/20 dark:bg-red-500/10"
+                                    }`}
+                                  >
+                                    <span
+                                      className={
+                                        item.has_enough_stock
+                                          ? "font-medium text-emerald-700 dark:text-emerald-300"
+                                          : "font-medium text-red-600 dark:text-red-300"
+                                      }
+                                    >
+                                      {item.available_stock <= 0
+                                        ? "Out of stock in selected branch"
+                                        : item.has_enough_stock
+                                          ? `${item.available_stock} available in selected branch`
+                                          : `Only ${item.available_stock} available`}
+                                    </span>
+
+                                    <span className="font-semibold text-blue-600 dark:text-blue-300">
+                                      AED {number(item.unit_price).toFixed(2)}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+
+                              <Input
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                value={item.quantity}
+                                onChange={(event) =>
+                                  updateItem(index, {
+                                    quantity: event.target.value,
+                                  })
+                                }
+                                className="h-11 text-right font-medium"
+                              />
+
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={item.unit_price}
+                                onChange={(event) =>
+                                  updateItem(index, {
+                                    unit_price: event.target.value,
+                                  })
+                                }
+                                className="h-11 text-right"
+                              />
+
+                              <div className="flex h-11 items-center justify-end text-right font-semibold">
+                                <CurrencyText value={item.line_total} />
+                              </div>
+
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="h-11 w-11 hover:bg-red-50 dark:hover:bg-red-500/10"
+                                onClick={() =>
+                                  setForm((current) => ({
+                                    ...current,
+                                    items:
+                                      current.items.length > 1
+                                        ? current.items.filter(
+                                            (_, itemIndex) =>
+                                              itemIndex !== index,
+                                          )
+                                        : [emptyItem()],
+                                  }))
+                                }
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {errors.items && (
+                        <div className="border-t bg-red-50/70 px-4 py-3 text-xs font-medium text-red-600 dark:bg-red-500/10 dark:text-red-300">
+                          {errors.items}
+                        </div>
+                      )}
+                    </section>
+
+                    <section className="rounded-2xl border bg-card p-4 shadow-sm">
+                      <Label>Notes (Optional)</Label>
+                      <Textarea
+                        rows={3}
+                        value={form.notes}
                         onChange={(event) =>
-                          updateForm("vat_reason", event.target.value)
+                          updateForm("notes", event.target.value)
                         }
-                        placeholder="VAT reason / legal reference"
-                        className="h-8"
+                        placeholder="Add a note for this sale"
+                        className="mt-2 resize-none"
                       />
-                    )}
+                    </section>
+                  </div>
 
-                    <div className="flex justify-between font-medium">
-                      <span className="text-muted-foreground">
-                        VAT ({commonVatRate}%)
-                      </span>
-                      <CurrencyText value={vatAmount} />
+                  <aside className="min-w-0">
+                    <div className="space-y-4 lg:sticky lg:top-0">
+                      <section className="rounded-2xl border bg-card p-4 shadow-sm">
+                        <div className="mb-4 flex items-center gap-2">
+                          <CreditCard className="h-4 w-4 text-blue-600" />
+                          <h3 className="font-semibold">Payment</h3>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            ["CASH", "Cash", Banknote],
+                            ["CARD", "Card", CreditCard],
+                            ["SPLIT", "Split", ReceiptText],
+                          ].map(([value, label, Icon]) => (
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() =>
+                                updateForm("payment_method", value)
+                              }
+                              className={`flex min-h-[70px] flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-3 text-sm font-medium transition ${
+                                form.payment_method === value
+                                  ? "border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:ring-blue-500/20"
+                                  : "hover:border-blue-300 hover:bg-muted/40"
+                              }`}
+                            >
+                              <Icon className="h-4 w-4" />
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+
+                        {form.payment_method === "SPLIT" && (
+                          <div className="mt-4 grid gap-3">
+                            <div>
+                              <Label>Cash Amount</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={form.cash_amount}
+                                onChange={(event) =>
+                                  updateForm("cash_amount", event.target.value)
+                                }
+                                className="mt-2 h-10"
+                              />
+                            </div>
+
+                            <div>
+                              <Label>Card Amount</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={form.card_amount}
+                                onChange={(event) =>
+                                  updateForm("card_amount", event.target.value)
+                                }
+                                className="mt-2 h-10"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {errors.payment_method && (
+                          <p className="mt-2 text-xs text-red-500">
+                            {errors.payment_method}
+                          </p>
+                        )}
+                      </section>
+
+                      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+                        <div className="border-b bg-muted/20 px-4 py-3">
+                          <h3 className="font-semibold">Sale Summary</h3>
+                        </div>
+
+                        <div className="space-y-4 p-4">
+                          <div>
+                            <Label>Discount (AED)</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={form.discount_amount}
+                              onChange={(event) =>
+                                updateForm(
+                                  "discount_amount",
+                                  event.target.value,
+                                )
+                              }
+                              className="mt-2 h-10"
+                            />
+                          </div>
+
+                          <div>
+                            <Label>VAT Treatment</Label>
+                            <Select
+                              value={form.vat_treatment}
+                              onValueChange={(value) =>
+                                setForm((current) => ({
+                                  ...current,
+                                  vat_treatment: value,
+                                  vat_percentage:
+                                    value === "STANDARD_VAT" ? 5 : 0,
+                                  vat_reason:
+                                    value === "STANDARD_VAT"
+                                      ? ""
+                                      : current.vat_reason,
+                                }))
+                              }
+                            >
+                              <SelectTrigger className="mt-2 h-10">
+                                <SelectValue />
+                              </SelectTrigger>
+
+                              <SelectContent>
+                                <SelectItem value="STANDARD_VAT">
+                                  Standard VAT (5%)
+                                </SelectItem>
+                                <SelectItem value="ZERO_RATED">
+                                  Zero Rated (0%)
+                                </SelectItem>
+                                <SelectItem value="EXEMPT">
+                                  Exempt (0%)
+                                </SelectItem>
+                                <SelectItem value="OUT_OF_SCOPE">
+                                  Out of Scope (0%)
+                                </SelectItem>
+                                <SelectItem value="REVERSE_CHARGE">
+                                  Reverse Charge
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {form.vat_treatment !== "STANDARD_VAT" && (
+                            <div>
+                              <Label>VAT Reason / Reference</Label>
+                              <Input
+                                value={form.vat_reason}
+                                onChange={(event) =>
+                                  updateForm("vat_reason", event.target.value)
+                                }
+                                placeholder="Optional reference"
+                                className="mt-2 h-10"
+                              />
+                            </div>
+                          )}
+
+                          <div className="space-y-3 border-t pt-4 text-sm">
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">
+                                Subtotal
+                              </span>
+                              <CurrencyText value={subtotal} />
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">
+                                Discount
+                              </span>
+                              <span>
+                                − <CurrencyText value={form.discount_amount} />
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">
+                                VAT ({commonVatRate}%)
+                              </span>
+                              <CurrencyText value={vatAmount} />
+                            </div>
+                          </div>
+
+                          <div className="rounded-xl bg-blue-600 p-4 text-white shadow-sm">
+                            <p className="text-xs font-medium uppercase tracking-wider text-blue-100">
+                              Total Payable
+                            </p>
+                            <div className="mt-1 text-2xl font-bold">
+                              <CurrencyText value={total} />
+                            </div>
+                            <p className="mt-1 text-xs text-blue-100">
+                              {calculatedItems.filter((item) => item.product)
+                                .length || 0}{" "}
+                              item line(s)
+                            </p>
+                          </div>
+                        </div>
+                      </section>
                     </div>
-                  </div>
-
-                  <div className="flex justify-between border-t pt-3 text-base font-semibold">
-                    <span>Total</span>
-                    <CurrencyText value={total} />
-                  </div>
+                  </aside>
                 </div>
               </div>
-            </div>
 
-            <div className="flex justify-end gap-2 border-t px-5 py-4">
-              <Button type="button" variant="outline" onClick={close}>
-                Cancel
-              </Button>
+              <div className="flex shrink-0 flex-col gap-3 border-t bg-background px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                <p className="text-xs text-muted-foreground">
+                  Stock is validated again before the sale is completed.
+                </p>
 
-              <Button
-                type="button"
-                onClick={submit}
-                disabled={saveMutation.isPending}
-                className="bg-blue-600 text-white hover:bg-blue-700"
-              >
-                <Save className="mr-2 h-4 w-4" />
-                Complete Sale
-              </Button>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={close}
+                    disabled={saveMutation.isPending}
+                  >
+                    Cancel
+                  </Button>
+
+                  <Button
+                    type="button"
+                    onClick={submit}
+                    disabled={saveMutation.isPending}
+                    className="min-w-36 bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    <Save className="mr-2 h-4 w-4" />
+                    {saveMutation.isPending ? "Completing..." : "Complete Sale"}
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
