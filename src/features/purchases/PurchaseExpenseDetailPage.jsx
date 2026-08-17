@@ -33,49 +33,99 @@ import {
   renderStatus,
 } from "./purchaseUi";
 
+const VAT_RATE = 5;
+
 const STATUS_OPTIONS = [
-  { value: "PENDING", label: "Pending" },
-  { value: "APPROVED", label: "Approved" },
-  { value: "PAID", label: "Paid" },
-  { value: "REJECTED", label: "Rejected" },
-  { value: "CANCELLED", label: "Cancelled" },
+  {
+    value: "PENDING",
+    label: "Pending",
+  },
+  {
+    value: "APPROVED",
+    label: "Approved",
+  },
+  {
+    value: "PAID",
+    label: "Paid",
+  },
+  {
+    value: "REJECTED",
+    label: "Rejected",
+  },
+  {
+    value: "CANCELLED",
+    label: "Cancelled",
+  },
 ];
 
 const STATUS_TRANSITIONS = {
   PENDING: ["APPROVED", "PAID", "REJECTED", "CANCELLED"],
+
   APPROVED: ["PAID", "REJECTED", "CANCELLED"],
+
   PAID: [],
+
   REJECTED: ["PENDING", "CANCELLED"],
+
   CANCELLED: ["PENDING"],
 };
 
+function number(value) {
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function fixedVat(amount) {
+  return Number(((number(amount) * VAT_RATE) / 100).toFixed(2));
+}
+
 export default function PurchaseExpenseDetailPage() {
   const { id } = useParams();
+
   const navigate = useNavigate();
+
   const queryClient = useQueryClient();
+
   const [selectedStatus, setSelectedStatus] = React.useState("");
+
   const [reason, setReason] = React.useState("");
 
   const query = useQuery({
     queryKey: ["PurchaseExpenseDetailPage", id],
+
     queryFn: async () =>
       normalizeApiResponse(
         await api.get(`/purchases/expenses/${id}/`, {
           skipGlobalErrorToast: true,
         }),
       ),
+
     enabled: Boolean(id),
+
     staleTime: 0,
     retry: false,
     refetchOnMount: "always",
   });
 
   const record = query.data;
+
   const currentStatus = record?.status || "PENDING";
 
+  const amount = number(record?.amount);
+
+  const taxAmount =
+    record?.tax_amount != null ? number(record.tax_amount) : fixedVat(amount);
+
+  const totalAmount = Number((amount + taxAmount).toFixed(2));
+
   React.useEffect(() => {
-    if (!record) return;
+    if (!record) {
+      return;
+    }
+
     setSelectedStatus(record.status || "PENDING");
+
     setReason(record.rejection_reason || "");
   }, [record]);
 
@@ -85,12 +135,17 @@ export default function PurchaseExpenseDetailPage() {
         `/purchases/expenses/${id}/update-status/`,
         {
           status: selectedStatus,
+
           reason: selectedStatus === "REJECTED" ? reason.trim() : "",
         },
-        { skipGlobalErrorToast: true },
+        {
+          skipGlobalErrorToast: true,
+        },
       );
+
       return normalizeApiResponse(response);
     },
+
     onSuccess: async (updated) => {
       toast.success(
         `Purchase expense status updated to ${
@@ -100,17 +155,25 @@ export default function PurchaseExpenseDetailPage() {
           selectedStatus
         }.`,
       );
+
       queryClient.setQueryData(["PurchaseExpenseDetailPage", id], updated);
+
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["purchase-expenses"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["purchase-expenses"],
+        }),
+
         queryClient.invalidateQueries({
           queryKey: ["purchase-expense-summary"],
         }),
       ]);
+
       setReason(updated?.rejection_reason || "");
     },
+
     onError: (error) => {
       const details = getApiErrorDetails?.(error);
+
       const message =
         details?.message ||
         error?.response?.data?.status ||
@@ -118,12 +181,14 @@ export default function PurchaseExpenseDetailPage() {
         error?.response?.data?.detail ||
         error?.response?.data?.message ||
         "Unable to update the purchase expense status.";
+
       toast.error(message);
     },
   });
 
   const availableStatuses = React.useMemo(() => {
     const next = STATUS_TRANSITIONS[currentStatus] || [];
+
     return STATUS_OPTIONS.filter(
       (item) => item.value === currentStatus || next.includes(item.value),
     );
@@ -153,11 +218,14 @@ export default function PurchaseExpenseDetailPage() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
+
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
           <div className="flex gap-3">
             <AlertCircle className="mt-0.5 h-5 w-5" />
+
             <div>
               <p className="font-semibold">Unable to load details</p>
+
               <p className="mt-1 text-sm">
                 {query.error?.response?.data?.detail ||
                   query.error?.response?.data?.message ||
@@ -174,7 +242,7 @@ export default function PurchaseExpenseDetailPage() {
     <div className="purchase-module-page purchase-workspace space-y-6">
       <PageHeader
         title={record.expense_number || `Expense ${id}`}
-        subtitle="Complete document information and related records."
+        subtitle="Purchase expense with fixed 5% VAT."
         actions={
           <div className="flex flex-wrap gap-2">
             <Button
@@ -184,14 +252,17 @@ export default function PurchaseExpenseDetailPage() {
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Button>
+
             <Button variant="outline" onClick={() => query.refetch()}>
               <RefreshCcw className="mr-2 h-4 w-4" />
               Refresh
             </Button>
+
             <Button variant="outline" onClick={() => window.print()}>
               <Printer className="mr-2 h-4 w-4" />
               Print
             </Button>
+
             <Button asChild>
               <Link to={`/purchases/purchase-expenses/${id}/edit`}>
                 <Edit3 className="mr-2 h-4 w-4" />
@@ -206,10 +277,12 @@ export default function PurchaseExpenseDetailPage() {
         <div className="grid gap-4 md:grid-cols-[minmax(220px,320px)_1fr_auto] md:items-end">
           <div className="space-y-2">
             <Label>Purchase Expense Status</Label>
+
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
               <SelectTrigger>
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
+
               <SelectContent>
                 {availableStatuses.map((status) => (
                   <SelectItem key={status.value} value={status.value}>
@@ -226,6 +299,7 @@ export default function PurchaseExpenseDetailPage() {
                 ? "Rejection Reason *"
                 : "Status Note"}
             </Label>
+
             <Textarea
               value={reason}
               onChange={(event) => setReason(event.target.value)}
@@ -244,6 +318,7 @@ export default function PurchaseExpenseDetailPage() {
             disabled={!canUpdate}
           >
             <Save className="mr-2 h-4 w-4" />
+
             {updateStatusMutation.isPending ? "Updating..." : "Update Status"}
           </Button>
         </div>
@@ -258,47 +333,61 @@ export default function PurchaseExpenseDetailPage() {
       <DetailSection title="Expense Information">
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <DetailField label="Expense Number" value={record.expense_number} />
+
           <DetailField
             label="Expense Date"
             value={renderDate(record.expense_date)}
           />
+
           <DetailField
             label="Category"
             value={record.category_display || record.category}
           />
+
           <DetailField label="Branch" value={record.branch_name} />
+
           <DetailField
             label="Vendor / Payee"
             value={record.vendor_name || record.supplier_name}
           />
-          <DetailField label="Purchase Order" value={record.po_number} />
+
           <DetailField
             label="Payment Method"
             value={record.payment_method_display || record.payment_method}
           />
+
           <DetailField label="Reference" value={record.reference_number} />
-          <DetailField label="Amount" value={renderMoney(record.amount)} />
-          <DetailField
-            label="Tax Amount"
-            value={renderMoney(record.tax_amount)}
-          />
+
+          <DetailField label="Expense Amount" value={renderMoney(amount)} />
+
+          <DetailField label="VAT Rate" value="5%" />
+
+          <DetailField label="VAT Amount" value={renderMoney(taxAmount)} />
+
+          <DetailField label="Total Amount" value={renderMoney(totalAmount)} />
+
           <DetailField
             label="Status"
             value={renderStatus(record.status || "PENDING")}
           />
+
           <DetailField label="Description" value={record.description} />
+
           <DetailField
             label="Approved By"
             value={record.approved_by_name || record.approved_by}
           />
+
           <DetailField
             label="Approved At"
             value={renderDate(record.approved_at)}
           />
+
           <DetailField
             label="Rejected By"
             value={record.rejected_by_name || record.rejected_by}
           />
+
           <DetailField
             label="Rejection Reason"
             value={record.rejection_reason}
@@ -309,13 +398,6 @@ export default function PurchaseExpenseDetailPage() {
       <DetailSection title="Attachments">
         <AttachmentList attachments={record.attachments || []} />
       </DetailSection>
-
-      <details className="rounded-2xl border bg-card p-4">
-        <summary className="cursor-pointer font-medium">Raw API data</summary>
-        <pre className="mt-4 max-h-[500px] overflow-auto rounded-xl bg-muted p-4 text-xs">
-          {JSON.stringify(record, null, 2)}
-        </pre>
-      </details>
     </div>
   );
 }

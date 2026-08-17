@@ -24,9 +24,7 @@ const addPermission = (target, value) => {
   if (typeof value === "string") {
     const code = normalizeCode(value);
 
-    if (code) {
-      target.add(code);
-    }
+    if (code) target.add(code);
 
     return;
   }
@@ -56,61 +54,40 @@ export const getUserPermissions = (user) => {
 
   const permissions = new Set();
 
-  [
-    user.permissions,
-    user.permission_codes,
-    user.all_permissions,
-    user.effective_permissions,
-    user.role?.permissions,
-    user.role_detail?.permissions,
-  ].forEach((collection) => {
-    if (Array.isArray(collection)) {
-      collection.forEach((value) => addPermission(permissions, value));
-    } else if (collection && typeof collection === "object") {
-      Object.entries(collection).forEach(([code, allowed]) => {
-        if (allowed === true) {
-          addPermission(permissions, code);
-        }
-      });
-    } else if (typeof collection === "string") {
-      const raw = collection.trim();
+  /*
+   * USER-LEVEL PERMISSIONS ONLY.
+   *
+   * Never read:
+   * user.role.permissions
+   * user.role_detail.permissions
+   */
+  [user.permissions, user.permission_codes, user.effective_permissions].forEach(
+    (collection) => {
+      if (Array.isArray(collection)) {
+        collection.forEach((value) => addPermission(permissions, value));
 
-      if (!raw) return;
-
-      try {
-        const parsed = JSON.parse(raw);
-
-        if (Array.isArray(parsed)) {
-          parsed.forEach((value) => addPermission(permissions, value));
-          return;
-        }
-
-        if (parsed && typeof parsed === "object") {
-          Object.entries(parsed).forEach(([code, allowed]) => {
-            if (allowed === true) {
-              addPermission(permissions, code);
-            }
-          });
-          return;
-        }
-      } catch {
-        raw
-          .split(",")
-          .map((value) => value.trim())
-          .filter(Boolean)
-          .forEach((value) => addPermission(permissions, value));
+        return;
       }
-    }
-  });
 
-  // Compatibility with older branch permission codes.
-  if (permissions.has("branches.branches.view_all")) {
-    permissions.add("branches.view_all");
-  }
+      if (collection && typeof collection === "object") {
+        Object.entries(collection).forEach(([code, allowed]) => {
+          if (allowed === true) {
+            addPermission(permissions, code);
+          }
+        });
 
-  if (permissions.has("branches.branch_access.view_all")) {
-    permissions.add("branches.view_all");
-  }
+        return;
+      }
+
+      if (typeof collection === "string") {
+        collection
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean)
+          .forEach((item) => addPermission(permissions, item));
+      }
+    },
+  );
 
   return permissions;
 };
@@ -137,9 +114,7 @@ const candidateCodes = (code) => {
 };
 
 export const hasPermission = (user, code) => {
-  if (!code) {
-    return true;
-  }
+  if (!code) return true;
 
   if (isAdmin(user)) {
     return true;
@@ -147,12 +122,8 @@ export const hasPermission = (user, code) => {
 
   const permissions = getUserPermissions(user);
 
-  if (permissions.has("*")) {
-    return true;
-  }
-
   for (const candidate of candidateCodes(code)) {
-    if (permissions.has(candidate)) {
+    if (permissions.has("*") || permissions.has(candidate)) {
       return true;
     }
 
@@ -211,21 +182,3 @@ export const canChangeActiveBranch = (user) =>
 
 export const canViewAllBranches = (user) =>
   isAdmin(user) || hasPermission(user, "branches.view_all");
-
-export const canView = (user, resource) =>
-  hasPermission(user, `${resource}.view`);
-
-export const canCreate = (user, resource) =>
-  hasPermission(user, `${resource}.create`);
-
-export const canEdit = (user, resource) =>
-  hasPermission(user, `${resource}.edit`);
-
-export const canDelete = (user, resource) =>
-  hasPermission(user, `${resource}.delete`);
-
-export const canApprove = (user, resource) =>
-  hasPermission(user, `${resource}.approve`);
-
-export const canExport = (user, resource) =>
-  hasPermission(user, `${resource}.export`);

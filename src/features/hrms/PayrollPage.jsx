@@ -719,10 +719,7 @@ export default function PayrollPage() {
               <div className="md:col-span-2">
                 <SearchInput
                   value={q}
-                  onChange={(value) => {
-                    setQ(value);
-                    setPage(1);
-                  }}
+                  onChange={setQ}
                   placeholder="Search employee, code, period or payer"
                 />
               </div>

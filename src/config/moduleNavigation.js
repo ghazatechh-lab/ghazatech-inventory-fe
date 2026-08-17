@@ -218,7 +218,7 @@ export const modules = [
       {
         id: "purchase-expenses",
         label: "Purchase Expenses",
-        to: "/purchases/expenses",
+        to: "/purchases/purchase-expenses",
         icon: WalletCards,
         permission: "purchase.expenses.view",
       },

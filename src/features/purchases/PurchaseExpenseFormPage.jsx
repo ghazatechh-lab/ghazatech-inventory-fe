@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Loader2, Paperclip, Save, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -15,6 +15,8 @@ import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { normalizeApiResponse } from "./purchaseUi";
 
 const ENDPOINT = "/purchases/expenses/";
+
+const VAT_RATE = 5;
 
 const DEFAULT_STATUS_OPTIONS = [
   { value: "PENDING", label: "Pending" },
@@ -35,6 +37,19 @@ const DEFAULT_PAYMENT_METHOD_OPTIONS = [
 
 function today() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function number(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function roundMoney(value) {
+  return Number(number(value).toFixed(2));
+}
+
+function calculateVat(amount) {
+  return roundMoney((number(amount) * VAT_RATE) / 100);
 }
 
 function normalizeList(value) {
@@ -64,7 +79,6 @@ function createInitialForm(branchId) {
     vendor_name: "",
     expense_date: today(),
     amount: "",
-    tax_amount: "0.00",
     payment_method: "",
     bank_account: "",
     cash_register: "",
@@ -101,6 +115,7 @@ function Section({ title, description, children }) {
 
 function extractErrors(error) {
   const details = getApiErrorDetails?.(error);
+
   const body = normalizeApiResponse(error?.response?.data);
 
   if (details?.message) {
@@ -148,11 +163,13 @@ export default function PurchaseExpenseFormPage() {
 
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
   const { branchId } = useActiveBranchFilter();
 
   const [form, setForm] = React.useState(() => createInitialForm(branchId));
 
   const [errors, setErrors] = React.useState({});
+
   const [existingAttachments, setExistingAttachments] = React.useState([]);
 
   const optionsQuery = useQuery({
@@ -243,8 +260,6 @@ export default function PurchaseExpenseFormPage() {
 
       amount: existing.amount ?? "",
 
-      tax_amount: existing.tax_amount ?? "0.00",
-
       payment_method: existing.payment_method || "",
 
       bank_account: existing.bank_account
@@ -269,11 +284,13 @@ export default function PurchaseExpenseFormPage() {
     );
   }, [existingQuery.data, isEdit]);
 
-  const amount = Number(form.amount || 0);
+  const amount = roundMoney(form.amount);
 
-  const taxAmount = Number(form.tax_amount || 0);
+  // Fixed UAE VAT for Purchase Expense.
+  // User cannot manually change this value.
+  const taxAmount = calculateVat(amount);
 
-  const grandTotal = amount + taxAmount;
+  const grandTotal = roundMoney(amount + taxAmount);
 
   function updateField(field, value) {
     setForm((current) => {
@@ -341,12 +358,8 @@ export default function PurchaseExpenseFormPage() {
       nextErrors.expense_date = "Expense date is required.";
     }
 
-    if (!form.amount || Number(form.amount) <= 0) {
+    if (!form.amount || number(form.amount) <= 0) {
       nextErrors.amount = "Amount must be greater than zero.";
-    }
-
-    if (Number(form.tax_amount || 0) < 0) {
-      nextErrors.tax_amount = "Tax amount cannot be negative.";
     }
 
     if (!form.payment_method) {
@@ -375,19 +388,36 @@ export default function PurchaseExpenseFormPage() {
         throw new Error("Please correct the highlighted fields.");
       }
 
+      const expenseAmount = roundMoney(form.amount);
+
+      const fixedVatAmount = calculateVat(expenseAmount);
+
       const payload = {
         branch: Number(form.branch),
+
         category: form.category,
+
         description: form.description.trim(),
+
         vendor_name: form.vendor_name.trim(),
+
         expense_date: form.expense_date,
-        amount: Number(Number(form.amount).toFixed(2)),
-        tax_amount: Number(Number(form.tax_amount || 0).toFixed(2)),
+
+        amount: expenseAmount,
+
+        // Always fixed 5%.
+        tax_amount: fixedVatAmount,
+
         payment_method: form.payment_method,
+
         bank_account: form.bank_account ? Number(form.bank_account) : null,
+
         cash_register: form.cash_register ? Number(form.cash_register) : null,
+
         reference_number: form.reference_number.trim(),
+
         status: form.status || "PENDING",
+
         notes: form.notes.trim(),
       };
 
@@ -502,7 +532,7 @@ export default function PurchaseExpenseFormPage() {
     <div className="purchase-module-page purchase-workspace space-y-6 pb-10">
       <PageHeader
         title={isEdit ? "Edit Purchase Expense" : "New Purchase Expense"}
-        subtitle="Record purchase-related expenses and payment information."
+        subtitle="Record purchase-related expenses with fixed 5% VAT."
         actions={
           <div className="flex gap-2">
             <Button
@@ -563,9 +593,9 @@ export default function PurchaseExpenseFormPage() {
             <Label>Branch *</Label>
 
             <select
-              className="mt-2 h-10 w-full rounded-md border bg-muted px-3 text-sm"
+              className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"
               value={form.branch}
-              disabled
+              onChange={(event) => updateField("branch", event.target.value)}
             >
               <option value="">Select branch</option>
 
@@ -672,45 +702,27 @@ export default function PurchaseExpenseFormPage() {
           </div>
 
           <div>
-            <Label>Tax Amount</Label>
+            <Label>VAT (Fixed 5%)</Label>
 
             <Input
-              className="mt-2"
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.tax_amount}
-              onChange={(event) =>
-                updateField("tax_amount", event.target.value)
-              }
+              className="mt-2 bg-muted/40 font-medium"
+              value={taxAmount.toFixed(2)}
+              disabled
+              readOnly
             />
 
-            <FieldError message={errors.tax_amount} />
-          </div>
-
-          <div>
-            <Label>Status</Label>
-
-            <select
-              className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"
-              value={form.status}
-              onChange={(event) => updateField("status", event.target.value)}
-            >
-              {statusOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Automatically calculated at 5% of the expense amount.
+            </p>
           </div>
         </div>
       </Section>
 
       <Section
         title="Payment Information"
-        description="Select the payment method and related financial account."
+        description="Select how the purchase expense was paid."
       >
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
           <div>
             <Label>Payment Method *</Label>
 
@@ -731,6 +743,22 @@ export default function PurchaseExpenseFormPage() {
             </select>
 
             <FieldError message={errors.payment_method} />
+          </div>
+
+          <div>
+            <Label>Status</Label>
+
+            <select
+              className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"
+              value={form.status}
+              onChange={(event) => updateField("status", event.target.value)}
+            >
+              {statusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -802,7 +830,7 @@ export default function PurchaseExpenseFormPage() {
             </div>
 
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Tax Amount</span>
+              <span className="text-muted-foreground">VAT (5%)</span>
 
               <CurrencyText value={taxAmount} />
             </div>
@@ -820,89 +848,62 @@ export default function PurchaseExpenseFormPage() {
         title="Attachments"
         description="Attach receipts, invoices, or supporting documents."
       >
-        <div className="space-y-4">
-          <Label
-            htmlFor="expense-attachments"
-            className="inline-flex cursor-pointer items-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
-          >
-            <Paperclip className="mr-2 h-4 w-4" />
-            Add Files
-          </Label>
-
-          <Input
-            id="expense-attachments"
+        <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed p-6 text-sm text-muted-foreground transition hover:bg-muted/30">
+          <Paperclip className="h-4 w-4" />
+          Add attachments
+          <input
             type="file"
             multiple
             className="hidden"
             onChange={handleFiles}
           />
+        </label>
 
-          {existingAttachments.length ? (
-            <div>
-              <p className="mb-2 text-sm font-medium">Existing Attachments</p>
+        {existingAttachments.length ? (
+          <div className="mt-4 space-y-2">
+            <p className="text-xs font-semibold uppercase text-muted-foreground">
+              Existing attachments
+            </p>
 
-              <div className="space-y-2">
-                {existingAttachments.map((attachment) => (
-                  <div
-                    key={attachment.id}
-                    className="rounded-lg border px-3 py-2 text-sm"
-                  >
-                    {attachment.original_name ||
-                      attachment.file_name ||
-                      `Attachment ${attachment.id}`}
-                  </div>
-                ))}
+            {existingAttachments.map((attachment) => (
+              <div
+                key={attachment.id || attachment.file_url}
+                className="rounded-lg border px-3 py-2 text-sm"
+              >
+                {attachment.original_name ||
+                  attachment.file_name ||
+                  "Attachment"}
               </div>
-            </div>
-          ) : null}
+            ))}
+          </div>
+        ) : null}
 
-          {form.attachments.length ? (
-            <div>
-              <p className="mb-2 text-sm font-medium">New Attachments</p>
+        {form.attachments.length ? (
+          <div className="mt-4 space-y-2">
+            <p className="text-xs font-semibold uppercase text-muted-foreground">
+              New attachments
+            </p>
 
-              <div className="space-y-2">
-                {form.attachments.map((file, index) => (
-                  <div
-                    key={`${file.name}-${index}`}
-                    className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm"
-                  >
-                    <span>{file.name}</span>
+            {form.attachments.map((file, index) => (
+              <div
+                key={`${file.name}-${index}`}
+                className="flex items-center justify-between rounded-lg border px-3 py-2"
+              >
+                <span className="truncate text-sm">{file.name}</span>
 
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeNewAttachment(index)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-600" />
-                    </Button>
-                  </div>
-                ))}
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => removeNewAttachment(index)}
+                >
+                  <Trash2 className="h-4 w-4 text-red-500" />
+                </Button>
               </div>
-            </div>
-          ) : null}
-        </div>
+            ))}
+          </div>
+        ) : null}
       </Section>
-
-      <div className="flex justify-end gap-3">
-        <Button type="button" variant="outline" asChild>
-          <Link to="/purchases/purchase-expenses">Cancel</Link>
-        </Button>
-
-        <Button
-          type="button"
-          disabled={saveMutation.isPending}
-          onClick={() => saveMutation.mutate()}
-        >
-          {saveMutation.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Save className="mr-2 h-4 w-4" />
-          )}
-
-          {isEdit ? "Update Purchase Expense" : "Create Purchase Expense"}
-        </Button>
-      </div>
     </div>
   );
 }

@@ -19,22 +19,60 @@ import {
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
 
+const VAT_RATE = 5;
+
 const DEFAULT_EXPENSE_CATEGORIES = [
-  { value: "RENT_UTILITIES", label: "Rent & Utilities" },
-  { value: "OFFICE", label: "Office" },
-  { value: "TRANSPORT", label: "Transport" },
-  { value: "MAINTENANCE", label: "Maintenance" },
-  { value: "MARKETING", label: "Marketing" },
-  { value: "PROFESSIONAL_FEES", label: "Professional Fees" },
-  { value: "TRAVEL", label: "Travel" },
-  { value: "MISCELLANEOUS", label: "Miscellaneous" },
+  {
+    value: "RENT_UTILITIES",
+    label: "Rent & Utilities",
+  },
+  {
+    value: "OFFICE",
+    label: "Office",
+  },
+  {
+    value: "TRANSPORT",
+    label: "Transport",
+  },
+  {
+    value: "MAINTENANCE",
+    label: "Maintenance",
+  },
+  {
+    value: "MARKETING",
+    label: "Marketing",
+  },
+  {
+    value: "PROFESSIONAL_FEES",
+    label: "Professional Fees",
+  },
+  {
+    value: "TRAVEL",
+    label: "Travel",
+  },
+  {
+    value: "MISCELLANEOUS",
+    label: "Miscellaneous",
+  },
 ];
 
 const toList = (value) => {
-  if (Array.isArray(value)) return value;
-  if (Array.isArray(value?.results)) return value.results;
-  if (Array.isArray(value?.data)) return value.data;
-  if (Array.isArray(value?.data?.results)) return value.data.results;
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (Array.isArray(value?.results)) {
+    return value.results;
+  }
+
+  if (Array.isArray(value?.data)) {
+    return value.data;
+  }
+
+  if (Array.isArray(value?.data?.results)) {
+    return value.data.results;
+  }
+
   return [];
 };
 
@@ -47,11 +85,25 @@ const normalizeCategories = (value) =>
     }))
     .filter((item) => item.value && item.label);
 
+const number = (value) => {
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const vatAmount = (amount) =>
+  Number(((number(amount) * VAT_RATE) / 100).toFixed(2));
+
+const totalWithVat = (amount) =>
+  Number((number(amount) + vatAmount(amount)).toFixed(2));
+
 function Metric({ label, value, subtitle }) {
   return (
     <div className="card-surface p-5">
       <p className="text-xs text-muted-foreground">{label}</p>
+
       <div className="mt-1 text-2xl font-semibold">{value}</div>
+
       <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
     </div>
   );
@@ -59,8 +111,11 @@ function Metric({ label, value, subtitle }) {
 
 export default function PurchaseExpensesPage() {
   const navigate = useNavigate();
+
   const { branchParams } = useActiveBranchFilter();
+
   const [statusFilter, setStatusFilter] = React.useState("ALL");
+
   const [categoryFilter, setCategoryFilter] = React.useState("ALL");
 
   const { query, q, setQ, page, setPage } = useListQuery(
@@ -68,13 +123,16 @@ export default function PurchaseExpensesPage() {
     "/purchases/expenses/",
     {
       ...branchParams,
+
       status: statusFilter === "ALL" ? undefined : statusFilter,
+
       category: categoryFilter === "ALL" ? undefined : categoryFilter,
     },
   );
 
   const { data: summary = {} } = useQuery({
     queryKey: ["purchase-expense-summary", branchParams],
+
     queryFn: async () =>
       unwrap(
         await api.get("/purchases/expenses/summary/", {
@@ -85,8 +143,10 @@ export default function PurchaseExpensesPage() {
 
   const { data: categoryResponse } = useQuery({
     queryKey: ["purchase-expense-categories"],
+
     queryFn: async () =>
       unwrap(await api.get("/purchases/expenses/categories/")),
+
     staleTime: 5 * 60 * 1000,
   });
 
@@ -95,11 +155,16 @@ export default function PurchaseExpensesPage() {
       ...normalizeCategories(categoryResponse),
       ...DEFAULT_EXPENSE_CATEGORIES,
     ];
+
     const seen = new Set();
 
     return merged.filter((category) => {
-      if (seen.has(category.value)) return false;
+      if (seen.has(category.value)) {
+        return false;
+      }
+
       seen.add(category.value);
+
       return true;
     });
   }, [categoryResponse]);
@@ -115,6 +180,7 @@ export default function PurchaseExpensesPage() {
         header: "Expense",
         sortKey: "expense_number",
         sortType: "text",
+
         cell: (row) => (
           <Link
             to={`/purchases/purchase-expenses/${row.id}`}
@@ -123,70 +189,109 @@ export default function PurchaseExpensesPage() {
             <div className="font-medium text-blue-600 hover:underline dark:text-blue-400">
               {row.expense_number || `Expense ${row.id}`}
             </div>
+
             <div className="max-w-[260px] truncate text-xs text-muted-foreground">
               {row.description || "No description"}
             </div>
           </Link>
         ),
       },
+
       {
         key: "category_display",
         header: "Category",
         sortKey: "category",
         sortType: "text",
+
         cell: (row) => row.category_display || row.category || "—",
       },
+
       {
         key: "branch_name",
         header: "Branch",
         sortKey: "branch__branch_name",
         sortType: "text",
+
         cell: (row) =>
           row.branch_name || row.branch?.branch_name || row.branch?.name || "—",
       },
+
       {
         key: "expense_date",
         header: "Date",
         sortKey: "expense_date",
         sortType: "date",
+
         cell: (row) =>
           row.expense_date ? <DateText value={row.expense_date} /> : "—",
       },
+
       {
         key: "vendor_name",
         header: "Vendor / Paid To",
         sortKey: "vendor_name",
         sortType: "text",
+
         cell: (row) => row.vendor_name || row.supplier_name || "—",
       },
+
       {
         key: "payment_method_display",
         header: "Payment Method",
         sortKey: "payment_method",
         sortType: "text",
+
         cell: (row) => row.payment_method_display || row.payment_method || "—",
       },
+
       {
         key: "amount",
         header: "Amount",
         sortKey: "amount",
         sortType: "currency",
         align: "right",
+
+        cell: (row) => <CurrencyText value={row.amount || 0} />,
+      },
+
+      {
+        key: "tax_amount",
+        header: "VAT (5%)",
+        align: "right",
+
         cell: (row) => (
-          <CurrencyText value={row.amount || row.total_amount || 0} />
+          <CurrencyText value={row.tax_amount ?? vatAmount(row.amount)} />
         ),
       },
+
+      {
+        key: "total_amount",
+        header: "Total",
+        align: "right",
+
+        cell: (row) => (
+          <strong>
+            <CurrencyText
+              value={row.total_amount ?? totalWithVat(row.amount)}
+            />
+          </strong>
+        ),
+      },
+
       {
         key: "status",
         header: "Status",
         sortKey: "status",
         sortType: "status",
+
         cell: (row) => <StatusBadge status={row.status || "PENDING"} />,
       },
+
       {
         key: "actions",
         header: "Actions",
         align: "right",
+
         cell: (row) => (
           <ListingRowActions
             viewTo={`/purchases/purchase-expenses/${row.id}`}
@@ -201,17 +306,22 @@ export default function PurchaseExpensesPage() {
     [],
   );
 
-  const payload = query.data || { results: [], count: 0 };
+  const payload = query.data || {
+    results: [],
+    count: 0,
+  };
+
   const rows = Array.isArray(payload)
     ? payload
     : payload.results || payload.data?.results || payload.data || [];
+
   const total = Number(payload.count ?? payload.data?.count ?? rows.length);
 
   return (
     <div className="purchase-module-page purchase-workspace space-y-5">
       <PageHeader
         title="Purchase Expenses"
-        subtitle="Non-stock operating costs across branches"
+        subtitle="Non-stock operating costs with fixed 5% VAT"
         actions={
           <Button
             onClick={() => navigate("/purchases/purchase-expenses/new")}
@@ -225,9 +335,10 @@ export default function PurchaseExpensesPage() {
 
       <div className="flex gap-2 rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
         <Info className="h-4 w-4 shrink-0" />
+
         <span>
-          Track rent, utilities, transport, maintenance, office, and
-          miscellaneous expenses.
+          Purchase expenses automatically apply fixed 5% VAT to the entered
+          expense amount.
         </span>
       </div>
 
@@ -237,16 +348,19 @@ export default function PurchaseExpensesPage() {
           value={<CurrencyText value={summary.this_month_total || 0} />}
           subtitle={`${summary.this_month_count || 0} expense(s)`}
         />
+
         <Metric
           label="Pending Approval"
           value={<CurrencyText value={summary.pending_total || 0} />}
           subtitle={`${summary.pending_count || 0} awaiting review`}
         />
+
         <Metric
           label="Paid This Month"
           value={<CurrencyText value={summary.paid_this_month || 0} />}
           subtitle={`${summary.paid_count || 0} settled`}
         />
+
         <Metric
           label="Top Category"
           value={summary.top_category || "—"}
@@ -286,8 +400,10 @@ export default function PurchaseExpensesPage() {
           <SelectTrigger>
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
+
           <SelectContent>
             <SelectItem value="ALL">All Categories</SelectItem>
+
             {categories.map((category) => (
               <SelectItem key={category.value} value={category.value}>
                 {category.label}
