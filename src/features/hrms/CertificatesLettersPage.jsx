@@ -26,10 +26,23 @@ import { generateEmployeeLetterPdf } from "./employeeLetterPdf";
 
 const asRows = (value) => {
   const payload = value?.data ?? value;
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.results)) return payload.results;
-  if (Array.isArray(payload?.data)) return payload.data;
-  if (Array.isArray(payload?.data?.results)) return payload.data.results;
+
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (Array.isArray(payload?.results)) {
+    return payload.results;
+  }
+
+  if (Array.isArray(payload?.data)) {
+    return payload.data;
+  }
+
+  if (Array.isArray(payload?.data?.results)) {
+    return payload.data.results;
+  }
+
   return [];
 };
 
@@ -75,20 +88,28 @@ const experienceEmpty = {
 
 export default function CertificatesLettersPage() {
   const queryClient = useQueryClient();
+
   const { branchParams } = useActiveBranchFilter();
+
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [tab, setTab] = React.useState("ALL");
+
   const [search, setSearch] = React.useState("");
+
   const [modalType, setModalType] = React.useState("");
+
   const [preview, setPreview] = React.useState(null);
 
   const [salaryForm, setSalaryForm] = React.useState(salaryEmpty);
+
   const [warningForm, setWarningForm] = React.useState(warningEmpty);
+
   const [experienceForm, setExperienceForm] = React.useState(experienceEmpty);
 
   const certificatesQ = useQuery({
     queryKey: ["salary-certificates", branchParams, search],
+
     queryFn: () =>
       api.get("/hrms/salary-certificates/", {
         params: {
@@ -97,11 +118,13 @@ export default function CertificatesLettersPage() {
           page_size: 1000,
         },
       }),
+
     staleTime: 0,
   });
 
   const lettersQ = useQuery({
     queryKey: ["employee-letters", branchParams, search],
+
     queryFn: () =>
       api.get("/hrms/employee-letters/", {
         params: {
@@ -110,11 +133,13 @@ export default function CertificatesLettersPage() {
           page_size: 1000,
         },
       }),
+
     staleTime: 0,
   });
 
   const employeesQ = useQuery({
     queryKey: ["certificate-letter-employees", branchParams],
+
     queryFn: () =>
       api.get("/hrms/employees/", {
         params: {
@@ -126,25 +151,33 @@ export default function CertificatesLettersPage() {
   });
 
   const certificates = asRows(certificatesQ.data);
+
   const letters = asRows(lettersQ.data);
+
   const employees = asRows(employeesQ.data);
 
   const allRows = React.useMemo(() => {
     const salaryRows = certificates.map((item) => ({
       ...item,
+
       document_type: "SALARY",
+
       document_type_label: "Salary Certificate",
+
       document_date: item.certificate_date,
     }));
 
     const letterRows = letters.map((item) => ({
       ...item,
+
       document_type: item.letter_type,
+
       document_type_label:
         item.letter_type_display ||
         (item.letter_type === "WARNING"
           ? "Warning Letter"
           : "Experience Letter"),
+
       document_date: item.letter_date,
     }));
 
@@ -186,6 +219,7 @@ export default function CertificatesLettersPage() {
         ...current,
         employee: employeeId,
       }));
+
       return;
     }
 
@@ -198,10 +232,15 @@ export default function CertificatesLettersPage() {
 
       setSalaryForm((current) => ({
         ...current,
+
         employee: String(employee.id),
+
         identity_number: detail.identity_number || "",
+
         basic_salary: String(detail.basic_salary || 0),
+
         housing_allowance: String(detail.housing_allowance || 0),
+
         transport_other_allowance: String(
           detail.transport_other_allowance ?? detail.allowances ?? 0,
         ),
@@ -209,11 +248,16 @@ export default function CertificatesLettersPage() {
     } catch {
       setSalaryForm((current) => ({
         ...current,
+
         employee: String(employee.id),
+
         identity_number:
           employee.passport_number || employee.emirates_id_number || "",
+
         basic_salary: String(employee.basic_salary || 0),
+
         housing_allowance: "0",
+
         transport_other_allowance: String(employee.allowances || 0),
       }));
     }
@@ -221,39 +265,55 @@ export default function CertificatesLettersPage() {
 
   React.useEffect(() => {
     const employeeId = searchParams.get("employee");
+
     const requestedType = String(
       searchParams.get("type") || "SALARY",
     ).toUpperCase();
 
-    if (!employeeId || !employees.length) return;
+    if (!employeeId || !employees.length) {
+      return;
+    }
 
     const employee = employees.find(
       (item) => String(item.id) === String(employeeId),
     );
 
-    if (!employee) return;
+    if (!employee) {
+      return;
+    }
 
     if (requestedType === "WARNING") {
       setWarningForm((current) => ({
         ...current,
+
         employee: String(employee.id),
       }));
+
       setModalType("WARNING");
     } else if (requestedType === "EXPERIENCE") {
       setExperienceForm((current) => ({
         ...current,
+
         employee: String(employee.id),
       }));
+
       setModalType("EXPERIENCE");
     } else {
       handleSalaryEmployee(employeeId);
+
       setModalType("SALARY");
     }
 
     const next = new URLSearchParams(searchParams);
+
     next.delete("employee");
+
     next.delete("type");
-    setSearchParams(next, { replace: true });
+
+    setSearchParams(next, {
+      replace: true,
+    });
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employees.length]);
 
@@ -262,39 +322,53 @@ export default function CertificatesLettersPage() {
       if (!salaryForm.employee) {
         throw new Error("Select an employee.");
       }
-      if (!salaryForm.authorized_signatory.trim()) {
-        throw new Error("Authorized signatory is required.");
-      }
-      if (!salaryForm.signatory_designation.trim()) {
-        throw new Error("Signatory designation is required.");
-      }
 
+      /*
+       * Authorized Signatory and Signatory Designation
+       * are OPTIONAL for Salary Certificate.
+       */
       return api.post(
         "/hrms/salary-certificates/",
         {
           ...salaryForm,
+
           employee: Number(salaryForm.employee),
+
           basic_salary: Number(salaryForm.basic_salary || 0),
+
           housing_allowance: Number(salaryForm.housing_allowance || 0),
+
           transport_other_allowance: Number(
             salaryForm.transport_other_allowance || 0,
           ),
+
+          authorized_signatory: salaryForm.authorized_signatory.trim(),
+
+          signatory_designation: salaryForm.signatory_designation.trim(),
         },
-        { skipGlobalErrorToast: true },
+        {
+          skipGlobalErrorToast: true,
+        },
       );
     },
+
     onSuccess: async (response) => {
       const saved = unwrap(response);
+
       await queryClient.invalidateQueries({
         queryKey: ["salary-certificates"],
       });
+
       toast.success(`Salary certificate ${saved.reference_number} issued.`);
+
       setModalType("");
+
       setPreview({
         ...saved,
         document_type: "SALARY",
       });
     },
+
     onError: showError("Unable to issue salary certificate"),
   });
 
@@ -306,22 +380,32 @@ export default function CertificatesLettersPage() {
           ...form,
           employee: Number(form.employee),
         },
-        { skipGlobalErrorToast: true },
+        {
+          skipGlobalErrorToast: true,
+        },
       ),
+
     onSuccess: async (response) => {
       const saved = unwrap(response);
+
       await queryClient.invalidateQueries({
         queryKey: ["employee-letters"],
       });
+
       toast.success(
-        `${saved.letter_type_display || "Employee letter"} ${saved.reference_number} issued.`,
+        `${
+          saved.letter_type_display || "Employee letter"
+        } ${saved.reference_number} issued.`,
       );
+
       setModalType("");
+
       setPreview({
         ...saved,
         document_type: saved.letter_type,
       });
     },
+
     onError: showError("Unable to issue employee letter"),
   });
 
@@ -331,6 +415,7 @@ export default function CertificatesLettersPage() {
         const detail = unwrap(
           await api.get(`/hrms/salary-certificates/${row.id}/`),
         );
+
         setPreview({
           ...detail,
           document_type: "SALARY",
@@ -339,6 +424,7 @@ export default function CertificatesLettersPage() {
         const detail = unwrap(
           await api.get(`/hrms/employee-letters/${row.id}/`),
         );
+
         setPreview({
           ...detail,
           document_type: detail.letter_type,
@@ -346,6 +432,7 @@ export default function CertificatesLettersPage() {
       }
     } catch (error) {
       const details = getApiErrorDetails(error);
+
       toast.error(details.title || "Unable to open certificate / letter");
     }
   };
@@ -353,8 +440,10 @@ export default function CertificatesLettersPage() {
   const download = (item) => {
     if (item.document_type === "SALARY") {
       generateSalaryCertificatePdf(item);
+
       return;
     }
+
     generateEmployeeLetterPdf(item);
   };
 
@@ -369,6 +458,7 @@ export default function CertificatesLettersPage() {
               variant="outline"
               onClick={() => {
                 setWarningForm(warningEmpty);
+
                 setModalType("WARNING");
               }}
             >
@@ -380,6 +470,7 @@ export default function CertificatesLettersPage() {
               variant="outline"
               onClick={() => {
                 setExperienceForm(experienceEmpty);
+
                 setModalType("EXPERIENCE");
               }}
             >
@@ -390,6 +481,7 @@ export default function CertificatesLettersPage() {
             <Button
               onClick={() => {
                 setSalaryForm(salaryEmpty);
+
                 setModalType("SALARY");
               }}
               className="bg-blue-600 text-white hover:bg-blue-700"
@@ -403,13 +495,16 @@ export default function CertificatesLettersPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi label="All Documents" value={allRows.length} />
+
         <Kpi label="Salary Certificates" value={certificates.length} />
+
         <Kpi
           label="Warning Letters"
           value={
             letters.filter((item) => item.letter_type === "WARNING").length
           }
         />
+
         <Kpi
           label="Experience Letters"
           value={
@@ -443,6 +538,7 @@ export default function CertificatesLettersPage() {
       <div className="rounded-2xl border bg-card p-4">
         <div className="relative max-w-xl">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+
           <Input
             className="pl-9"
             value={search}
@@ -482,19 +578,25 @@ export default function CertificatesLettersPage() {
                 <td className="px-4 py-3 font-mono text-xs font-semibold">
                   {item.reference_number}
                 </td>
+
                 <td className="px-4 py-3">
                   <TypeBadge type={item.document_type} />
                 </td>
+
                 <td className="px-4 py-3">
                   <DateText value={item.document_date} />
                 </td>
+
                 <td className="px-4 py-3">
                   <p className="font-semibold">{item.employee_name}</p>
+
                   <p className="text-xs text-muted-foreground">
                     {item.employee_code}
                   </p>
                 </td>
+
                 <td className="px-4 py-3">{item.designation_name || "—"}</td>
+
                 <td className="max-w-[340px] px-4 py-3">
                   {item.document_type === "SALARY" ? (
                     <span>
@@ -512,7 +614,9 @@ export default function CertificatesLettersPage() {
                     </span>
                   )}
                 </td>
+
                 <td className="px-4 py-3">{item.issued_by_name || "—"}</td>
+
                 <td className="px-4 py-3">
                   <div className="flex gap-1">
                     <Button
@@ -523,6 +627,7 @@ export default function CertificatesLettersPage() {
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
+
                     <Button
                       size="icon"
                       variant="ghost"
@@ -573,12 +678,16 @@ export default function CertificatesLettersPage() {
           onSave={() => {
             if (!warningForm.employee) {
               toast.error("Select an employee.");
+
               return;
             }
+
             if (!warningForm.reason.trim()) {
               toast.error("Warning reason is required.");
+
               return;
             }
+
             letterMutation.mutate(warningForm);
           }}
           pending={letterMutation.isPending}
@@ -594,12 +703,16 @@ export default function CertificatesLettersPage() {
           onSave={() => {
             if (!experienceForm.employee) {
               toast.error("Select an employee.");
+
               return;
             }
+
             if (!experienceForm.last_working_date) {
               toast.error("Last working date is required.");
+
               return;
             }
+
             letterMutation.mutate(experienceForm);
           }}
           pending={letterMutation.isPending}
@@ -620,6 +733,7 @@ export default function CertificatesLettersPage() {
 function showError(fallback) {
   return (error) => {
     const details = getApiErrorDetails(error);
+
     toast.error(
       error?.message && !error?.response
         ? error.message
@@ -655,6 +769,7 @@ function SalaryModal({
           className="bg-blue-600 text-white hover:bg-blue-700"
         >
           <FileBadge2 className="mr-2 h-4 w-4" />
+
           {pending ? "Issuing..." : "Issue Certificate"}
         </Button>
       }
@@ -667,6 +782,7 @@ function SalaryModal({
             onChange={onEmployeeChange}
           />
         </Field>
+
         <Field label="Certificate Date *">
           <Input
             type="date"
@@ -674,25 +790,30 @@ function SalaryModal({
             onChange={(event) =>
               setForm((current) => ({
                 ...current,
+
                 certificate_date: event.target.value,
               }))
             }
           />
         </Field>
+
         <Field label="Designation">
           <Input disabled value={selectedEmployee?.designation_name || ""} />
         </Field>
+
         <Field label="Passport / Emirates ID">
           <Input
             value={form.identity_number}
             onChange={(event) =>
               setForm((current) => ({
                 ...current,
+
                 identity_number: event.target.value,
               }))
             }
           />
         </Field>
+
         <Field label="Basic Salary (AED)">
           <Input
             type="number"
@@ -701,11 +822,13 @@ function SalaryModal({
             onChange={(event) =>
               setForm((current) => ({
                 ...current,
+
                 basic_salary: event.target.value,
               }))
             }
           />
         </Field>
+
         <Field label="Housing Allowance (AED)">
           <Input
             type="number"
@@ -714,11 +837,13 @@ function SalaryModal({
             onChange={(event) =>
               setForm((current) => ({
                 ...current,
+
                 housing_allowance: event.target.value,
               }))
             }
           />
         </Field>
+
         <Field label="Transport / Other Allowance (AED)">
           <Input
             type="number"
@@ -727,34 +852,42 @@ function SalaryModal({
             onChange={(event) =>
               setForm((current) => ({
                 ...current,
+
                 transport_other_allowance: event.target.value,
               }))
             }
           />
         </Field>
+
         <Field label="Total Monthly Salary">
           <Input disabled value={total.toFixed(2)} />
         </Field>
-        <Field label="Authorized Signatory *">
+
+        <Field label="Authorized Signatory (Optional)">
           <Input
             value={form.authorized_signatory}
             onChange={(event) =>
               setForm((current) => ({
                 ...current,
+
                 authorized_signatory: event.target.value,
               }))
             }
+            placeholder="Leave blank if not required"
           />
         </Field>
-        <Field label="Signatory Designation *">
+
+        <Field label="Signatory Designation (Optional)">
           <Input
             value={form.signatory_designation}
             onChange={(event) =>
               setForm((current) => ({
                 ...current,
+
                 signatory_designation: event.target.value,
               }))
             }
+            placeholder="Leave blank if not required"
           />
         </Field>
       </div>
@@ -775,6 +908,7 @@ function WarningModal({ form, setForm, employees, onClose, onSave, pending }) {
           className="bg-red-600 text-white hover:bg-red-700"
         >
           <TriangleAlert className="mr-2 h-4 w-4" />
+
           {pending ? "Issuing..." : "Issue Warning Letter"}
         </Button>
       }
@@ -792,6 +926,7 @@ function WarningModal({ form, setForm, employees, onClose, onSave, pending }) {
             }
           />
         </Field>
+
         <Field label="Letter Date *">
           <Input
             type="date"
@@ -799,11 +934,13 @@ function WarningModal({ form, setForm, employees, onClose, onSave, pending }) {
             onChange={(event) =>
               setForm((current) => ({
                 ...current,
+
                 letter_date: event.target.value,
               }))
             }
           />
         </Field>
+
         <Field label="Subject">
           <Input
             value={form.subject}
@@ -815,7 +952,9 @@ function WarningModal({ form, setForm, employees, onClose, onSave, pending }) {
             }
           />
         </Field>
+
         <div />
+
         <Field label="Reason *" full>
           <Textarea
             rows={4}
@@ -829,6 +968,7 @@ function WarningModal({ form, setForm, employees, onClose, onSave, pending }) {
             placeholder="Example: Repeated late attendance despite previous verbal reminders."
           />
         </Field>
+
         <Field label="Required Improvement / Details" full>
           <Textarea
             rows={5}
@@ -842,23 +982,27 @@ function WarningModal({ form, setForm, employees, onClose, onSave, pending }) {
             placeholder="Explain expected corrective action, deadline, or any relevant incident details."
           />
         </Field>
+
         <Field label="Authorized Signatory *">
           <Input
             value={form.authorized_signatory}
             onChange={(event) =>
               setForm((current) => ({
                 ...current,
+
                 authorized_signatory: event.target.value,
               }))
             }
           />
         </Field>
+
         <Field label="Signatory Designation *">
           <Input
             value={form.signatory_designation}
             onChange={(event) =>
               setForm((current) => ({
                 ...current,
+
                 signatory_designation: event.target.value,
               }))
             }
@@ -893,6 +1037,7 @@ function ExperienceModal({
           className="bg-blue-600 text-white hover:bg-blue-700"
         >
           <FileText className="mr-2 h-4 w-4" />
+
           {pending ? "Issuing..." : "Issue Experience Letter"}
         </Button>
       }
@@ -910,6 +1055,7 @@ function ExperienceModal({
             }
           />
         </Field>
+
         <Field label="Letter Date *">
           <Input
             type="date"
@@ -917,14 +1063,17 @@ function ExperienceModal({
             onChange={(event) =>
               setForm((current) => ({
                 ...current,
+
                 letter_date: event.target.value,
               }))
             }
           />
         </Field>
+
         <Field label="Joining Date">
           <Input disabled value={selectedEmployee?.joining_date || ""} />
         </Field>
+
         <Field label="Last Working Date *">
           <Input
             type="date"
@@ -932,11 +1081,13 @@ function ExperienceModal({
             onChange={(event) =>
               setForm((current) => ({
                 ...current,
+
                 last_working_date: event.target.value,
               }))
             }
           />
         </Field>
+
         <Field label="Experience / Responsibility Summary" full>
           <Textarea
             rows={5}
@@ -944,12 +1095,14 @@ function ExperienceModal({
             onChange={(event) =>
               setForm((current) => ({
                 ...current,
+
                 experience_summary: event.target.value,
               }))
             }
             placeholder="Optional: briefly describe the employee's role and main responsibilities."
           />
         </Field>
+
         <Field label="Conduct / Performance Note" full>
           <Textarea
             rows={4}
@@ -962,23 +1115,27 @@ function ExperienceModal({
             }
           />
         </Field>
+
         <Field label="Authorized Signatory *">
           <Input
             value={form.authorized_signatory}
             onChange={(event) =>
               setForm((current) => ({
                 ...current,
+
                 authorized_signatory: event.target.value,
               }))
             }
           />
         </Field>
+
         <Field label="Signatory Designation *">
           <Input
             value={form.signatory_designation}
             onChange={(event) =>
               setForm((current) => ({
                 ...current,
+
                 signatory_designation: event.target.value,
               }))
             }
@@ -1000,6 +1157,7 @@ function Preview({ item, onClose, onDownload }) {
             <Download className="mr-2 h-4 w-4" />
             Download PDF
           </Button>
+
           <Button size="icon" variant="secondary" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
@@ -1008,9 +1166,11 @@ function Preview({ item, onClose, onDownload }) {
         <article className="min-h-[820px] bg-white px-12 py-10 text-[#222] shadow-2xl">
           <div className="text-center">
             <div className="text-6xl font-black tracking-tighter">GC</div>
+
             <div className="mt-1 text-lg font-black">
               GHAZA COMPUTER TRADING LLC
             </div>
+
             <div className="mt-8 text-xl font-black text-red-600">
               {type === "SALARY"
                 ? "SALARY CERTIFICATE"
@@ -1024,6 +1184,7 @@ function Preview({ item, onClose, onDownload }) {
             <span>
               Reference No.: <strong>{item.reference_number || "—"}</strong>
             </span>
+
             <span>
               Date:{" "}
               <DateText value={item.certificate_date || item.letter_date} />
@@ -1047,11 +1208,13 @@ function SalaryPreviewBody({ certificate }) {
   return (
     <>
       <h2 className="mt-10 text-lg font-black">TO WHOM IT MAY CONCERN</h2>
+
       <p className="mt-3 leading-7">
         This is to certify that <strong>{certificate.employee_name}</strong> is
         employed with Ghaza Computer Trading LLC as{" "}
         <strong>{certificate.designation_name || "Employee"}</strong>.
       </p>
+
       <div className="mt-6 rounded border p-4">
         <p>
           Basic Salary:{" "}
@@ -1059,6 +1222,7 @@ function SalaryPreviewBody({ certificate }) {
             <CurrencyText value={certificate.basic_salary} />
           </strong>
         </p>
+
         <p className="mt-2">
           Allowances:{" "}
           <strong>
@@ -1070,6 +1234,7 @@ function SalaryPreviewBody({ certificate }) {
             />
           </strong>
         </p>
+
         <p className="mt-2">
           Total Monthly Salary:{" "}
           <strong>
@@ -1077,6 +1242,21 @@ function SalaryPreviewBody({ certificate }) {
           </strong>
         </p>
       </div>
+
+      {(certificate.authorized_signatory ||
+        certificate.signatory_designation) && (
+        <div className="mt-12">
+          {certificate.authorized_signatory && (
+            <p className="font-semibold">{certificate.authorized_signatory}</p>
+          )}
+
+          {certificate.signatory_designation && (
+            <p className="text-sm text-gray-600">
+              {certificate.signatory_designation}
+            </p>
+          )}
+        </div>
+      )}
     </>
   );
 }
@@ -1088,23 +1268,30 @@ function WarningPreviewBody({ letter }) {
         <p>
           <strong>To:</strong> {letter.employee_name}
         </p>
+
         <p>
           <strong>Employee Code:</strong> {letter.employee_code || "—"}
         </p>
+
         <p>
           <strong>Designation:</strong> {letter.designation_name || "—"}
         </p>
       </div>
+
       <h2 className="mt-8 font-black">
         Subject: {letter.subject || "Warning Letter"}
       </h2>
+
       <p className="mt-5 leading-7">
         This letter serves as a formal warning for the following reason:
       </p>
+
       <div className="mt-3 rounded border bg-red-50 p-4">{letter.reason}</div>
+
       {letter.details && (
         <div className="mt-5">
           <strong>Required Improvement / Details</strong>
+
           <p className="mt-2 whitespace-pre-wrap leading-7">{letter.details}</p>
         </div>
       )}
@@ -1116,27 +1303,37 @@ function ExperiencePreviewBody({ letter }) {
   return (
     <>
       <h2 className="mt-10 text-lg font-black">TO WHOM IT MAY CONCERN</h2>
+
       <p className="mt-4 leading-7">
         This is to certify that <strong>{letter.employee_name}</strong> was
         employed with Ghaza Computer Trading LLC as{" "}
         <strong>{letter.designation_name || "Employee"}</strong>.
       </p>
+
       <div className="mt-6 grid grid-cols-2 gap-y-3 rounded border p-4">
         <strong>Date of Joining</strong>
+
         <DateText value={letter.joining_date} />
+
         <strong>Last Working Date</strong>
+
         <DateText value={letter.last_working_date} />
+
         <strong>Department</strong>
+
         <span>{letter.department_name || "—"}</span>
       </div>
+
       {letter.experience_summary && (
         <p className="mt-6 whitespace-pre-wrap leading-7">
           {letter.experience_summary}
         </p>
       )}
+
       <p className="mt-6 whitespace-pre-wrap leading-7">
         {letter.conduct_note}
       </p>
+
       <p className="mt-6">
         We wish the employee success in future professional endeavors.
       </p>
@@ -1152,6 +1349,7 @@ function EmployeeSelect({ employees, value, onChange }) {
       onChange={(event) => onChange(event.target.value)}
     >
       <option value="">Select employee</option>
+
       {employees.map((employee) => (
         <option key={employee.id} value={employee.id}>
           {employee.full_name} — {employee.employee_code}
@@ -1168,8 +1366,10 @@ function ModalShell({ title, description, onClose, children, footer }) {
         <div className="flex items-start justify-between border-b p-5">
           <div>
             <h2 className="text-xl font-bold">{title}</h2>
+
             <p className="mt-1 text-sm text-muted-foreground">{description}</p>
           </div>
+
           <Button size="icon" variant="ghost" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
@@ -1181,6 +1381,7 @@ function ModalShell({ title, description, onClose, children, footer }) {
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
+
           {footer}
         </div>
       </div>
@@ -1192,6 +1393,7 @@ function Field({ label, children, full = false }) {
   return (
     <div className={full ? "md:col-span-2" : ""}>
       <Label>{label}</Label>
+
       <div className="mt-2">{children}</div>
     </div>
   );
@@ -1201,6 +1403,7 @@ function Kpi({ label, value }) {
   return (
     <div className="rounded-2xl border bg-card p-5">
       <p className="text-sm text-muted-foreground">{label}</p>
+
       <p className="mt-2 text-2xl font-black">{value}</p>
     </div>
   );
@@ -1210,18 +1413,24 @@ function TypeBadge({ type }) {
   const config = {
     SALARY: {
       label: "Salary Certificate",
+
       cls: "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300",
     },
+
     WARNING: {
       label: "Warning Letter",
+
       cls: "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300",
     },
+
     EXPERIENCE: {
       label: "Experience Letter",
+
       cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300",
     },
   }[type] || {
     label: type,
+
     cls: "bg-muted text-muted-foreground",
   };
 
