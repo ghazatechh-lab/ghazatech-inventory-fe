@@ -1,5 +1,5 @@
 import React from "react";
-import { Download, Plus } from "lucide-react";
+import { Download, History, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
@@ -33,10 +33,7 @@ export default function InvoiceListPage() {
   });
 
   const summary = summaryResponse || {};
-  const payload = query.data || {
-    results: [],
-    count: 0,
-  };
+  const payload = query.data || { results: [], count: 0 };
   const rows = payload.results || [];
 
   const exportInvoices = async () => {
@@ -48,18 +45,13 @@ export default function InvoiceListPage() {
     const blob = new Blob([response.data], {
       type: response.headers["content-type"] || "text/csv",
     });
-
     const url = window.URL.createObjectURL(blob);
-
     const anchor = document.createElement("a");
-
     anchor.href = url;
     anchor.download = "sales-invoices.csv";
-
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
-
     window.URL.revokeObjectURL(url);
   };
 
@@ -71,12 +63,27 @@ export default function InvoiceListPage() {
         sortKey: "invoice_number",
         sortType: "text",
         cell: (row) => (
-          <Link
-            to={`/sales/invoices/${row.id}`}
-            className="font-medium text-blue-600 hover:underline dark:text-blue-400"
-          >
-            {row.invoice_number}
-          </Link>
+          <div>
+            <Link
+              to={`/sales/invoices/${row.id}`}
+              className="font-medium text-blue-600 hover:underline dark:text-blue-400"
+            >
+              {row.invoice_number}
+            </Link>
+
+            {row.is_historical ? (
+              <div className="mt-1">
+                <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
+                  Previous
+                </span>
+                {row.historical_reference ? (
+                  <p className="mt-1 max-w-[180px] truncate text-[11px] text-muted-foreground">
+                    Ref: {row.historical_reference}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
         ),
       },
       {
@@ -130,10 +137,21 @@ export default function InvoiceListPage() {
         title="Invoices"
         subtitle="Issued invoices and their payment status"
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={exportInvoices}>
               <Download className="mr-2 h-4 w-4" />
               Export
+            </Button>
+
+            <Button
+              asChild
+              variant="outline"
+              className="border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20"
+            >
+              <Link to="/sales/invoices/new?historical=1">
+                <History className="mr-2 h-4 w-4" />
+                Add Previous Invoice
+              </Link>
             </Button>
 
             <Button
@@ -155,14 +173,12 @@ export default function InvoiceListPage() {
           value={<CurrencyText value={summary.outstanding || 0} />}
           subtitle={`${summary.outstanding_count || 0} invoice(s)`}
         />
-
         <MetricCard
           label="Overdue"
           tone="danger"
           value={<CurrencyText value={summary.overdue || 0} />}
           subtitle={`${summary.overdue_count || 0} overdue invoice(s)`}
         />
-
         <MetricCard
           label="Paid (MTD)"
           tone="success"
@@ -173,7 +189,6 @@ export default function InvoiceListPage() {
               : "Month-to-date collections"
           }
         />
-
         <MetricCard
           label="Avg. Days to Pay"
           value={`${summary.avg_days_to_pay || 0} days`}
@@ -188,10 +203,9 @@ export default function InvoiceListPage() {
           <div>
             <h2 className="font-semibold">Invoices</h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Issued invoices and their payment status
+              Current and previous invoices with their payment status
             </p>
           </div>
-
           <div className="w-full md:max-w-sm">
             <SearchInput
               value={q}
@@ -210,7 +224,7 @@ export default function InvoiceListPage() {
           total={payload.count || 0}
           onPageChange={setPage}
           emptyTitle="No invoices"
-          emptyDescription="Create an invoice from a Sales Order or raise a standalone invoice."
+          emptyDescription="Create a new invoice or add a previous invoice for accounting history."
         />
       </section>
     </div>

@@ -10,16 +10,16 @@ import {
   Check,
   ChevronsUpDown,
   Download,
+  History,
   Plus,
   Save,
   Trash2,
-  UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { calculateTaxLine, canUseNonVatSale } from "@/lib/taxAccess";
+import { canUseNonVatSale } from "@/lib/taxAccess";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -274,6 +274,7 @@ export default function InvoiceFormPage() {
   const salesOrderId = searchParams.get("sales_order");
 
   const isEdit = Boolean(id);
+  const historicalMode = !isEdit && searchParams.get("historical") === "1";
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -306,7 +307,13 @@ export default function InvoiceFormPage() {
     vat_reason: "",
     paid_amount: 0,
     notes: "",
-    sale_type: salesOrderId ? "ORDER" : "STANDALONE",
+    is_historical: historicalMode,
+    historical_reference: "",
+    sale_type: historicalMode
+      ? "HISTORICAL"
+      : salesOrderId
+        ? "ORDER"
+        : "STANDALONE",
     items: [emptyItem()],
   });
 
@@ -332,7 +339,7 @@ export default function InvoiceFormPage() {
     queryKey: ["invoice-source-order", salesOrderId],
     queryFn: async () =>
       unwrap(await api.get(`/sales/orders/${salesOrderId}/`)),
-    enabled: !isEdit && Boolean(salesOrderId),
+    enabled: !isEdit && !historicalMode && Boolean(salesOrderId),
     staleTime: 0,
   });
 
@@ -439,18 +446,15 @@ export default function InvoiceFormPage() {
         return current;
       }
 
-      console.log("[Invoice Form] Applying top-bar branch:", {
-        previousBranch: current.branch,
-        branchId,
-        nextBranch,
-      });
-
       return {
         ...current,
         branch: nextBranch,
         sales_order: "",
         customer: "",
         bank_account: "",
+        is_historical: historicalMode,
+        historical_reference: current.historical_reference || "",
+        sale_type: historicalMode ? "HISTORICAL" : "STANDALONE",
         items: [emptyItem()],
       };
     });
@@ -461,7 +465,7 @@ export default function InvoiceFormPage() {
       customer: "",
       items: "",
     }));
-  }, [branchId, isEdit, salesOrderId]);
+  }, [branchId, historicalMode, isEdit, salesOrderId]);
 
   const findProductOption = React.useCallback(
     (productId, variantId) =>
@@ -529,7 +533,19 @@ export default function InvoiceFormPage() {
 
       notes: existing?.notes || "",
 
-      sale_type: fromOrder ? "ORDER" : existing?.sale_type || "STANDALONE",
+      is_historical: Boolean(
+        existing?.is_historical || (!existing && historicalMode),
+      ),
+
+      historical_reference: existing?.historical_reference || "",
+
+      sale_type: existing?.is_historical
+        ? "HISTORICAL"
+        : fromOrder
+          ? "ORDER"
+          : historicalMode
+            ? "HISTORICAL"
+            : existing?.sale_type || "STANDALONE",
 
       items: source.items?.length
         ? source.items.map((item) => ({
@@ -565,7 +581,7 @@ export default function InvoiceFormPage() {
           }))
         : [emptyItem()],
     });
-  }, [existing, sourceOrder]);
+  }, [existing, historicalMode, sourceOrder]);
 
   React.useEffect(() => {
     if (!products.length) return;
@@ -705,6 +721,10 @@ export default function InvoiceFormPage() {
   };
 
   const selectSalesOrder = (value) => {
+    if (historicalMode) {
+      return;
+    }
+
     const order = salesOrders.find((item) => String(item.id) === String(value));
 
     if (!order) {
@@ -740,6 +760,15 @@ export default function InvoiceFormPage() {
       form.due_date < form.invoice_date
     ) {
       next.due_date = "Due date cannot be before the issue date.";
+    }
+
+    if (historicalMode && form.invoice_date && form.invoice_date >= today()) {
+      next.invoice_date = "Previous invoice date must be earlier than today.";
+    }
+
+    if (historicalMode && number(form.paid_amount) > 0) {
+      next.paid_amount =
+        "Save the previous invoice as outstanding, then record its payment using the actual historical payment date.";
     }
 
     if (!form.items.length) {
@@ -778,7 +807,19 @@ export default function InvoiceFormPage() {
       const payload = {
         ...form,
 
-        sales_order: form.sales_order ? Number(form.sales_order) : null,
+        is_historical: historicalMode,
+
+        historical_reference: historicalMode
+          ? String(form.historical_reference || "").trim()
+          : "",
+
+        sale_type: historicalMode ? "HISTORICAL" : form.sale_type,
+
+        sales_order: historicalMode
+          ? null
+          : form.sales_order
+            ? Number(form.sales_order)
+            : null,
 
         branch: Number(form.branch),
 
@@ -792,7 +833,7 @@ export default function InvoiceFormPage() {
 
         shipping_amount: money(form.shipping_amount),
 
-        paid_amount: money(form.paid_amount),
+        paid_amount: historicalMode ? 0 : money(form.paid_amount),
 
         items: calculatedItems.map((item) => ({
           ...(item.id
@@ -801,9 +842,11 @@ export default function InvoiceFormPage() {
               }
             : {}),
 
-          sales_order_item: item.sales_order_item
-            ? Number(item.sales_order_item)
-            : null,
+          sales_order_item: historicalMode
+            ? null
+            : item.sales_order_item
+              ? Number(item.sales_order_item)
+              : null,
 
           product: Number(item.product),
 
@@ -843,7 +886,11 @@ export default function InvoiceFormPage() {
         }),
       ]);
 
-      toast.success("Invoice saved.");
+      toast.success(
+        historicalMode
+          ? "Previous invoice saved and posted to Accounts Receivable."
+          : "Invoice saved.",
+      );
 
       const saved = unwrap(response);
 
@@ -926,8 +973,18 @@ export default function InvoiceFormPage() {
   return (
     <div className="sales-module-page sales-workspace mx-auto max-w-7xl space-y-5 pb-10">
       <PageHeader
-        title={isEdit ? "Edit Invoice" : "New Invoice"}
-        subtitle="Bill against a confirmed Sales Order or raise a standalone invoice"
+        title={
+          isEdit
+            ? "Edit Invoice"
+            : historicalMode
+              ? "Add Previous Invoice"
+              : "New Invoice"
+        }
+        subtitle={
+          historicalMode
+            ? "Enter a previous invoice for Accounts Receivable without changing stock"
+            : "Bill against a confirmed Sales Order or raise a standalone invoice"
+        }
         actions={
           <div className="flex gap-2">
             <Button asChild variant="outline">
@@ -950,11 +1007,37 @@ export default function InvoiceFormPage() {
               className="bg-blue-600 text-white hover:bg-blue-700"
             >
               <Save className="mr-2 h-4 w-4" />
-              Save Invoice
+              {historicalMode ? "Save Previous Invoice" : "Save Invoice"}
             </Button>
           </div>
         }
       />
+
+      {historicalMode ? (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 rounded-lg bg-amber-100 p-2 dark:bg-amber-500/20">
+              <History className="h-5 w-5" />
+            </div>
+
+            <div>
+              <h2 className="font-semibold">Previous / Historical Invoice</h2>
+
+              <p className="mt-1 text-sm leading-6">
+                This invoice updates Accounts Receivable, Sales Revenue, and
+                Output VAT using the original invoice date. It does not reduce
+                current stock, create a delivery, or update Sales Order
+                fulfilment.
+              </p>
+
+              <p className="mt-2 text-xs opacity-80">
+                If the invoice was already paid, save it first and then record
+                the payment using the actual historical payment date.
+              </p>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {errors.branch && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
@@ -962,91 +1045,96 @@ export default function InvoiceFormPage() {
         </div>
       )}
 
-      <section className="card-surface p-5">
-        <h2 className="font-semibold">Source</h2>
+      {!historicalMode ? (
+        <>
+          <section className="card-surface p-5">
+            <h2 className="font-semibold">Source</h2>
 
-        <p className="mt-1 text-xs text-muted-foreground">
-          Bill against a confirmed Sales Order, or raise a standalone invoice.
-        </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Bill against a confirmed Sales Order, or raise a standalone
+              invoice.
+            </p>
 
-        {sourceOrderNumber ? (
-          <div className="mt-4 flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-500/20 dark:bg-blue-500/10 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-wrap items-center gap-5 text-sm">
-              <span className="text-muted-foreground">Billing from</span>
+            {sourceOrderNumber ? (
+              <div className="mt-4 flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-500/20 dark:bg-blue-500/10 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-wrap items-center gap-5 text-sm">
+                  <span className="text-muted-foreground">Billing from</span>
 
-              <Link
-                to={`/sales/orders/${form.sales_order}`}
-                className="font-semibold text-blue-600 hover:underline dark:text-blue-300"
-              >
-                {sourceOrderNumber}
-                {sourceOrder?.customer_name
-                  ? ` — ${sourceOrder.customer_name}`
-                  : ""}
-              </Link>
+                  <Link
+                    to={`/sales/orders/${form.sales_order}`}
+                    className="font-semibold text-blue-600 hover:underline dark:text-blue-300"
+                  >
+                    {sourceOrderNumber}
+                    {sourceOrder?.customer_name
+                      ? ` — ${sourceOrder.customer_name}`
+                      : ""}
+                  </Link>
 
-              <CurrencyText
-                value={sourceOrder?.total_amount || total}
-                currency={form.currency}
-              />
+                  <CurrencyText
+                    value={sourceOrder?.total_amount || total}
+                    currency={form.currency}
+                  />
 
-              {sourceOrder?.delivery_date && (
-                <span className="text-xs text-muted-foreground">
-                  delivered {sourceOrder.delivery_date}
-                </span>
-              )}
-            </div>
+                  {sourceOrder?.delivery_date && (
+                    <span className="text-xs text-muted-foreground">
+                      delivered {sourceOrder.delivery_date}
+                    </span>
+                  )}
+                </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                navigate("/sales/invoices/new");
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate("/sales/invoices/new");
 
-                setForm((current) => ({
-                  ...current,
-                  sales_order: "",
-                  customer: "",
-                  sale_type: "STANDALONE",
-                  items: [emptyItem()],
-                }));
-              }}
-              className="text-xs text-blue-600 hover:underline dark:text-blue-300"
-            >
-              Start blank instead
-            </button>
-          </div>
-        ) : (
-          <div className="mt-4">
-            <Label>Confirmed Sales Order</Label>
+                    setForm((current) => ({
+                      ...current,
+                      sales_order: "",
+                      customer: "",
+                      sale_type: "STANDALONE",
+                      items: [emptyItem()],
+                    }));
+                  }}
+                  className="text-xs text-blue-600 hover:underline dark:text-blue-300"
+                >
+                  Start blank instead
+                </button>
+              </div>
+            ) : (
+              <div className="mt-4">
+                <Label>Confirmed Sales Order</Label>
 
-            <Select
-              value={form.sales_order || "__blank__"}
-              onValueChange={(value) =>
-                value === "__blank__"
-                  ? updateForm("sales_order", "")
-                  : selectSalesOrder(value)
-              }
-            >
-              <SelectTrigger className="mt-2">
-                <SelectValue placeholder="Start blank or select Sales Order" />
-              </SelectTrigger>
+                <Select
+                  value={form.sales_order || "__blank__"}
+                  onValueChange={(value) =>
+                    value === "__blank__"
+                      ? updateForm("sales_order", "")
+                      : selectSalesOrder(value)
+                  }
+                >
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Start blank or select Sales Order" />
+                  </SelectTrigger>
 
-              <SelectContent className="max-h-72">
-                <SelectItem value="__blank__">
-                  Start standalone invoice
-                </SelectItem>
+                  <SelectContent className="max-h-72">
+                    <SelectItem value="__blank__">
+                      Start standalone invoice
+                    </SelectItem>
 
-                {salesOrders.map((order) => (
-                  <SelectItem key={order.id} value={String(order.id)}>
-                    {order.order_number}
-                    {" · "}
-                    {order.customer_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-      </section>
+                    {salesOrders.map((order) => (
+                      <SelectItem key={order.id} value={String(order.id)}>
+                        {order.order_number}
+                        {" · "}
+                        {order.customer_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </section>
+        </>
+      ) : null}
 
       <section className="card-surface p-5">
         <h2 className="font-semibold">Invoice Details</h2>
@@ -1165,30 +1253,50 @@ export default function InvoiceFormPage() {
             />
           </div>
 
-          <div>
-            <Label>Customer PO # (Optional)</Label>
+          {!historicalMode ? (
+            <div>
+              <Label>Customer PO # (Optional)</Label>
 
-            <Input
-              value={form.customer_po_number}
-              onChange={(event) =>
-                updateForm("customer_po_number", event.target.value)
-              }
-              placeholder="Customer purchase order reference"
-              className="mt-2"
-            />
-          </div>
+              <Input
+                value={form.customer_po_number}
+                onChange={(event) =>
+                  updateForm("customer_po_number", event.target.value)
+                }
+                placeholder="Customer purchase order reference"
+                className="mt-2"
+              />
+            </div>
+          ) : (
+            <div>
+              <Label>Original Invoice Reference</Label>
+
+              <Input
+                value={form.historical_reference}
+                onChange={(event) =>
+                  updateForm("historical_reference", event.target.value)
+                }
+                placeholder="Example: OLD-INV-1048"
+                className="mt-2"
+              />
+            </div>
+          )}
 
           <div>
             <Label>Issue Date *</Label>
 
             <Input
               type="date"
+              max={historicalMode ? addDays(today(), -1) : undefined}
               value={form.invoice_date}
               onChange={(event) =>
                 updateForm("invoice_date", event.target.value)
               }
               className="mt-2"
             />
+
+            {errors.invoice_date && (
+              <p className="mt-1 text-xs text-red-500">{errors.invoice_date}</p>
+            )}
           </div>
 
           <div>
@@ -1236,8 +1344,9 @@ export default function InvoiceFormPage() {
             <h2 className="font-semibold">Items</h2>
 
             <p className="mt-1 text-xs text-muted-foreground">
-              Carried over from the linked Sales Order — adjust quantities for
-              partial billing.
+              {historicalMode
+                ? "Enter the products and values from the original invoice. Current stock is not changed."
+                : "Carried over from the linked Sales Order — adjust quantities for partial billing."}
             </p>
           </div>
 
@@ -1420,25 +1529,34 @@ export default function InvoiceFormPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-4">
-                <Label className="text-muted-foreground">
-                  Amount Already Paid
-                </Label>
+              {!historicalMode ? (
+                <>
+                  <div className="flex items-center justify-between gap-4">
+                    <Label className="text-muted-foreground">
+                      Amount Already Paid
+                    </Label>
 
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.paid_amount}
-                  onChange={(event) =>
-                    updateForm("paid_amount", event.target.value)
-                  }
-                  className="h-8 w-32 text-right"
-                />
-              </div>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={form.paid_amount}
+                      onChange={(event) =>
+                        updateForm("paid_amount", event.target.value)
+                      }
+                      className="h-8 w-32 text-right"
+                    />
+                  </div>
 
-              {errors.paid_amount && (
-                <p className="text-xs text-red-500">{errors.paid_amount}</p>
+                  {errors.paid_amount && (
+                    <p className="text-xs text-red-500">{errors.paid_amount}</p>
+                  )}
+                </>
+              ) : (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
+                  Previous invoices are imported as outstanding. Record any old
+                  payment separately using its real payment date.
+                </div>
               )}
 
               <div className="flex justify-between border-t pt-3 text-base font-semibold">
@@ -1497,39 +1615,44 @@ export default function InvoiceFormPage() {
           </div>
         </div>
 
-        <label className="mt-4 flex cursor-pointer items-center gap-3">
-          <button
-            type="button"
-            role="switch"
-            aria-checked={form.send_payment_reminders}
-            onClick={() =>
-              updateForm("send_payment_reminders", !form.send_payment_reminders)
-            }
-            className={
-              form.send_payment_reminders
-                ? "relative h-6 w-11 rounded-full bg-blue-600"
-                : "relative h-6 w-11 rounded-full bg-slate-300 dark:bg-white/20"
-            }
-          >
-            <span
+        {!historicalMode ? (
+          <label className="mt-4 flex cursor-pointer items-center gap-3">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={form.send_payment_reminders}
+              onClick={() =>
+                updateForm(
+                  "send_payment_reminders",
+                  !form.send_payment_reminders,
+                )
+              }
               className={
                 form.send_payment_reminders
-                  ? "absolute left-6 top-1 h-4 w-4 rounded-full bg-white transition"
-                  : "absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition"
+                  ? "relative h-6 w-11 rounded-full bg-blue-600"
+                  : "relative h-6 w-11 rounded-full bg-slate-300 dark:bg-white/20"
               }
-            />
-          </button>
+            >
+              <span
+                className={
+                  form.send_payment_reminders
+                    ? "absolute left-6 top-1 h-4 w-4 rounded-full bg-white transition"
+                    : "absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition"
+                }
+              />
+            </button>
 
-          <span>
-            <span className="block text-sm font-medium">
-              Send payment reminders automatically
+            <span>
+              <span className="block text-sm font-medium">
+                Send payment reminders automatically
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                Reminder email at 3 days before, on, and 3 days after the due
+                date.
+              </span>
             </span>
-            <span className="block text-xs text-muted-foreground">
-              Reminder email at 3 days before, on, and 3 days after the due
-              date.
-            </span>
-          </span>
-        </label>
+          </label>
+        ) : null}
 
         <div className="mt-4">
           <Label>Notes to Customer</Label>
@@ -1561,7 +1684,7 @@ export default function InvoiceFormPage() {
           className="bg-blue-600 text-white hover:bg-blue-700"
         >
           <Save className="mr-2 h-4 w-4" />
-          Save Invoice
+          {historicalMode ? "Save Previous Invoice" : "Save Invoice"}
         </Button>
       </div>
     </div>

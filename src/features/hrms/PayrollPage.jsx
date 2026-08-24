@@ -458,12 +458,8 @@ export default function PayrollPage() {
   });
 
   const openPayrollEdit = (row) => {
-    if (String(row.status || "").toUpperCase() === "PAID") {
-      toast.error("Paid payroll cannot be edited.");
-      return;
-    }
-
     setEditingPayroll(row);
+
     setEditPayrollForm({
       payroll_date: row.payroll_date || today,
       basic_salary: String(row.basic_salary ?? 0),
@@ -498,7 +494,7 @@ export default function PayrollPage() {
 
     onSuccess: async () => {
       await refreshAll();
-      toast.success("Payroll salary updated successfully.");
+      toast.success("Payroll updated successfully.");
       setEditingPayroll(null);
     },
 
@@ -943,17 +939,15 @@ export default function PayrollPage() {
             </Button>
           ) : null}
 
-          {String(row.status || "").toUpperCase() !== "PAID" ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => openPayrollEdit(row)}
-            >
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit
-            </Button>
-          ) : null}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => openPayrollEdit(row)}
+          >
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit
+          </Button>
 
           <Button
             type="button"
@@ -1539,6 +1533,7 @@ export default function PayrollPage() {
                 <h2 className="text-xl font-semibold">Edit Payroll Salary</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Update the salary values for this generated payroll entry.
+                  Paid payroll remains PAID after correction.
                 </p>
               </div>
 
@@ -1670,6 +1665,18 @@ export default function PayrollPage() {
                 />
               </div>
 
+              {String(editingPayroll.status || "").toUpperCase() === "PAID" ? (
+                <div className="md:col-span-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
+                  <p className="font-medium">Paid payroll correction</p>
+                  <p className="mt-1 text-xs leading-5">
+                    This payroll is already PAID. Updating salary values will
+                    correct the payroll record while keeping its PAID status.
+                    Existing advance and employee-loan deductions remain linked
+                    to this payroll entry.
+                  </p>
+                </div>
+              ) : null}
+
               <div className="md:col-span-2 rounded-xl border bg-muted/30 p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">
@@ -1726,7 +1733,9 @@ export default function PayrollPage() {
                 <Pencil className="mr-2 h-4 w-4" />
                 {payrollEditMutation.isPending
                   ? "Updating..."
-                  : "Update Salary"}
+                  : String(editingPayroll.status || "").toUpperCase() === "PAID"
+                    ? "Update Paid Payroll"
+                    : "Update Salary"}
               </Button>
             </div>
           </div>
