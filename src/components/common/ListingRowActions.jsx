@@ -10,10 +10,7 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 
 function getApiError(error, fallback) {
   return (
-    error?.response?.data?.message ||
-    error?.response?.data?.detail ||
-    error?.response?.data?.errors?.non_field_errors?.[0] ||
-    fallback
+    error?.response?.data?.message || error?.response?.data?.detail || fallback
   );
 }
 
@@ -25,18 +22,63 @@ export function ListingRowActions({
   disabled = false,
 }) {
   const queryClient = useQueryClient();
+
   const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const [permanentConfirmOpen, setPermanentConfirmOpen] = useState(false);
 
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(deleteUrl),
-    onSuccess: () => {
-      toast.success(`${itemLabel} deleted successfully`);
-      queryClient.invalidateQueries({ queryKey: [queryKey] });
+
+    onSuccess: (response) => {
+      toast.success(
+        response?.data?.message || `${itemLabel} deleted successfully`,
+      );
+
+      queryClient.invalidateQueries({
+        queryKey: [queryKey],
+      });
+
       setConfirmOpen(false);
     },
+
+    onError: (error) => {
+      const responseData = error?.response?.data;
+
+      if (
+        error?.response?.status === 409 &&
+        responseData?.data?.confirmation_required
+      ) {
+        setConfirmOpen(false);
+        setPermanentConfirmOpen(true);
+        return;
+      }
+
+      toast.error(getApiError(error, `Unable to delete ${itemLabel}`));
+    },
+  });
+
+  const permanentDeleteMutation = useMutation({
+    mutationFn: () =>
+      api.delete(
+        `${deleteUrl}${deleteUrl.includes("?") ? "&" : "?"}force=true`,
+      ),
+
+    onSuccess: (response) => {
+      toast.success(
+        response?.data?.message || `${itemLabel} permanently deleted`,
+      );
+
+      queryClient.invalidateQueries({
+        queryKey: [queryKey],
+      });
+
+      setPermanentConfirmOpen(false);
+    },
+
     onError: (error) => {
       toast.error(
-        getApiError(error, `Unable to delete ${itemLabel.toLowerCase()}`),
+        getApiError(error, `Unable to permanently delete ${itemLabel}`),
       );
     },
   });
@@ -60,22 +102,49 @@ export function ListingRowActions({
           variant="ghost"
           size="sm"
           onClick={() => setConfirmOpen(true)}
-          disabled={disabled || deleteMutation.isPending}
-          className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+          disabled={
+            disabled ||
+            deleteMutation.isPending ||
+            permanentDeleteMutation.isPending
+          }
+          className="
+            text-red-400
+            hover:text-red-300
+            hover:bg-red-500/10
+          "
           aria-label={`Delete ${itemLabel}`}
         >
           <Trash2 className="w-4 h-4" />
         </Button>
       </div>
 
+      {/* First confirmation */}
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title={`Delete ${itemLabel}?`}
-        description="This action cannot be undone. Related records may prevent deletion."
+        description="Are you sure you want to delete this record?"
         confirmLabel={deleteMutation.isPending ? "Deleting..." : "Delete"}
         destructive
         onConfirm={() => deleteMutation.mutate()}
+      />
+
+      {/* Linked-record permanent delete confirmation */}
+      <ConfirmDialog
+        open={permanentConfirmOpen}
+        onOpenChange={setPermanentConfirmOpen}
+        title="Permanent deletion requires confirmation"
+        description={
+          "This branch contains linked records. " +
+          "Permanent deletion requires confirmation."
+        }
+        confirmLabel={
+          permanentDeleteMutation.isPending
+            ? "Deleting..."
+            : "Delete Permanently"
+        }
+        destructive
+        onConfirm={() => permanentDeleteMutation.mutate()}
       />
     </>
   );
