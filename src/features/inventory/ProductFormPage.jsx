@@ -31,6 +31,7 @@ import {
 
 const emptyBaseStock = {
   attributes: [],
+  racks: [],
   initial_stock: 0,
   purchase_price: "",
   retail_price: 0,
@@ -46,7 +47,6 @@ const defaults = {
   brand: "",
   category: "",
   branch: "",
-  rack: "",
   supplier: "",
   has_variants: false,
   compatible_models: "",
@@ -86,6 +86,7 @@ function variantFromApi(item) {
       name,
       value,
     })),
+    racks: (item.racks || []).map((rack) => String(rack)),
     initial_stock: item.available_qty ?? item.total_quantity ?? 0,
     purchase_price: item.purchase_price ?? "",
     retail_price: item.retail_price ?? 0,
@@ -195,11 +196,6 @@ export default function ProductFormPage() {
         shouldTouch: true,
         shouldValidate: true,
       });
-      setValue("rack", "", {
-        shouldDirty: true,
-        shouldTouch: false,
-        shouldValidate: true,
-      });
       previousBranchRef.current = "";
       return;
     }
@@ -244,11 +240,6 @@ export default function ProductFormPage() {
      * A rack belongs to a branch. Clear the old rack whenever the header
      * changes the product branch, then load racks for the new branch.
      */
-    setValue("rack", "", {
-      shouldDirty: true,
-      shouldTouch: false,
-      shouldValidate: true,
-    });
 
     previousBranchRef.current = branchId;
   }, [isEdit, branchesLoading, branches, branchOverride, setValue]);
@@ -282,57 +273,27 @@ export default function ProductFormPage() {
     refetchOnMount: "always",
   });
 
-  const selectedRackId = watch("rack");
   const [showRackForm, setShowRackForm] = React.useState(false);
+  const [rackTargetVariantIndex, setRackTargetVariantIndex] =
+    React.useState(null);
   const [rackForm, setRackForm] = React.useState({
     rack_code: "",
     rack_name: "",
   });
   const [rackSaving, setRackSaving] = React.useState(false);
 
-  const racks = React.useMemo(() => {
-    const branchRacks = rackResponse.filter((rack) => {
-      const rackBranchId =
-        rack?.branch_id ?? rack?.branch?.id ?? rack?.branch ?? "";
+  const racks = React.useMemo(
+    () =>
+      rackResponse.filter((rack) => {
+        const rackBranchId =
+          rack?.branch_id ?? rack?.branch?.id ?? rack?.branch ?? "";
 
-      return !selectedBranch || String(rackBranchId) === String(selectedBranch);
-    });
-
-    if (
-      isEdit &&
-      selectedRackId &&
-      !branchRacks.some((rack) => String(rack.id) === String(selectedRackId))
-    ) {
-      const productRack =
-        product?.rack_detail ||
-        (product?.rack && typeof product.rack === "object"
-          ? product.rack
-          : null);
-
-      const existingRack = {
-        ...(productRack || {}),
-        id: selectedRackId,
-        rack_code:
-          productRack?.rack_code ||
-          product?.rack_code ||
-          `Rack #${selectedRackId}`,
-        rack_name: productRack?.rack_name || product?.rack_name || "",
-        branch:
-          productRack?.branch ??
-          productRack?.branch_id ??
-          product?.branch?.id ??
-          product?.branch_id ??
-          product?.branch ??
-          selectedBranch,
-      };
-
-      console.log("[Product Edit] Preserving saved rack option:", existingRack);
-
-      return [existingRack, ...branchRacks];
-    }
-
-    return branchRacks;
-  }, [rackResponse, selectedBranch, isEdit, product, selectedRackId]);
+        return (
+          !selectedBranch || String(rackBranchId) === String(selectedBranch)
+        );
+      }),
+    [rackResponse, selectedBranch],
+  );
 
   const refreshRacks = async () => {
     await queryClient.invalidateQueries({
@@ -362,13 +323,26 @@ export default function ProductFormPage() {
       );
       const created = unwrap(response);
       await refreshRacks();
-      setValue("rack", String(created.id), {
-        shouldDirty: true,
-        shouldValidate: true,
-      });
+
+      if (rackTargetVariantIndex !== null) {
+        setVariants((current) =>
+          current.map((variant, index) =>
+            index === rackTargetVariantIndex
+              ? {
+                  ...variant,
+                  racks: Array.from(
+                    new Set([...(variant.racks || []), String(created.id)]),
+                  ),
+                }
+              : variant,
+          ),
+        );
+      }
+
       setRackForm({ rack_code: "", rack_name: "" });
       setShowRackForm(false);
-      toast.success("Rack added.");
+      setRackTargetVariantIndex(null);
+      toast.success("Rack added and assigned to the variant.");
     } catch (error) {
       const message =
         error?.response?.data?.rack_code?.[0] ||
@@ -377,33 +351,6 @@ export default function ProductFormPage() {
       toast.error(message);
     } finally {
       setRackSaving(false);
-    }
-  };
-
-  const deleteRack = async () => {
-    if (!selectedRackId) {
-      toast.error("Select a rack first.");
-      return;
-    }
-
-    const item = racks.find(
-      (rack) => String(rack.id) === String(selectedRackId),
-    );
-    const label = item?.rack_code || item?.rack_name || "selected rack";
-    if (!window.confirm(`Delete rack "${label}"?`)) return;
-
-    try {
-      await api.delete(`/racks/${selectedRackId}/`, {
-        skipGlobalErrorToast: true,
-      });
-      setValue("rack", "", { shouldDirty: true, shouldValidate: true });
-      await refreshRacks();
-      toast.success("Rack deleted.");
-    } catch (error) {
-      const message =
-        error?.response?.data?.detail ||
-        "This rack cannot be deleted because it is already used by a product.";
-      toast.error(message);
     }
   };
 
@@ -424,7 +371,6 @@ export default function ProductFormPage() {
       brand: relatedId(product, "brand"),
       category: relatedId(product, "category"),
       branch: relatedId(product, "branch"),
-      rack: relatedId(product, "rack"),
       supplier: relatedId(product, "supplier"),
       has_variants: Boolean(product.has_variants),
       compatible_models: product.compatible_models || "",
@@ -447,9 +393,6 @@ export default function ProductFormPage() {
     console.log("Category options:", categories);
     console.log("Branch options:", branches);
     console.log("Resolved branch ID:", values.branch);
-    console.log("Resolved rack ID:", values.rack);
-    console.log("Rack detail:", product.rack_detail);
-    console.log("Rack field:", product.rack);
     console.groupEnd();
     reset(values);
     const apiVariants = (product.variants || []).map(variantFromApi);
@@ -483,15 +426,17 @@ export default function ProductFormPage() {
     const previousBranch = previousBranchRef.current;
 
     if (previousBranch && String(previousBranch) !== String(selectedBranch)) {
-      console.log("[Product Form] Branch changed manually. Clearing rack.", {
-        previousBranch,
-        selectedBranch,
-      });
+      console.log(
+        "[Product Form] Branch changed manually. Clearing variant racks.",
+        {
+          previousBranch,
+          selectedBranch,
+        },
+      );
 
-      setValue("rack", "", {
-        shouldDirty: true,
-        shouldValidate: true,
-      });
+      setVariants((current) =>
+        current.map((variant) => ({ ...variant, racks: [] })),
+      );
     }
 
     previousBranchRef.current = String(selectedBranch);
@@ -503,6 +448,23 @@ export default function ProductFormPage() {
         i === index ? { ...variant, [field]: value } : variant,
       ),
     );
+
+  const toggleVariantRack = (variantIndex, rackId) => {
+    const normalizedRackId = String(rackId);
+
+    setVariants((current) =>
+      current.map((variant, index) => {
+        if (index !== variantIndex) return variant;
+
+        const currentRacks = (variant.racks || []).map(String);
+        const nextRacks = currentRacks.includes(normalizedRackId)
+          ? currentRacks.filter((id) => id !== normalizedRackId)
+          : [...currentRacks, normalizedRackId];
+
+        return { ...variant, racks: nextRacks };
+      }),
+    );
+  };
   const getVariantCombinationError = (variant, index) => {
     const combinationNumber = index + 1;
     const attributes = variant.attributes || [];
@@ -628,6 +590,7 @@ export default function ProductFormPage() {
         return {
           ...(variant.id ? { id: variant.id } : {}),
           attributes: hasVariants ? attributes : {},
+          racks: (variant.racks || []).map((rackId) => Number(rackId)),
           initial_stock: Math.max(0, Number(variant.initial_stock || 0)),
           purchase_price:
             variant.purchase_price === "" || variant.purchase_price == null
@@ -648,7 +611,6 @@ export default function ProductFormPage() {
         brand: Number(values.brand),
         category: Number(values.category),
         branch: Number(values.branch),
-        rack: values.rack ? Number(values.rack) : "",
         supplier: values.supplier ? Number(values.supplier) : "",
         has_variants: Boolean(values.has_variants),
         compatible_models: values.compatible_models?.trim() || "",
@@ -1003,158 +965,23 @@ export default function ProductFormPage() {
 
             <div className="rounded-xl border border-blue-500/15 bg-blue-500/[0.035] p-5">
               <div className="mb-4">
-                <h3 className="text-sm font-semibold text-blue-100">
-                  Branch and storage
-                </h3>
+                <h3 className="text-sm font-semibold text-blue-100">Branch</h3>
 
                 <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                  Assign the product to a branch and optionally select its rack.
+                  The product branch is selected from the global branch filter.
+                  Rack locations are assigned separately inside each product
+                  variant below.
                 </p>
               </div>
 
-              <div className="grid gap-5 md:grid-cols-2">
-                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
-                  Branch is automatically selected from the global branch
-                  filter.
-                  {!selectedBranch ? (
-                    <p className="mt-2 font-semibold text-amber-700 dark:text-amber-300">
-                      Select a branch from the top branch filter before saving
-                      this product.
-                    </p>
-                  ) : null}
-                </div>
-
-                <div>
-                  <Label>Rack</Label>
-
-                  <div className="mt-2 flex gap-2">
-                    <select
-                      {...register("rack")}
-                      disabled={!selectedBranch || racksLoading}
-                      className="h-11 min-w-0 flex-1 rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                      onChange={(event) => {
-                        setValue("rack", event.target.value, {
-                          shouldDirty: true,
-                          shouldValidate: true,
-                        });
-                      }}
-                    >
-                      <option value="">
-                        {!selectedBranch
-                          ? "Select branch first"
-                          : racksLoading
-                            ? "Loading racks..."
-                            : racks.length
-                              ? "Select rack"
-                              : "No racks available"}
-                      </option>
-
-                      {racks.map((item) => (
-                        <option key={item.id} value={String(item.id)}>
-                          {item.rack_code ||
-                            item.rack_name ||
-                            `Rack #${item.id}`}
-                          {item.rack_name && item.rack_code
-                            ? ` - ${item.rack_name}`
-                            : ""}
-                        </option>
-                      ))}
-                    </select>
-
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="outline"
-                      title="Add rack"
-                      disabled={!selectedBranch}
-                      onClick={() => setShowRackForm((current) => !current)}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="outline"
-                      title="Delete selected rack"
-                      disabled={!selectedRackId}
-                      onClick={deleteRack}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
-                  </div>
-
-                  {showRackForm && (
-                    <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50/70 p-4 shadow-sm dark:border-blue-500/20 dark:bg-blue-500/5">
-                      <div className="mb-3">
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                          Add New Rack
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          The rack will be created for the selected branch.
-                        </p>
-                      </div>
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <div>
-                          <Label className="text-xs">Rack Code</Label>
-                          <Input
-                            className="mt-1.5"
-                            value={rackForm.rack_code}
-                            onChange={(e) =>
-                              setRackForm((c) => ({
-                                ...c,
-                                rack_code: e.target.value,
-                              }))
-                            }
-                            placeholder="e.g. RACK-A01"
-                            autoFocus
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Rack Name</Label>
-                          <Input
-                            className="mt-1.5"
-                            value={rackForm.rack_name}
-                            onChange={(e) =>
-                              setRackForm((c) => ({
-                                ...c,
-                                rack_name: e.target.value,
-                              }))
-                            }
-                            placeholder="Optional rack name"
-                          />
-                        </div>
-                      </div>
-                      <div className="mt-3 flex justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setShowRackForm(false);
-                            setRackForm({ rack_code: "", rack_name: "" });
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="bg-blue-600 text-white hover:bg-blue-700"
-                          disabled={rackSaving}
-                          onClick={addRack}
-                        >
-                          {rackSaving ? "Saving..." : "Add Rack"}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {racksError && (
-                    <p className="mt-1.5 text-sm text-red-400">
-                      Unable to load racks for this branch.
-                    </p>
-                  )}
-                </div>
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
+                Branch is automatically selected from the global branch filter.
+                {!selectedBranch ? (
+                  <p className="mt-2 font-semibold text-amber-700 dark:text-amber-300">
+                    Select a branch from the top branch filter before saving
+                    this product.
+                  </p>
+                ) : null}
               </div>
             </div>
 
@@ -1340,15 +1167,14 @@ export default function ProductFormPage() {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/70 shadow-xl shadow-black/10">
-          <div className="flex flex-col gap-4 border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.025] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-black/10 dark:border-white/10 dark:bg-slate-950/70">
+          <div className="flex flex-col gap-4 border-b border-slate-200 bg-slate-50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:bg-white/[0.025]">
             <div>
               <h2 className="text-lg font-semibold text-slate-950 dark:text-white">
                 {hasVariants
                   ? "Attributes, stock and pricing"
                   : "Stock and pricing"}
               </h2>
-
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                 {hasVariants
                   ? "Create attribute combinations such as RAM, color and storage."
@@ -1356,7 +1182,7 @@ export default function ProductFormPage() {
               </p>
             </div>
 
-            {hasVariants && (
+            {hasVariants ? (
               <Button
                 type="button"
                 variant="outline"
@@ -1366,7 +1192,7 @@ export default function ProductFormPage() {
                 <Plus className="mr-2 h-4 w-4" />
                 Add combination
               </Button>
-            )}
+            ) : null}
           </div>
 
           <div className="space-y-5 p-6">
@@ -1376,14 +1202,13 @@ export default function ProductFormPage() {
                   key={variant.id || variantIndex}
                   className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/60 dark:border-white/10 dark:bg-gradient-to-br dark:from-slate-900/90 dark:to-slate-950 dark:shadow-black/10"
                 >
-                  {hasVariants && (
-                    <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.025] px-5 py-3">
+                  {hasVariants ? (
+                    <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3 dark:border-white/10 dark:bg-white/[0.025]">
                       <div>
                         <p className="text-sm font-semibold text-slate-950 dark:text-white">
                           Attribute combination {variantIndex + 1}
                         </p>
-
-                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-500">
+                        <p className="mt-0.5 text-xs text-slate-500">
                           Define one or more attribute values.
                         </p>
                       </div>
@@ -1399,10 +1224,10 @@ export default function ProductFormPage() {
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                  )}
+                  ) : null}
 
                   <div className="space-y-5 p-5">
-                    {hasVariants && (
+                    {hasVariants ? (
                       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900/60 dark:shadow-none">
                         <div className="space-y-3">
                           {variant.attributes.map(
@@ -1422,7 +1247,7 @@ export default function ProductFormPage() {
                                       event.target.value,
                                     )
                                   }
-                                  className="h-11 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80"
+                                  className="h-11 border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-900/80"
                                 />
 
                                 <Input
@@ -1436,7 +1261,7 @@ export default function ProductFormPage() {
                                       event.target.value,
                                     )
                                   }
-                                  className="h-11 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80"
+                                  className="h-11 border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-900/80"
                                 />
 
                                 <Button
@@ -1462,15 +1287,15 @@ export default function ProductFormPage() {
                           size="sm"
                           variant="outline"
                           onClick={() => addAttribute(variantIndex)}
-                          className="mt-3 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.025]"
+                          className="mt-3 border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/[0.025]"
                         >
                           <Plus className="mr-2 h-4 w-4" />
                           Add attribute
                         </Button>
                       </div>
-                    )}
+                    ) : null}
 
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
                       <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.035] p-3">
                         <Label className="text-emerald-700 dark:text-emerald-100">
                           Initial quantity
@@ -1493,11 +1318,10 @@ export default function ProductFormPage() {
                       <div>
                         <Label>
                           Purchase price
-                          <span className="ml-1 text-xs font-normal text-slate-500 dark:text-slate-500">
+                          <span className="ml-1 text-xs font-normal text-slate-500">
                             Optional
                           </span>
                         </Label>
-
                         <Input
                           type="number"
                           min="0"
@@ -1511,13 +1335,12 @@ export default function ProductFormPage() {
                             )
                           }
                           placeholder="0.00"
-                          className="mt-2 h-11 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80"
+                          className="mt-2 h-11 border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-900/80"
                         />
                       </div>
 
                       <div>
                         <Label>Retail price</Label>
-
                         <Input
                           type="number"
                           min="0"
@@ -1530,13 +1353,12 @@ export default function ProductFormPage() {
                               event.target.value,
                             )
                           }
-                          className="mt-2 h-11 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80"
+                          className="mt-2 h-11 border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-900/80"
                         />
                       </div>
 
                       <div>
                         <Label>Wholesale price</Label>
-
                         <Input
                           type="number"
                           min="0"
@@ -1549,13 +1371,12 @@ export default function ProductFormPage() {
                               event.target.value,
                             )
                           }
-                          className="mt-2 h-11 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80"
+                          className="mt-2 h-11 border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-900/80"
                         />
                       </div>
 
                       <div>
                         <Label>Minimum selling</Label>
-
                         <Input
                           type="number"
                           min="0"
@@ -1568,8 +1389,122 @@ export default function ProductFormPage() {
                               event.target.value,
                             )
                           }
-                          className="mt-2 h-11 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80"
+                          className="mt-2 h-11 border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-900/80"
                         />
+                      </div>
+
+                      <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-500/20 dark:bg-blue-500/[0.06]">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <Label className="font-semibold">Rack</Label>
+                              {(variant.racks || []).length ? (
+                                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">
+                                  {(variant.racks || []).length}
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="mt-0.5 text-[11px] text-muted-foreground">
+                              Multiple racks allowed
+                            </p>
+                          </div>
+
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 shrink-0 px-2 text-xs text-blue-700 hover:bg-blue-100 dark:text-blue-300 dark:hover:bg-blue-500/10"
+                            disabled={!selectedBranch}
+                            onClick={() => {
+                              setRackTargetVariantIndex(variantIndex);
+                              setRackForm({ rack_code: "", rack_name: "" });
+                              setShowRackForm(true);
+                            }}
+                          >
+                            <Plus className="mr-1 h-3.5 w-3.5" />
+                            New
+                          </Button>
+                        </div>
+
+                        <select
+                          className="mt-2 h-11 w-full rounded-lg border border-blue-200 bg-white px-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-500/20 dark:bg-slate-950/70"
+                          value=""
+                          disabled={!selectedBranch || racksLoading}
+                          onChange={(event) => {
+                            const rackId = event.target.value;
+                            if (!rackId) return;
+
+                            const alreadySelected = (variant.racks || [])
+                              .map(String)
+                              .includes(String(rackId));
+
+                            if (!alreadySelected) {
+                              toggleVariantRack(variantIndex, rackId);
+                            }
+                          }}
+                        >
+                          <option value="">
+                            {racksLoading
+                              ? "Loading racks..."
+                              : !selectedBranch
+                                ? "Select branch first"
+                                : racks.length
+                                  ? "Select rack"
+                                  : "No racks available"}
+                          </option>
+
+                          {racks
+                            .filter(
+                              (rack) =>
+                                !(variant.racks || [])
+                                  .map(String)
+                                  .includes(String(rack.id)),
+                            )
+                            .map((rack) => (
+                              <option key={rack.id} value={String(rack.id)}>
+                                {rack.rack_code}
+                                {rack.rack_name ? ` — ${rack.rack_name}` : ""}
+                              </option>
+                            ))}
+                        </select>
+
+                        {(variant.racks || []).length ? (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {(variant.racks || []).map((rackId) => {
+                              const selectedRack = racks.find(
+                                (rack) => String(rack.id) === String(rackId),
+                              );
+
+                              return (
+                                <span
+                                  key={rackId}
+                                  className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-blue-200 bg-white px-2 py-1 text-xs font-medium text-blue-700 dark:border-blue-500/20 dark:bg-slate-950/60 dark:text-blue-300"
+                                >
+                                  <span className="truncate">
+                                    {selectedRack?.rack_code ||
+                                      `Rack #${rackId}`}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="flex h-4 w-4 shrink-0 items-center justify-center rounded text-blue-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
+                                    title="Remove rack"
+                                    onClick={() =>
+                                      toggleVariantRack(variantIndex, rackId)
+                                    }
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+
+                        {racksError ? (
+                          <p className="mt-2 text-xs text-red-500">
+                            Unable to load racks for this branch.
+                          </p>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -1578,6 +1513,76 @@ export default function ProductFormPage() {
             )}
           </div>
         </section>
+
+        {showRackForm && (
+          <Dialog
+            open={showRackForm}
+            onOpenChange={(open) => {
+              setShowRackForm(open);
+              if (!open) {
+                setRackTargetVariantIndex(null);
+                setRackForm({ rack_code: "", rack_name: "" });
+              }
+            }}
+          >
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Add New Rack</DialogTitle>
+                <DialogDescription>
+                  Create a rack for the selected branch. It will be assigned
+                  automatically to this variant.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid gap-4 py-2 sm:grid-cols-2">
+                <div>
+                  <Label>Rack Code *</Label>
+                  <Input
+                    className="mt-2"
+                    value={rackForm.rack_code}
+                    onChange={(event) =>
+                      setRackForm((current) => ({
+                        ...current,
+                        rack_code: event.target.value,
+                      }))
+                    }
+                    placeholder="e.g. RACK-A01"
+                    autoFocus
+                  />
+                </div>
+
+                <div>
+                  <Label>Rack Name</Label>
+                  <Input
+                    className="mt-2"
+                    value={rackForm.rack_name}
+                    onChange={(event) =>
+                      setRackForm((current) => ({
+                        ...current,
+                        rack_name: event.target.value,
+                      }))
+                    }
+                    placeholder="Optional rack name"
+                  />
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowRackForm(false)}
+                  disabled={rackSaving}
+                >
+                  Cancel
+                </Button>
+                <Button type="button" onClick={addRack} disabled={rackSaving}>
+                  {rackSaving ? "Saving..." : "Add Rack"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
 
         <div className="sticky bottom-4 z-20 flex flex-col-reverse gap-3 rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/90 p-4 shadow-2xl shadow-black/30 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-end">
           <Button

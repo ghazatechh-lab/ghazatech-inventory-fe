@@ -87,6 +87,16 @@ export default function ProductDetailPage() {
   const visibleVariants = product.has_variants
     ? variants.filter((item) => !item.is_base)
     : variants.slice(0, 1);
+  const rackLabels = Array.from(
+    new Set(
+      visibleVariants.flatMap((variant) =>
+        (variant.rack_details || []).map((rack) =>
+          [rack.rack_code, rack.rack_name].filter(Boolean).join(" - "),
+        ),
+      ),
+    ),
+  ).filter(Boolean);
+  const rackSummary = rackLabels.join(", ");
   const image = product.product_image_url || product.product_image;
   const availableQty = Number(
     product.total_available_qty ?? product.available_qty ?? 0,
@@ -185,7 +195,10 @@ export default function ProductDetailPage() {
             Storage rack
           </p>
           <p className="mt-2 text-xl font-extrabold text-slate-950 dark:text-white">
-            {product.rack_code || product.rack_name || "Unassigned"}
+            {rackSummary ||
+              product.rack_code ||
+              product.rack_name ||
+              "Unassigned"}
           </p>
           <p className="mt-1 text-xs text-slate-500">Physical location</p>
         </div>
@@ -216,7 +229,7 @@ export default function ProductDetailPage() {
             <DetailItem
               icon={MapPin}
               label="Rack"
-              value={product.rack_code || product.rack_name}
+              value={rackSummary || product.rack_code || product.rack_name}
             />
             <DetailItem
               icon={Truck}
@@ -330,6 +343,7 @@ export default function ProductDetailPage() {
                 {product.has_variants && (
                   <th className="px-6 py-4">Attributes</th>
                 )}
+                <th className="px-6 py-4">Rack Locations</th>
                 <th className="px-6 py-4 text-right">Available</th>
                 <th className="px-6 py-4 text-right">Purchase</th>
                 <th className="px-6 py-4 text-right">Retail</th>
@@ -341,7 +355,7 @@ export default function ProductDetailPage() {
               {visibleVariants.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={product.has_variants ? 6 : 5}
+                    colSpan={product.has_variants ? 7 : 6}
                     className="px-6 py-12 text-center text-slate-500"
                   >
                     No stock or pricing record is available.
@@ -369,6 +383,25 @@ export default function ProductDetailPage() {
                         </div>
                       </td>
                     )}
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap gap-2">
+                        {(variant.rack_details || []).length ? (
+                          variant.rack_details.map((rack) => (
+                            <span
+                              key={rack.id}
+                              className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:bg-white/5 dark:text-slate-300"
+                            >
+                              {rack.rack_code}
+                              {rack.rack_name ? ` - ${rack.rack_name}` : ""}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-slate-500">
+                            Unassigned
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-6 py-4 text-right font-extrabold text-slate-950 dark:text-white">
                       {variant.available_qty ?? variant.total_quantity ?? 0}
                     </td>

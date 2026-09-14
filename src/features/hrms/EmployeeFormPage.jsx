@@ -15,6 +15,8 @@ import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,6 +73,7 @@ export default function EmployeeFormPage() {
   const isEdit = Boolean(id);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { branchId, isAllBranches } = useActiveBranchFilter();
   const [form, setForm] = React.useState(initial);
   const [inlineForm, setInlineForm] = React.useState(null);
   const [inlineName, setInlineName] = React.useState("");
@@ -79,9 +82,11 @@ export default function EmployeeFormPage() {
   const [profilePreview, setProfilePreview] = React.useState("");
   const [documents, setDocuments] = React.useState({
     passport: null,
+    emirates_id: null,
     visa: null,
     labor_contract: null,
   });
+  const [deleteTarget, setDeleteTarget] = React.useState(null);
 
   const { data: options = {} } = useQuery({
     queryKey: ["employee-form-options"],
@@ -105,6 +110,26 @@ export default function EmployeeFormPage() {
       designation: employee.designation ? String(employee.designation) : "",
     });
   }, [employee]);
+
+  React.useEffect(() => {
+    if (isEdit) return;
+
+    setForm((current) => ({
+      ...current,
+      branch:
+        branchId !== null && branchId !== undefined && branchId !== ""
+          ? String(branchId)
+          : "",
+    }));
+  }, [branchId, isEdit]);
+
+  const selectedBranch = React.useMemo(
+    () =>
+      normalizeList(options.branches).find(
+        (item) => String(item.id) === String(form.branch),
+      ),
+    [options.branches, form.branch],
+  );
 
   const update = (key, value) =>
     setForm((current) => ({ ...current, [key]: value }));
@@ -143,32 +168,24 @@ export default function EmployeeFormPage() {
     }
   };
 
-  const deleteDepartment = async () => {
-    if (!form.department) return toast.error("Select a department first.");
+  const deleteDepartment = () => {
+    if (!form.department) {
+      toast.error("Select a department first.");
+      return;
+    }
+
     const item = normalizeList(options.departments).find(
       (row) => String(row.id) === String(form.department),
     );
-    if (
-      !window.confirm(
-        `Delete department "${item?.name || "selected department"}"?`,
-      )
-    )
-      return;
 
-    try {
-      await api.delete(`/hrms/departments/${form.department}/`, {
-        skipGlobalErrorToast: true,
-      });
-      update("department", "");
-      update("designation", "");
-      await refreshOptions();
-      toast.success("Department deleted.");
-    } catch (error) {
-      const details = getApiErrorDetails(error);
-      toast.error(details.title || "Unable to delete department", {
-        description: details.summary || details.message,
-      });
-    }
+    setDeleteTarget({
+      type: "department",
+      id: form.department,
+      title: "Delete Department?",
+      description: `Are you sure you want to delete department "${
+        item?.name || "selected department"
+      }"? This action cannot be undone.`,
+    });
   };
 
   const createDesignation = async () => {
@@ -202,31 +219,24 @@ export default function EmployeeFormPage() {
     }
   };
 
-  const deleteDesignation = async () => {
-    if (!form.designation) return toast.error("Select a designation first.");
+  const deleteDesignation = () => {
+    if (!form.designation) {
+      toast.error("Select a designation first.");
+      return;
+    }
+
     const item = normalizeList(options.designations).find(
       (row) => String(row.id) === String(form.designation),
     );
-    if (
-      !window.confirm(
-        `Delete designation "${item?.name || "selected designation"}"?`,
-      )
-    )
-      return;
 
-    try {
-      await api.delete(`/hrms/designations/${form.designation}/`, {
-        skipGlobalErrorToast: true,
-      });
-      update("designation", "");
-      await refreshOptions();
-      toast.success("Designation deleted.");
-    } catch (error) {
-      const details = getApiErrorDetails(error);
-      toast.error(details.title || "Unable to delete designation", {
-        description: details.summary || details.message,
-      });
-    }
+    setDeleteTarget({
+      type: "designation",
+      id: form.designation,
+      title: "Delete Designation?",
+      description: `Are you sure you want to delete designation "${
+        item?.name || item?.designation_name || "selected designation"
+      }"? This action cannot be undone.`,
+    });
   };
 
   const uploadOptionalDocuments = async (employeeId) => {
@@ -238,6 +248,14 @@ export default function EmployeeFormPage() {
         number: form.passport_number,
         issueDate: form.passport_issue_date,
         expiryDate: form.passport_expiry_date,
+      },
+      {
+        key: "emirates_id",
+        type: "EMIRATES_ID",
+        title: "Emirates ID",
+        number: form.emirates_id_number,
+        issueDate: form.emirates_id_issue_date,
+        expiryDate: form.emirates_id_expiry_date,
       },
       {
         key: "visa",
@@ -296,8 +314,51 @@ export default function EmployeeFormPage() {
     },
   });
 
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+
+    try {
+      if (deleteTarget.type === "department") {
+        await api.delete(`/hrms/departments/${deleteTarget.id}/`, {
+          skipGlobalErrorToast: true,
+        });
+        update("department", "");
+        update("designation", "");
+        await refreshOptions();
+        toast.success("Department deleted.");
+      } else if (deleteTarget.type === "designation") {
+        await api.delete(`/hrms/designations/${deleteTarget.id}/`, {
+          skipGlobalErrorToast: true,
+        });
+        update("designation", "");
+        await refreshOptions();
+        toast.success("Designation deleted.");
+      } else if (deleteTarget.type === "document") {
+        await removeExistingDocument.mutateAsync(deleteTarget.id);
+      }
+
+      setDeleteTarget(null);
+    } catch (error) {
+      if (deleteTarget.type === "document") return;
+
+      const details = getApiErrorDetails(error);
+      const label =
+        deleteTarget.type === "department" ? "department" : "designation";
+
+      toast.error(details.title || `Unable to delete ${label}`, {
+        description: details.summary || details.message,
+      });
+    }
+  };
+
   const mutation = useMutation({
     mutationFn: async () => {
+      if (!isEdit && !form.branch) {
+        throw new Error(
+          "Select a specific branch from the header before creating an employee.",
+        );
+      }
+
       const body = new FormData();
       const payload = {
         ...form,
@@ -364,9 +425,12 @@ export default function EmployeeFormPage() {
     },
     onError: (error) => {
       const details = getApiErrorDetails(error);
-      toast.error(details.title || "Unable to save employee", {
-        description: details.summary || details.message,
-      });
+      toast.error(
+        error?.message || details.title || "Unable to save employee",
+        {
+          description: details.summary || details.message,
+        },
+      );
     },
   });
 
@@ -486,21 +550,28 @@ export default function EmployeeFormPage() {
           {field("Joining Date", "joining_date", "date")}
           <div>
             <Label>Branch</Label>
-            <Select
-              value={form.branch}
-              onValueChange={(value) => update("branch", value)}
-            >
-              <SelectTrigger className="mt-2">
-                <SelectValue placeholder="Select branch" />
-              </SelectTrigger>
-              <SelectContent>
-                {normalizeList(options.branches).map((item) => (
-                  <SelectItem key={item.id} value={String(item.id)}>
-                    {item.branch_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input
+              className="mt-2"
+              value={
+                selectedBranch?.branch_name ||
+                selectedBranch?.branch_code ||
+                (isAllBranches && !isEdit
+                  ? "Select a branch from the header"
+                  : "Branch selected automatically")
+              }
+              readOnly
+              disabled
+            />
+            {!isEdit && isAllBranches ? (
+              <p className="mt-1.5 text-xs text-amber-600">
+                Select a specific branch from the header before creating an
+                employee.
+              </p>
+            ) : (
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Branch is selected automatically from the active branch.
+              </p>
+            )}
           </div>
           <div>
             <Label>Department</Label>
@@ -771,11 +842,18 @@ export default function EmployeeFormPage() {
                       size="sm"
                       variant="outline"
                       disabled={removeExistingDocument.isPending}
-                      onClick={() => {
-                        if (window.confirm("Delete this employee document?")) {
-                          removeExistingDocument.mutate(item.id);
-                        }
-                      }}
+                      onClick={() =>
+                        setDeleteTarget({
+                          type: "document",
+                          id: item.id,
+                          title: "Delete Employee Document?",
+                          description: `Are you sure you want to delete "${
+                            item.title ||
+                            item.document_type_display ||
+                            "this employee document"
+                          }"? This action cannot be undone.`,
+                        })
+                      }
                     >
                       <Trash2 className="mr-2 h-4 w-4 text-red-500" />
                       Delete
@@ -787,11 +865,15 @@ export default function EmployeeFormPage() {
           </div>
         )}
 
-        <div className="mt-5 grid gap-4 md:grid-cols-3">
+        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {[
             [
               "passport",
               isEdit ? "Replace / Add Passport" : "Passport Document",
+            ],
+            [
+              "emirates_id",
+              isEdit ? "Replace / Add Emirates ID" : "Emirates ID Document",
             ],
             ["visa", isEdit ? "Replace / Add Visa" : "Visa Document"],
             [
@@ -871,6 +953,18 @@ export default function EmployeeFormPage() {
           </div>
         </div>
       </section>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title={deleteTarget?.title || "Delete?"}
+        description={deleteTarget?.description}
+        confirmLabel="Delete"
+        destructive
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

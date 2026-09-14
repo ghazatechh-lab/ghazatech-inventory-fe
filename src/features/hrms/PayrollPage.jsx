@@ -7,6 +7,7 @@ import {
   Landmark,
   Pencil,
   Plus,
+  Trash2,
   X,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +16,7 @@ import { toast } from "sonner";
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { PageHeader } from "@/components/common/PageHeader";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -124,6 +126,7 @@ export default function PayrollPage() {
   const [editingPayroll, setEditingPayroll] = React.useState(null);
   const [payingPayroll, setPayingPayroll] = React.useState(null);
   const [payrollPaidBy, setPayrollPaidBy] = React.useState("");
+  const [deleteTarget, setDeleteTarget] = React.useState(null);
 
   const [editPayrollForm, setEditPayrollForm] = React.useState({
     payroll_date: today,
@@ -664,6 +667,147 @@ export default function PayrollPage() {
     },
   });
 
+  const deletePayrollMutation = useMutation({
+    mutationFn: async (row) =>
+      api.delete(`/hrms/payroll/${row.id}/`, {
+        skipGlobalErrorToast: true,
+      }),
+
+    onSuccess: async () => {
+      await refreshAll();
+      toast.success("Payroll entry deleted successfully.");
+    },
+
+    onError: (error) => {
+      const details = getApiErrorDetails(error);
+
+      toast.error(details.title || "Unable to delete payroll entry", {
+        description:
+          details.summary || details.message || error?.response?.data?.detail,
+      });
+    },
+  });
+
+  const deleteAdvanceMutation = useMutation({
+    mutationFn: async (row) =>
+      api.delete(`/hrms/salary-advances/${row.id}/`, {
+        skipGlobalErrorToast: true,
+      }),
+
+    onSuccess: async () => {
+      await refreshAll();
+      toast.success("Salary advance deleted successfully.");
+    },
+
+    onError: (error) => {
+      const details = getApiErrorDetails(error);
+
+      toast.error(details.title || "Unable to delete salary advance", {
+        description:
+          details.summary || details.message || error?.response?.data?.detail,
+      });
+    },
+  });
+
+  const deleteLoanMutation = useMutation({
+    mutationFn: async (row) =>
+      api.delete(`/hrms/employee-loans/${row.id}/`, {
+        skipGlobalErrorToast: true,
+      }),
+
+    onSuccess: async () => {
+      await refreshAll();
+      toast.success("Employee loan deleted successfully.");
+    },
+
+    onError: (error) => {
+      const details = getApiErrorDetails(error);
+
+      toast.error(details.title || "Unable to delete employee loan", {
+        description:
+          details.summary || details.message || error?.response?.data?.detail,
+      });
+    },
+  });
+
+  const deletePayroll = (row) => {
+    setDeleteTarget({ type: "payroll", row });
+  };
+
+  const deleteAdvance = (row) => {
+    setDeleteTarget({ type: "advance", row });
+  };
+
+  const deleteLoan = (row) => {
+    setDeleteTarget({ type: "loan", row });
+  };
+
+  const confirmDelete = () => {
+    if (!deleteTarget?.row) {
+      return;
+    }
+
+    const { type, row } = deleteTarget;
+
+    if (type === "payroll") {
+      deletePayrollMutation.mutate(row, {
+        onSuccess: () => setDeleteTarget(null),
+      });
+      return;
+    }
+
+    if (type === "advance") {
+      deleteAdvanceMutation.mutate(row, {
+        onSuccess: () => setDeleteTarget(null),
+      });
+      return;
+    }
+
+    if (type === "loan") {
+      deleteLoanMutation.mutate(row, {
+        onSuccess: () => setDeleteTarget(null),
+      });
+    }
+  };
+
+  const deleteDialogContent = React.useMemo(() => {
+    if (!deleteTarget?.row) {
+      return {
+        title: "Delete record?",
+        description: "This action cannot be undone.",
+      };
+    }
+
+    const row = deleteTarget.row;
+    const employee = row.employee_name || row.employee_code || "this employee";
+
+    if (deleteTarget.type === "payroll") {
+      return {
+        title: "Delete payroll entry?",
+        description: `Are you sure you want to delete the payroll for ${employee}${
+          row.period ? ` (${row.period})` : ""
+        }? This action cannot be undone.`,
+      };
+    }
+
+    if (deleteTarget.type === "advance") {
+      return {
+        title: "Delete salary advance?",
+        description: `Are you sure you want to delete the salary advance for ${employee}? This action cannot be undone.`,
+      };
+    }
+
+    return {
+      title: "Delete employee loan?",
+      description: `Are you sure you want to delete the employee loan for ${employee}? This action cannot be undone.`,
+    };
+  }, [deleteTarget]);
+
+  const deleteIsPending =
+    deletePayrollMutation.isPending ||
+    deleteAdvanceMutation.isPending ||
+    deleteLoanMutation.isPending;
+
   const submitPayroll = () => {
     if (!period || !payrollDate) {
       toast.error("Pay period and payroll date are required.");
@@ -964,6 +1108,18 @@ export default function PayrollPage() {
             <Eye className="mr-2 h-4 w-4" />
             Payslip
           </Button>
+
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="text-red-600 hover:bg-red-50 hover:text-red-700"
+            onClick={() => deletePayroll(row)}
+            disabled={deletePayrollMutation.isPending}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete
+          </Button>
         </div>
       ),
     },
@@ -1005,7 +1161,7 @@ export default function PayrollPage() {
       header: "Actions",
       align: "right",
       cell: (row) => (
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
           <Button
             type="button"
             size="sm"
@@ -1014,6 +1170,18 @@ export default function PayrollPage() {
           >
             <Eye className="mr-2 h-4 w-4" />
             View Details
+          </Button>
+
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="text-red-600 hover:bg-red-50 hover:text-red-700"
+            onClick={() => deleteAdvance(row)}
+            disabled={deleteAdvanceMutation.isPending}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete
           </Button>
         </div>
       ),
@@ -1098,6 +1266,18 @@ export default function PayrollPage() {
               Cancel
             </Button>
           ) : null}
+
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="text-red-600 hover:bg-red-50 hover:text-red-700"
+            onClick={() => deleteLoan(row)}
+            disabled={deleteLoanMutation.isPending}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete
+          </Button>
         </div>
       ),
     },
@@ -2839,6 +3019,20 @@ export default function PayrollPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open && !deleteIsPending) {
+            setDeleteTarget(null);
+          }
+        }}
+        title={deleteDialogContent.title}
+        description={deleteDialogContent.description}
+        confirmLabel={deleteIsPending ? "Deleting..." : "Delete"}
+        destructive
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }
