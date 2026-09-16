@@ -370,7 +370,11 @@ export default function VendorCreditDetailPage() {
 
           <DetailField
             label="Currency"
-            value={displayValue(record.currency, "AED")}
+            value={
+              String(record.currency || "AED").toUpperCase() === "AED"
+                ? "د.إ"
+                : displayValue(record.currency, "AED")
+            }
           />
 
           <DetailField label="Supplier" value={supplierName} />

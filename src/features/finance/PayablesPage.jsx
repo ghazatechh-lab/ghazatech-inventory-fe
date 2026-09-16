@@ -813,7 +813,7 @@ function BillForm({
                   setForm((x) => ({ ...x, currency: e.target.value }))
                 }
               >
-                <option>AED</option>
+                <option value="AED">د.إ</option>
                 <option>USD</option>
               </select>
             </Field>

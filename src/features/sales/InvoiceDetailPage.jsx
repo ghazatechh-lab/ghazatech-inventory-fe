@@ -102,7 +102,7 @@ export default function InvoiceDetailPage() {
   };
 
   return (
-    <div className="sales-module-page sales-workspace mx-auto max-w-6xl space-y-5">
+    <div className="sales-module-page sales-workspace w-full space-y-5">
       <PageHeader
         title={invoice.invoice_number}
         subtitle="Invoice details, balance, and payment status"
@@ -196,6 +196,18 @@ export default function InvoiceDetailPage() {
           </div>
 
           <div>
+            <p className="text-xs text-muted-foreground">Created By</p>
+            <p className="mt-1 font-medium">{invoice.created_by_name || "—"}</p>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted-foreground">Updated By</p>
+            <p className="mt-1 font-medium">
+              {invoice.updated_by_name || invoice.created_by_name || "—"}
+            </p>
+          </div>
+
+          <div>
             <p className="text-xs text-muted-foreground">Paid Amount</p>
             <div className="mt-1 font-medium text-emerald-600 dark:text-emerald-400">
               <CurrencyText
@@ -270,6 +282,19 @@ export default function InvoiceDetailPage() {
               />
             </div>
 
+            {Number(invoice.discount_amount || 0) > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Discount</span>
+                <span className="font-medium text-red-600 dark:text-red-400">
+                  -{" "}
+                  <CurrencyText
+                    value={invoice.discount_amount}
+                    currency={invoice.currency || "AED"}
+                  />
+                </span>
+              </div>
+            )}
+
             <div className="flex justify-between">
               <span className="text-muted-foreground">VAT</span>
               <CurrencyText
@@ -278,12 +303,32 @@ export default function InvoiceDetailPage() {
               />
             </div>
 
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Amount Paid</span>
+            {Number(invoice.shipping_amount || 0) > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Shipping</span>
+                <CurrencyText
+                  value={invoice.shipping_amount}
+                  currency={invoice.currency || "AED"}
+                />
+              </div>
+            )}
+
+            <div className="flex justify-between border-t pt-3 font-semibold">
+              <span>Total</span>
               <CurrencyText
-                value={invoice.paid_amount}
+                value={invoice.total_amount}
                 currency={invoice.currency || "AED"}
               />
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Amount Paid</span>
+              <span className="text-emerald-600 dark:text-emerald-400">
+                <CurrencyText
+                  value={invoice.paid_amount}
+                  currency={invoice.currency || "AED"}
+                />
+              </span>
             </div>
 
             <div className="flex justify-between border-t pt-3 text-base font-semibold">

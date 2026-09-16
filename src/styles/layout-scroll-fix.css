@@ -41,3 +41,18 @@ aside[data-app-sidebar="true"] nav {
     max-height: 100vh !important;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Full-width routed pages                                                     */
+/* -------------------------------------------------------------------------- */
+/*
+ * Every authenticated route is rendered directly inside AppLayout's scrollable
+ * <main>. Force only that route root to use the complete available workspace.
+ * Inner components keep their own max-width rules (dialogs, search fields,
+ * totals cards, readable text blocks, etc.).
+ */
+.app-content-shell > main > * {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0;
+}

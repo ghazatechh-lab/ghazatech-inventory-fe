@@ -410,7 +410,7 @@ export default function PriceListsPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="AED">AED</SelectItem>
+                        <SelectItem value="AED">د.إ</SelectItem>
                         <SelectItem value="SAR">SAR</SelectItem>
                         <SelectItem value="USD">USD</SelectItem>
                       </SelectContent>
@@ -632,7 +632,8 @@ export default function PriceListsPage() {
                               />
                             </td>
                             <td className="p-2 font-semibold text-green-500">
-                              {form.currency} {finalPrice.toFixed(2)}
+                              {form.currency === "AED" ? "د.إ" : form.currency}{" "}
+                              {finalPrice.toFixed(2)}
                             </td>
                             <td className="p-2">
                               <Button

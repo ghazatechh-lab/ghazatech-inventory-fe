@@ -256,7 +256,7 @@ export default function StockMovementsPage() {
             Net Value Change
           </p>
           <p className="mt-2 text-2xl font-bold">
-            AED {summary.valueChange.toFixed(2)}
+            د.إ {summary.valueChange.toFixed(2)}
           </p>
         </div>
       </section>
@@ -467,7 +467,7 @@ export default function StockMovementsPage() {
                       </td>
 
                       <td className="px-4 py-4 text-right font-mono">
-                        AED{" "}
+                        د.إ{" "}
                         {Number(movement.capitalized_unit_cost || 0).toFixed(2)}
                       </td>
                       <td className="px-4 py-4 text-sm">
@@ -478,17 +478,17 @@ export default function StockMovementsPage() {
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {Number(movement.vat_percentage || 0).toFixed(2)}% ·
-                          Recoverable AED{" "}
+                          Recoverable د.إ{" "}
                           {Number(movement.recoverable_vat_amount || 0).toFixed(
                             2,
                           )}
                         </div>
                       </td>
                       <td className="px-4 py-4 text-right font-mono">
-                        AED {Number(movement.net_value_change || 0).toFixed(2)}
+                        د.إ {Number(movement.net_value_change || 0).toFixed(2)}
                       </td>
                       <td className="px-4 py-4 text-right font-mono font-semibold">
-                        AED{" "}
+                        د.إ{" "}
                         {Number(movement.running_stock_value || 0).toFixed(2)}
                       </td>
 

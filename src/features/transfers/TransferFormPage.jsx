@@ -647,7 +647,7 @@ export default function TransferFormPage() {
                       </p>
 
                       <p className="mt-1 font-semibold">
-                        AED{" "}
+                        د.إ{" "}
                         {Number(
                           selectedProduct?.average_unit_cost_excluding_vat || 0,
                         ).toFixed(4)}

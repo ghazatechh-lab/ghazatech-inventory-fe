@@ -7,14 +7,62 @@ export function cn(...inputs) {
 
 export function formatAED(v) {
   const n = Number(v ?? 0);
-  return `AED ${n.toLocaleString("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `د.إ ${n.toLocaleString("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+export function currencySymbol(currency = "AED") {
+  return String(currency || "AED").toUpperCase() === "AED"
+    ? "د.إ"
+    : String(currency || "");
+}
+
+export function formatCurrency(v, currency = "AED") {
+  const n = Number(v ?? 0);
+  const code = String(currency || "AED").toUpperCase();
+
+  if (code === "AED") {
+    return `د.إ ${n.toLocaleString("en-AE", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }
+
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: code,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
+  } catch {
+    return `${code} ${n.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }
 }
 
 export function formatNumber(v, digits = 0) {
-  return Number(v ?? 0).toLocaleString("en-AE", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return Number(v ?? 0).toLocaleString("en-AE", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
 }
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 export function formatDate(d) {
   if (!d) return "-";
@@ -32,7 +80,8 @@ export function formatDateTime(d) {
 }
 
 export function daysBetween(a, b = new Date()) {
-  const d1 = new Date(a); const d2 = new Date(b);
+  const d1 = new Date(a);
+  const d2 = new Date(b);
   return Math.round((d1 - d2) / (1000 * 60 * 60 * 24));
 }
 

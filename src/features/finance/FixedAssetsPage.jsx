@@ -475,7 +475,7 @@ export default function FixedAssetsPage() {
               />
             </Field>
 
-            <Field label="Cost (AED)" required>
+            <Field label="Cost (د.إ)" required>
               <Input
                 type="number"
                 min="0"
@@ -541,13 +541,13 @@ export default function FixedAssetsPage() {
           <div className="mt-4 rounded-xl bg-green-100 px-4 py-3 text-sm text-green-800">
             {Number(asset.purchase_cost || 0) >=
             Number(asset.capitalization_threshold || 0)
-              ? `✓ Above the AED ${Number(
+              ? `✓ Above the د.إ ${Number(
                   asset.capitalization_threshold || 0,
                 ).toLocaleString("en-US", {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })} capitalization threshold for ${asset.category} — this will be recorded as a fixed asset.`
-              : `The cost is below the AED ${Number(
+              : `The cost is below the د.إ ${Number(
                   asset.capitalization_threshold || 0,
                 ).toLocaleString("en-US", {
                   minimumFractionDigits: 2,
@@ -613,7 +613,7 @@ export default function FixedAssetsPage() {
               />
             </Field>
 
-            <Field label="Residual Value (AED)">
+            <Field label="Residual Value (د.إ)">
               <Input
                 type="number"
                 min="0"
@@ -681,7 +681,7 @@ export default function FixedAssetsPage() {
               </Field>
             )}
 
-            <Field label="Capitalization Threshold (AED)">
+            <Field label="Capitalization Threshold (د.إ)">
               <Input
                 type="number"
                 min="0"
@@ -1268,7 +1268,7 @@ export default function FixedAssetsPage() {
 
           <div className="mt-5 grid gap-4 md:grid-cols-3">
             <Field
-              label="Sale Proceeds (AED)"
+              label="Sale Proceeds (د.إ)"
               required={disposal.disposal_method === "SOLD"}
             >
               <Input

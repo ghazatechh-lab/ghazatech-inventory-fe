@@ -436,7 +436,7 @@ export default function SalesPaymentsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="AED">AED</SelectItem>
+                      <SelectItem value="AED">د.إ</SelectItem>
                       <SelectItem value="USD">USD</SelectItem>
                     </SelectContent>
                   </Select>

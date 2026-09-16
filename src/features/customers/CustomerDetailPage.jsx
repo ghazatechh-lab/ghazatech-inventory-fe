@@ -261,7 +261,9 @@ export default function CustomerDetailPage() {
             {Number(c.payment_terms_days || 0)} days
           </DetailRow>
           <DetailRow label="Currency">
-            {displayValue(c.currency, "AED")}
+            {String(c.currency || "AED").toUpperCase() === "AED"
+              ? "د.إ"
+              : displayValue(c.currency, "AED")}
           </DetailRow>
           <DetailRow label="Active">
             <StatusBadge status={c.is_active ? "ACTIVE" : "INACTIVE"} />

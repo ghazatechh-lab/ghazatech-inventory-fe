@@ -126,7 +126,7 @@ export default function InventoryReportPage() {
                 <YAxis fontSize={11} />
                 <Tooltip
                   formatter={(value) => [
-                    `AED ${Number(value || 0).toFixed(2)}`,
+                    `د.إ ${Number(value || 0).toFixed(2)}`,
                     "Inventory Value",
                   ]}
                 />

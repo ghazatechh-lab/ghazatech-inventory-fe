@@ -7,7 +7,6 @@ import {
   Grid2X2,
   LogOut,
   RefreshCcw,
-  Search,
   Settings,
 } from "lucide-react";
 
@@ -43,23 +42,7 @@ const getBranchName = (user) =>
 export default function ModuleLandingPage() {
   const navigate = useNavigate();
   const { user, isLoading, logout } = useAuth();
-  const [search, setSearch] = React.useState("");
-
   const visibleModules = React.useMemo(() => getVisibleModules(user), [user]);
-
-  const filteredModules = React.useMemo(() => {
-    const query = search.trim().toLowerCase();
-
-    if (!query) return visibleModules;
-
-    return visibleModules.filter((module) =>
-      [module.title, module.shortTitle, module.description]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-        .includes(query),
-    );
-  }, [search, visibleModules]);
 
   const openModule = (module) => {
     if (!module) return;
@@ -171,28 +154,16 @@ export default function ModuleLandingPage() {
         </header>
 
         <main className="mx-auto max-w-7xl px-5 pb-16 pt-8 lg:px-8">
-          <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-[0.24em] text-cyan-300/80">
-                Main Menu
-              </p>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight">
-                Welcome, {getUserName(user)}
-              </h1>
-              <p className="mt-1 text-sm text-slate-400">
-                Select a module to open its workspace.
-              </p>
-            </div>
-
-            <div className="relative w-full lg:max-w-sm">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search modules..."
-                className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.05] pl-10 pr-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400/40 focus:bg-white/[0.08]"
-              />
-            </div>
+          <div className="mb-8">
+            <p className="text-xs font-medium uppercase tracking-[0.24em] text-cyan-300/80">
+              Main Menu
+            </p>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight">
+              Welcome, {getUserName(user)}
+            </h1>
+            <p className="mt-1 text-sm text-slate-400">
+              Select a module to open its workspace.
+            </p>
           </div>
 
           <div className="mb-8 flex items-center justify-between gap-4 rounded-lg border-l-4 border-red-500 bg-red-950/50 px-4 py-3 text-sm shadow-lg shadow-black/10">
@@ -204,14 +175,14 @@ export default function ModuleLandingPage() {
             </div>
 
             <span className="hidden text-xs font-medium text-cyan-300 sm:block">
-              {filteredModules.length} module
-              {filteredModules.length === 1 ? "" : "s"}
+              {visibleModules.length} module
+              {visibleModules.length === 1 ? "" : "s"}
             </span>
           </div>
 
-          {filteredModules.length ? (
+          {visibleModules.length ? (
             <section className="mx-auto grid max-w-5xl grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredModules.map((module, index) => {
+              {visibleModules.map((module, index) => {
                 const Icon = module.icon || Grid2X2;
                 const [tile, glow] = moduleStyles[index % moduleStyles.length];
 
@@ -259,9 +230,9 @@ export default function ModuleLandingPage() {
           ) : (
             <div className="rounded-xl border border-white/10 bg-white/[0.04] p-10 text-center">
               <Building2 className="mx-auto h-8 w-8 text-slate-500" />
-              <h2 className="mt-4 font-semibold">No modules found</h2>
+              <h2 className="mt-4 font-semibold">No modules available</h2>
               <p className="mt-2 text-sm text-slate-400">
-                Try another search or verify the role permissions.
+                Verify the user's role and module permissions.
               </p>
             </div>
           )}

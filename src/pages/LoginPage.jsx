@@ -63,69 +63,51 @@ export default function LoginPage() {
   return (
     <div className="ghaza-login-page">
       <style>{`
-        @keyframes ghazaRingSpin {
+        @keyframes ghazaSpin {
           to {
-            transform: rotateX(68deg) rotateZ(380deg);
+            transform: rotate(360deg);
           }
         }
 
-        @keyframes ghazaSphereFloat {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-18px); }
-        }
-
-        @keyframes ghazaCubeFloat {
+        @keyframes ghazaFloat {
           0%, 100% {
-            transform: rotateX(56deg) rotateY(38deg) rotateZ(16deg)
-              translateY(0);
+            transform: translateY(0);
           }
           50% {
-            transform: rotateX(62deg) rotateY(44deg) rotateZ(23deg)
-              translateY(-18px);
+            transform: translateY(-14px);
           }
-        }
-
-        @keyframes ghazaCardFloat {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-7px); }
         }
 
         .ghaza-login-page {
-          --ghaza-blue: #3b82f6;
-          --ghaza-blue-light: #7fb0ff;
-          --ghaza-cyan: #46d8f5;
-          --ghaza-white: #ffffff;
-          --ghaza-text: #f8fbff;
-          --ghaza-muted: #c6d5e5;
-          --ghaza-muted-soft: #9db2c8;
-          --ghaza-border: rgba(255,255,255,.20);
+          --blue: #2563eb;
+          --blue-dark: #1d4ed8;
+          --blue-light: #60a5fa;
+          --cyan: #22d3ee;
+          --white: #ffffff;
+          --text: #f8fafc;
+          --muted: #cbd5e1;
 
           position: relative;
           min-height: 100vh;
           overflow: hidden;
-          color: var(--ghaza-text) !important;
+          color: var(--text);
           background:
             radial-gradient(
-              circle at 16% 18%,
-              rgba(49, 210, 242, .15),
-              transparent 23%
-            ),
-            radial-gradient(
-              circle at 84% 18%,
-              rgba(47, 111, 237, .28),
-              transparent 26%
-            ),
-            radial-gradient(
-              circle at 56% 86%,
-              rgba(88, 132, 255, .18),
+              circle at 12% 18%,
+              rgba(34, 211, 238, .18),
               transparent 25%
+            ),
+            radial-gradient(
+              circle at 88% 12%,
+              rgba(37, 99, 235, .30),
+              transparent 32%
             ),
             linear-gradient(
               135deg,
-              #020a12 0%,
-              #061522 38%,
-              #0a213b 70%,
-              #11345f 100%
+              #020817 0%,
+              #071426 42%,
+              #0b2344 72%,
+              #123768 100%
             );
         }
 
@@ -136,155 +118,93 @@ export default function LoginPage() {
           box-sizing: border-box;
         }
 
-        /* Prevent ERP/global theme rules from darkening login typography. */
         .ghaza-login-page h1,
         .ghaza-login-page h2,
-        .ghaza-login-page h3,
-        .ghaza-login-page strong,
-        .ghaza-login-page label,
         .ghaza-login-page p,
         .ghaza-login-page span,
+        .ghaza-login-page label,
+        .ghaza-login-page strong,
         .ghaza-login-page a,
         .ghaza-login-page button {
           -webkit-text-fill-color: currentColor;
         }
 
-        .ghaza-login-bg-grid {
+        .ghaza-login-grid {
           position: absolute;
           inset: 0;
+          pointer-events: none;
+          opacity: .55;
           background-image:
             linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
-          background-size: 46px 46px;
-          mask-image: linear-gradient(
-            to bottom,
-            rgba(0,0,0,.95),
-            transparent 98%
-          );
-          pointer-events: none;
-        }
-
-        .ghaza-login-overlay {
-          position: absolute;
-          inset: 0;
-          background:
             linear-gradient(
               90deg,
-              rgba(1, 7, 12, .18),
-              rgba(1, 7, 12, .05),
-              rgba(1, 7, 12, .20)
+              rgba(255,255,255,.035) 1px,
+              transparent 1px
             );
-          pointer-events: none;
+          background-size: 48px 48px;
         }
 
-        .ghaza-ring {
+        .ghaza-glow {
           position: absolute;
-          left: 4%;
-          top: 16%;
-          width: 430px;
-          height: 430px;
           border-radius: 999px;
-          border: 26px solid rgba(113,169,255,.28);
-          box-shadow:
-            inset 0 0 34px rgba(104,168,255,.22),
-            0 0 40px rgba(47,111,237,.16);
-          transform-style: preserve-3d;
-          transform: rotateX(68deg) rotateZ(20deg);
-          animation: ghazaRingSpin 16s linear infinite;
+          filter: blur(30px);
           pointer-events: none;
         }
 
-        .ghaza-sphere {
+        .ghaza-glow-one {
+          top: 12%;
+          left: 6%;
+          width: 320px;
+          height: 320px;
+          background: rgba(37, 99, 235, .16);
+        }
+
+        .ghaza-glow-two {
+          right: 3%;
+          bottom: 9%;
+          width: 300px;
+          height: 300px;
+          background: rgba(34, 211, 238, .10);
+        }
+
+        .ghaza-shape {
           position: absolute;
-          left: 12%;
-          top: 17%;
-          width: 250px;
-          height: 250px;
-          border-radius: 999px;
-          background:
-            radial-gradient(
-              circle at 28% 22%,
-              #e3f4ff 0 7%,
-              #99caff 18%,
-              #4587f2 46%,
-              #16458f 76%,
-              #07172f 100%
-            );
-          filter: drop-shadow(0 32px 50px rgba(0,0,0,.25));
-          animation: ghazaSphereFloat 6.5s ease-in-out infinite;
           pointer-events: none;
+          animation: ghazaFloat 7s ease-in-out infinite;
         }
 
-        .ghaza-sphere::after {
-          content: "";
-          position: absolute;
-          inset: 15%;
-          border-radius: inherit;
-          background:
-            radial-gradient(
-              circle at 35% 30%,
-              rgba(255,255,255,.46),
-              transparent 38%
-            );
+        .ghaza-shape-one {
+          left: 5%;
+          top: 20%;
+          width: 220px;
+          height: 220px;
+          border-radius: 50%;
+          border: 28px solid rgba(96, 165, 250, .12);
         }
 
-        .ghaza-cube {
-          position: absolute;
-          width: 140px;
-          height: 140px;
-          right: 8%;
-          top: 13%;
-          border-radius: 24px;
-          border: 1px solid rgba(255,255,255,.28);
-          background:
-            linear-gradient(
-              145deg,
-              rgba(255,255,255,.19),
-              rgba(47,111,237,.08)
-            );
-          backdrop-filter: blur(12px);
-          transform: rotateX(56deg) rotateY(38deg) rotateZ(16deg);
-          animation: ghazaCubeFloat 7s ease-in-out infinite;
-          filter: drop-shadow(0 32px 50px rgba(0,0,0,.22));
-          pointer-events: none;
+        .ghaza-shape-two {
+          right: 7%;
+          top: 10%;
+          width: 105px;
+          height: 105px;
+          border-radius: 26px;
+          border: 1px solid rgba(255,255,255,.18);
+          background: rgba(255,255,255,.05);
+          transform: rotate(22deg);
+          backdrop-filter: blur(10px);
+          animation-delay: -3s;
         }
 
-        .ghaza-cube-small {
-          width: 72px;
-          height: 72px;
-          right: 34%;
-          top: 77%;
-          animation-delay: -2.2s;
-        }
-
-        .ghaza-plane {
-          position: absolute;
-          left: -4%;
-          bottom: 14%;
-          width: 650px;
-          height: 3px;
-          background:
-            linear-gradient(
-              90deg,
-              transparent,
-              var(--ghaza-cyan),
-              transparent
-            );
-          box-shadow: 0 0 28px rgba(70,216,245,.75);
-          transform: rotate(-12deg);
-          pointer-events: none;
-        }
-
-        .ghaza-login-shell {
+        .ghaza-shell {
           position: relative;
           z-index: 5;
           display: flex;
           min-height: 100vh;
           flex-direction: column;
-          padding: 30px 48px 24px;
+          padding: 30px 44px 22px;
         }
 
-        .ghaza-login-header {
+        .ghaza-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -294,292 +214,294 @@ export default function LoginPage() {
         .ghaza-brand {
           display: flex;
           align-items: center;
-          gap: 14px;
+          gap: 13px;
         }
 
         .ghaza-logo {
           display: grid;
-          width: 54px;
-          height: 54px;
+          width: 52px;
+          height: 52px;
           place-items: center;
-          border-radius: 17px;
-          color: #06172d !important;
+          border-radius: 15px;
+          color: white;
           font-size: 22px;
           font-weight: 900;
-          background:
-            linear-gradient(
-              145deg,
-              var(--ghaza-blue-light),
-              var(--ghaza-blue)
-            );
+          background: linear-gradient(
+            145deg,
+            #60a5fa,
+            #2563eb
+          );
           box-shadow:
-            inset 0 1px 1px rgba(255,255,255,.45),
-            0 18px 38px rgba(47,111,237,.36);
+            0 15px 32px rgba(37, 99, 235, .32),
+            inset 0 1px 0 rgba(255,255,255,.35);
         }
 
         .ghaza-brand-name {
-          color: #ffffff !important;
-          font-size: 18px;
-          font-weight: 800;
-          line-height: 1.2;
-          text-shadow: 0 2px 12px rgba(0,0,0,.25);
+          color: white !important;
+          font-size: 17px;
+          font-weight: 900;
+          letter-spacing: .01em;
         }
 
         .ghaza-brand-subtitle {
-          margin-top: 4px;
-          color: #b9cbe0 !important;
+          margin-top: 3px;
+          color: #b9cbe1 !important;
           font-size: 10px;
-          font-weight: 500;
-          letter-spacing: .02em;
         }
 
         .ghaza-secure {
           display: inline-flex;
           align-items: center;
           gap: 7px;
-          border: 1px solid rgba(210,230,255,.70);
-          border-radius: 999px;
           padding: 9px 14px;
-          color: #e8f2ff !important;
+          border: 1px solid rgba(148, 184, 226, .35);
+          border-radius: 999px;
+          color: #e8f3ff !important;
           font-size: 10px;
           font-weight: 800;
-          letter-spacing: .06em;
-          background: rgba(9, 26, 47, .58);
-          backdrop-filter: blur(14px);
-          box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+          letter-spacing: .05em;
+          background: rgba(7, 23, 43, .75);
+          backdrop-filter: blur(12px);
         }
 
-        .ghaza-login-content {
+        .ghaza-content {
           display: grid;
           width: 100%;
-          max-width: 1440px;
+          max-width: 1380px;
           flex: 1;
-          grid-template-columns: minmax(0, 1fr) 470px;
+          grid-template-columns:
+            minmax(0, 1.15fr)
+            minmax(400px, 470px);
           align-items: center;
-          gap: 70px;
+          gap: 90px;
           margin: 0 auto;
-          padding: 28px 0;
+          padding: 38px 0;
         }
 
         .ghaza-intro {
-          max-width: 690px;
-          padding-left: 130px;
           position: relative;
-          z-index: 3;
+          z-index: 4;
+          max-width: 690px;
         }
 
         .ghaza-eyebrow {
           display: inline-flex;
           align-items: center;
-          border: 1px solid rgba(205,228,255,.48);
+          padding: 8px 13px;
+          border: 1px solid rgba(147, 197, 253, .38);
           border-radius: 999px;
-          padding: 8px 12px;
-          color: #e7f1ff !important;
+          color: #dbeafe !important;
           font-size: 10px;
           font-weight: 900;
           letter-spacing: .08em;
-          background: rgba(44, 93, 165, .55);
-          backdrop-filter: blur(12px);
-          box-shadow: 0 8px 24px rgba(0,0,0,.20);
+          background: rgba(30, 64, 175, .28);
         }
 
-        .ghaza-hero-title {
+        .ghaza-title {
           max-width: 690px;
-          margin: 22px 0 18px;
+          margin: 21px 0 18px;
           color: #ffffff !important;
-          -webkit-text-fill-color: #ffffff !important;
-          font-size: clamp(44px, 4.8vw, 68px);
+          font-size: clamp(42px, 4.7vw, 67px);
           font-weight: 900;
-          line-height: 1.02;
-          letter-spacing: -.045em;
-          text-shadow:
-            0 3px 0 rgba(0,0,0,.10),
-            0 18px 40px rgba(0,0,0,.30);
+          line-height: 1.03;
+          letter-spacing: -.04em;
+          text-shadow: 0 18px 42px rgba(0,0,0,.28);
         }
 
-        .ghaza-hero-copy {
+        .ghaza-copy {
           max-width: 610px;
           margin: 0;
-          color: #d4e1ee !important;
-          -webkit-text-fill-color: #d4e1ee !important;
+          color: #d5e2f0 !important;
           font-size: 15px;
           font-weight: 500;
-          line-height: 1.85;
-          text-shadow: 0 4px 18px rgba(0,0,0,.22);
+          line-height: 1.8;
         }
 
         .ghaza-features {
-          display: flex;
-          flex-wrap: wrap;
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 12px;
-          margin-top: 28px;
+          margin-top: 30px;
         }
 
         .ghaza-feature {
-          min-width: 160px;
-          border: 1px solid rgba(213,231,255,.70);
-          border-radius: 17px;
-          padding: 15px 17px;
-          background: rgba(16, 35, 54, .74);
-          backdrop-filter: blur(14px);
-          box-shadow:
-            inset 0 1px 0 rgba(255,255,255,.08),
-            0 16px 30px rgba(0,0,0,.16);
+          border: 1px solid rgba(148, 184, 226, .28);
+          border-radius: 16px;
+          padding: 16px;
+          background: rgba(5, 22, 41, .72);
+          backdrop-filter: blur(12px);
+          box-shadow: 0 14px 30px rgba(0,0,0,.15);
         }
 
         .ghaza-feature-icon {
-          color: #8db8ff !important;
+          color: #7fb4ff !important;
         }
 
         .ghaza-feature-title {
           display: block;
-          margin-top: 8px;
-          color: #ffffff !important;
-          -webkit-text-fill-color: #ffffff !important;
-          font-size: 11px;
+          margin-top: 9px;
+          color: white !important;
+          font-size: 12px;
           font-weight: 800;
         }
 
         .ghaza-feature-copy {
           display: block;
           margin-top: 4px;
-          color: #b8c9da !important;
-          -webkit-text-fill-color: #b8c9da !important;
-          font-size: 9px;
-          font-weight: 500;
+          color: #aebfd3 !important;
+          font-size: 10px;
+          line-height: 1.5;
         }
 
         .ghaza-login-wrap {
           position: relative;
+          z-index: 10;
           width: 100%;
-          animation: ghazaCardFloat 6s ease-in-out infinite;
-        }
-
-        .ghaza-card-shadow {
-          position: absolute;
-          left: 12%;
-          bottom: -23px;
-          width: 76%;
-          height: 50px;
-          border-radius: 999px;
-          background: rgba(0,0,0,.48);
-          filter: blur(25px);
         }
 
         .ghaza-login-card {
           position: relative;
           overflow: hidden;
-          border: 1px solid rgba(221,235,255,.70);
-          border-radius: 30px;
-          padding: 40px;
+          border: 1px solid rgba(191, 219, 254, .45);
+          border-radius: 28px;
+          padding: 38px;
           background:
             linear-gradient(
-              145deg,
-              rgba(72, 101, 139, .78),
-              rgba(21, 46, 74, .91)
+              150deg,
+              rgba(15, 36, 61, .98),
+              rgba(8, 26, 48, .98)
             );
-          backdrop-filter: blur(30px);
           box-shadow:
-            0 40px 90px rgba(0,0,0,.40),
-            inset 0 1px 0 rgba(255,255,255,.18);
-          transform: rotateY(-3deg) rotateX(1deg);
-          transition: transform .3s ease;
+            0 35px 90px rgba(0,0,0,.42),
+            inset 0 1px 0 rgba(255,255,255,.08);
         }
 
-        .ghaza-login-card:hover {
-          transform: rotateY(-1deg) rotateX(0deg) translateY(-3px);
+        .ghaza-login-card::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background:
+            linear-gradient(
+              135deg,
+              rgba(96, 165, 250, .08),
+              transparent 40%
+            );
+        }
+
+        .ghaza-card-content {
+          position: relative;
+          z-index: 2;
+        }
+
+        .ghaza-card-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          margin-bottom: 18px;
+          color: #93c5fd !important;
+          font-size: 10px;
+          font-weight: 800;
+          letter-spacing: .05em;
         }
 
         .ghaza-card-title {
           margin: 0;
           color: #ffffff !important;
-          -webkit-text-fill-color: #ffffff !important;
           font-size: 30px;
-          font-weight: 850;
+          font-weight: 900;
           letter-spacing: -.03em;
-          text-shadow: 0 4px 18px rgba(0,0,0,.20);
         }
 
         .ghaza-card-copy {
-          margin: 10px 0 28px;
-          color: #d0ddec !important;
-          -webkit-text-fill-color: #d0ddec !important;
+          margin: 9px 0 29px;
+          color: #c7d7e8 !important;
           font-size: 13px;
-          font-weight: 500;
+          line-height: 1.65;
         }
 
         .ghaza-form-label {
           display: block;
           margin-bottom: 8px;
-          color: #e8f1fb !important;
-          -webkit-text-fill-color: #e8f1fb !important;
-          font-size: 10px;
-          font-weight: 900;
-          letter-spacing: .06em;
+          color: #f1f5f9 !important;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: .035em;
         }
 
         .ghaza-field {
           position: relative;
-          margin-bottom: 17px;
+          margin-bottom: 19px;
         }
 
         .ghaza-input {
           width: 100%;
-          height: 48px;
-          border: 1px solid rgba(216,232,255,.78) !important;
-          border-radius: 14px;
-          padding: 0 44px 0 15px;
+          height: 52px;
+          border: 1px solid #526b88 !important;
+          border-radius: 13px;
+          padding: 0 46px 0 16px;
           color: #ffffff !important;
           -webkit-text-fill-color: #ffffff !important;
           font-size: 14px;
           font-weight: 500;
           outline: none;
-          background: rgba(4, 18, 33, .76) !important;
-          box-shadow: inset 0 2px 10px rgba(0,0,0,.18);
-          transition: border-color .2s ease, box-shadow .2s ease;
+          background: #091b30 !important;
+          box-shadow:
+            inset 0 1px 2px rgba(0,0,0,.22),
+            0 1px 0 rgba(255,255,255,.03);
+          transition:
+            border-color .2s ease,
+            box-shadow .2s ease,
+            background .2s ease;
         }
 
-        .ghaza-input::placeholder {
-          color: #9eb2c8 !important;
-          -webkit-text-fill-color: #9eb2c8 !important;
-          opacity: 1;
+        .ghaza-input:hover:not(:disabled) {
+          border-color: #718aa6 !important;
+          background: #0b2038 !important;
         }
 
         .ghaza-input:focus {
-          border-color: #8bb6ff !important;
+          border-color: #60a5fa !important;
+          background: #0b2038 !important;
           box-shadow:
-            0 0 0 4px rgba(67,126,232,.20),
-            inset 0 2px 10px rgba(0,0,0,.18);
+            0 0 0 4px rgba(59, 130, 246, .20),
+            inset 0 1px 2px rgba(0,0,0,.20);
+        }
+
+        .ghaza-input::placeholder {
+          color: #7890a9 !important;
+          -webkit-text-fill-color: #7890a9 !important;
+          opacity: 1;
         }
 
         .ghaza-input:disabled {
           cursor: not-allowed;
-          opacity: .62;
+          opacity: .6;
         }
 
         .ghaza-field-icon,
         .ghaza-eye-button {
           position: absolute;
-          right: 12px;
+          right: 14px;
           top: 50%;
           transform: translateY(-50%);
-          color: #a9bdd2 !important;
+          color: #8fa6be !important;
         }
 
         .ghaza-eye-button {
           display: grid;
-          width: 32px;
-          height: 32px;
+          width: 34px;
+          height: 34px;
           place-items: center;
           border: 0;
-          border-radius: 8px;
+          border-radius: 9px;
           background: transparent;
           cursor: pointer;
         }
 
         .ghaza-eye-button:hover {
-          color: #ffffff !important;
-          background: rgba(255,255,255,.08);
+          color: white !important;
+          background: rgba(255,255,255,.07);
         }
 
         .ghaza-form-row {
@@ -587,65 +509,68 @@ export default function LoginPage() {
           align-items: center;
           justify-content: space-between;
           gap: 16px;
-          margin: 2px 0 20px;
+          margin: 1px 0 22px;
         }
 
         .ghaza-check {
           display: flex;
           align-items: center;
           gap: 8px;
-          color: #c2d2e2 !important;
-          -webkit-text-fill-color: #c2d2e2 !important;
-          font-size: 10px;
+          color: #c9d5e2 !important;
+          font-size: 11px;
           font-weight: 600;
           cursor: pointer;
         }
 
         .ghaza-check input {
-          accent-color: var(--ghaza-blue);
+          width: 15px;
+          height: 15px;
+          accent-color: #3b82f6;
         }
 
         .ghaza-forgot {
-          color: #a8c8ff !important;
-          -webkit-text-fill-color: #a8c8ff !important;
-          font-size: 10px;
-          font-weight: 800;
+          color: #8dbbff !important;
+          font-size: 11px;
+          font-weight: 700;
           text-decoration: none;
         }
 
         .ghaza-forgot:hover {
-          color: #d7e7ff !important;
+          color: #bfdbfe !important;
           text-decoration: underline;
         }
 
         .ghaza-login-button {
           display: flex;
           width: 100%;
-          height: 48px;
+          height: 52px;
           align-items: center;
           justify-content: center;
-          border: 0;
-          border-radius: 14px;
-          color: #ffffff !important;
-          -webkit-text-fill-color: #ffffff !important;
+          border: 1px solid rgba(255,255,255,.13);
+          border-radius: 13px;
+          color: white !important;
           font-size: 14px;
           font-weight: 900;
           cursor: pointer;
           background:
             linear-gradient(
               135deg,
-              #6da4ff,
-              #2f6fed
+              #4f8df8,
+              #2563eb
             );
           box-shadow:
-            0 15px 30px rgba(47,111,237,.35),
-            inset 0 1px 0 rgba(255,255,255,.35);
-          transition: transform .2s ease, box-shadow .2s ease;
+            0 15px 28px rgba(37, 99, 235, .32),
+            inset 0 1px 0 rgba(255,255,255,.28);
+          transition:
+            transform .2s ease,
+            box-shadow .2s ease,
+            filter .2s ease;
         }
 
         .ghaza-login-button:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 19px 38px rgba(47,111,237,.44);
+          transform: translateY(-1px);
+          filter: brightness(1.06);
+          box-shadow: 0 18px 34px rgba(37, 99, 235, .42);
         }
 
         .ghaza-login-button:disabled {
@@ -653,18 +578,26 @@ export default function LoginPage() {
           opacity: .65;
         }
 
+        .ghaza-login-spinner {
+          width: 16px;
+          height: 16px;
+          margin-right: 8px;
+          border: 2px solid rgba(255,255,255,.35);
+          border-top-color: white;
+          border-radius: 999px;
+          animation: ghazaSpin .8s linear infinite;
+        }
+
         .ghaza-meta {
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 12px;
-          margin-top: 20px;
-          padding-top: 17px;
-          border-top: 1px solid rgba(255,255,255,.16);
-          color: #afc2d6 !important;
-          -webkit-text-fill-color: #afc2d6 !important;
+          margin-top: 22px;
+          padding-top: 18px;
+          border-top: 1px solid rgba(148, 184, 226, .18);
+          color: #91a7bd !important;
           font-size: 9px;
-          font-weight: 500;
         }
 
         .ghaza-footer {
@@ -672,120 +605,110 @@ export default function LoginPage() {
           align-items: center;
           justify-content: space-between;
           gap: 18px;
-          color: #9fb4c9 !important;
-          -webkit-text-fill-color: #9fb4c9 !important;
+          color: #8da3b9 !important;
           font-size: 9px;
-          font-weight: 500;
         }
 
-        @media (max-width: 1180px) {
-          .ghaza-intro {
-            padding-left: 65px;
+        @media (max-width: 1120px) {
+          .ghaza-content {
+            gap: 50px;
           }
 
-          .ghaza-login-content {
-            gap: 40px;
+          .ghaza-features {
+            grid-template-columns: 1fr;
+            max-width: 370px;
           }
         }
 
-        @media (max-width: 1050px) {
+        @media (max-width: 950px) {
           .ghaza-login-page {
             overflow: auto;
           }
 
-          .ghaza-login-shell {
+          .ghaza-shell {
             padding: 24px;
           }
 
-          .ghaza-login-content {
+          .ghaza-content {
             max-width: 560px;
             grid-template-columns: 1fr;
-            padding: 45px 0;
+            padding: 48px 0;
           }
 
           .ghaza-intro {
             display: none;
           }
 
-          .ghaza-login-wrap {
-            animation: none;
-          }
-
-          .ghaza-login-card,
-          .ghaza-login-card:hover {
-            transform: none;
-          }
-
-          .ghaza-ring,
-          .ghaza-sphere {
-            opacity: .42;
+          .ghaza-shape-one {
+            opacity: .3;
           }
         }
 
         @media (max-width: 560px) {
-          .ghaza-login-shell {
-            padding: 18px 16px;
+          .ghaza-shell {
+            padding: 18px 15px;
           }
 
           .ghaza-secure {
             display: none;
           }
 
-          .ghaza-brand-name {
-            font-size: 16px;
-          }
-
-          .ghaza-login-content {
+          .ghaza-content {
             padding: 30px 0;
           }
 
           .ghaza-login-card {
-            padding: 28px 22px;
-            border-radius: 24px;
+            padding: 28px 21px;
+            border-radius: 22px;
           }
 
           .ghaza-card-title {
             font-size: 26px;
           }
 
-          .ghaza-form-row,
+          .ghaza-form-row {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 10px;
+          }
+
           .ghaza-meta,
           .ghaza-footer {
             align-items: flex-start;
             flex-direction: column;
           }
+
+          .ghaza-brand-name {
+            font-size: 15px;
+          }
+
+          .ghaza-logo {
+            width: 47px;
+            height: 47px;
+          }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .ghaza-ring,
-          .ghaza-sphere,
-          .ghaza-cube,
-          .ghaza-login-wrap {
+          .ghaza-shape {
             animation: none !important;
-          }
-
-          .ghaza-login-card {
-            transform: none !important;
           }
         }
       `}</style>
 
-      <div className="ghaza-login-bg-grid" />
-      <div className="ghaza-login-overlay" />
+      <div className="ghaza-login-grid" />
+      <div className="ghaza-glow ghaza-glow-one" />
+      <div className="ghaza-glow ghaza-glow-two" />
+      <div className="ghaza-shape ghaza-shape-one" />
+      <div className="ghaza-shape ghaza-shape-two" />
 
-      <div className="ghaza-ring" />
-      <div className="ghaza-sphere" />
-      <div className="ghaza-cube" />
-      <div className="ghaza-cube ghaza-cube-small" />
-      <div className="ghaza-plane" />
-
-      <main className="ghaza-login-shell">
-        <header className="ghaza-login-header">
+      <main className="ghaza-shell">
+        <header className="ghaza-header">
           <div className="ghaza-brand">
             <div className="ghaza-logo">G</div>
 
             <div>
               <div className="ghaza-brand-name">GHAZA COMPUTER</div>
+
               <div className="ghaza-brand-subtitle">Premium Enterprise ERP</div>
             </div>
           </div>
@@ -796,17 +719,17 @@ export default function LoginPage() {
           </div>
         </header>
 
-        <section className="ghaza-login-content">
+        <section className="ghaza-content">
           <div className="ghaza-intro">
             <div className="ghaza-eyebrow">
               NEXT-GENERATION BUSINESS PLATFORM
             </div>
 
-            <h1 className="ghaza-hero-title">
+            <h1 className="ghaza-title">
               One intelligent system for your entire company.
             </h1>
 
-            <p className="ghaza-hero-copy">
+            <p className="ghaza-copy">
               Manage inventory, sales, purchases, accounting, HRMS, service
               operations, reports, and all branches from one secure ERP
               platform.
@@ -816,136 +739,133 @@ export default function LoginPage() {
               <FeatureTile
                 icon={Boxes}
                 title="Live Inventory"
-                subtitle="Real-time branch stock"
+                subtitle="Track stock and availability across every branch."
               />
 
               <FeatureTile
                 icon={WalletCards}
                 title="Finance Control"
-                subtitle="Accurate business reporting"
+                subtitle="Manage accounting and business financial operations."
               />
 
               <FeatureTile
                 icon={BarChart3}
                 title="Executive Analytics"
-                subtitle="Instant decision insights"
+                subtitle="Access clear operational and management insights."
               />
             </div>
           </div>
 
           <div className="ghaza-login-wrap">
-            <div className="ghaza-card-shadow" />
-
             <div className="ghaza-login-card">
-              <h2 className="ghaza-card-title">Welcome back</h2>
-
-              <p className="ghaza-card-copy">
-                Sign in to continue to GHAZA COMPUTER ERP.
-              </p>
-
-              <form onSubmit={submit}>
-                <label className="ghaza-form-label" htmlFor="email">
-                  EMAIL OR USERNAME
-                </label>
-
-                <div className="ghaza-field">
-                  <input
-                    id="email"
-                    name="email_or_username"
-                    data-testid="login-email-input"
-                    className="ghaza-input"
-                    type="text"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder="Enter your username"
-                    autoComplete="username"
-                    disabled={busy}
-                    required
-                  />
-
-                  <Mail className="ghaza-field-icon" size={16} />
+              <div className="ghaza-card-content">
+                <div className="ghaza-card-badge">
+                  <ShieldCheck size={15} />
+                  AUTHORIZED ACCESS
                 </div>
 
-                <label className="ghaza-form-label" htmlFor="password">
-                  PASSWORD
-                </label>
+                <h2 className="ghaza-card-title">Welcome back</h2>
 
-                <div className="ghaza-field">
-                  <input
-                    id="password"
-                    name="password"
-                    data-testid="login-password-input"
-                    className="ghaza-input"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Enter your password"
-                    autoComplete="current-password"
-                    disabled={busy}
-                    required
-                  />
+                <p className="ghaza-card-copy">
+                  Enter your account details to access GHAZA COMPUTER ERP.
+                </p>
 
-                  <button
-                    type="button"
-                    className="ghaza-eye-button"
-                    onClick={() => setShowPassword((current) => !current)}
-                    disabled={busy}
-                    aria-label={
-                      showPassword ? "Hide password" : "Show password"
-                    }
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-
-                <div className="ghaza-form-row">
-                  <label className="ghaza-check">
-                    <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(event) => setRememberMe(event.target.checked)}
-                    />
-                    <span>Remember me</span>
+                <form onSubmit={submit}>
+                  <label className="ghaza-form-label" htmlFor="email">
+                    Email or username
                   </label>
 
-                  <Link to="/forgot-password" className="ghaza-forgot">
-                    Forgot password?
-                  </Link>
-                </div>
+                  <div className="ghaza-field">
+                    <input
+                      id="email"
+                      name="email_or_username"
+                      data-testid="login-email-input"
+                      className="ghaza-input"
+                      type="text"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="Enter email or username"
+                      autoComplete="username"
+                      disabled={busy}
+                      required
+                    />
 
-                <button
-                  type="submit"
-                  data-testid="login-submit-btn"
-                  className="ghaza-login-button"
-                  disabled={busy}
-                >
-                  {busy ? (
-                    <>
-                      <span
-                        style={{
-                          width: 16,
-                          height: 16,
-                          marginRight: 8,
-                          border: "2px solid rgba(255,255,255,.35)",
-                          borderTopColor: "#fff",
-                          borderRadius: "999px",
-                          animation: "spin 0.8s linear infinite",
-                        }}
+                    <Mail className="ghaza-field-icon" size={17} />
+                  </div>
+
+                  <label className="ghaza-form-label" htmlFor="password">
+                    Password
+                  </label>
+
+                  <div className="ghaza-field">
+                    <input
+                      id="password"
+                      name="password"
+                      data-testid="login-password-input"
+                      className="ghaza-input"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="Enter your password"
+                      autoComplete="current-password"
+                      disabled={busy}
+                      required
+                    />
+
+                    <button
+                      type="button"
+                      className="ghaza-eye-button"
+                      onClick={() => setShowPassword((current) => !current)}
+                      disabled={busy}
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
+                    >
+                      {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                    </button>
+                  </div>
+
+                  <div className="ghaza-form-row">
+                    <label className="ghaza-check">
+                      <input
+                        type="checkbox"
+                        checked={rememberMe}
+                        onChange={(event) =>
+                          setRememberMe(event.target.checked)
+                        }
                       />
-                      Signing in...
-                    </>
-                  ) : (
-                    <>
-                      <LockKeyhole size={16} style={{ marginRight: 8 }} />
-                      Sign in to ERP
-                    </>
-                  )}
-                </button>
-              </form>
+                      <span>Remember me</span>
+                    </label>
 
-              <div className="ghaza-meta">
-                <span>Encrypted enterprise login</span>
-                <span>ERP Version 1.0</span>
+                    <Link to="/forgot-password" className="ghaza-forgot">
+                      Forgot password?
+                    </Link>
+                  </div>
+
+                  <button
+                    type="submit"
+                    data-testid="login-submit-btn"
+                    className="ghaza-login-button"
+                    disabled={busy}
+                  >
+                    {busy ? (
+                      <>
+                        <span className="ghaza-login-spinner" />
+                        Signing in...
+                      </>
+                    ) : (
+                      <>
+                        <LockKeyhole size={17} style={{ marginRight: 8 }} />
+                        Sign in to ERP
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                <div className="ghaza-meta">
+                  <span>Encrypted enterprise login</span>
+                  <span>ERP Version 1.0</span>
+                </div>
               </div>
             </div>
           </div>
@@ -953,6 +873,7 @@ export default function LoginPage() {
 
         <footer className="ghaza-footer">
           <span>© 2026 GHAZA COMPUTER TR LLC</span>
+
           <span>Privacy · Security · Support</span>
         </footer>
       </main>
@@ -963,7 +884,7 @@ export default function LoginPage() {
 function FeatureTile({ icon: Icon, title, subtitle }) {
   return (
     <div className="ghaza-feature">
-      <Icon className="ghaza-feature-icon" size={16} />
+      <Icon className="ghaza-feature-icon" size={18} />
 
       <strong className="ghaza-feature-title">{title}</strong>
 

@@ -977,8 +977,8 @@ export default function VehicleCheckoutPage() {
                 label="Expense"
                 value={
                   selectedTrip.expense_amount
-                    ? `AED ${selectedTrip.expense_amount}`
-                    : "AED 0"
+                    ? `د.إ ${selectedTrip.expense_amount}`
+                    : "د.إ 0"
                 }
               />
               <DetailItem label="Purpose" value={selectedTrip.purpose} />

@@ -141,7 +141,7 @@ export default function TripLogPage() {
                         : `${Number(t.distance_km).toLocaleString()} km`}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      AED {Number(t.expense_amount || 0).toFixed(2)}
+                      د.إ {Number(t.expense_amount || 0).toFixed(2)}
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={t.status} />

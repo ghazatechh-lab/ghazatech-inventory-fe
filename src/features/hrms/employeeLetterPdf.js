@@ -66,7 +66,20 @@ export function generateEmployeeLetterPdf(letter) {
   });
 
   const isWarning = letter.letter_type === "WARNING";
-  const title = isWarning ? "WARNING LETTER" : "EXPERIENCE LETTER";
+  const isExperience = letter.letter_type === "EXPERIENCE";
+
+  const titles = {
+    WARNING: "WARNING LETTER",
+    EXPERIENCE: "EXPERIENCE LETTER",
+    EMPLOYMENT: "EMPLOYMENT CERTIFICATE",
+    NOC: "NO OBJECTION CERTIFICATE",
+    SALARY_TRANSFER: "SALARY TRANSFER LETTER",
+    PROMOTION: "PROMOTION LETTER",
+    TERMINATION: "TERMINATION LETTER",
+    CUSTOM: String(letter.subject || "EMPLOYEE LETTER").toUpperCase(),
+  };
+
+  const title = titles[letter.letter_type] || "EMPLOYEE LETTER";
   const { width, margin } = header(
     doc,
     title,
@@ -120,7 +133,7 @@ export function generateEmployeeLetterPdf(letter) {
     doc.text(doc.splitTextToSize(closing, width - margin * 2), margin, y);
 
     signature(doc, y + 34, letter);
-  } else {
+  } else if (isExperience) {
     doc.setFont("helvetica", "bold");
     doc.setTextColor(30, 30, 34);
     doc.setFontSize(12);
@@ -177,6 +190,59 @@ export function generateEmployeeLetterPdf(letter) {
     doc.text(doc.splitTextToSize(closing, width - margin * 2), margin, y);
 
     signature(doc, y + 24, letter);
+  } else {
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 30, 34);
+    doc.setFontSize(11);
+    doc.text(`To: ${letter.employee_name || "Employee"}`, margin, 72);
+
+    doc.setFont("helvetica", "normal");
+    doc.text(`Employee Code: ${letter.employee_code || "—"}`, margin, 80);
+    doc.text(`Designation: ${letter.designation_name || "—"}`, margin, 87);
+    doc.text(`Department: ${letter.department_name || "—"}`, margin, 94);
+
+    if (letter.subject) {
+      doc.setFont("helvetica", "bold");
+      doc.text(`Subject: ${letter.subject}`, margin, 108);
+    }
+
+    let y = letter.subject ? 119 : 108;
+    doc.setFont("helvetica", "normal");
+
+    if (letter.reason) {
+      doc.setFont("helvetica", "bold");
+      doc.text("Purpose / Reason", margin, y);
+      doc.setFont("helvetica", "normal");
+      y += 7;
+      const reasonLines = doc.splitTextToSize(
+        letter.reason,
+        width - margin * 2,
+      );
+      doc.text(reasonLines, margin, y);
+      y += reasonLines.length * 5 + 7;
+    }
+
+    if (letter.details) {
+      const detailLines = doc.splitTextToSize(
+        letter.details,
+        width - margin * 2,
+      );
+      doc.text(detailLines, margin, y);
+      y += detailLines.length * 5 + 10;
+    }
+
+    if (letter.notes) {
+      doc.setFont("helvetica", "italic");
+      const noteLines = doc.splitTextToSize(
+        `Notes: ${letter.notes}`,
+        width - margin * 2,
+      );
+      doc.text(noteLines, margin, y);
+      y += noteLines.length * 5 + 8;
+      doc.setFont("helvetica", "normal");
+    }
+
+    signature(doc, Math.min(y + 14, 250), letter);
   }
 
   doc.save(`${letter.reference_number || title.replaceAll(" ", "-")}.pdf`);

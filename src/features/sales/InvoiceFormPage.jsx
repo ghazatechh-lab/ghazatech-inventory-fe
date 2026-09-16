@@ -252,7 +252,7 @@ function ProductSearchPicker({ products, value, onSelect, getPrice }) {
                     </div>
 
                     <span className="ml-3 shrink-0 text-sm font-semibold text-blue-600 dark:text-blue-300">
-                      AED {getPrice(product).toFixed(2)}
+                      د.إ {getPrice(product).toFixed(2)}
                     </span>
                   </CommandItem>
                 );
@@ -787,6 +787,19 @@ export default function InvoiceFormPage() {
         "Every line requires a product, positive quantity, and valid unit price.";
     }
 
+    const invoiceDiscount = number(form.discount_amount);
+    const maximumDiscount = Math.max(
+      0,
+      subtotal + vatAmount + number(form.shipping_amount),
+    );
+
+    if (invoiceDiscount < 0) {
+      next.discount_amount = "Discount cannot be negative.";
+    } else if (invoiceDiscount > maximumDiscount) {
+      next.discount_amount =
+        "Discount cannot exceed the invoice amount before discount.";
+    }
+
     if (number(form.paid_amount) > total) {
       next.paid_amount = "Amount already paid cannot exceed the invoice total.";
     }
@@ -1072,7 +1085,7 @@ export default function InvoiceFormPage() {
 
                   <CurrencyText
                     value={sourceOrder?.total_amount || total}
-                    currency={form.currency}
+                    currency={form.currency === "AED" ? "د.إ" : form.currency}
                   />
 
                   {sourceOrder?.delivery_date && (
@@ -1435,7 +1448,7 @@ export default function InvoiceFormPage() {
                   <div className="flex h-10 items-center justify-end whitespace-nowrap font-semibold">
                     <CurrencyText
                       value={item.line_total}
-                      currency={form.currency}
+                      currency={form.currency === "AED" ? "د.إ" : form.currency}
                     />
                   </div>
 
@@ -1467,11 +1480,62 @@ export default function InvoiceFormPage() {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
 
-                <CurrencyText value={subtotal} currency={form.currency} />
+                <CurrencyText
+                  value={subtotal}
+                  currency={form.currency === "AED" ? "د.إ" : form.currency}
+                />
               </div>
 
               <div className="space-y-2 border-t pt-3">
                 <div className="flex items-center justify-between gap-4">
+                  <Label
+                    htmlFor="invoice-discount"
+                    className="text-muted-foreground"
+                  >
+                    Discount
+                  </Label>
+
+                  <div className="relative w-40">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">
+                      {form.currency === "AED" ? "د.إ" : form.currency}
+                    </span>
+                    <Input
+                      id="invoice-discount"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={form.discount_amount}
+                      onChange={(event) =>
+                        updateForm("discount_amount", event.target.value)
+                      }
+                      className="h-8 pl-12 text-right"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+
+                {errors.discount_amount && (
+                  <p className="text-right text-xs font-medium text-red-500">
+                    {errors.discount_amount}
+                  </p>
+                )}
+
+                {number(form.discount_amount) > 0 && (
+                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                    <span>Discount applied</span>
+                    <span className="font-medium">
+                      -{" "}
+                      <CurrencyText
+                        value={number(form.discount_amount)}
+                        currency={
+                          form.currency === "AED" ? "د.إ" : form.currency
+                        }
+                      />
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between gap-4 border-t pt-3">
                   <Label className="text-muted-foreground">VAT</Label>
                   <Select
                     value={form.vat_treatment}
@@ -1525,13 +1589,50 @@ export default function InvoiceFormPage() {
                   <span className="text-muted-foreground">
                     VAT ({commonVatRate}%)
                   </span>
-                  <CurrencyText value={vatAmount} currency={form.currency} />
+                  <CurrencyText
+                    value={vatAmount}
+                    currency={form.currency === "AED" ? "د.إ" : form.currency}
+                  />
                 </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-4 border-t pt-3">
+                <Label
+                  htmlFor="invoice-shipping"
+                  className="text-muted-foreground"
+                >
+                  Shipping
+                </Label>
+                <div className="relative w-40">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">
+                    {form.currency === "AED" ? "د.إ" : form.currency}
+                  </span>
+                  <Input
+                    id="invoice-shipping"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.shipping_amount}
+                    onChange={(event) =>
+                      updateForm("shipping_amount", event.target.value)
+                    }
+                    className="h-8 pl-12 text-right"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-between border-t pt-3 font-semibold">
+                <span>Invoice Total</span>
+                <CurrencyText
+                  value={Math.max(0, total)}
+                  currency={form.currency === "AED" ? "د.إ" : form.currency}
+                />
               </div>
 
               {!historicalMode ? (
                 <>
-                  <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center justify-between gap-4 border-t pt-3">
                     <Label className="text-muted-foreground">
                       Amount Already Paid
                     </Label>
@@ -1562,7 +1663,10 @@ export default function InvoiceFormPage() {
               <div className="flex justify-between border-t pt-3 text-base font-semibold">
                 <span>Amount Due</span>
 
-                <CurrencyText value={amountDue} currency={form.currency} />
+                <CurrencyText
+                  value={amountDue}
+                  currency={form.currency === "AED" ? "د.إ" : form.currency}
+                />
               </div>
             </div>
           </div>

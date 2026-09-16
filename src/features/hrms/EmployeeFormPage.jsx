@@ -55,12 +55,12 @@ const initial = {
   visa_sponsor: "",
   visa_issue_date: "",
   visa_expiry_date: "",
-  visa_status: "VALID",
+  visa_status: "",
   labor_contract_number: "",
   labor_contract_type: "",
   labor_contract_start_date: "",
   labor_contract_end_date: "",
-  labor_contract_status: "ACTIVE",
+  labor_contract_status: "",
   basic_salary: 0,
   allowances: 0,
   address: "",
@@ -546,7 +546,7 @@ export default function EmployeeFormPage() {
           {field("Email", "email", "email")}
           {field("Phone", "phone")}
           {field("Nationality", "nationality")}
-          {field("Date of Birth", "date_of_birth", "date")}
+          {field("Date of Birth (Optional)", "date_of_birth", "date")}
           {field("Joining Date", "joining_date", "date")}
           <div>
             <Label>Branch</Label>
@@ -755,37 +755,53 @@ export default function EmployeeFormPage() {
       )}
 
       {section(
-        "Passport & Emirates ID",
+        "Passport & Emirates ID (Optional)",
         <>
           {field("Passport Number", "passport_number")}
           {field("Passport Issue Date", "passport_issue_date", "date")}
           {field("Passport Expiry Date", "passport_expiry_date", "date")}
-          {field("Emirates ID Number", "emirates_id_number")}
-          {field("Emirates ID Issue Date", "emirates_id_issue_date", "date")}
-          {field("Emirates ID Expiry Date", "emirates_id_expiry_date", "date")}
+          {field("Emirates ID Number (Optional)", "emirates_id_number")}
+          {field(
+            "Emirates ID Issue Date (Optional)",
+            "emirates_id_issue_date",
+            "date",
+          )}
+          {field(
+            "Emirates ID Expiry Date (Optional)",
+            "emirates_id_expiry_date",
+            "date",
+          )}
         </>,
       )}
 
       {section(
-        "Visa Details",
+        "Visa Details (Optional)",
         <>
-          {field("Visa Number", "visa_number")}
-          {field("Visa Type", "visa_type")}
-          {field("Visa Sponsor", "visa_sponsor")}
-          {field("Visa Issue Date", "visa_issue_date", "date")}
-          {field("Visa Expiry Date", "visa_expiry_date", "date")}
-          {field("Visa Status", "visa_status")}
+          {field("Visa Number (Optional)", "visa_number")}
+          {field("Visa Type (Optional)", "visa_type")}
+          {field("Visa Sponsor (Optional)", "visa_sponsor")}
+          {field("Visa Issue Date (Optional)", "visa_issue_date", "date")}
+          {field("Visa Expiry Date (Optional)", "visa_expiry_date", "date")}
+          {field("Visa Status (Optional)", "visa_status")}
         </>,
       )}
 
       {section(
-        "Labor Contract Details",
+        "Labour Details (Optional)",
         <>
-          {field("Labor Contract Number", "labor_contract_number")}
-          {field("Contract Type", "labor_contract_type")}
-          {field("Contract Start Date", "labor_contract_start_date", "date")}
-          {field("Contract End Date", "labor_contract_end_date", "date")}
-          {field("Contract Status", "labor_contract_status")}
+          {field("Labour Contract Number (Optional)", "labor_contract_number")}
+          {field("Labour Contract Type (Optional)", "labor_contract_type")}
+          {field(
+            "Labour Start Date (Optional)",
+            "labor_contract_start_date",
+            "date",
+          )}
+          {field(
+            "Labour End Date (Optional)",
+            "labor_contract_end_date",
+            "date",
+          )}
+          {field("Labour Status (Optional)", "labor_contract_status")}
         </>,
       )}
 

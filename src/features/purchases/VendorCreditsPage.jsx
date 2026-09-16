@@ -1418,7 +1418,7 @@ export default function VendorCreditsPage() {
               </SelectTrigger>
 
               <SelectContent>
-                <SelectItem value="AED">AED</SelectItem>
+                <SelectItem value="AED">د.إ</SelectItem>
                 <SelectItem value="USD">USD</SelectItem>
                 <SelectItem value="EUR">EUR</SelectItem>
               </SelectContent>

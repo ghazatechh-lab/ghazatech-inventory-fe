@@ -622,7 +622,7 @@ export default function StockPage() {
                 step="0.01"
                 value={minPrice}
                 onChange={(event) => setMinPrice(event.target.value)}
-                placeholder="AED 0"
+                placeholder="د.إ 0"
                 className="mt-2"
               />
             </div>

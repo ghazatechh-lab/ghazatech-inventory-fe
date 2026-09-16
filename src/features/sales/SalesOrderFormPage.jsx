@@ -234,7 +234,7 @@ function ProductSearchPicker({ products, value, onSelect, getPrice }) {
                     </div>
 
                     <span className="ml-3 shrink-0 text-sm font-semibold text-blue-600 dark:text-blue-300">
-                      AED {getPrice(product).toFixed(2)}
+                      د.إ {getPrice(product).toFixed(2)}
                     </span>
                   </CommandItem>
                 );

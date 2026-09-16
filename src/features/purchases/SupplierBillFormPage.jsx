@@ -1473,7 +1473,7 @@ export default function SupplierBillFormPage() {
             >
               {CURRENCY_OPTIONS.map((currency) => (
                 <option key={currency} value={currency}>
-                  {currency}
+                  {currency === "AED" ? "د.إ" : currency}
                 </option>
               ))}
             </select>

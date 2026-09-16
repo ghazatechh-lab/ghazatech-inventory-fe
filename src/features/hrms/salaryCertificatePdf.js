@@ -84,7 +84,7 @@ export function generateSalaryCertificatePdf(certificate, options = {}) {
     startY: y + 5,
     margin: { left: margin, right: margin },
     theme: "grid",
-    head: [["Salary Component", "Amount (AED)"]],
+    head: [["Salary Component", "Amount (د.إ)"]],
     body: [
       ["Basic Salary", money(certificate.basic_salary)],
       [

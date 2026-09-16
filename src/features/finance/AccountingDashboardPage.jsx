@@ -4,9 +4,10 @@ import api, { unwrap } from "@/lib/api";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { PageHeader } from "@/components/common/PageHeader";
 const m = (v) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "AED" }).format(
-    Number(v || 0),
-  );
+  `د.إ ${Number(v || 0).toLocaleString("en-AE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 export default function AccountingDashboardPage() {
   const { branchParams } = useActiveBranchFilter();
   const q = useQuery({

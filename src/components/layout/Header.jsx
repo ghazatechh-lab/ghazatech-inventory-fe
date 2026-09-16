@@ -3,7 +3,6 @@ import { Link, useLocation } from "react-router-dom";
 import {
   Menu,
   Bell,
-  Search,
   LogOut,
   User2,
   ChevronDown,
@@ -196,11 +195,6 @@ export function Header({ onOpenMobileSidebar }) {
         <Breadcrumbs />
 
         <div className="flex-1" />
-
-        <div className="hidden h-9 w-72 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-500 shadow-sm md:flex dark:border-white/10 dark:bg-white/[0.02] dark:shadow-none">
-          <Search className="h-4 w-4" />
-          <span>Search anything…</span>
-        </div>
 
         {isAdmin(user) ? (
           <BranchSelector />

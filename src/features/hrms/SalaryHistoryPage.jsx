@@ -639,7 +639,7 @@ export default function SalaryHistoryPage() {
                       <div
                         className="w-full rounded-t-md bg-blue-100 dark:bg-blue-500/20"
                         style={{ height: `${height}%` }}
-                        title={`AED ${value.toLocaleString("en-US")}`}
+                        title={`د.إ ${value.toLocaleString("en-US")}`}
                       />
 
                       <span className="text-[10px] text-muted-foreground">

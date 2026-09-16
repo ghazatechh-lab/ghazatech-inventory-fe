@@ -971,9 +971,11 @@ export default function SalesReturnsPage() {
                             <div className="flex justify-center">
                               <input
                                 type="checkbox"
-                                disabled={readOnly}
                                 checked={item.selected}
-                                disabled={number(item.available_quantity) <= 0}
+                                disabled={
+                                  readOnly ||
+                                  number(item.available_quantity) <= 0
+                                }
                                 onChange={(event) =>
                                   updateItem(index, {
                                     selected: event.target.checked,
@@ -989,7 +991,7 @@ export default function SalesReturnsPage() {
                               </p>
 
                               <p className="mt-1 text-xs text-muted-foreground">
-                                AED {number(item.unit_price).toFixed(2)} / unit
+                                د.إ {number(item.unit_price).toFixed(2)} / unit
                               </p>
 
                               <p className="mt-1 text-[11px] text-muted-foreground">
@@ -1024,7 +1026,6 @@ export default function SalesReturnsPage() {
                                   condition: value,
                                 })
                               }
-                              disabled={!item.selected}
                             >
                               <SelectTrigger className="h-10">
                                 <SelectValue />

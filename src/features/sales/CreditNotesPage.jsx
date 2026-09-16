@@ -770,7 +770,7 @@ export default function CreditNotesPage() {
                               {item.description || "Invoice item"}
                             </p>
                             <p className="mt-1 text-xs text-muted-foreground">
-                              AED {number(item.unit_price).toFixed(2)}
+                              د.إ {number(item.unit_price).toFixed(2)}
                               {" / unit"}
                             </p>
 

@@ -737,7 +737,7 @@ function AccountModal({
               }))
             }
           >
-            <option>AED</option>
+            <option value="AED">د.إ</option>
             <option>USD</option>
           </select>
         </Field>

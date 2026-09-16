@@ -1,7 +1,16 @@
 import React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ChevronsUpDown, Download, Plus, Save, Send, Trash2, UserPlus } from "lucide-react";
+import {
+  Check,
+  ChevronsUpDown,
+  Download,
+  Plus,
+  Save,
+  Send,
+  Trash2,
+  UserPlus,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
@@ -23,7 +32,11 @@ import {
 import { CurrencyText } from "@/components/common/CurrencyText";
 import { cn } from "@/lib/utils";
 import { downloadSalesPdf, findSalesCustomer } from "@/lib/salesPdf";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -125,7 +138,8 @@ const VAT_CATEGORIES = [
 ];
 
 const getVatCategory = (value) =>
-  VAT_CATEGORIES.find((category) => category.value === value) || VAT_CATEGORIES[0];
+  VAT_CATEGORIES.find((category) => category.value === value) ||
+  VAT_CATEGORIES[0];
 
 function ProductSearchPicker({
   products,
@@ -268,15 +282,18 @@ function ProductSearchPicker({
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-semibold">
                         {product.product_name}
-                        {product.variant_name ? ` — ${product.variant_name}` : ""}
+                        {product.variant_name
+                          ? ` — ${product.variant_name}`
+                          : ""}
                       </div>
                       <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                        {product.sku || "No SKU"} · {product.available_stock ?? 0} available
+                        {product.sku || "No SKU"} ·{" "}
+                        {product.available_stock ?? 0} available
                       </div>
                     </div>
 
                     <span className="shrink-0 pl-3 text-xs font-semibold text-blue-600 dark:text-blue-300">
-                      AED {getProductPrice(product).toFixed(2)}
+                      د.إ {getProductPrice(product).toFixed(2)}
                     </span>
                   </CommandItem>
                 );
@@ -452,7 +469,6 @@ export default function QuotationFormPage() {
     items: [emptyItem()],
   });
 
-
   // New quotations always use the branch selected in the global top bar.
   // There is intentionally no branch selector inside the quotation form.
   React.useEffect(() => {
@@ -533,9 +549,7 @@ export default function QuotationFormPage() {
         });
 
         const payload = unwrap(response);
-        const optionProducts = normalizeList(
-          payload?.products || payload,
-        );
+        const optionProducts = normalizeList(payload?.products || payload);
 
         console.log("Form-options raw response:", payload);
         console.log("Form-options products:", optionProducts);
@@ -868,7 +882,8 @@ export default function QuotationFormPage() {
     const next = {};
 
     if (!form.branch) {
-      next.branch = "Select a branch from the top bar before creating a quotation.";
+      next.branch =
+        "Select a branch from the top bar before creating a quotation.";
     }
 
     if (!form.customer) {
@@ -895,7 +910,10 @@ export default function QuotationFormPage() {
       next.items = "Add at least one line item.";
     }
 
-    if (form.vat_category !== "STANDARD_VAT" && !String(form.vat_reason || "").trim()) {
+    if (
+      form.vat_category !== "STANDARD_VAT" &&
+      !String(form.vat_reason || "").trim()
+    ) {
       next.vat_reason =
         "A legal reason / supporting reference is required for 0% or Non-VAT quotations.";
     }
@@ -1025,7 +1043,10 @@ export default function QuotationFormPage() {
       return;
     }
 
-    if (!calculatedItems.length || !calculatedItems.some((item) => item.product)) {
+    if (
+      !calculatedItems.length ||
+      !calculatedItems.some((item) => item.product)
+    ) {
       toast.error("Add at least one quotation item before downloading PDF.");
       return;
     }
@@ -1226,7 +1247,7 @@ export default function QuotationFormPage() {
               </SelectTrigger>
 
               <SelectContent>
-                <SelectItem value="AED">AED — UAE Dirham</SelectItem>
+                <SelectItem value="AED">د.إ — UAE Dirham</SelectItem>
 
                 <SelectItem value="USD">USD — US Dollar</SelectItem>
 
@@ -1243,8 +1264,8 @@ export default function QuotationFormPage() {
             <h2 className="font-semibold">Items</h2>
 
             <p className="mt-1 text-xs text-muted-foreground">
-              Products and services being quoted from{" "}
-              the active branch selected in the top bar.
+              Products and services being quoted from the active branch selected
+              in the top bar.
             </p>
           </div>
 
@@ -1266,7 +1287,7 @@ export default function QuotationFormPage() {
               <span>Description</span>
               <span className="text-right">Qty</span>
               <span className="text-right">Unit Price</span>
-                <span className="text-right">Line Total</span>
+              <span className="text-right">Line Total</span>
               <span />
             </div>
 
@@ -1401,11 +1422,15 @@ export default function QuotationFormPage() {
                   <Input
                     className="mt-2 h-9"
                     value={form.vat_reason || ""}
-                    onChange={(event) => updateForm("vat_reason", event.target.value)}
+                    onChange={(event) =>
+                      updateForm("vat_reason", event.target.value)
+                    }
                     placeholder="Enter legal reason or supporting reference"
                   />
                   {errors.vat_reason && (
-                    <p className="mt-1 text-xs text-red-500">{errors.vat_reason}</p>
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.vat_reason}
+                    </p>
                   )}
                 </div>
               )}

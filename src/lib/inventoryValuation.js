@@ -3,13 +3,24 @@ export const numberValue = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-export const currency = (value, currencyCode = "AED") =>
-  new Intl.NumberFormat("en-US", {
+export const currency = (value, currencyCode = "AED") => {
+  const code = String(currencyCode || "AED").toUpperCase();
+  const amount = numberValue(value);
+
+  if (code === "AED") {
+    return `د.إ ${amount.toLocaleString("en-AE", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }
+
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: currencyCode,
+    currency: code,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(numberValue(value));
+  }).format(amount);
+};
 
 export const taxTreatmentLabel = (value) =>
   String(value || "OUT_OF_SCOPE")
