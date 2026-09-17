@@ -18,14 +18,78 @@ const num = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const money = (value, currency = "AED") => {
-  const code = String(currency || "AED").toUpperCase();
-  const label = code === "AED" ? "د.إ" : code;
-
-  return `${label} ${num(value).toLocaleString("en-AE", {
+const formatAmount = (value) =>
+  num(value).toLocaleString("en-AE", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })}`;
+  });
+
+let aedSymbolDataUrl = null;
+
+const getAedSymbolDataUrl = () => {
+  if (aedSymbolDataUrl) return aedSymbolDataUrl;
+  if (typeof document === "undefined") return null;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 120;
+  canvas.height = 48;
+
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "#121212";
+  context.font = "700 28px Arial, sans-serif";
+  context.textAlign = "left";
+  context.textBaseline = "middle";
+  context.direction = "rtl";
+  context.fillText("د.إ", 88, 24);
+
+  aedSymbolDataUrl = canvas.toDataURL("image/png");
+  return aedSymbolDataUrl;
+};
+
+const drawCurrencyAmount = (
+  doc,
+  value,
+  currency,
+  rightX,
+  baselineY,
+  { fontSize = 7.7, bold = true, symbolGap = 1.2 } = {},
+) => {
+  const code = String(currency || "AED").toUpperCase();
+  const amount = formatAmount(value);
+
+  doc.setFont("helvetica", bold ? "bold" : "normal");
+  doc.setFontSize(fontSize);
+  doc.setTextColor(...BRAND_DARK);
+  doc.text(amount, rightX, baselineY, { align: "right" });
+
+  const amountWidth = doc.getTextWidth(amount);
+  const symbolRight = rightX - amountWidth - symbolGap;
+
+  if (code === "AED") {
+    const symbol = getAedSymbolDataUrl();
+
+    if (symbol) {
+      const symbolW = 5.7;
+      const symbolH = 2.7;
+      doc.addImage(
+        symbol,
+        "PNG",
+        symbolRight - symbolW,
+        baselineY - 2.35,
+        symbolW,
+        symbolH,
+      );
+    }
+
+    return;
+  }
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(Math.max(6.2, fontSize - 0.8));
+  doc.text(code, symbolRight, baselineY, { align: "right" });
 };
 
 const clean = (value, fallback = "-") => {
@@ -342,7 +406,7 @@ const drawSummary = (
   const pageWidth = doc.internal.pageSize.getWidth();
   const left = 14;
   const right = pageWidth - 14;
-  const totalsW = 72;
+  const totalsW = 76;
   const notesW = right - left - totalsW;
 
   const rows = [
@@ -412,15 +476,17 @@ const drawSummary = (
     }
 
     doc.rect(left + notesW, y, totalsW, rowH);
-    doc.line(left + notesW + 35, y, left + notesW + 35, y + rowH);
+    doc.line(left + notesW + 38, y, left + notesW + 38, y + rowH);
 
     doc.setFont("helvetica", isTotal ? "bold" : "normal");
     doc.setFontSize(isTotal ? 9.2 : 7.7);
     doc.setTextColor(...BRAND_DARK);
-    doc.text(label, left + notesW + 4, y + 5.8);
+    doc.text(label, left + notesW + 4, y + 5.7);
 
-    doc.setFont("helvetica", "bold");
-    doc.text(money(value, currency), right - 3, y + 5.8, { align: "right" });
+    drawCurrencyAmount(doc, value, currency, right - 4, y + 5.7, {
+      fontSize: isTotal ? 9.2 : 7.7,
+      bold: true,
+    });
   });
 
   return startY + summaryHeight;
@@ -431,7 +497,7 @@ const drawSignatures = (doc, startY) => {
   const leftX = 26;
   const rightX = pageWidth - 26;
   const lineW = 62;
-  const y = startY + 21;
+  const y = startY + 18;
 
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.25);
@@ -547,8 +613,8 @@ export function downloadSalesPdf({
       productCode(item, products),
       description,
       quantity.toLocaleString("en-AE", { maximumFractionDigits: 2 }),
-      money(price, currency),
-      money(lineTotal, currency),
+      formatAmount(price),
+      formatAmount(lineTotal),
     ];
   });
 
@@ -591,6 +657,39 @@ export function downloadSalesPdf({
       2: { cellWidth: 21, halign: "center" },
       3: { cellWidth: 29, halign: "right" },
       4: { cellWidth: 31, halign: "right" },
+    },
+    didParseCell: (data) => {
+      if (data.section === "body" && [3, 4].includes(data.column.index)) {
+        data.cell.text = [""];
+      }
+    },
+    didDrawCell: (data) => {
+      if (data.section !== "body" || ![3, 4].includes(data.column.index)) {
+        return;
+      }
+
+      const rawValue = Array.isArray(data.row.raw)
+        ? data.row.raw[data.column.index]
+        : "0.00";
+
+      if (rawValue === "-") {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.3);
+        doc.setTextColor(...BRAND_DARK);
+        doc.text("-", data.cell.x + data.cell.width - 2.5, data.cell.y + 5.4, {
+          align: "right",
+        });
+        return;
+      }
+
+      drawCurrencyAmount(
+        doc,
+        rawValue,
+        currency,
+        data.cell.x + data.cell.width - 2.5,
+        data.cell.y + 5.4,
+        { fontSize: 7.3, bold: false },
+      );
     },
     didDrawPage: (data) => {
       if (data.pageNumber > 1) {
