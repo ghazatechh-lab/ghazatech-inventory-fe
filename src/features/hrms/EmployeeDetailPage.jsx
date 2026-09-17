@@ -127,7 +127,7 @@ export default function EmployeeDetailPage() {
   const info = (label, value) => (
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>
-      <div className="mt-1 font-medium">{value || "—"}</div>
+      <div className="mt-1 font-medium">{value || "â€”"}</div>
     </div>
   );
 
@@ -135,7 +135,7 @@ export default function EmployeeDetailPage() {
     <div className="hrms-module-page hrms-workspace mx-auto max-w-7xl space-y-5">
       <PageHeader
         title={employee.full_name}
-        subtitle={`${employee.employee_code} · ${employee.designation_name || "Employee"}`}
+        subtitle={`${employee.employee_code} Â· ${employee.designation_name || "Employee"}`}
         actions={
           <Button asChild className="bg-blue-600 text-white">
             <Link to={`/hrms/employees/${id}/edit`}>
@@ -167,7 +167,7 @@ export default function EmployeeDetailPage() {
               employee.joining_date ? (
                 <DateText value={employee.joining_date} />
               ) : (
-                "—"
+                "â€”"
               ),
             )}
             <div>
@@ -230,7 +230,7 @@ export default function EmployeeDetailPage() {
                     {employee.email}
                   </span>
                 ) : (
-                  "—"
+                  "â€”"
                 ),
               )}
               {info(
@@ -241,7 +241,7 @@ export default function EmployeeDetailPage() {
                     {employee.phone}
                   </span>
                 ) : (
-                  "—"
+                  "â€”"
                 ),
               )}
               {info("Nationality", employee.nationality)}
@@ -250,7 +250,7 @@ export default function EmployeeDetailPage() {
                 employee.date_of_birth ? (
                   <DateText value={employee.date_of_birth} />
                 ) : (
-                  "—"
+                  "â€”"
                 ),
               )}
               {info(
@@ -266,7 +266,7 @@ export default function EmployeeDetailPage() {
                     {employee.address}
                   </span>
                 ) : (
-                  "—"
+                  "â€”"
                 ),
               )}
               {info("Notes", employee.notes)}
@@ -339,7 +339,7 @@ export default function EmployeeDetailPage() {
                   employee.passport_issue_date ? (
                     <DateText value={employee.passport_issue_date} />
                   ) : (
-                    "—"
+                    "â€”"
                   ),
                 )}
                 {info(
@@ -347,7 +347,7 @@ export default function EmployeeDetailPage() {
                   employee.passport_expiry_date ? (
                     <DateText value={employee.passport_expiry_date} />
                   ) : (
-                    "—"
+                    "â€”"
                   ),
                 )}
                 {info("Emirates ID", employee.emirates_id_number)}
@@ -356,7 +356,7 @@ export default function EmployeeDetailPage() {
                   employee.emirates_id_issue_date ? (
                     <DateText value={employee.emirates_id_issue_date} />
                   ) : (
-                    "—"
+                    "â€”"
                   ),
                 )}
                 {info(
@@ -364,7 +364,7 @@ export default function EmployeeDetailPage() {
                   employee.emirates_id_expiry_date ? (
                     <DateText value={employee.emirates_id_expiry_date} />
                   ) : (
-                    "—"
+                    "â€”"
                   ),
                 )}
                 {info("Visa Number", employee.visa_number)}
@@ -374,7 +374,7 @@ export default function EmployeeDetailPage() {
                   employee.visa_issue_date ? (
                     <DateText value={employee.visa_issue_date} />
                   ) : (
-                    "—"
+                    "â€”"
                   ),
                 )}
                 {info("Visa Sponsor", employee.visa_sponsor)}
@@ -384,7 +384,7 @@ export default function EmployeeDetailPage() {
                   employee.visa_expiry_date ? (
                     <DateText value={employee.visa_expiry_date} />
                   ) : (
-                    "—"
+                    "â€”"
                   ),
                 )}
               </div>
@@ -401,7 +401,7 @@ export default function EmployeeDetailPage() {
                   employee.labor_contract_start_date ? (
                     <DateText value={employee.labor_contract_start_date} />
                   ) : (
-                    "—"
+                    "â€”"
                   ),
                 )}
                 {info(
@@ -409,7 +409,7 @@ export default function EmployeeDetailPage() {
                   employee.labor_contract_end_date ? (
                     <DateText value={employee.labor_contract_end_date} />
                   ) : (
-                    "—"
+                    "â€”"
                   ),
                 )}
               </div>
@@ -481,7 +481,7 @@ export default function EmployeeDetailPage() {
                       <div>
                         <p className="text-xs text-muted-foreground">Number</p>
                         <p className="mt-1 truncate font-medium">
-                          {item.document_number || "—"}
+                          {item.document_number || "â€”"}
                         </p>
                       </div>
 
@@ -493,7 +493,7 @@ export default function EmployeeDetailPage() {
                           {item.issue_date ? (
                             <DateText value={item.issue_date} />
                           ) : (
-                            "—"
+                            "â€”"
                           )}
                         </p>
                       </div>
@@ -506,7 +506,7 @@ export default function EmployeeDetailPage() {
                           {item.expiry_date ? (
                             <DateText value={item.expiry_date} />
                           ) : (
-                            "—"
+                            "â€”"
                           )}
                         </p>
                       </div>
@@ -521,7 +521,7 @@ export default function EmployeeDetailPage() {
                               value={item.uploaded_at || item.created_at}
                             />
                           ) : (
-                            "—"
+                            "â€”"
                           )}
                         </p>
                       </div>
@@ -632,7 +632,7 @@ export default function EmployeeDetailPage() {
                   disabled
                 >
                   <option value={employee.id}>
-                    {employee.full_name} —{" "}
+                    {employee.full_name} â€”{" "}
                     {employee.designation_name || "Employee"}
                   </option>
                 </select>
@@ -783,7 +783,7 @@ export default function EmployeeDetailPage() {
                     value={
                       sortedHistory[0]?.effective_from ||
                       employee.joining_date ||
-                      "—"
+                      "â€”"
                     }
                   />
                 </div>
@@ -821,7 +821,7 @@ export default function EmployeeDetailPage() {
                             <div
                               className="w-full rounded-t-md bg-blue-100"
                               style={{ height: `${height}%` }}
-                              title={`د.إ ${value.toLocaleString("en-US")}`}
+                              title={`AED ${value.toLocaleString("en-US")}`}
                             />
 
                             <span className="text-[10px] text-muted-foreground">
@@ -889,8 +889,8 @@ export default function EmployeeDetailPage() {
                     <td className="p-3">
                       <StatusBadge status={row.status} />
                     </td>
-                    <td className="p-3">{row.check_in || "—"}</td>
-                    <td className="p-3">{row.check_out || "—"}</td>
+                    <td className="p-3">{row.check_in || "â€”"}</td>
+                    <td className="p-3">{row.check_out || "â€”"}</td>
                     <td className="p-3">{row.working_hours || 0}</td>
                   </tr>
                 ))}
@@ -925,8 +925,8 @@ export default function EmployeeDetailPage() {
                   <div>
                     <p className="font-medium">{leave.leave_type_name}</p>
                     <p className="text-xs text-muted-foreground">
-                      <DateText value={leave.from_date} /> –{" "}
-                      <DateText value={leave.to_date} /> · {leave.days} day(s)
+                      <DateText value={leave.from_date} /> â€“{" "}
+                      <DateText value={leave.to_date} /> Â· {leave.days} day(s)
                     </p>
                   </div>
 
@@ -936,14 +936,14 @@ export default function EmployeeDetailPage() {
                 <div className="mt-2 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
                   <p>
                     <span className="font-medium text-foreground">Reason:</span>{" "}
-                    {leave.reason || "—"}
+                    {leave.reason || "â€”"}
                   </p>
 
                   <p>
                     <span className="font-medium text-foreground">
                       Actioned by:
                     </span>{" "}
-                    {leave.actioned_by_name || "—"}
+                    {leave.actioned_by_name || "â€”"}
                   </p>
                 </div>
               </div>
@@ -1183,7 +1183,7 @@ function EmployeePayrollHistory({ entries, employeeId }) {
 
             <div className="mt-1 flex items-center gap-3">
               <span className="font-semibold">
-                {latestPayroll.period || "—"}
+                {latestPayroll.period || "â€”"}
               </span>
               <StatusBadge status={latestPayroll.status} />
             </div>
@@ -1266,7 +1266,7 @@ function EmployeePayrollHistory({ entries, employeeId }) {
                   >
                     <td className="px-4 py-4">
                       <div className="font-semibold text-foreground">
-                        {entry.period || "—"}
+                        {entry.period || "â€”"}
                       </div>
 
                       {entry.payroll_date && (
@@ -1421,3 +1421,4 @@ function PayrollTh({ children, right = false }) {
     </th>
   );
 }
+

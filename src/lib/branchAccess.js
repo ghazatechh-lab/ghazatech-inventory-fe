@@ -1,4 +1,4 @@
-import { canViewAllBranches, isAdmin } from "@/lib/permissions";
+﻿import { canViewAllBranches, isAdmin } from "@/lib/permissions";
 
 export const getUserBranchId = (user) =>
   user?.branch?.id ||
@@ -25,3 +25,4 @@ export const getAccessibleBranches = (branches, user) => {
 
 export const canSelectAnyBranch = (user) =>
   isAdmin(user) || canViewAllBranches(user);
+

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+﻿import React, { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -73,10 +73,10 @@ const getAvailableQuantity = (product) => {
 
 const getRelatedName = (value, fallback) => {
   if (value && typeof value === "object") {
-    return value.name || fallback || "—";
+    return value.name || fallback || "â€”";
   }
 
-  return fallback || value || "—";
+  return fallback || value || "â€”";
 };
 
 export default function ProductListPage() {
@@ -491,7 +491,7 @@ export default function ProductListPage() {
       header: "SKU",
       cell: (product) => (
         <span className="font-numeric text-slate-300">
-          {product.sku || "—"}
+          {product.sku || "â€”"}
         </span>
       ),
     },
@@ -509,7 +509,7 @@ export default function ProductListPage() {
     {
       key: "branch",
       header: "Branch",
-      cell: (product) => product.branch_code || product.branch_name || "—",
+      cell: (product) => product.branch_code || product.branch_name || "â€”",
     },
     {
       key: "available_qty",
@@ -534,7 +534,7 @@ export default function ProductListPage() {
       header: "Rack",
       cell: (product) => (
         <span className="font-numeric text-xs font-bold text-slate-200">
-          {product.rack_code || product.rack_name || "—"}
+          {product.rack_code || product.rack_name || "â€”"}
         </span>
       ),
     },
@@ -760,7 +760,7 @@ export default function ProductListPage() {
             <SearchInput
               value={search}
               onChange={(value) => updateParam("search", value)}
-              placeholder="Search name, SKU, barcode or model…"
+              placeholder="Search name, SKU, barcode or modelâ€¦"
             />
           </div>
 
@@ -853,3 +853,4 @@ export default function ProductListPage() {
     </div>
   );
 }
+

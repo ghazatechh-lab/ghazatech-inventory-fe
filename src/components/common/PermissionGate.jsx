@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 
 import { useAuth } from "@/lib/auth";
 import {
@@ -34,3 +34,4 @@ export function PermissionGate({
 }
 
 export default PermissionGate;
+

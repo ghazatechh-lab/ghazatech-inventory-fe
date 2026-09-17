@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -227,7 +227,7 @@ export default function AccountingCrudPage({
       <PageHeader
         title={title}
         subtitle={`${subtitle}${
-          isAllBranches ? " · All branches" : " · Selected branch"
+          isAllBranches ? " Â· All branches" : " Â· Selected branch"
         }`}
         actions={
           !readOnly ? (
@@ -286,7 +286,7 @@ export default function AccountingCrudPage({
                         ? money(row[column.key])
                         : column.render
                           ? column.render(row)
-                          : (row[column.key] ?? "—")}
+                          : (row[column.key] ?? "â€”")}
                     </td>
                   ))}
 
@@ -440,3 +440,4 @@ export default function AccountingCrudPage({
     </div>
   );
 }
+

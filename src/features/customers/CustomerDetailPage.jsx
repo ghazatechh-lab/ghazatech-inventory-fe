@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -15,10 +15,10 @@ import {
 } from "lucide-react";
 
 import api, { unwrap } from "@/lib/api";
-import { PageHeader } from "@/components/common/PageHeader";
 import { LoadingState, EmptyState } from "@/components/common/States";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
+import DirhamSymbol from "@/components/common/DirhamSymbol";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { DataTable } from "@/components/common/DataTable";
 import { Button } from "@/components/ui/button";
@@ -148,31 +148,53 @@ export default function CustomerDetailPage() {
   const outstandingTotal = outstandingQuery.data?.total ?? c.balance_due ?? 0;
 
   return (
-    <div className="customer-module-page customer-workspace mx-auto max-w-7xl space-y-5 pb-10">
-      <PageHeader
-        title={c.customer_name || "Customer"}
-        subtitle={`${displayValue(
-          c.customer_code,
-          `Customer #${id}`,
-        )} · ${displayValue(c.customer_type, c.category)}`}
-        actions={
-          <div className="flex gap-2">
-            <Button asChild variant="outline">
+    <div className="customer-module-page customer-workspace w-full space-y-5 pb-10">
+      <section className="overflow-hidden rounded-[28px] border border-slate-200/70 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 text-white shadow-sm dark:border-white/10">
+        <div className="flex flex-col gap-6 px-6 py-7 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+          <div className="flex min-w-0 items-start gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 shadow-inner backdrop-blur">
+              <Building2 className="h-7 w-7" />
+            </div>
+
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-200">
+                Customer Profile
+              </p>
+              <h1 className="mt-2 truncate text-3xl font-semibold tracking-tight sm:text-4xl">
+                {c.customer_name || "Customer"}
+              </h1>
+              <p className="mt-2 text-sm text-slate-300">
+                {displayValue(c.customer_code, `Customer #${id}`)}
+                <span className="mx-2 text-slate-500">•</span>
+                {displayValue(c.customer_type, c.category)}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2 lg:justify-end">
+            <Button
+              asChild
+              variant="outline"
+              className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+            >
               <Link to="/customers">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
               </Link>
             </Button>
 
-            <Button asChild>
+            <Button
+              asChild
+              className="bg-white text-slate-950 hover:bg-slate-100"
+            >
               <Link to={`/customers/${id}/edit`}>
                 <Pencil className="mr-2 h-4 w-4" />
                 Edit Customer
               </Link>
             </Button>
           </div>
-        }
-      />
+        </div>
+      </section>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Outstanding" tone="danger">
@@ -261,9 +283,14 @@ export default function CustomerDetailPage() {
             {Number(c.payment_terms_days || 0)} days
           </DetailRow>
           <DetailRow label="Currency">
-            {String(c.currency || "AED").toUpperCase() === "AED"
-              ? "د.إ"
-              : displayValue(c.currency, "AED")}
+            {String(c.currency || "AED").toUpperCase() === "AED" ? (
+              <span className="inline-flex items-center gap-1.5">
+                <DirhamSymbol size={15} decorative />
+                <span>UAE Dirham</span>
+              </span>
+            ) : (
+              displayValue(c.currency, "AED")
+            )}
           </DetailRow>
           <DetailRow label="Active">
             <StatusBadge status={c.is_active ? "ACTIVE" : "INACTIVE"} />

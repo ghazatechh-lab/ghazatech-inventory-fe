@@ -1,16 +1,21 @@
-import React from "react";
+﻿import React from "react";
 import { Link } from "react-router-dom";
 import {
   AlertCircle,
+  Boxes,
   ChevronLeft,
   ChevronRight,
+  CircleDollarSign,
+  Info,
+  PackageCheck,
   Plus,
   RefreshCcw,
+  Search,
+  Truck,
 } from "lucide-react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import api from "@/lib/api";
-import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
@@ -84,6 +89,39 @@ function getErrorDetails(error) {
     requestUrl: response?.config?.url,
     requestParams: response?.config?.params,
   };
+}
+
+function ShipmentSummaryCard({
+  icon: Icon,
+  label,
+  value,
+  hint,
+  tone = "default",
+}) {
+  const tones = {
+    default: "bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-200",
+    green: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    blue: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+    amber: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  };
+
+  return (
+    <div className="rounded-2xl border bg-card p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">{label}</p>
+          <div className="mt-2 text-2xl font-bold tracking-tight">{value}</div>
+          <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+        </div>
+
+        <div
+          className={`grid h-10 w-10 place-items-center rounded-xl ${tones[tone]}`}
+        >
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function ShipmentListPage() {
@@ -204,6 +242,20 @@ export default function ShipmentListPage() {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  const pageReceived = rows.filter((row) =>
+    ["RECEIVED", "COMPLETED"].includes(String(row.status || "").toUpperCase()),
+  ).length;
+
+  const pageItems = rows.reduce(
+    (sum, row) => sum + Number(row.item_count ?? row.items?.length ?? 0),
+    0,
+  );
+
+  const pageValue = rows.reduce(
+    (sum, row) => sum + Number(row.total_shipment_value || 0),
+    0,
+  );
+
   const errorDetails = query.isError ? getErrorDetails(query.error) : null;
 
   const columns = [
@@ -226,7 +278,7 @@ export default function ShipmentListPage() {
         row.po_number ||
         row.purchase_order?.po_number ||
         row.purchase_order_number ||
-        "—",
+        "â€”",
     },
     {
       key: "supplier",
@@ -235,7 +287,7 @@ export default function ShipmentListPage() {
         row.supplier_name ||
         row.supplier?.supplier_name ||
         row.supplier?.name ||
-        "—",
+        "â€”",
     },
     {
       key: "branch",
@@ -245,30 +297,30 @@ export default function ShipmentListPage() {
 
         const name = row.branch_name || row.branch?.branch_name;
 
-        return code ? `${code}${name ? ` — ${name}` : ""}` : name || "—";
+        return code ? `${code}${name ? ` â€” ${name}` : ""}` : name || "â€”";
       },
     },
     {
       key: "courier",
       header: "Courier",
-      cell: (row) => row.courier || row.shipment_method || "—",
+      cell: (row) => row.courier || row.shipment_method || "â€”",
     },
     {
       key: "tracking_number",
       header: "Tracking #",
-      cell: (row) => row.tracking_number || "—",
+      cell: (row) => row.tracking_number || "â€”",
     },
     {
       key: "shipment_date",
       header: "Shipment Date",
       cell: (row) =>
-        row.shipment_date ? <DateText value={row.shipment_date} /> : "—",
+        row.shipment_date ? <DateText value={row.shipment_date} /> : "â€”",
     },
     {
       key: "expected_date",
       header: "Expected",
       cell: (row) =>
-        row.expected_date ? <DateText value={row.expected_date} /> : "—",
+        row.expected_date ? <DateText value={row.expected_date} /> : "â€”",
     },
     {
       key: "items",
@@ -320,172 +372,257 @@ export default function ShipmentListPage() {
   ];
 
   return (
-    <div className="purchase-module-page purchase-workspace space-y-6">
-      <PageHeader
-        title="Purchase Shipments"
-        subtitle="Inbound supplier shipments and received product details."
-        actions={
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={query.isFetching}
-              onClick={() => query.refetch()}
-            >
-              <RefreshCcw className="mr-2 h-4 w-4" />
-              Refresh
-            </Button>
+    <div className="supplier-module-page purchase-module-page min-h-full text-slate-900 dark:text-white">
+      <div className="supplier-topbar">
+        <div className="mx-auto flex max-w-[1600px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Purchases /{" "}
+            <span className="font-semibold text-slate-950 dark:text-white">
+              Purchase Shipments
+            </span>
+          </p>
 
-            <Button asChild>
-              <Link to="/shipments/new">
-                <Plus className="mr-2 h-4 w-4" />
-                Log Shipment
-              </Link>
-            </Button>
-          </div>
-        }
-      />
-
-      <div className="rounded-2xl border bg-card p-4">
-        <Input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search shipment, PO, supplier, courier, product, or tracking number"
-        />
-      </div>
-
-      {errorDetails && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-
-            <div className="min-w-0">
-              <p className="font-semibold">Shipment API request failed</p>
-
-              <p className="mt-1 text-sm">{errorDetails.message}</p>
-
-              <div className="mt-3 space-y-1 font-mono text-xs">
-                <p>Status: {errorDetails.status || "No response"}</p>
-                <p>URL: {errorDetails.requestUrl || "/shipments/"}</p>
-                <p className="break-all">
-                  Params: {JSON.stringify(errorDetails.requestParams || params)}
-                </p>
-              </div>
-
-              <details className="mt-3">
-                <summary className="cursor-pointer text-sm font-medium">
-                  Backend response
-                </summary>
-
-                <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-black/10 p-3 text-xs">
-                  {JSON.stringify(errorDetails.response, null, 2)}
-                </pre>
-              </details>
-            </div>
+          <div className="relative w-full sm:max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search anything..."
+              className="h-10 rounded-xl pl-9"
+            />
           </div>
         </div>
-      )}
+      </div>
 
-      <div className="overflow-hidden rounded-2xl border bg-card">
-        <div className="overflow-x-auto">
-          <table className="min-w-[1500px] w-full text-sm">
-            <thead className="border-b bg-muted/40">
-              <tr>
-                {columns.map((column) => (
-                  <th
-                    key={column.key}
-                    className={[
-                      "px-4 py-3 text-xs font-semibold uppercase tracking-wide",
-                      column.align === "right" ? "text-right" : "text-left",
-                    ].join(" ")}
-                  >
-                    {column.header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
+      <main className="mx-auto max-w-[1600px] space-y-6 px-5 py-6 lg:px-7">
+        <section className="supplier-hero supplier-list-hero">
+          <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="supplier-hero-content flex min-w-0 items-start gap-4">
+              <span className="supplier-hero-icon shrink-0">
+                <Truck className="h-6 w-6" />
+              </span>
 
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id} className="border-b last:border-b-0">
+              <div className="min-w-0 flex-1">
+                <p className="supplier-eyebrow supplier-list-eyebrow">
+                  Purchase management
+                </p>
+
+                <h1 className="supplier-hero-title supplier-list-title mt-1">
+                  Purchase Shipments
+                </h1>
+
+                <p className="supplier-hero-description supplier-list-description mt-2 max-w-3xl">
+                  Track inbound supplier shipments, purchase-order receipts,
+                  received quantities, quality checks, rack placement and GRN
+                  readiness.
+                  {branchId && String(branchId) !== "all"
+                    ? " Showing shipments for the selected branch."
+                    : " Showing shipments from all branches."}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={query.isFetching}
+                onClick={() => query.refetch()}
+                className="h-11 rounded-xl px-5 font-semibold"
+              >
+                <RefreshCcw className="mr-2 h-4 w-4" />
+                Refresh
+              </Button>
+
+              <Button
+                asChild
+                className="supplier-hero-action h-11 rounded-xl bg-amber-400 px-5 font-extrabold text-slate-950 shadow-lg shadow-black/15 hover:bg-amber-300"
+              >
+                <Link to="/shipments/new">
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Shipment
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+
+        <section className="flex items-start gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-950 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-200">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>
+            Purchase shipments are linked to approved purchase orders and track
+            received, accepted and rejected quantities before GRN creation.
+          </p>
+        </section>
+
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <ShipmentSummaryCard
+            icon={Truck}
+            label="Total Shipments"
+            value={total}
+            hint="For the current branch/filter"
+          />
+          <ShipmentSummaryCard
+            icon={PackageCheck}
+            label="Received"
+            value={pageReceived}
+            hint="On the current page"
+            tone="green"
+          />
+          <ShipmentSummaryCard
+            icon={Boxes}
+            label="Products"
+            value={pageItems}
+            hint="Items on the current page"
+            tone="blue"
+          />
+          <ShipmentSummaryCard
+            icon={CircleDollarSign}
+            label="Shipment Value"
+            value={<CurrencyText value={pageValue} />}
+            hint="Current page value"
+            tone="amber"
+          />
+        </section>
+
+        {errorDetails && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+
+              <div className="min-w-0">
+                <p className="font-semibold">Shipment API request failed</p>
+
+                <p className="mt-1 text-sm">{errorDetails.message}</p>
+
+                <div className="mt-3 space-y-1 font-mono text-xs">
+                  <p>Status: {errorDetails.status || "No response"}</p>
+                  <p>URL: {errorDetails.requestUrl || "/shipments/"}</p>
+                  <p className="break-all">
+                    Params:{" "}
+                    {JSON.stringify(errorDetails.requestParams || params)}
+                  </p>
+                </div>
+
+                <details className="mt-3">
+                  <summary className="cursor-pointer text-sm font-medium">
+                    Backend response
+                  </summary>
+
+                  <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-black/10 p-3 text-xs">
+                    {JSON.stringify(errorDetails.response, null, 2)}
+                  </pre>
+                </details>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="min-w-[1500px] w-full text-sm">
+              <thead className="border-b bg-muted/40">
+                <tr>
                   {columns.map((column) => (
-                    <td
+                    <th
                       key={column.key}
                       className={[
-                        "px-4 py-4",
+                        "px-4 py-3 text-xs font-semibold uppercase tracking-wide",
                         column.align === "right" ? "text-right" : "text-left",
                       ].join(" ")}
                     >
-                      {column.cell
-                        ? column.cell(row)
-                        : (row[column.key] ?? "—")}
-                    </td>
+                      {column.header}
+                    </th>
                   ))}
                 </tr>
-              ))}
+              </thead>
 
-              {!query.isLoading && !query.isError && !rows.length && (
-                <tr>
-                  <td
-                    colSpan={columns.length}
-                    className="p-12 text-center text-muted-foreground"
+              <tbody>
+                {rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="border-b transition hover:bg-slate-50/80 last:border-b-0 dark:hover:bg-white/[0.03]"
                   >
-                    The API returned no shipment records for the current
-                    filters.
-                  </td>
-                </tr>
-              )}
+                    {columns.map((column) => (
+                      <td
+                        key={column.key}
+                        className={[
+                          "px-4 py-4",
+                          column.align === "right" ? "text-right" : "text-left",
+                        ].join(" ")}
+                      >
+                        {column.cell
+                          ? column.cell(row)
+                          : (row[column.key] ?? "â€”")}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
 
-              {query.isLoading && (
-                <tr>
-                  <td
-                    colSpan={columns.length}
-                    className="p-12 text-center text-muted-foreground"
-                  >
-                    Loading shipments...
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                {!query.isLoading && !query.isError && !rows.length && (
+                  <tr>
+                    <td
+                      colSpan={columns.length}
+                      className="p-12 text-center text-muted-foreground"
+                    >
+                      The API returned no shipment records for the current
+                      filters.
+                    </td>
+                  </tr>
+                )}
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t p-4">
-          <p className="text-sm text-muted-foreground">
-            Showing {rows.length} of {total} shipments
-          </p>
+                {query.isLoading && (
+                  <tr>
+                    <td
+                      colSpan={columns.length}
+                      className="p-12 text-center text-muted-foreground"
+                    >
+                      Loading shipments...
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={page <= 1 || query.isFetching}
-              onClick={() => setPage((value) => Math.max(1, value - 1))}
-            >
-              <ChevronLeft className="mr-1 h-4 w-4" />
-              Previous
-            </Button>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t p-4">
+            <p className="text-sm text-muted-foreground">
+              Showing {rows.length} of {total} shipments
+            </p>
 
-            <span className="text-sm">
-              Page {page} of {totalPages}
-            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={page <= 1 || query.isFetching}
+                onClick={() => setPage((value) => Math.max(1, value - 1))}
+              >
+                <ChevronLeft className="mr-1 h-4 w-4" />
+                Previous
+              </Button>
 
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={page >= totalPages || query.isFetching}
-              onClick={() =>
-                setPage((value) => Math.min(totalPages, value + 1))
-              }
-            >
-              Next
-              <ChevronRight className="ml-1 h-4 w-4" />
-            </Button>
+              <span className="text-sm">
+                Page {page} of {totalPages}
+              </span>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages || query.isFetching}
+                onClick={() =>
+                  setPage((value) => Math.min(totalPages, value + 1))
+                }
+              >
+                Next
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
+

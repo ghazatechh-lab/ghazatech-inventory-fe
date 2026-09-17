@@ -1443,7 +1443,7 @@ export default function PayrollPage() {
                   <div>
                     <p className="text-xs text-muted-foreground">Period</p>
                     <p className="mt-1 font-medium">
-                      {payingPayroll.period || "—"}
+                      {payingPayroll.period || "â€”"}
                     </p>
                   </div>
 
@@ -1558,7 +1558,7 @@ export default function PayrollPage() {
                     editingPayroll.employee_name,
                   ]
                     .filter(Boolean)
-                    .join(" — ")}
+                    .join(" â€” ")}
                   disabled
                 />
               </div>
@@ -1698,7 +1698,7 @@ export default function PayrollPage() {
 
                 {numberValue(editingPayroll.advance_deduction) > 0 ? (
                   <p className="mt-2 text-xs text-amber-600">
-                    Existing advance deduction: د.إ{" "}
+                    Existing advance deduction: AED{" "}
                     {numberValue(editingPayroll.advance_deduction).toFixed(2)}.
                     Advance deduction remains linked to this payroll entry.
                   </p>
@@ -1706,7 +1706,7 @@ export default function PayrollPage() {
 
                 {numberValue(editingPayroll.loan_deduction) > 0 ? (
                   <p className="mt-1 text-xs text-orange-600">
-                    Existing loan deduction: د.إ{" "}
+                    Existing loan deduction: AED{" "}
                     {numberValue(editingPayroll.loan_deduction).toFixed(2)}.
                     Loan deduction remains linked to this payroll entry.
                   </p>
@@ -1999,7 +1999,7 @@ export default function PayrollPage() {
                                   {employee.full_name}
                                 </p>
                                 <p className="truncate text-xs text-muted-foreground">
-                                  {employee.employee_code} ·{" "}
+                                  {employee.employee_code} Â·{" "}
                                   {employee.branch_name}
                                 </p>
                                 <p className="mt-1 text-xs text-muted-foreground">
@@ -2148,7 +2148,7 @@ export default function PayrollPage() {
                 <p className="text-sm text-muted-foreground">
                   {advanceDetail.employee_code}
                   {advanceDetail.branch_name
-                    ? ` · ${advanceDetail.branch_name}`
+                    ? ` Â· ${advanceDetail.branch_name}`
                     : ""}
                 </p>
               </div>
@@ -2264,7 +2264,7 @@ export default function PayrollPage() {
                   className="mt-2"
                   value={[loanDetail.employee_code, loanDetail.employee_name]
                     .filter(Boolean)
-                    .join(" — ")}
+                    .join(" â€” ")}
                   readOnly
                 />
               </div>
@@ -2446,7 +2446,7 @@ export default function PayrollPage() {
                             key={employee.id}
                             value={String(employee.id)}
                           >
-                            {employee.employee_code} — {employee.full_name}
+                            {employee.employee_code} â€” {employee.full_name}
                           </SelectItem>
                         ))
                       ) : (
@@ -2702,7 +2702,7 @@ export default function PayrollPage() {
                             key={employee.id}
                             value={String(employee.id)}
                           >
-                            {employee.employee_code} — {employee.full_name}
+                            {employee.employee_code} â€” {employee.full_name}
                           </SelectItem>
                         ))
                       ) : (
@@ -2842,3 +2842,4 @@ export default function PayrollPage() {
     </div>
   );
 }
+

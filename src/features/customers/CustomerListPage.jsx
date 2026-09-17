@@ -1,11 +1,10 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Download, Eye, Pencil, Plus } from "lucide-react";
+import { Download, Eye, Pencil, Plus, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 import api, { unwrap } from "@/lib/api";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
-import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -92,7 +91,7 @@ export default function CustomerListPage() {
         key: "last_order_date",
         header: "Last Order",
         cell: (row) =>
-          row.last_order_date ? <DateText value={row.last_order_date} /> : "—",
+          row.last_order_date ? <DateText value={row.last_order_date} /> : "",
       },
       {
         key: "status",
@@ -131,20 +130,42 @@ export default function CustomerListPage() {
   );
 
   return (
-    <div className="customer-module-page customer-workspace mx-auto max-w-7xl space-y-5 pb-10">
-      <PageHeader
-        title="Customers"
-        subtitle="Customer records, balances, and contact details"
-        actions={
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={exportRows}>
+    <div className="customer-module-page customer-workspace w-full space-y-5 pb-10">
+      <section className="overflow-hidden rounded-[28px] border border-slate-200/70 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 text-white shadow-sm dark:border-white/10">
+        <div className="flex flex-col gap-6 px-6 py-7 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+          <div className="flex min-w-0 items-start gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 shadow-inner backdrop-blur">
+              <Users className="h-7 w-7" />
+            </div>
+
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-200">
+                Sales & Customer Management
+              </p>
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+                Customers
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+                Manage customer records, balances, contact details, sales
+                history, and account activity from one place.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2 lg:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={exportRows}
+              className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+            >
               <Download className="mr-2 h-4 w-4" />
               Export
             </Button>
 
             <Button
               asChild
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="bg-white text-slate-950 hover:bg-slate-100"
             >
               <Link to="/customers/new">
                 <Plus className="mr-2 h-4 w-4" />
@@ -152,8 +173,8 @@ export default function CustomerListPage() {
               </Link>
             </Button>
           </div>
-        }
-      />
+        </div>
+      </section>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard

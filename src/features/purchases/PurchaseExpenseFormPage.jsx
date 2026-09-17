@@ -1,11 +1,11 @@
-import React from "react";
+﻿import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Loader2, Paperclip, Save, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails } from "@/lib/api";
-import { PageHeader } from "@/components/common/PageHeader";
+import { PageHeader } from "./PurchasePageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -601,7 +601,7 @@ export default function PurchaseExpenseFormPage() {
 
               {branches.map((branch) => (
                 <option key={branch.id} value={String(branch.id)}>
-                  {branch.branch_code ? `${branch.branch_code} — ` : ""}
+                  {branch.branch_code ? `${branch.branch_code} â€” ` : ""}
                   {branch.branch_name || branch.name}
                 </option>
               ))}
@@ -907,3 +907,4 @@ export default function PurchaseExpenseFormPage() {
     </div>
   );
 }
+

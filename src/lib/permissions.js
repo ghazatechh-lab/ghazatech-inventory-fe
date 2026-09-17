@@ -1,4 +1,4 @@
-const normalizeCode = (value) => String(value || "").trim();
+﻿const normalizeCode = (value) => String(value || "").trim();
 
 export const getRoleCode = (user) =>
   String(
@@ -182,3 +182,4 @@ export const canChangeActiveBranch = (user) =>
 
 export const canViewAllBranches = (user) =>
   isAdmin(user) || hasPermission(user, "branches.view_all");
+

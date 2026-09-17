@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { cn } from "@/lib/utils";
 
 const styles = {
@@ -67,3 +67,4 @@ export function StatusBadge({ status, label, className }) {
     </span>
   );
 }
+

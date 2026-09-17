@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   AlertCircle,
@@ -12,7 +12,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 
 import api from "@/lib/api";
-import { PageHeader } from "@/components/common/PageHeader";
+import { PageHeader } from "../purchases/PurchasePageHeader";
 import { Button } from "@/components/ui/button";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -46,7 +46,7 @@ const Field = ({ label, value }) => (
       {label}
     </p>
     <div className="mt-1 break-words text-sm font-medium">
-      {value === undefined || value === null || value === "" ? "—" : value}
+      {value === undefined || value === null || value === "" ? "â€”" : value}
     </div>
   </div>
 );
@@ -245,7 +245,7 @@ export default function ShipmentDetailPage() {
             label="Branch"
             value={
               shipment.branch_code
-                ? `${shipment.branch_code} — ${shipment.branch_name || ""}`
+                ? `${shipment.branch_code} â€” ${shipment.branch_name || ""}`
                 : shipment.branch_name
             }
           />
@@ -259,7 +259,7 @@ export default function ShipmentDetailPage() {
               shipment.shipment_date ? (
                 <DateText value={shipment.shipment_date} />
               ) : (
-                "—"
+                "â€”"
               )
             }
           />
@@ -269,7 +269,7 @@ export default function ShipmentDetailPage() {
               shipment.expected_date ? (
                 <DateText value={shipment.expected_date} />
               ) : (
-                "—"
+                "â€”"
               )
             }
           />
@@ -279,7 +279,7 @@ export default function ShipmentDetailPage() {
               shipment.received_date ? (
                 <DateText value={shipment.received_date} />
               ) : (
-                "—"
+                "â€”"
               )
             }
           />
@@ -344,13 +344,13 @@ export default function ShipmentDetailPage() {
                             "Product"}
                         </p>
                         <p className="font-mono text-xs text-muted-foreground">
-                          {item.sku || item.product?.sku || "—"}
+                          {item.sku || item.product?.sku || "â€”"}
                         </p>
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-4">
-                    {item.variant_name || item.variant?.display_name || "—"}
+                    {item.variant_name || item.variant?.display_name || "â€”"}
                   </td>
                   <td className="px-4 py-4">{item.expected_quantity ?? 0}</td>
                   <td className="px-4 py-4">{item.received_quantity ?? 0}</td>
@@ -363,7 +363,7 @@ export default function ShipmentDetailPage() {
                     {item.rack_code ||
                       item.rack_name ||
                       item.rack?.rack_code ||
-                      "—"}
+                      "â€”"}
                   </td>
                   <td className="px-4 py-4">
                     <CurrencyText value={item.unit_cost || 0} />
@@ -381,9 +381,9 @@ export default function ShipmentDetailPage() {
                     />
                   </td>
                   <td className="px-4 py-4">
-                    <p>Serial: {item.serial_number || "—"}</p>
+                    <p>Serial: {item.serial_number || "â€”"}</p>
                     <p className="text-xs text-muted-foreground">
-                      Batch: {item.batch_number || "—"}
+                      Batch: {item.batch_number || "â€”"}
                     </p>
                   </td>
                 </tr>
@@ -411,9 +411,9 @@ export default function ShipmentDetailPage() {
           {logs.map((log) => (
             <div key={log.id} className="border-l-2 pl-4">
               <StatusBadge status={log.status} />
-              <p className="mt-2 text-sm">{log.location || "—"}</p>
+              <p className="mt-2 text-sm">{log.location || "â€”"}</p>
               <p className="text-sm text-muted-foreground">
-                {log.remarks || "—"}
+                {log.remarks || "â€”"}
               </p>
             </div>
           ))}
@@ -438,3 +438,4 @@ export default function ShipmentDetailPage() {
     </div>
   );
 }
+

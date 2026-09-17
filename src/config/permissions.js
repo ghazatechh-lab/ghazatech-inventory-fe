@@ -1,4 +1,4 @@
-export const PERMISSIONS = {
+﻿export const PERMISSIONS = {
   VAT: {
     SALES_VIEW: "sales.vat.view",
     SALES_MANAGE: "sales.vat.manage",
@@ -69,3 +69,4 @@ export const PERMISSIONS = {
     EXPORT: "hrms.payroll.export",
   },
 };
+

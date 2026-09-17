@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CreditCard, Download, Edit, Mail } from "lucide-react";
@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import api, { unwrap } from "@/lib/api";
 import { downloadSalesPdf } from "@/lib/salesPdf";
-import { PageHeader } from "@/components/common/PageHeader";
+import { SalesHeroHeader } from "@/components/sales/SalesHeroHeader";
 import { Button } from "@/components/ui/button";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -103,7 +103,7 @@ export default function InvoiceDetailPage() {
 
   return (
     <div className="sales-module-page sales-workspace w-full space-y-5">
-      <PageHeader
+      <SalesHeroHeader
         title={invoice.invoice_number}
         subtitle="Invoice details, balance, and payment status"
         actions={

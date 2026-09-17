@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -1463,7 +1463,7 @@ export default function ProductFormPage() {
                             .map((rack) => (
                               <option key={rack.id} value={String(rack.id)}>
                                 {rack.rack_code}
-                                {rack.rack_name ? ` — ${rack.rack_name}` : ""}
+                                {rack.rack_name ? ` â€” ${rack.rack_name}` : ""}
                               </option>
                             ))}
                         </select>
@@ -1492,7 +1492,7 @@ export default function ProductFormPage() {
                                       toggleVariantRack(variantIndex, rackId)
                                     }
                                   >
-                                    ×
+                                    Ã—
                                   </button>
                                 </span>
                               );
@@ -1636,7 +1636,7 @@ export default function ProductFormPage() {
                     {change.label}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-500">
-                    {change.before} → {change.after}
+                    {change.before} â†’ {change.after}
                   </p>
                 </div>
                 <span
@@ -1674,3 +1674,4 @@ export default function ProductFormPage() {
     </div>
   );
 }
+

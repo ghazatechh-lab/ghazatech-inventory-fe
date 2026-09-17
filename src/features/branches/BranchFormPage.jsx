@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
@@ -341,7 +341,7 @@ export default function BranchFormPage() {
                   <SelectItem key={manager.id} value={String(manager.id)}>
                     {manager.display_name}
 
-                    {manager.role_name ? ` — ${manager.role_name}` : ""}
+                    {manager.role_name ? ` â€” ${manager.role_name}` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -433,3 +433,4 @@ export default function BranchFormPage() {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Info, Plus } from "lucide-react";
@@ -6,7 +6,7 @@ import { Info, Plus } from "lucide-react";
 import api, { unwrap } from "@/lib/api";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { DataTable, useListQuery } from "@/hooks/useListQuery";
-import { PageHeader } from "@/components/common/PageHeader";
+import { PageHeader } from "./PurchasePageHeader";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -115,7 +115,7 @@ export default function POListPage() {
         sortType: "text",
         cell: (row) => (
           <span className="font-numeric font-semibold text-slate-950 dark:text-white">
-            {row.po_number || "—"}
+            {row.po_number || "â€”"}
           </span>
         ),
       },
@@ -124,7 +124,7 @@ export default function POListPage() {
         header: "Supplier",
         sortKey: "supplier__supplier_name",
         sortType: "text",
-        cell: (row) => row.supplier_name || "—",
+        cell: (row) => row.supplier_name || "â€”",
       },
       {
         key: "order_date",
@@ -132,7 +132,7 @@ export default function POListPage() {
         sortKey: "order_date",
         sortType: "date",
         cell: (row) =>
-          row.order_date ? <DateText value={row.order_date} /> : "—",
+          row.order_date ? <DateText value={row.order_date} /> : "â€”",
       },
       {
         key: "expected_delivery_date",
@@ -143,7 +143,7 @@ export default function POListPage() {
           row.expected_delivery_date ? (
             <DateText value={row.expected_delivery_date} />
           ) : (
-            "—"
+            "â€”"
           ),
       },
       {
@@ -291,3 +291,4 @@ export default function POListPage() {
     </div>
   );
 }
+

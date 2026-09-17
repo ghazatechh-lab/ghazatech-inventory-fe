@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Link } from "react-router-dom";
 import { ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,3 +15,4 @@ export default function UnauthorizedPage() {
     </div>
   );
 }
+

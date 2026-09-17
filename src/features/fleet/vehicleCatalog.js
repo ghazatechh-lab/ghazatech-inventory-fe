@@ -1,4 +1,4 @@
-export const VEHICLE_TYPES = [
+﻿export const VEHICLE_TYPES = [
   "Sedan",
   "Hatchback",
   "Coupe",
@@ -364,3 +364,4 @@ export function modelsForMake(make) {
   const key = make === "Ashok Leyland" ? "Ashok_Leyland" : make;
   return VEHICLE_CATALOG[key] || ["All Models"];
 }
+

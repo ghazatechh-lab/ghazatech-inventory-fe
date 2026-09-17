@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -26,3 +26,4 @@ export function ConfirmDialog({ open, onOpenChange, title = "Are you sure?", des
     </AlertDialog>
   );
 }
+

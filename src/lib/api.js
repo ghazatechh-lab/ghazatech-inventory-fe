@@ -1,4 +1,4 @@
-import axios from "axios";
+﻿import axios from "axios";
 import { toast } from "sonner";
 
 const API_BASE_URL =
@@ -257,7 +257,7 @@ export const getApiErrorDetails = (error) => {
 
   const fieldSummary = uniqueMessages
     .slice(0, 6)
-    .map((message) => `• ${message}`)
+    .map((message) => `â€¢ ${message}`)
     .join("\n");
 
   const backendMessage = responseData?.message || responseData?.detail || "";
@@ -492,3 +492,4 @@ export {
 };
 
 export default api;
+

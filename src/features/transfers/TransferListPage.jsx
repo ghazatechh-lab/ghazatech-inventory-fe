@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -108,7 +108,7 @@ export default function TransferListPage() {
             to={`/transfers/${row.id}`}
             className="font-semibold text-blue-600 hover:underline dark:text-blue-400"
           >
-            {row.transfer_number || "—"}
+            {row.transfer_number || "â€”"}
           </Link>
         ),
       },
@@ -124,7 +124,7 @@ export default function TransferListPage() {
           row.from_branch_name ||
           row.from_branch?.branch_name ||
           row.from_branch?.name ||
-          "—",
+          "â€”",
       },
       {
         key: "route",
@@ -145,7 +145,7 @@ export default function TransferListPage() {
           row.to_branch_name ||
           row.to_branch?.branch_name ||
           row.to_branch?.name ||
-          "—",
+          "â€”",
       },
       {
         key: "items",
@@ -176,7 +176,7 @@ export default function TransferListPage() {
         sortType: "datetime",
 
         cell: (row) =>
-          row.created_at ? <DateText value={row.created_at} /> : "—",
+          row.created_at ? <DateText value={row.created_at} /> : "â€”",
       },
       {
         key: "status",
@@ -335,3 +335,4 @@ export default function TransferListPage() {
     </div>
   );
 }
+

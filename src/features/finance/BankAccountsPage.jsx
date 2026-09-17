@@ -450,8 +450,8 @@ function AccountsTab({ accounts, onNew }) {
           a.account_name,
           a.bank_name || "Cash",
           a.account_type_display || a.account_type,
-          a.account_number || "—",
-          a.iban_number || "—",
+          a.account_number || "â€”",
+          a.iban_number || "â€”",
           a.currency || "AED",
           money(a.current_balance),
           money(a.statement_balance),
@@ -556,9 +556,9 @@ function CashbookTab({ accounts, transactions, filters, setFilters, onNew }) {
           t.bank_account_name,
           t.transaction_type_display || t.transaction_type,
           t.particulars,
-          t.reference || "—",
-          num(t.receipt_amount) ? money(t.receipt_amount) : "—",
-          num(t.payment_amount) ? money(t.payment_amount) : "—",
+          t.reference || "â€”",
+          num(t.receipt_amount) ? money(t.receipt_amount) : "â€”",
+          num(t.payment_amount) ? money(t.payment_amount) : "â€”",
           money(t.running_balance),
           <StatusBadge status={t.reconciliation_status} />,
         ])}
@@ -583,7 +583,7 @@ function ReconciliationTab({ rows, onReconcile }) {
         t.voucher_number,
         t.transaction_date,
         t.bank_account_name,
-        t.reference || "—",
+        t.reference || "â€”",
         money(num(t.receipt_amount) || num(t.payment_amount)),
         <StatusBadge status={t.reconciliation_status} />,
         <Button size="sm" variant="outline" onClick={() => onReconcile(t.id)}>
@@ -622,7 +622,7 @@ function TransfersTab({ rows, onNew }) {
           t.to_account_name,
           money(t.amount),
           <StatusBadge status={t.status || "POSTED"} />,
-          t.notes || "—",
+          t.notes || "â€”",
         ])}
       />
     </div>
@@ -737,7 +737,7 @@ function AccountModal({
               }))
             }
           >
-            <option value="AED">د.إ</option>
+            <option value="AED">AED</option>
             <option>USD</option>
           </select>
         </Field>
@@ -756,7 +756,7 @@ function AccountModal({
             <option value="">Select GL account</option>
             {glAccounts.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.code} — {a.name}
+                {a.code} â€” {a.name}
               </option>
             ))}
           </select>
@@ -1008,7 +1008,7 @@ function TransferModal({
             <option value="">Select source</option>
             {available.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.account_name} — {money(a.current_balance)}
+                {a.account_name} â€” {money(a.current_balance)}
               </option>
             ))}
           </select>
@@ -1113,7 +1113,7 @@ function SimpleTable({ headers, rows }) {
             <tr key={i} className="border-b">
               {row.map((v, j) => (
                 <td key={j} className="px-4 py-3">
-                  {v ?? "—"}
+                  {v ?? "â€”"}
                 </td>
               ))}
             </tr>
@@ -1191,3 +1191,4 @@ function Field({ label, children }) {
     </div>
   );
 }
+

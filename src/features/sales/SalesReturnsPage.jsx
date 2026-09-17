@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
-import { PageHeader } from "@/components/common/PageHeader";
+import { SalesHeroHeader } from "@/components/sales/SalesHeroHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -664,8 +664,8 @@ export default function SalesReturnsPage() {
   ];
 
   return (
-    <div className="sales-module-page sales-workspace mx-auto w-full max-w-7xl space-y-5 overflow-x-hidden pb-10">
-      <PageHeader
+    <div className="sales-module-page sales-workspace w-full space-y-5 overflow-x-hidden pb-10">
+      <SalesHeroHeader
         title="Sales Returns"
         subtitle="Goods returned by customers pending inspection or refund"
         actions={
@@ -991,7 +991,8 @@ export default function SalesReturnsPage() {
                               </p>
 
                               <p className="mt-1 text-xs text-muted-foreground">
-                                د.إ {number(item.unit_price).toFixed(2)} / unit
+                                <CurrencyText value={item.unit_price} />
+                                {" / unit"}
                               </p>
 
                               <p className="mt-1 text-[11px] text-muted-foreground">

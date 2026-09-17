@@ -20,7 +20,7 @@ import api, { unwrap } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 
 const money = (value) =>
-  value == null || value === "" ? "—" : `د.إ ${Number(value).toFixed(2)}`;
+  value == null || value === "" ? "â€”" : `AED ${Number(value).toFixed(2)}`;
 
 const DetailItem = ({ icon: Icon, label, value }) => (
   <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-white/[0.025]">
@@ -33,7 +33,7 @@ const DetailItem = ({ icon: Icon, label, value }) => (
           {label}
         </p>
         <p className="mt-1 break-words text-sm font-bold text-slate-950 dark:text-white">
-          {value || "—"}
+          {value || "â€”"}
         </p>
       </div>
     </div>
@@ -253,7 +253,7 @@ export default function ProductDetailPage() {
                   Compatible models
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">
-                  {product.compatible_models || "—"}
+                  {product.compatible_models || "â€”"}
                 </p>
               </div>
               <div>
@@ -261,7 +261,7 @@ export default function ProductDetailPage() {
                   Description
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">
-                  {product.description || "—"}
+                  {product.description || "â€”"}
                 </p>
               </div>
             </div>
@@ -299,7 +299,7 @@ export default function ProductDetailPage() {
                 <span className="font-bold text-slate-950 dark:text-white">
                   {product.warranty_period_days
                     ? `${product.warranty_period_days} days`
-                    : "—"}
+                    : "â€”"}
                 </span>
               </div>
             </div>
@@ -394,3 +394,4 @@ export default function ProductDetailPage() {
     </div>
   );
 }
+

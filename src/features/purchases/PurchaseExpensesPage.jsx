@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Info, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import api, { unwrap } from "@/lib/api";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
-import { PageHeader } from "@/components/common/PageHeader";
+import { PageHeader } from "./PurchasePageHeader";
 import { ListingRowActions } from "@/components/common/ListingRowActions";
 import { Button } from "@/components/ui/button";
 import {
@@ -203,7 +203,7 @@ export default function PurchaseExpensesPage() {
         sortKey: "category",
         sortType: "text",
 
-        cell: (row) => row.category_display || row.category || "—",
+        cell: (row) => row.category_display || row.category || "â€”",
       },
 
       {
@@ -213,7 +213,7 @@ export default function PurchaseExpensesPage() {
         sortType: "text",
 
         cell: (row) =>
-          row.branch_name || row.branch?.branch_name || row.branch?.name || "—",
+          row.branch_name || row.branch?.branch_name || row.branch?.name || "â€”",
       },
 
       {
@@ -223,7 +223,7 @@ export default function PurchaseExpensesPage() {
         sortType: "date",
 
         cell: (row) =>
-          row.expense_date ? <DateText value={row.expense_date} /> : "—",
+          row.expense_date ? <DateText value={row.expense_date} /> : "â€”",
       },
 
       {
@@ -232,7 +232,7 @@ export default function PurchaseExpensesPage() {
         sortKey: "vendor_name",
         sortType: "text",
 
-        cell: (row) => row.vendor_name || row.supplier_name || "—",
+        cell: (row) => row.vendor_name || row.supplier_name || "â€”",
       },
 
       {
@@ -241,7 +241,7 @@ export default function PurchaseExpensesPage() {
         sortKey: "payment_method",
         sortType: "text",
 
-        cell: (row) => row.payment_method_display || row.payment_method || "—",
+        cell: (row) => row.payment_method_display || row.payment_method || "â€”",
       },
 
       {
@@ -363,7 +363,7 @@ export default function PurchaseExpensesPage() {
 
         <Metric
           label="Top Category"
-          value={summary.top_category || "—"}
+          value={summary.top_category || "â€”"}
           subtitle={
             summary.top_category ? (
               <CurrencyText value={summary.top_category_total || 0} />
@@ -427,3 +427,4 @@ export default function PurchaseExpensesPage() {
     </div>
   );
 }
+

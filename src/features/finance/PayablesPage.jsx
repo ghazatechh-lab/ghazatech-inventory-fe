@@ -601,9 +601,9 @@ export default function PayablesPage() {
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             {[
               ["Current", "current"],
-              ["1–30", "days_1_30"],
-              ["31–60", "days_31_60"],
-              ["61–90", "days_61_90"],
+              ["1â€“30", "days_1_30"],
+              ["31â€“60", "days_31_60"],
+              ["61â€“90", "days_61_90"],
               ["90+", "days_90_plus"],
             ].map(([l, k]) => (
               <Kpi key={k} l={l} v={money(agingBuckets[k] || 0)} />
@@ -613,9 +613,9 @@ export default function PayablesPage() {
             headers={[
               "Supplier",
               "Current",
-              "1–30",
-              "31–60",
-              "61–90",
+              "1â€“30",
+              "31â€“60",
+              "61â€“90",
               "90+",
               "Total",
             ]}
@@ -813,7 +813,7 @@ function BillForm({
                   setForm((x) => ({ ...x, currency: e.target.value }))
                 }
               >
-                <option value="AED">د.إ</option>
+                <option value="AED">AED</option>
                 <option>USD</option>
               </select>
             </Field>
@@ -874,7 +874,7 @@ function BillForm({
             <Field label="Supplier TRN">
               <Input
                 disabled
-                value={supplier?.trn_number || supplier?.trn || "—"}
+                value={supplier?.trn_number || supplier?.trn || "â€”"}
               />
             </Field>
           </div>
@@ -885,8 +885,8 @@ function BillForm({
               {supplier?.name || active?.supplier_name || "Select supplier"}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              TRN: {supplier?.trn_number || supplier?.trn || "—"} · Contact:{" "}
-              {supplier?.email || "—"}
+              TRN: {supplier?.trn_number || supplier?.trn || "â€”"} Â· Contact:{" "}
+              {supplier?.email || "â€”"}
             </p>
           </div>
         </Section>
@@ -1074,7 +1074,7 @@ function BillForm({
                     )
                     .map((a) => (
                       <option key={a.id} value={a.id}>
-                        {a.code} — {a.name}
+                        {a.code} â€” {a.name}
                       </option>
                     ))}
                 </select>
@@ -1167,7 +1167,7 @@ function BillForm({
                 value={form.approval_workflow}
               >
                 <option value="AP_ACCOUNTANT_FINANCE_MANAGER">
-                  AP Accountant → Finance Manager
+                  AP Accountant â†’ Finance Manager
                 </option>
               </select>
             </Field>
@@ -1378,7 +1378,7 @@ function SimpleTable({ headers, rows }) {
             <tr key={i} className="border-b">
               {r.map((v, j) => (
                 <td key={j} className="px-4 py-3">
-                  {v ?? "—"}
+                  {v ?? "â€”"}
                 </td>
               ))}
             </tr>
@@ -1466,7 +1466,7 @@ function PaymentModal({
               )
               .map((b) => (
                 <option key={b.id} value={b.id}>
-                  {b.bill_number} — {money(b.balance_due)}
+                  {b.bill_number} â€” {money(b.balance_due)}
                 </option>
               ))}
           </select>
@@ -1605,3 +1605,4 @@ function Summary({ l, v, strong }) {
     </div>
   );
 }
+

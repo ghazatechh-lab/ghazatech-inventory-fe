@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Save, Trash2 } from "lucide-react";
@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
-import { PageHeader } from "@/components/common/PageHeader";
+import { PageHeader } from "../purchases/PurchasePageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -594,7 +594,7 @@ export default function ShipmentFormPage() {
     }
 
     if (item.product_name) {
-      return [item.product_name, item.sku].filter(Boolean).join(" · ");
+      return [item.product_name, item.sku].filter(Boolean).join(" Â· ");
     }
 
     const selected = products.find(
@@ -602,7 +602,7 @@ export default function ShipmentFormPage() {
     );
 
     return selected
-      ? [selected.product_name, selected.sku].filter(Boolean).join(" · ")
+      ? [selected.product_name, selected.sku].filter(Boolean).join(" Â· ")
       : "";
   };
 
@@ -612,7 +612,7 @@ export default function ShipmentFormPage() {
     );
 
     const selectedLabel = selected
-      ? [selected.product_name, selected.sku].filter(Boolean).join(" · ")
+      ? [selected.product_name, selected.sku].filter(Boolean).join(" Â· ")
       : "";
 
     const search = getProductSearchValue(index, item).trim().toLowerCase();
@@ -652,7 +652,7 @@ export default function ShipmentFormPage() {
 
     const label = [product.product_name, defaultVariant?.sku || product.sku]
       .filter(Boolean)
-      .join(" · ");
+      .join(" Â· ");
 
     updateItem(index, {
       product: String(product.id),
@@ -1033,7 +1033,7 @@ export default function ShipmentFormPage() {
                             order.branch_code || order.branch_name,
                           ]
                             .filter(Boolean)
-                            .join(" · ")}
+                            .join(" Â· ")}
                         </span>
                       )}
                     </button>
@@ -1117,7 +1117,7 @@ export default function ShipmentFormPage() {
                             supplier.email,
                           ]
                             .filter(Boolean)
-                            .join(" · ")}
+                            .join(" Â· ")}
                         </span>
                       )}
                     </button>
@@ -1215,7 +1215,7 @@ export default function ShipmentFormPage() {
                 {receivers.map((receiver) => (
                   <SelectItem key={receiver.id} value={String(receiver.id)}>
                     {receiver.display_name}
-                    {receiver.role_name ? ` · ${receiver.role_name}` : ""}
+                    {receiver.role_name ? ` Â· ${receiver.role_name}` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1493,7 +1493,7 @@ export default function ShipmentFormPage() {
                                         productOption.brand_name,
                                       ]
                                         .filter(Boolean)
-                                        .join(" · ")}
+                                        .join(" Â· ")}
                                     </span>
                                   )}
                                 </button>
@@ -1832,3 +1832,4 @@ export default function ShipmentFormPage() {
     </div>
   );
 }
+

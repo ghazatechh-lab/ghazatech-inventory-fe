@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CarFront,
@@ -610,15 +610,15 @@ export default function VehicleListPage() {
                     <td className="px-4 py-3 font-medium">
                       {vehicle.vehicle_code}
                     </td>
-                    <td className="px-4 py-3">{vehicle.branch_name || "—"}</td>
-                    <td className="px-4 py-3">{vehicle.vehicle_type || "—"}</td>
+                    <td className="px-4 py-3">{vehicle.branch_name || "â€”"}</td>
+                    <td className="px-4 py-3">{vehicle.vehicle_type || "â€”"}</td>
                     <td className="whitespace-nowrap px-4 py-3">
                       {Number(vehicle.odometer_km || 0).toLocaleString()} km
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">
                       {vehicle.service_due_km
                         ? `${Number(vehicle.service_due_km).toLocaleString()} km`
-                        : "—"}
+                        : "â€”"}
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={vehicle.status} />
@@ -672,3 +672,4 @@ export default function VehicleListPage() {
     </div>
   );
 }
+

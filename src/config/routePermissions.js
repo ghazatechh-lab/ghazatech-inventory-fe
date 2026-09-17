@@ -1,4 +1,4 @@
-const rules = [
+﻿const rules = [
   // Dashboard
   [/^\/dashboard(\/|$)/, "dashboard.dashboard.view"],
 
@@ -119,3 +119,4 @@ export const getRoutePermission = (pathname) => {
 
   return rule?.[1] || null;
 };
+

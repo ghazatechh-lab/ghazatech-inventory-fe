@@ -131,7 +131,7 @@ export default function ReportsDashboardPage() {
               <XAxis dataKey="month" fontSize={11} />
               <YAxis fontSize={11} />
               <Tooltip
-                formatter={(value) => [`د.إ ${Number(value || 0).toFixed(2)}`]}
+                formatter={(value) => [`AED ${Number(value || 0).toFixed(2)}`]}
               />
               <Bar dataKey="sales" name="Sales" radius={[5, 5, 0, 0]} />
               <Bar dataKey="purchases" name="Purchases" radius={[5, 5, 0, 0]} />
@@ -142,3 +142,4 @@ export default function ReportsDashboardPage() {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Download, FileDown, Filter, Printer, Search } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -20,7 +20,7 @@ const firstDay = () => {
 };
 
 const formatDate = (value) => {
-  if (!value) return "—";
+  if (!value) return "â€”";
 
   const date = new Date(`${String(value).slice(0, 10)}T00:00:00`);
 
@@ -274,7 +274,7 @@ export default function GeneralLedgerPage() {
 
               {accounts.map((account) => (
                 <option key={account.id} value={account.id}>
-                  {account.code} — {account.name}
+                  {account.code} â€” {account.name}
                 </option>
               ))}
             </select>
@@ -356,7 +356,7 @@ export default function GeneralLedgerPage() {
 
             <p className="mt-1 text-xs text-muted-foreground">
               Account code:{" "}
-              {payload.account?.code || selectedAccount?.code || "—"}
+              {payload.account?.code || selectedAccount?.code || "â€”"}
             </p>
           </div>
 
@@ -398,7 +398,7 @@ export default function GeneralLedgerPage() {
                 </strong>
               </span>
 
-              {branchId && <span>• Active branch filter applied</span>}
+              {branchId && <span>â€¢ Active branch filter applied</span>}
             </div>
           </div>
         )}
@@ -443,24 +443,24 @@ export default function GeneralLedgerPage() {
                       </Link>
                     ) : (
                       <span className="font-extrabold text-[#0c67a0]">
-                        {entry.entry_number || "—"}
+                        {entry.entry_number || "â€”"}
                       </span>
                     )}
                   </td>
 
                   <td className="px-[15px] py-[14px]">
-                    {entry.remarks || entry.transaction_type || "—"}
+                    {entry.remarks || entry.transaction_type || "â€”"}
                   </td>
 
                   <td className="px-[15px] py-[14px] text-right font-semibold tabular-nums text-[#0767a1]">
                     {isZero(entry.debit_amount)
-                      ? "—"
+                      ? "â€”"
                       : money(entry.debit_amount)}
                   </td>
 
                   <td className="px-[15px] py-[14px] text-right font-semibold tabular-nums text-red-500">
                     {isZero(entry.credit_amount)
-                      ? "—"
+                      ? "â€”"
                       : money(entry.credit_amount)}
                   </td>
 
@@ -522,7 +522,7 @@ export default function GeneralLedgerPage() {
               onClick={() => setPage((current) => Math.max(1, current - 1))}
               className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white font-bold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-card"
             >
-              ‹
+              â€¹
             </button>
 
             <span className="grid h-9 min-w-9 place-items-center rounded-lg bg-[#0a689b] px-3 font-bold text-white">
@@ -537,7 +537,7 @@ export default function GeneralLedgerPage() {
               }
               className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white font-bold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-card"
             >
-              ›
+              â€º
             </button>
           </div>
         </div>
@@ -586,3 +586,4 @@ function LedgerTh({ children, right = false }) {
     </th>
   );
 }
+

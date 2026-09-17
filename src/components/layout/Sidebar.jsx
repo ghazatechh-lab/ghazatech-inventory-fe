@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   ChevronDown,
@@ -517,3 +517,4 @@ export function Sidebar({ collapsed, onToggle, onNavigate, mobile = false }) {
 }
 
 export default Sidebar;
+

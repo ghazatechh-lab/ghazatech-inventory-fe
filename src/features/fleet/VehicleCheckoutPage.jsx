@@ -102,7 +102,7 @@ const DetailItem = ({ label, value }) => (
       {label}
     </div>
     <div className="mt-1 break-words text-sm font-medium text-slate-900 dark:text-white">
-      {value || "—"}
+      {value || "â€”"}
     </div>
   </div>
 );
@@ -462,14 +462,14 @@ export default function VehicleCheckoutPage() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="font-medium">
-                          {trip.driver_name || "—"}
+                          {trip.driver_name || "â€”"}
                         </div>
                         <div className="mt-1 text-xs text-muted-foreground">
-                          {trip.branch_name || "—"}
+                          {trip.branch_name || "â€”"}
                         </div>
                       </td>
                       <td className="max-w-64 px-5 py-4">
-                        <div className="font-medium">{trip.purpose || "—"}</div>
+                        <div className="font-medium">{trip.purpose || "â€”"}</div>
                         <div className="mt-1 truncate text-xs text-muted-foreground">
                           {trip.destination || "No destination"}
                         </div>
@@ -600,7 +600,7 @@ export default function VehicleCheckoutPage() {
                 <option value="">Select available vehicle</option>
                 {selectableVehicles.map((vehicle) => (
                   <option key={vehicle.id} value={vehicle.id}>
-                    {vehicle.display_name} · {vehicle.registration_number}
+                    {vehicle.display_name} Â· {vehicle.registration_number}
                   </option>
                 ))}
               </select>
@@ -629,7 +629,7 @@ export default function VehicleCheckoutPage() {
                   <option key={employee.id} value={employee.id}>
                     {getEmployeeName(employee)}
                     {employee.employee_code
-                      ? ` · ${employee.employee_code}`
+                      ? ` Â· ${employee.employee_code}`
                       : ""}
                   </option>
                 ))}
@@ -775,7 +775,7 @@ export default function VehicleCheckoutPage() {
         title="Return Vehicle"
         description={
           selectedTrip
-            ? `${selectedTrip.vehicle_name} · ${selectedTrip.driver_name}`
+            ? `${selectedTrip.vehicle_name} Â· ${selectedTrip.driver_name}`
             : ""
         }
         onClose={closeReturnModal}
@@ -954,7 +954,7 @@ export default function VehicleCheckoutPage() {
                 value={
                   selectedTrip.ending_odometer_km
                     ? `${Number(selectedTrip.ending_odometer_km).toLocaleString()} km`
-                    : "—"
+                    : "â€”"
                 }
               />
               <DetailItem
@@ -962,7 +962,7 @@ export default function VehicleCheckoutPage() {
                 value={
                   selectedTrip.distance_km
                     ? `${Number(selectedTrip.distance_km).toLocaleString()} km`
-                    : "—"
+                    : "â€”"
                 }
               />
               <DetailItem
@@ -977,8 +977,8 @@ export default function VehicleCheckoutPage() {
                 label="Expense"
                 value={
                   selectedTrip.expense_amount
-                    ? `د.إ ${selectedTrip.expense_amount}`
-                    : "د.إ 0"
+                    ? `AED ${selectedTrip.expense_amount}`
+                    : "AED 0"
                 }
               />
               <DetailItem label="Purpose" value={selectedTrip.purpose} />
@@ -1008,3 +1008,4 @@ export default function VehicleCheckoutPage() {
     </div>
   );
 }
+

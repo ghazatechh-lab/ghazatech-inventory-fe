@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Download } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -194,7 +194,7 @@ export default function PurchaseReportPage() {
             {
               key: "date",
               header: "Date",
-              cell: (row) => (row.date ? <DateText value={row.date} /> : "—"),
+              cell: (row) => (row.date ? <DateText value={row.date} /> : "â€”"),
             },
             {
               key: "supplier",
@@ -229,3 +229,4 @@ export default function PurchaseReportPage() {
     </div>
   );
 }
+

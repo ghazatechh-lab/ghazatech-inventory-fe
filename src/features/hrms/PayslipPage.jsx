@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { ArrowLeft, Printer } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
@@ -9,7 +9,7 @@ import { CurrencyText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
 
 const formatPeriod = (period) => {
-  if (!period) return "—";
+  if (!period) return "â€”";
   const [year, month] = String(period).split("-");
   const date = new Date(Number(year), Number(month) - 1, 1);
   return Number.isNaN(date.getTime())
@@ -107,19 +107,19 @@ export default function PayslipPage() {
           <div>
             <p className="text-xs uppercase text-slate-500">Employee</p>
             <p className="mt-1 font-bold text-slate-900">
-              {payslip.employee_name || "—"}
+              {payslip.employee_name || "â€”"}
             </p>
           </div>
           <div>
             <p className="text-xs uppercase text-slate-500">Employee Code</p>
             <p className="mt-1 font-semibold text-slate-900">
-              {payslip.employee_code || "—"}
+              {payslip.employee_code || "â€”"}
             </p>
           </div>
           <div>
             <p className="text-xs uppercase text-slate-500">Branch</p>
             <p className="mt-1 font-semibold text-slate-900">
-              {payslip.branch_name || "—"}
+              {payslip.branch_name || "â€”"}
             </p>
           </div>
           <div>
@@ -172,3 +172,4 @@ export default function PayslipPage() {
     </div>
   );
 }
+

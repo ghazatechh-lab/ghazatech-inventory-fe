@@ -325,7 +325,7 @@ export default function FixedAssetsPage() {
         open={modal === "asset"}
         onClose={() => setModal(null)}
         title="New Asset"
-        eyebrow="Finance & Accounting · Fixed Assets"
+        eyebrow="Finance & Accounting Â· Fixed Assets"
         footer={
           <>
             <Button
@@ -475,7 +475,7 @@ export default function FixedAssetsPage() {
               />
             </Field>
 
-            <Field label="Cost (د.إ)" required>
+            <Field label="Cost (AED)" required>
               <Input
                 type="number"
                 min="0"
@@ -541,13 +541,13 @@ export default function FixedAssetsPage() {
           <div className="mt-4 rounded-xl bg-green-100 px-4 py-3 text-sm text-green-800">
             {Number(asset.purchase_cost || 0) >=
             Number(asset.capitalization_threshold || 0)
-              ? `✓ Above the د.إ ${Number(
+              ? `âœ“ Above the AED ${Number(
                   asset.capitalization_threshold || 0,
                 ).toLocaleString("en-US", {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
-                })} capitalization threshold for ${asset.category} — this will be recorded as a fixed asset.`
-              : `The cost is below the د.إ ${Number(
+                })} capitalization threshold for ${asset.category} â€” this will be recorded as a fixed asset.`
+              : `The cost is below the AED ${Number(
                   asset.capitalization_threshold || 0,
                 ).toLocaleString("en-US", {
                   minimumFractionDigits: 2,
@@ -613,7 +613,7 @@ export default function FixedAssetsPage() {
               />
             </Field>
 
-            <Field label="Residual Value (د.إ)">
+            <Field label="Residual Value (AED)">
               <Input
                 type="number"
                 min="0"
@@ -681,7 +681,7 @@ export default function FixedAssetsPage() {
               </Field>
             )}
 
-            <Field label="Capitalization Threshold (د.إ)">
+            <Field label="Capitalization Threshold (AED)">
               <Input
                 type="number"
                 min="0"
@@ -807,7 +807,7 @@ export default function FixedAssetsPage() {
         open={modal === "run"}
         onClose={() => setModal(null)}
         title="Run Depreciation"
-        eyebrow="Finance & Accounting · Fixed Assets · Depreciation Schedule"
+        eyebrow="Finance & Accounting Â· Fixed Assets Â· Depreciation Schedule"
         subtitle="Calculate depreciation for active assets in the selected period. Review the preview before confirming."
         footer={
           <div className="flex w-full flex-wrap items-center justify-between gap-3">
@@ -1083,7 +1083,7 @@ export default function FixedAssetsPage() {
 
             <div className="rounded-xl border border-dashed bg-muted/20 p-4 font-mono text-sm">
               <p>
-                JV-{String(run.period || "").replace("-", "")}-DEP · SYSTEM ·
+                JV-{String(run.period || "").replace("-", "")}-DEP Â· SYSTEM Â·
                 DEPRECIATION FOR {run.period || "SELECTED PERIOD"}
               </p>
               <p className="mt-3">
@@ -1103,7 +1103,7 @@ export default function FixedAssetsPage() {
         open={modal === "dispose"}
         onClose={() => setModal(null)}
         title="Record Disposal"
-        eyebrow="Finance & Accounting · Fixed Assets · Disposals"
+        eyebrow="Finance & Accounting Â· Fixed Assets Â· Disposals"
         subtitle="Remove an asset from the active register and calculate the gain or loss on disposal."
         footer={
           <div className="flex w-full flex-wrap items-center justify-between gap-3">
@@ -1191,7 +1191,7 @@ export default function FixedAssetsPage() {
                   .filter((item) => item.status === "ACTIVE")
                   .map((item) => (
                     <option key={item.id} value={item.id}>
-                      {item.asset_code} — {item.name}
+                      {item.asset_code} â€” {item.name}
                     </option>
                   ))}
               </select>
@@ -1268,7 +1268,7 @@ export default function FixedAssetsPage() {
 
           <div className="mt-5 grid gap-4 md:grid-cols-3">
             <Field
-              label="Sale Proceeds (د.إ)"
+              label="Sale Proceeds (AED)"
               required={disposal.disposal_method === "SOLD"}
             >
               <Input
@@ -1362,7 +1362,7 @@ export default function FixedAssetsPage() {
 
               <div className="rounded-xl border border-dashed bg-muted/20 p-4 font-mono text-sm">
                 <p>
-                  JV-DISP-{selected.asset_code} · SYSTEM · DISPOSAL OF{" "}
+                  JV-DISP-{selected.asset_code} Â· SYSTEM Â· DISPOSAL OF{" "}
                   {selected.asset_code}
                 </p>
                 <p className="mt-3">
@@ -1472,7 +1472,7 @@ function Table({ headers, rows }) {
             <tr key={i} className="border-b">
               {r.map((v, j) => (
                 <td key={j} className="px-4 py-3">
-                  {v ?? "—"}
+                  {v ?? "â€”"}
                 </td>
               ))}
             </tr>
@@ -1492,3 +1492,4 @@ function Table({ headers, rows }) {
     </div>
   );
 }
+

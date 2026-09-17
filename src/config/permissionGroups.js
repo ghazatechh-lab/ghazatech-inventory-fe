@@ -1,4 +1,4 @@
-// ORIGINAL PATH: frontend/src/config/permissionGroups.js
+﻿// ORIGINAL PATH: frontend/src/config/permissionGroups.js
 
 export const PERMISSION_GROUPS = [
   {
@@ -42,3 +42,4 @@ export const PERMISSION_GROUPS = [
 export const IMPORTANT_PERMISSION_CODES = PERMISSION_GROUPS.flatMap((group) =>
   group.permissions.map((permission) => permission.code),
 );
+

@@ -1,4 +1,4 @@
-export const extractRows = (response) => {
+﻿export const extractRows = (response) => {
   const value = response?.data ?? response;
 
   if (Array.isArray(value)) {
@@ -154,7 +154,7 @@ export const calculateLineAmount = ({ quantity, unitPrice, vatRate = 0 }) => {
 
 export const formatDate = (value, options = {}) => {
   if (!value) {
-    return "—";
+    return "â€”";
   }
 
   const date = new Date(value);
@@ -185,7 +185,7 @@ export const normalizeBoolean = (value) => {
 
 export const getStatusLabel = (value) => {
   if (!value) {
-    return "—";
+    return "â€”";
   }
 
   return String(value)
@@ -196,3 +196,4 @@ export const getStatusLabel = (value) => {
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 };
+

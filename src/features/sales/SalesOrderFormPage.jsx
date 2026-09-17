@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
   Link,
   useNavigate,
@@ -11,7 +11,7 @@ import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
-import { PageHeader } from "@/components/common/PageHeader";
+import { SalesHeroHeader } from "@/components/sales/SalesHeroHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -234,7 +234,7 @@ function ProductSearchPicker({ products, value, onSelect, getPrice }) {
                     </div>
 
                     <span className="ml-3 shrink-0 text-sm font-semibold text-blue-600 dark:text-blue-300">
-                      د.إ {getPrice(product).toFixed(2)}
+                      <CurrencyText value={getPrice(product)} />
                     </span>
                   </CommandItem>
                 );
@@ -726,8 +726,8 @@ export default function SalesOrderFormPage() {
     sourceQuotation?.quote_number || existing?.quotation_number || "";
 
   return (
-    <div className="sales-module-page sales-workspace mx-auto max-w-7xl space-y-5 pb-10">
-      <PageHeader
+    <div className="sales-module-page sales-workspace w-full space-y-5 pb-10">
+      <SalesHeroHeader
         title={isEdit ? "Edit Sales Order" : "New Sales Order"}
         subtitle="Create from an accepted quotation or start a fresh order"
         actions={

@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
   Link,
   useNavigate,
@@ -21,7 +21,7 @@ import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { canUseNonVatSale } from "@/lib/taxAccess";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
-import { PageHeader } from "@/components/common/PageHeader";
+import { SalesHeroHeader } from "@/components/sales/SalesHeroHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -252,7 +252,7 @@ function ProductSearchPicker({ products, value, onSelect, getPrice }) {
                     </div>
 
                     <span className="ml-3 shrink-0 text-sm font-semibold text-blue-600 dark:text-blue-300">
-                      د.إ {getPrice(product).toFixed(2)}
+                      <CurrencyText value={getPrice(product)} />
                     </span>
                   </CommandItem>
                 );
@@ -984,8 +984,8 @@ export default function InvoiceFormPage() {
     sourceOrder?.order_number || existing?.sales_order_number || "";
 
   return (
-    <div className="sales-module-page sales-workspace mx-auto max-w-7xl space-y-5 pb-10">
-      <PageHeader
+    <div className="sales-module-page sales-workspace w-full space-y-5 pb-10">
+      <SalesHeroHeader
         title={
           isEdit
             ? "Edit Invoice"
@@ -1085,7 +1085,7 @@ export default function InvoiceFormPage() {
 
                   <CurrencyText
                     value={sourceOrder?.total_amount || total}
-                    currency={form.currency === "AED" ? "د.إ" : form.currency}
+                    currency={form.currency === "AED" ? "AED" : form.currency}
                   />
 
                   {sourceOrder?.delivery_date && (
@@ -1448,7 +1448,7 @@ export default function InvoiceFormPage() {
                   <div className="flex h-10 items-center justify-end whitespace-nowrap font-semibold">
                     <CurrencyText
                       value={item.line_total}
-                      currency={form.currency === "AED" ? "د.إ" : form.currency}
+                      currency={form.currency === "AED" ? "AED" : form.currency}
                     />
                   </div>
 
@@ -1482,7 +1482,7 @@ export default function InvoiceFormPage() {
 
                 <CurrencyText
                   value={subtotal}
-                  currency={form.currency === "AED" ? "د.إ" : form.currency}
+                  currency={form.currency === "AED" ? "AED" : form.currency}
                 />
               </div>
 
@@ -1497,7 +1497,7 @@ export default function InvoiceFormPage() {
 
                   <div className="relative w-40">
                     <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">
-                      {form.currency === "AED" ? "د.إ" : form.currency}
+                      {form.currency === "AED" ? "AED" : form.currency}
                     </span>
                     <Input
                       id="invoice-discount"
@@ -1528,7 +1528,7 @@ export default function InvoiceFormPage() {
                       <CurrencyText
                         value={number(form.discount_amount)}
                         currency={
-                          form.currency === "AED" ? "د.إ" : form.currency
+                          form.currency === "AED" ? "AED" : form.currency
                         }
                       />
                     </span>
@@ -1591,7 +1591,7 @@ export default function InvoiceFormPage() {
                   </span>
                   <CurrencyText
                     value={vatAmount}
-                    currency={form.currency === "AED" ? "د.إ" : form.currency}
+                    currency={form.currency === "AED" ? "AED" : form.currency}
                   />
                 </div>
               </div>
@@ -1605,7 +1605,7 @@ export default function InvoiceFormPage() {
                 </Label>
                 <div className="relative w-40">
                   <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground">
-                    {form.currency === "AED" ? "د.إ" : form.currency}
+                    {form.currency === "AED" ? "AED" : form.currency}
                   </span>
                   <Input
                     id="invoice-shipping"
@@ -1626,7 +1626,7 @@ export default function InvoiceFormPage() {
                 <span>Invoice Total</span>
                 <CurrencyText
                   value={Math.max(0, total)}
-                  currency={form.currency === "AED" ? "د.إ" : form.currency}
+                  currency={form.currency === "AED" ? "AED" : form.currency}
                 />
               </div>
 
@@ -1665,7 +1665,7 @@ export default function InvoiceFormPage() {
 
                 <CurrencyText
                   value={amountDue}
-                  currency={form.currency === "AED" ? "د.إ" : form.currency}
+                  currency={form.currency === "AED" ? "AED" : form.currency}
                 />
               </div>
             </div>

@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Download, Eye, Printer, RefreshCcw, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -321,7 +321,7 @@ export default function ReceivablesPage() {
       {tab === "aging" && <AgingTab aging={aging} rows={agingByCustomer} />}
 
       <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200">
-        Accounts Receivable is generated from <strong>Sales → Invoices</strong>.
+        Accounts Receivable is generated from <strong>Sales â†’ Invoices</strong>.
         Create invoices and record customer payments from the Sales module. This
         Accounting page is for receivable monitoring and aging only.
       </div>
@@ -499,7 +499,7 @@ function InvoicesTab({ summary, filters, setFilters, invoices, isLoading }) {
                       {invoice.invoice_date ? (
                         <DateText value={invoice.invoice_date} />
                       ) : (
-                        "—"
+                        "â€”"
                       )}
                     </td>
 
@@ -507,7 +507,7 @@ function InvoicesTab({ summary, filters, setFilters, invoices, isLoading }) {
                       {invoice.due_date ? (
                         <DateText value={invoice.due_date} />
                       ) : (
-                        "—"
+                        "â€”"
                       )}
                     </td>
 
@@ -576,9 +576,9 @@ function InvoicesTab({ summary, filters, setFilters, invoices, isLoading }) {
 function AgingTab({ aging, rows }) {
   const cards = [
     ["Current", aging.CURRENT],
-    ["1–30 Days", aging["1_30"]],
-    ["31–60 Days", aging["31_60"]],
-    ["61–90 Days", aging["61_90"]],
+    ["1â€“30 Days", aging["1_30"]],
+    ["31â€“60 Days", aging["31_60"]],
+    ["61â€“90 Days", aging["61_90"]],
     ["90+ Days", aging["90_PLUS"]],
   ];
 
@@ -607,9 +607,9 @@ function AgingTab({ aging, rows }) {
                 {[
                   "Customer",
                   "Current",
-                  "1–30",
-                  "31–60",
-                  "61–90",
+                  "1â€“30",
+                  "31â€“60",
+                  "61â€“90",
                   "90+",
                   "Total",
                   "Collection Status",
@@ -709,3 +709,4 @@ function Field({ label, children }) {
     </div>
   );
 }
+

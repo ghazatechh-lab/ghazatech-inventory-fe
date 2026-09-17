@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { AlertTriangle, PackageSearch } from "lucide-react";
 
 import { useListQuery, DataTable, SearchInput } from "@/hooks/useListQuery";
@@ -69,7 +69,7 @@ export default function LowStockPage() {
             {row.sku}
 
             {row.variant_label !== "Base product"
-              ? ` · ${row.variant_label}`
+              ? ` Â· ${row.variant_label}`
               : ""}
           </div>
         </div>
@@ -190,3 +190,4 @@ export default function LowStockPage() {
     </div>
   );
 }
+

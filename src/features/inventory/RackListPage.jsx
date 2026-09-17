@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -34,7 +34,7 @@ const getUserBranchId = (user) =>
   user?.branch?.id ?? user?.branch_id ?? user?.branch_detail?.id ?? null;
 
 const formatDate = (value) => {
-  if (!value) return "—";
+  if (!value) return "â€”";
 
   return new Intl.DateTimeFormat("en-AE", {
     day: "2-digit",
@@ -130,7 +130,7 @@ export default function RackListPage() {
             </div>
             <div className="min-w-0">
               <p className="truncate font-bold text-slate-950 dark:text-white">
-                {row.rack_code || "—"}
+                {row.rack_code || "â€”"}
               </p>
               <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
                 {row.rack_name || "Unnamed rack"}
@@ -154,7 +154,7 @@ export default function RackListPage() {
               <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
               <div>
                 <p className="font-semibold text-slate-800 dark:text-slate-200">
-                  {branchName || branchCode || "—"}
+                  {branchName || branchCode || "â€”"}
                 </p>
                 {branchCode && branchName && (
                   <p className="mt-0.5 text-xs font-medium text-slate-500">
@@ -418,3 +418,4 @@ export default function RackListPage() {
     </div>
   );
 }
+

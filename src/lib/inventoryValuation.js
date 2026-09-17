@@ -8,7 +8,7 @@ export const currency = (value, currencyCode = "AED") => {
   const amount = numberValue(value);
 
   if (code === "AED") {
-    return `د.إ ${amount.toLocaleString("en-AE", {
+    return `AED ${amount.toLocaleString("en-AE", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;
@@ -30,5 +30,6 @@ export const taxTreatmentLabel = (value) =>
 
 export const transferTaxScopeLabel = (value) =>
   String(value || "OUT_OF_SCOPE").toUpperCase() === "OUT_OF_SCOPE"
-    ? "Internal transfer · VAT out of scope"
+    ? "Internal transfer Â· VAT out of scope"
     : taxTreatmentLabel(value);
+

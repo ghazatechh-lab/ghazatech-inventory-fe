@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -32,7 +32,7 @@ const value = (...items) => {
   for (const item of items) {
     if (item !== undefined && item !== null && String(item).trim()) return item;
   }
-  return "—";
+  return "â€”";
 };
 
 const normalizeList = (input) => {
@@ -60,7 +60,7 @@ function InfoItem({ icon: Icon, label, children }) {
       <div className="min-w-0">
         <p className="supplier-info-label">{label}</p>
         <div className="mt-1 break-words text-sm font-semibold text-slate-900 dark:text-slate-100">
-          {children || "—"}
+          {children || "â€”"}
         </div>
       </div>
     </div>
@@ -352,7 +352,7 @@ export default function SupplierDetailPage() {
                       {s.phone}
                     </a>
                   ) : (
-                    "—"
+                    "â€”"
                   )}
                 </InfoItem>
                 <InfoItem icon={Mail} label="Email">
@@ -364,7 +364,7 @@ export default function SupplierDetailPage() {
                       {s.email}
                     </a>
                   ) : (
-                    "—"
+                    "â€”"
                   )}
                 </InfoItem>
                 <InfoItem icon={ShieldCheck} label="TRN number">
@@ -389,7 +389,7 @@ export default function SupplierDetailPage() {
                   {value(s.billing_address, s.address)}
                 </InfoItem>
                 <InfoItem icon={Building2} label="City and country">
-                  {[s.city, s.country].filter(Boolean).join(", ") || "—"}
+                  {[s.city, s.country].filter(Boolean).join(", ") || "â€”"}
                 </InfoItem>
               </div>
             </div>
@@ -738,3 +738,4 @@ export default function SupplierDetailPage() {
     </div>
   );
 }
+

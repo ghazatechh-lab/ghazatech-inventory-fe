@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -486,12 +486,12 @@ export default function DocumentExpiryPage() {
                       </div>
                       <div>
                         <p className="font-semibold">
-                          {row.employee_name || "—"}
+                          {row.employee_name || "â€”"}
                         </p>
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           {[row.department_name, row.branch_name]
                             .filter(Boolean)
-                            .join(" • ") ||
+                            .join(" â€¢ ") ||
                             row.employee_code ||
                             "Employee"}
                         </p>
@@ -509,11 +509,11 @@ export default function DocumentExpiryPage() {
                   </td>
 
                   <td className="px-4 py-3 font-mono text-xs">
-                    {row.document_number || "—"}
+                    {row.document_number || "â€”"}
                   </td>
 
                   <td className="px-4 py-3">
-                    {row.issue_date ? <DateText value={row.issue_date} /> : "—"}
+                    {row.issue_date ? <DateText value={row.issue_date} /> : "â€”"}
                   </td>
 
                   <td className="px-4 py-3 font-medium">
@@ -544,11 +544,11 @@ export default function DocumentExpiryPage() {
                         <ExternalLink className="h-3.5 w-3.5" />
                       </a>
                     ) : (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="text-muted-foreground">â€”</span>
                     )}
                   </td>
 
-                  <td className="px-4 py-3">{row.uploaded_by_name || "—"}</td>
+                  <td className="px-4 py-3">{row.uploaded_by_name || "â€”"}</td>
                 </tr>
               ))}
 
@@ -605,11 +605,11 @@ export default function DocumentExpiryPage() {
                 <div className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-amber-500" />
                 <div>
                   <p className="text-sm font-semibold">
-                    {row.document_type_display || "Document"} —{" "}
+                    {row.document_type_display || "Document"} â€”{" "}
                     {row.employee_name}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    <DateText value={row.expiry_date} /> •{" "}
+                    <DateText value={row.expiry_date} /> â€¢{" "}
                     {row.days_left === 0
                       ? "Expires today"
                       : `${row.days_left} day${
@@ -696,7 +696,7 @@ function StatCard({ label, value, hint, tone = "default" }) {
 }
 
 function DaysLeft({ value }) {
-  if (value === null) return <span>—</span>;
+  if (value === null) return <span>â€”</span>;
 
   if (value < 0) {
     return (
@@ -841,7 +841,7 @@ function AddDocumentModal({
                       <SelectItem key={employee.id} value={String(employee.id)}>
                         <div className="flex flex-col py-0.5">
                           <span>
-                            {employee.employee_code} — {employee.full_name}
+                            {employee.employee_code} â€” {employee.full_name}
                           </span>
                           {(employee.designation_name ||
                             employee.department_name ||
@@ -853,7 +853,7 @@ function AddDocumentModal({
                                 employee.branch_name,
                               ]
                                 .filter(Boolean)
-                                .join(" • ")}
+                                .join(" â€¢ ")}
                             </span>
                           )}
                         </div>
@@ -1007,3 +1007,4 @@ function Field({ label, children }) {
     </div>
   );
 }
+

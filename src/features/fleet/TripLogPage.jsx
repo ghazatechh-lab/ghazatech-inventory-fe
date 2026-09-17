@@ -126,7 +126,7 @@ export default function TripLogPage() {
                       <div className="font-medium">{t.driver_name}</div>
                       <div className="text-xs text-muted-foreground">
                         {t.purpose}
-                        {t.destination ? ` · ${t.destination}` : ""}
+                        {t.destination ? ` Â· ${t.destination}` : ""}
                       </div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -137,11 +137,11 @@ export default function TripLogPage() {
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {t.distance_km === null || t.distance_km === undefined
-                        ? "—"
+                        ? "â€”"
                         : `${Number(t.distance_km).toLocaleString()} km`}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      د.إ {Number(t.expense_amount || 0).toFixed(2)}
+                      AED {Number(t.expense_amount || 0).toFixed(2)}
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={t.status} />
@@ -156,3 +156,4 @@ export default function TripLogPage() {
     </div>
   );
 }
+

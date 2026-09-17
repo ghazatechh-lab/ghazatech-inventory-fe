@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,7 @@ export default function BranchListPage() {
         <SearchInput
           value={q}
           onChange={setQ}
-          placeholder="Search by name, code or city…"
+          placeholder="Search by name, code or cityâ€¦"
         />
       </div>
       <DataTable
@@ -112,3 +112,4 @@ export default function BranchListPage() {
     </div>
   );
 }
+

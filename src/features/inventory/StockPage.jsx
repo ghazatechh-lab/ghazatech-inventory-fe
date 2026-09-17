@@ -622,7 +622,7 @@ export default function StockPage() {
                 step="0.01"
                 value={minPrice}
                 onChange={(event) => setMinPrice(event.target.value)}
-                placeholder="د.إ 0"
+                placeholder="AED 0"
                 className="mt-2"
               />
             </div>
@@ -680,7 +680,7 @@ export default function StockPage() {
             <h2 className="font-semibold">Branch inventory</h2>
 
             <p className="mt-1 text-xs text-muted-foreground">
-              {selectedBranchLabel} · {filteredRows.length} product records
+              {selectedBranchLabel} Â· {filteredRows.length} product records
             </p>
           </div>
 
@@ -787,17 +787,17 @@ export default function StockPage() {
                         <p className="font-semibold">{row.product_name}</p>
 
                         <p className="mt-1 text-xs text-muted-foreground">
-                          {row.sku || row.product_sku || "—"}
+                          {row.sku || row.product_sku || "â€”"}
 
                           {row.variant_label &&
                           row.variant_label !== "Base product"
-                            ? ` · ${row.variant_label}`
+                            ? ` Â· ${row.variant_label}`
                             : ""}
                         </p>
                       </td>
 
                       <td className="px-5 py-4 text-sm">
-                        {row.category_name || "—"}
+                        {row.category_name || "â€”"}
                       </td>
 
                       <td className="px-5 py-4 text-right font-medium">
@@ -810,7 +810,7 @@ export default function StockPage() {
                         </div>
 
                         <div className="text-xs text-muted-foreground">
-                          {row.vat_treatment || "OUT_OF_SCOPE"} ·{" "}
+                          {row.vat_treatment || "OUT_OF_SCOPE"} Â·{" "}
                           {numberValue(row.vat_percentage)}%
                         </div>
                       </td>
@@ -883,3 +883,4 @@ export default function StockPage() {
     </div>
   );
 }
+

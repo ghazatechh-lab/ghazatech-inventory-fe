@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Moon, Sun } from "lucide-react";
 
 import { useTheme } from "@/lib/theme";
@@ -21,3 +21,4 @@ export function ThemeToggle() {
     </button>
   );
 }
+

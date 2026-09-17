@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Bell,
@@ -238,10 +238,11 @@ export default function ModuleLandingPage() {
           )}
 
           <footer className="mt-16 border-t border-white/10 pt-5 text-center text-xs text-slate-500">
-            © {new Date().getFullYear()} GHAZA COMPUTER. All rights reserved.
+            Â© {new Date().getFullYear()} GHAZA COMPUTER. All rights reserved.
           </footer>
         </main>
       </div>
     </div>
   );
 }
+

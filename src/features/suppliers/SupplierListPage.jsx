@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Link } from "react-router-dom";
 import {
   AlertCircle,
@@ -430,7 +430,7 @@ export default function SupplierListPage() {
                           {textValue(
                             supplier.contact_person,
                             supplier.primary_contact_name,
-                            "—",
+                            "â€”",
                           )}
                         </td>
 
@@ -443,12 +443,12 @@ export default function SupplierListPage() {
                               {supplier.email}
                             </a>
                           ) : (
-                            "—"
+                            "â€”"
                           )}
                         </td>
 
                         <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
-                          {textValue(supplier.phone, supplier.mobile, "—")}
+                          {textValue(supplier.phone, supplier.mobile, "â€”")}
                         </td>
 
                         <td className="px-4 py-4">{paymentTerms}</td>
@@ -458,7 +458,7 @@ export default function SupplierListPage() {
                             supplier.trn,
                             supplier.tax_registration_number,
                             supplier.tax_id,
-                            "—",
+                            "â€”",
                           )}
                         </td>
 
@@ -545,3 +545,4 @@ export default function SupplierListPage() {
     </div>
   );
 }
+

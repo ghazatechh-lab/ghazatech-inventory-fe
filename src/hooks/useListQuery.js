@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
@@ -140,3 +140,4 @@ export function useListQuery(key, endpoint, extraParams = {}) {
 }
 
 export { DataTable, SearchInput };
+

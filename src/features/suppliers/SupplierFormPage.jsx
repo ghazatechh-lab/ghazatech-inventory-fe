@@ -545,7 +545,7 @@ export default function SupplierFormPage() {
                       <SelectContent>
                         {["AED", "USD", "EUR", "INR"].map((currency) => (
                           <SelectItem key={currency} value={currency}>
-                            {currency === "AED" ? "د.إ" : currency}
+                            {currency === "AED" ? "AED" : currency}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -633,7 +633,7 @@ export default function SupplierFormPage() {
               </span>
 
               <span className="mt-1 text-xs text-slate-500">
-                PDF, JPG, PNG, DOC or DOCX · maximum 10 MB per file
+                PDF, JPG, PNG, DOC or DOCX Â· maximum 10 MB per file
               </span>
 
               <input
@@ -828,3 +828,4 @@ export default function SupplierFormPage() {
     </div>
   );
 }
+

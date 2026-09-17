@@ -717,26 +717,26 @@ export default function CertificatesLettersPage() {
                     </p>
                   </td>
 
-                  <td className="px-4 py-3">{item.designation_name || "—"}</td>
+                  <td className="px-4 py-3">{item.designation_name || "â€”"}</td>
 
                   <td className="max-w-[360px] px-4 py-3">
                     {item.document_type === "SALARY" ? (
                       <span>
-                        {item.purpose || "Official purposes"} ·{" "}
+                        {item.purpose || "Official purposes"} Â·{" "}
                         <CurrencyText value={item.total_monthly_salary} />
                       </span>
                     ) : item.document_type === "WARNING" ? (
                       <span className="line-clamp-2">
-                        {item.reason || item.subject || "—"}
+                        {item.reason || item.subject || "â€”"}
                       </span>
                     ) : item.document_type === "EXPERIENCE" ? (
                       <span>
-                        Employment period: {item.joining_date || "—"} →{" "}
-                        {item.last_working_date || "—"}
+                        Employment period: {item.joining_date || "â€”"} â†’{" "}
+                        {item.last_working_date || "â€”"}
                       </span>
                     ) : (
                       <span className="line-clamp-2">
-                        {item.reason || item.details || item.subject || "—"}
+                        {item.reason || item.details || item.subject || "â€”"}
                       </span>
                     )}
                   </td>
@@ -747,7 +747,7 @@ export default function CertificatesLettersPage() {
                     </span>
                   </td>
 
-                  <td className="px-4 py-3">{item.issued_by_name || "—"}</td>
+                  <td className="px-4 py-3">{item.issued_by_name || "â€”"}</td>
 
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
@@ -954,7 +954,7 @@ export default function CertificatesLettersPage() {
                 />
                 <PreviewMeta
                   label="Designation"
-                  value={previewRow.designation_name || "—"}
+                  value={previewRow.designation_name || "â€”"}
                 />
               </div>
 
@@ -975,7 +975,7 @@ export default function CertificatesLettersPage() {
                 ) : previewRow.document_type === "WARNING" ? (
                   <p>
                     <strong>Reason:</strong>{" "}
-                    {previewRow.reason || previewRow.subject || "—"}
+                    {previewRow.reason || previewRow.subject || "â€”"}
                   </p>
                 ) : previewRow.document_type === "EXPERIENCE" ? (
                   <p>
@@ -1186,7 +1186,7 @@ function PreviewMeta({ label, value }) {
       <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className="mt-1 font-medium">{value || "—"}</p>
+      <p className="mt-1 font-medium">{value || "â€”"}</p>
     </div>
   );
 }
@@ -1275,7 +1275,7 @@ function SalaryModal({
           />
         </Field>
 
-        <Field label="Basic Salary (د.إ)">
+        <Field label="Basic Salary (AED)">
           <Input
             type="number"
             min="0"
@@ -1290,7 +1290,7 @@ function SalaryModal({
           />
         </Field>
 
-        <Field label="Housing Allowance (د.إ)">
+        <Field label="Housing Allowance (AED)">
           <Input
             type="number"
             min="0"
@@ -1305,7 +1305,7 @@ function SalaryModal({
           />
         </Field>
 
-        <Field label="Transport / Other Allowance (د.إ)">
+        <Field label="Transport / Other Allowance (AED)">
           <Input
             type="number"
             min="0"
@@ -1787,7 +1787,7 @@ function Preview({ item, onClose, onDownload }) {
 
           <div className="mt-8 flex justify-between text-sm text-gray-600">
             <span>
-              Reference No.: <strong>{item.reference_number || "—"}</strong>
+              Reference No.: <strong>{item.reference_number || "â€”"}</strong>
             </span>
 
             <span>
@@ -1875,11 +1875,11 @@ function WarningPreviewBody({ letter }) {
         </p>
 
         <p>
-          <strong>Employee Code:</strong> {letter.employee_code || "—"}
+          <strong>Employee Code:</strong> {letter.employee_code || "â€”"}
         </p>
 
         <p>
-          <strong>Designation:</strong> {letter.designation_name || "—"}
+          <strong>Designation:</strong> {letter.designation_name || "â€”"}
         </p>
       </div>
 
@@ -1926,7 +1926,7 @@ function ExperiencePreviewBody({ letter }) {
 
         <strong>Department</strong>
 
-        <span>{letter.department_name || "—"}</span>
+        <span>{letter.department_name || "â€”"}</span>
       </div>
 
       {letter.experience_summary && (
@@ -1957,7 +1957,7 @@ function EmployeeSelect({ employees, value, onChange }) {
 
       {employees.map((employee) => (
         <option key={employee.id} value={employee.id}>
-          {employee.full_name} — {employee.employee_code}
+          {employee.full_name} â€” {employee.employee_code}
         </option>
       ))}
     </select>
@@ -2039,3 +2039,4 @@ function TypeBadge({ type }) {
     </span>
   );
 }
+

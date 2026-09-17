@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   AlertCircle,
@@ -14,7 +14,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { PageHeader } from "@/components/common/PageHeader";
+import { PageHeader } from "./PurchasePageHeader";
 import { Button } from "@/components/ui/button";
 import {
   AttachmentList,
@@ -323,12 +323,12 @@ export default function GRNDetailPage() {
 
             <DetailField
               label="Warehouse"
-              value={linkedShipment.warehouse || "—"}
+              value={linkedShipment.warehouse || "â€”"}
             />
 
             <DetailField
               label="Received By"
-              value={linkedShipment.received_by_name || "—"}
+              value={linkedShipment.received_by_name || "â€”"}
             />
 
             <DetailField
@@ -374,14 +374,14 @@ export default function GRNDetailPage() {
               {(record.items || []).map((item) => (
                 <tr key={item.id} className="border-b">
                   <td className="px-4 py-4 font-medium">
-                    {item.product_name || "—"}
+                    {item.product_name || "â€”"}
                   </td>
 
                   <td className="px-4 py-4 font-mono text-xs">
-                    {item.sku || "—"}
+                    {item.sku || "â€”"}
                   </td>
 
-                  <td className="px-4 py-4">{item.variant_name || "—"}</td>
+                  <td className="px-4 py-4">{item.variant_name || "â€”"}</td>
 
                   <td className="px-4 py-4">
                     {item.ordered_quantity ?? item.purchase_order_quantity ?? 0}
@@ -395,7 +395,7 @@ export default function GRNDetailPage() {
                     {item.rejected_quantity ?? item.damaged_quantity ?? 0}
                   </td>
 
-                  <td className="px-4 py-4">{item.rack_code || "—"}</td>
+                  <td className="px-4 py-4">{item.rack_code || "â€”"}</td>
 
                   <td className="px-4 py-4">
                     {renderStatus(
@@ -438,3 +438,4 @@ export default function GRNDetailPage() {
     </div>
   );
 }
+

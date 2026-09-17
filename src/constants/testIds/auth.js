@@ -1,4 +1,4 @@
-// Test IDs for the auth feature (login, register, password reset, logout).
+﻿// Test IDs for the auth feature (login, register, password reset, logout).
 // Add new keys here as you wire up additional auth UI; see ./index.js for
 // the recipe to add a new feature file.
 //
@@ -31,3 +31,4 @@ export const REGISTER = {
 export const LOGOUT = {
 	button: 'logout-button',
 };
+

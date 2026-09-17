@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { createPortal } from "react-dom";
 import {
   Banknote,
@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
-import { PageHeader } from "@/components/common/PageHeader";
+import { SalesHeroHeader } from "@/components/sales/SalesHeroHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -654,8 +654,8 @@ export default function POSPage() {
   }, [openProductIndex]);
 
   return (
-    <div className="sales-module-page sales-workspace mx-auto max-w-[1500px] space-y-5 pb-10">
-      <PageHeader
+    <div className="sales-module-page sales-workspace w-full space-y-5 pb-10">
+      <SalesHeroHeader
         title="Direct Sale / POS"
         subtitle="Fast counter sales with branch stock, common VAT, and instant payment"
         actions={
@@ -1091,7 +1091,7 @@ export default function POSPage() {
 
                                                   <div className="shrink-0 text-right">
                                                     <p className="font-bold text-blue-600 dark:text-blue-300">
-                                                      د.إ{" "}
+                                                      AED{" "}
                                                       {getProductPrice(
                                                         product,
                                                       ).toFixed(2)}
@@ -1157,7 +1157,7 @@ export default function POSPage() {
                                     </span>
 
                                     <span className="font-semibold text-blue-600 dark:text-blue-300">
-                                      د.إ {number(item.unit_price).toFixed(2)}
+                                      <CurrencyText value={item.unit_price} />
                                     </span>
                                   </div>
                                 )}
@@ -1317,7 +1317,7 @@ export default function POSPage() {
 
                         <div className="space-y-4 p-4">
                           <div>
-                            <Label>Discount (د.إ)</Label>
+                            <Label>Discount (AED)</Label>
                             <Input
                               type="number"
                               min="0"
@@ -1401,7 +1401,7 @@ export default function POSPage() {
                                 Discount
                               </span>
                               <span>
-                                − <CurrencyText value={form.discount_amount} />
+                                - <CurrencyText value={form.discount_amount} />
                               </span>
                             </div>
 

@@ -21,7 +21,7 @@ import { toast } from "sonner";
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
-import { PageHeader } from "@/components/common/PageHeader";
+import { PageHeader } from "./PurchasePageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -628,7 +628,7 @@ export default function VendorCreditsPage() {
         return {
           source_return_item: item.id,
           description: `${item.product_name}${
-            item.quantity ? ` — ${item.quantity} unit(s)` : ""
+            item.quantity ? ` â€” ${item.quantity} unit(s)` : ""
           }`,
           gl_account: defaultInventoryAccountId
             ? String(defaultInventoryAccountId)
@@ -1001,7 +1001,7 @@ export default function VendorCreditsPage() {
           onClick={() => openExisting(row)}
           className="font-medium text-blue-600 hover:underline dark:text-blue-400"
         >
-          {row.credit_number || "—"}
+          {row.credit_number || "â€”"}
         </button>
       ),
     },
@@ -1018,7 +1018,7 @@ export default function VendorCreditsPage() {
       sortType: "date",
 
       cell: (row) =>
-        row.credit_date ? <DateText value={row.credit_date} /> : "—",
+        row.credit_date ? <DateText value={row.credit_date} /> : "â€”",
     },
     {
       key: "reason_display",
@@ -1418,7 +1418,7 @@ export default function VendorCreditsPage() {
               </SelectTrigger>
 
               <SelectContent>
-                <SelectItem value="AED">د.إ</SelectItem>
+                <SelectItem value="AED">AED</SelectItem>
                 <SelectItem value="USD">USD</SelectItem>
                 <SelectItem value="EUR">EUR</SelectItem>
               </SelectContent>
@@ -1444,7 +1444,7 @@ export default function VendorCreditsPage() {
                     value={String(supplierReturn.id)}
                   >
                     {supplierReturn.return_number}
-                    {" · "}
+                    {" Â· "}
                     {supplierReturn.supplier_name}
                   </SelectItem>
                 ))}
@@ -1671,7 +1671,7 @@ export default function VendorCreditsPage() {
                   </p>
 
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Due {application.due_date || "—"}
+                    Due {application.due_date || "â€”"}
                   </p>
                 </div>
 
@@ -1746,7 +1746,7 @@ export default function VendorCreditsPage() {
         <div className="mt-4 rounded-xl border border-dashed bg-slate-50 p-4 font-mono text-sm dark:border-white/10 dark:bg-white/[0.025]">
           <div className="flex justify-between gap-4">
             <span>
-              Dr Accounts Payable —{" "}
+              Dr Accounts Payable â€”{" "}
               {selectedSupplier?.supplier_name || "Selected Vendor"}
             </span>
 
@@ -1754,7 +1754,7 @@ export default function VendorCreditsPage() {
           </div>
 
           <div className="mt-2 flex justify-between gap-4 pl-5 text-muted-foreground">
-            <span>Cr Inventory / Expense — per line account</span>
+            <span>Cr Inventory / Expense â€” per line account</span>
 
             <CurrencyText value={totalCredit} currency={form.currency} />
           </div>
@@ -1896,3 +1896,4 @@ export default function VendorCreditsPage() {
     </div>
   );
 }
+

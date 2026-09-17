@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Compass } from "lucide-react";
@@ -15,3 +15,4 @@ export default function NotFoundPage() {
     </div>
   );
 }
+

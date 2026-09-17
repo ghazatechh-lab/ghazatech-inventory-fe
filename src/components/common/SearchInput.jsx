@@ -1,9 +1,9 @@
-import React from "react";
+﻿import React from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-export function SearchInput({ value, onChange, placeholder = "Search…", className, testId = "search-input" }) {
+export function SearchInput({ value, onChange, placeholder = "Searchâ€¦", className, testId = "search-input" }) {
   return (
     <div className={cn("relative", className)}>
       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -17,3 +17,4 @@ export function SearchInput({ value, onChange, placeholder = "Search…", classN
     </div>
   );
 }
+

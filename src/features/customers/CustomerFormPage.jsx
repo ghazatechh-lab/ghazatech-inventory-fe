@@ -9,12 +9,12 @@ import {
   MapPin,
   Save,
   ShieldCheck,
+  UserRoundPlus,
 } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -197,21 +197,42 @@ export default function CustomerFormPage() {
   }
 
   return (
-    <div className="customer-module-page customer-workspace mx-auto max-w-6xl space-y-5 pb-10">
-      <PageHeader
-        title={isEdit ? "Edit Customer" : "New Customer"}
-        subtitle="Create and maintain the complete customer master record."
-        actions={
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => navigate(backTarget)}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            {isEdit ? "Back to Customer" : "Back to Customers"}
-          </Button>
-        }
-      />
+    <div className="customer-module-page customer-workspace w-full space-y-5 pb-10">
+      <section className="overflow-hidden rounded-[28px] border border-slate-200/70 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 text-white shadow-sm dark:border-white/10">
+        <div className="flex flex-col gap-6 px-6 py-7 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+          <div className="flex min-w-0 items-start gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 shadow-inner backdrop-blur">
+              <UserRoundPlus className="h-7 w-7" />
+            </div>
+
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-200">
+                Customer Master
+              </p>
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+                {isEdit ? "Edit Customer" : "New Customer"}
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+                {isEdit
+                  ? "Update identity, contact information, commercial terms, and customer status."
+                  : "Create a complete customer record for sales, invoicing, and account management."}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2 lg:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate(backTarget)}
+              className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              {isEdit ? "Back to Customer" : "Back to Customers"}
+            </Button>
+          </div>
+        </div>
+      </section>
 
       <form
         onSubmit={handleSubmit((values) => saveMutation.mutate(values))}

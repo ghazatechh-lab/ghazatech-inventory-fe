@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -232,14 +232,14 @@ export default function TransferDetailPage() {
     transfer.from_branch_name ||
     transfer.from_branch?.branch_code ||
     transfer.from_branch?.branch_name ||
-    "—";
+    "â€”";
 
   const toBranch =
     transfer.to_branch_code ||
     transfer.to_branch_name ||
     transfer.to_branch?.branch_code ||
     transfer.to_branch?.branch_name ||
-    "—";
+    "â€”";
 
   const totalQuantity =
     transfer.total_quantity ??
@@ -283,7 +283,7 @@ export default function TransferDetailPage() {
                 style={{ color: "#f1f5f9" }}
               >
                 <span>{fromBranch}</span>
-                <span>→</span>
+                <span>â†’</span>
                 <span>{toBranch}</span>
               </p>
             </div>
@@ -447,13 +447,13 @@ export default function TransferDetailPage() {
                   >
                     <td className="px-4 py-4">
                       <p className="font-medium">
-                        {item.product_name || item.product?.product_name || "—"}
+                        {item.product_name || item.product?.product_name || "â€”"}
                       </p>
 
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {item.sku || "—"}
+                        {item.sku || "â€”"}
 
-                        {item.variant_label ? ` · ${item.variant_label}` : ""}
+                        {item.variant_label ? ` Â· ${item.variant_label}` : ""}
                       </p>
                     </td>
 
@@ -519,18 +519,18 @@ export default function TransferDetailPage() {
             </DetailRow>
 
             <DetailRow label="Requested by">
-              {transfer.requested_by_name || "—"}
+              {transfer.requested_by_name || "â€”"}
             </DetailRow>
 
             <DetailRow label="Approved by">
-              {transfer.approved_by_name || "—"}
+              {transfer.approved_by_name || "â€”"}
             </DetailRow>
 
             <DetailRow label="Transfer date">
               {transfer.transfer_date ? (
                 <DateText value={transfer.transfer_date} />
               ) : (
-                "—"
+                "â€”"
               )}
             </DetailRow>
 
@@ -538,7 +538,7 @@ export default function TransferDetailPage() {
               {transfer.dispatch_date ? (
                 <DateText value={transfer.dispatch_date} />
               ) : (
-                "—"
+                "â€”"
               )}
             </DetailRow>
 
@@ -546,7 +546,7 @@ export default function TransferDetailPage() {
               {transfer.received_date ? (
                 <DateText value={transfer.received_date} />
               ) : (
-                "—"
+                "â€”"
               )}
             </DetailRow>
           </div>
@@ -586,3 +586,4 @@ export default function TransferDetailPage() {
     </div>
   );
 }
+

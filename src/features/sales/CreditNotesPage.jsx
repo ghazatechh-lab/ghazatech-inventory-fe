@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Download, Plus, Save, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -12,7 +12,7 @@ import {
 } from "@/lib/taxAccess";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
-import { PageHeader } from "@/components/common/PageHeader";
+import { SalesHeroHeader } from "@/components/sales/SalesHeroHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -510,8 +510,8 @@ export default function CreditNotesPage() {
   );
 
   return (
-    <div className="sales-module-page sales-workspace mx-auto max-w-7xl space-y-5">
-      <PageHeader
+    <div className="sales-module-page sales-workspace w-full space-y-5">
+      <SalesHeroHeader
         title="Credit Notes"
         subtitle="Adjustments and refunds issued against invoices"
         actions={
@@ -770,7 +770,7 @@ export default function CreditNotesPage() {
                               {item.description || "Invoice item"}
                             </p>
                             <p className="mt-1 text-xs text-muted-foreground">
-                              د.إ {number(item.unit_price).toFixed(2)}
+                              <CurrencyText value={item.unit_price} />
                               {" / unit"}
                             </p>
 

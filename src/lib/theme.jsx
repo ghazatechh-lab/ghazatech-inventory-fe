@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 
 const STORAGE_KEY = "ghazatech-theme";
 
@@ -70,3 +70,4 @@ export function ThemeProvider({ children }) {
 export function useTheme() {
   return React.useContext(ThemeContext);
 }
+

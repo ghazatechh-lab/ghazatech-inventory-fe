@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
-import { PageHeader } from "@/components/common/PageHeader";
+import { PageHeader } from "./PurchasePageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -109,7 +109,7 @@ const getSupplierMeta = (supplier) => {
 
   const parts = [supplier.contact_person, supplier.email].filter(Boolean);
 
-  return parts.join(" · ");
+  return parts.join(" Â· ");
 };
 
 function ApprovalStep({ number, title, detail, complete = false }) {
@@ -411,7 +411,7 @@ export default function POFormPage() {
 
     if (!selected) return "";
 
-    return [selected.product_name, selected.sku].filter(Boolean).join(" · ");
+    return [selected.product_name, selected.sku].filter(Boolean).join(" Â· ");
   };
 
   const getFilteredProducts = (index, item) => {
@@ -431,7 +431,7 @@ export default function POFormPage() {
     );
 
     const selectedLabel = selected
-      ? [selected.product_name, selected.sku].filter(Boolean).join(" · ")
+      ? [selected.product_name, selected.sku].filter(Boolean).join(" Â· ")
       : "";
 
     const search = getProductSearchValue(index, item).trim().toLowerCase();
@@ -665,7 +665,7 @@ export default function POFormPage() {
         subtitle="Raise an order against a supplier and track it through to delivery"
         actions={
           <span className="rounded-md bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-600 dark:bg-violet-500/10 dark:text-violet-300">
-            {orderLabel} · {orderStatus}
+            {orderLabel} Â· {orderStatus}
           </span>
         }
       />
@@ -746,7 +746,7 @@ export default function POFormPage() {
                                 supplier.email,
                               ]
                                 .filter(Boolean)
-                                .join(" · ")}
+                                .join(" Â· ")}
                             </span>
                           )}
                         </button>
@@ -872,7 +872,7 @@ export default function POFormPage() {
                   <SelectContent>
                     {["AED", "USD", "EUR", "INR"].map((currency) => (
                       <SelectItem key={currency} value={currency}>
-                        {currency === "AED" ? "د.إ" : currency}
+                        {currency === "AED" ? "AED" : currency}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -905,7 +905,7 @@ export default function POFormPage() {
                 </div>
 
                 <p className="text-[11px] font-medium text-blue-600 dark:text-blue-400">
-                  Net {selectedSupplier.payment_terms_days || 0} · Credit used{" "}
+                  Net {selectedSupplier.payment_terms_days || 0} Â· Credit used{" "}
                   <CurrencyText
                     value={selectedSupplier.outstanding_balance || 0}
                   />{" "}
@@ -1031,7 +1031,7 @@ export default function POFormPage() {
                                           productOption.sku,
                                         ]
                                           .filter(Boolean)
-                                          .join(" · ");
+                                          .join(" Â· ");
 
                                         updateItem(index, {
                                           product: String(productOption.id),
@@ -1253,7 +1253,7 @@ export default function POFormPage() {
           <section className="card-surface p-5">
             <h2 className="font-semibold">Order summary</h2>
             <p className="mt-1 text-xs text-slate-500">
-              {orderLabel} · {form.items.length} item
+              {orderLabel} Â· {form.items.length} item
               {form.items.length === 1 ? "" : "s"}
             </p>
 
@@ -1261,7 +1261,7 @@ export default function POFormPage() {
               <div className="flex justify-between gap-3">
                 <span className="text-slate-500">Supplier</span>
                 <span className="text-right font-medium">
-                  {selectedSupplier?.supplier_name || "—"}
+                  {selectedSupplier?.supplier_name || "â€”"}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -1300,7 +1300,7 @@ export default function POFormPage() {
               <ApprovalStep
                 number="1"
                 title="Draft created"
-                detail="You · just now"
+                detail="You Â· just now"
                 complete
               />
               <ApprovalStep
@@ -1316,7 +1316,7 @@ export default function POFormPage() {
               <ApprovalStep
                 number="4"
                 title="Receipt tracking"
-                detail="Open → Partial → Fully received"
+                detail="Open â†’ Partial â†’ Fully received"
               />
             </div>
           </section>
@@ -1325,3 +1325,4 @@ export default function POFormPage() {
     </div>
   );
 }
+

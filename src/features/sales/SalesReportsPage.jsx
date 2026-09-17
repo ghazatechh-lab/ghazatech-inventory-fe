@@ -1,4 +1,4 @@
-import SimpleSalesPage from "@/components/sales/SimpleSalesPage";
+﻿import SimpleSalesPage from "@/components/sales/SimpleSalesPage";
 export default function P() {
   return (
     <SimpleSalesPage

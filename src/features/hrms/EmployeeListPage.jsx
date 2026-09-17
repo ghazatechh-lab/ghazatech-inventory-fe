@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Link } from "react-router-dom";
 import { FileBadge2, Plus, Users } from "lucide-react";
 
@@ -79,7 +79,7 @@ export default function EmployeeListPage() {
         header: "Code",
         cell: (row) => (
           <span className="font-mono text-xs font-semibold text-slate-200">
-            {row.employee_code || "—"}
+            {row.employee_code || "â€”"}
           </span>
         ),
       },
@@ -118,7 +118,7 @@ export default function EmployeeListPage() {
       {
         key: "department_name",
         header: "Department",
-        cell: (row) => row.department_name || "—",
+        cell: (row) => row.department_name || "â€”",
       },
       {
         key: "branch_name",
@@ -137,12 +137,12 @@ export default function EmployeeListPage() {
       {
         key: "passport_number",
         header: "Passport",
-        cell: (row) => row.passport_number || "—",
+        cell: (row) => row.passport_number || "â€”",
       },
       {
         key: "emirates_id_number",
         header: "Emirates ID",
-        cell: (row) => row.emirates_id_number || "—",
+        cell: (row) => row.emirates_id_number || "â€”",
       },
       {
         key: "total_salary",
@@ -265,3 +265,4 @@ export default function EmployeeListPage() {
     </div>
   );
 }
+

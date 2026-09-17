@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Download, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import api, { unwrap } from "@/lib/api";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
-import { PageHeader } from "@/components/common/PageHeader";
+import { SalesHeroHeader } from "@/components/sales/SalesHeroHeader";
 import { Button } from "@/components/ui/button";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -119,8 +119,8 @@ export default function SalesOrderListPage() {
   );
 
   return (
-    <div className="sales-module-page sales-workspace mx-auto max-w-7xl space-y-5">
-      <PageHeader
+    <div className="sales-module-page sales-workspace w-full space-y-5">
+      <SalesHeroHeader
         title="Sales Orders"
         subtitle="Confirmed orders moving toward fulfillment and invoicing"
         actions={

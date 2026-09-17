@@ -1,7 +1,7 @@
-import React from "react";
+﻿import React from "react";
 import { Loader2, Inbox, ShieldAlert, AlertTriangle } from "lucide-react";
 
-export function LoadingState({ label = "Loading…", rows = 6 }) {
+export function LoadingState({ label = "Loadingâ€¦", rows = 6 }) {
   return (
     <div className="space-y-2" data-testid="loading-state">
       {Array.from({ length: rows }).map((_, i) => (
@@ -46,3 +46,4 @@ export function PermissionDenied() {
     </div>
   );
 }
+

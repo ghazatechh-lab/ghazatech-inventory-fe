@@ -7,12 +7,12 @@ export function cn(...inputs) {
 
 export function formatAED(v) {
   const n = Number(v ?? 0);
-  return `د.إ ${n.toLocaleString("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `AED ${n.toLocaleString("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export function currencySymbol(currency = "AED") {
   return String(currency || "AED").toUpperCase() === "AED"
-    ? "د.إ"
+    ? "AED"
     : String(currency || "");
 }
 
@@ -21,7 +21,7 @@ export function formatCurrency(v, currency = "AED") {
   const code = String(currency || "AED").toUpperCase();
 
   if (code === "AED") {
-    return `د.إ ${n.toLocaleString("en-AE", {
+    return `AED ${n.toLocaleString("en-AE", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;
@@ -92,3 +92,4 @@ export function severityForExpiry(days) {
   if (days <= 60) return "info";
   return "ok";
 }
+

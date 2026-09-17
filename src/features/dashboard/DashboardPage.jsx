@@ -106,7 +106,7 @@ export default function DashboardPage() {
       ),
   });
 
-  if (isLoading) return <LoadingState label="Loading dashboard…" rows={10} />;
+  if (isLoading) return <LoadingState label="Loading dashboardâ€¦" rows={10} />;
 
   const k = data?.kpi ?? {};
   const trend = data?.trend ?? [];
@@ -286,7 +286,7 @@ export default function DashboardPage() {
             <h3 className="text-sm font-semibold text-slate-200">
               Stock value by branch
             </h3>
-            <p className="text-xs text-slate-500">د.إ</p>
+            <p className="text-xs text-slate-500">AED</p>
           </div>
           <div className="h-56">
             <ResponsiveContainer>
@@ -416,7 +416,7 @@ export default function DashboardPage() {
                     {inv.invoice_number}
                   </div>
                   <div className="text-xs text-slate-500 truncate">
-                    {inv.customer.name} · <DateText value={inv.date} />
+                    {inv.customer.name} Â· <DateText value={inv.date} />
                   </div>
                 </div>
                 <div className="text-right">
@@ -461,7 +461,7 @@ export default function DashboardPage() {
                       {s.product.name}
                     </div>
                     <div className="text-[10px] text-slate-500">
-                      {s.branch.name} · SKU {s.product.sku}
+                      {s.branch.name} Â· SKU {s.product.sku}
                     </div>
                   </div>
                 </div>
@@ -470,7 +470,7 @@ export default function DashboardPage() {
                     {s.quantity}
                   </div>
                   <div className="text-[10px] text-slate-500">
-                    Reorder ≥ {s.reorder_level}
+                    Reorder â‰¥ {s.reorder_level}
                   </div>
                 </div>
               </div>
@@ -481,3 +481,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

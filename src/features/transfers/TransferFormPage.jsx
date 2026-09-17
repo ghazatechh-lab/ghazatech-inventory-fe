@@ -47,7 +47,7 @@ function SearchableProductSelect({
   placeholder = "Search and select product",
   searchPlaceholder = "Search and select product",
   getValue = (product) => String(product.id),
-  getLabel = (product) => `${product.product_name} — ${product.sku}`,
+  getLabel = (product) => `${product.product_name} â€” ${product.sku}`,
   onChange,
 }) {
   const wrapperRef = React.useRef(null);
@@ -472,7 +472,7 @@ export default function TransferFormPage() {
               <div className="mt-2 flex h-10 items-center rounded-md border bg-muted/30 px-3 text-sm font-medium">
                 {sourceBranch
                   ? `${sourceBranch.branch_code || ""}${
-                      sourceBranch.branch_code ? " · " : ""
+                      sourceBranch.branch_code ? " Â· " : ""
                     }${sourceBranch.branch_name || sourceBranch.name || ""}`
                   : from
                     ? `Branch ${from}`
@@ -493,7 +493,7 @@ export default function TransferFormPage() {
                     .filter((branch) => String(branch.id) !== String(from))
                     .map((branch) => (
                       <SelectItem key={branch.id} value={String(branch.id)}>
-                        {branch.branch_code} ·{" "}
+                        {branch.branch_code} Â·{" "}
                         {branch.branch_name || branch.name}
                       </SelectItem>
                     ))}
@@ -573,7 +573,7 @@ export default function TransferFormPage() {
                         searchPlaceholder="Search product, SKU or variant"
                         getValue={(product) => product.stock_key}
                         getLabel={(product) =>
-                          `${product.sku || "No SKU"} · ${product.product_name} · ${product.variant_label}`
+                          `${product.sku || "No SKU"} Â· ${product.product_name} Â· ${product.variant_label}`
                         }
                         onChange={(value) => {
                           const selected = products.find(
@@ -647,7 +647,7 @@ export default function TransferFormPage() {
                       </p>
 
                       <p className="mt-1 font-semibold">
-                        د.إ{" "}
+                        AED{" "}
                         {Number(
                           selectedProduct?.average_unit_cost_excluding_vat || 0,
                         ).toFixed(4)}
@@ -695,3 +695,4 @@ export default function TransferFormPage() {
     </div>
   );
 }
+

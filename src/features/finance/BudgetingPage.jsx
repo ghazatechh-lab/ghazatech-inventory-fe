@@ -475,9 +475,9 @@ export default function BudgetingPage() {
             rows={budgets.map((b) => [
               b.budget_name,
               <StatusBadge status={b.status} />,
-              b.budget_owner_name || "—",
+              b.budget_owner_name || "â€”",
               b.version_label || `Rev ${b.version || 1}`,
-              b.updated_at ? new Date(b.updated_at).toLocaleDateString() : "—",
+              b.updated_at ? new Date(b.updated_at).toLocaleDateString() : "â€”",
               <div className="flex gap-1">
                 <Button
                   size="icon"
@@ -516,7 +516,7 @@ export default function BudgetingPage() {
           ]}
           rows={lines.map((l) => [
             `${l.account_code || ""} ${l.account_name || ""}`.trim(),
-            l.department || "—",
+            l.department || "â€”",
             l.branch_name || "All",
             money(l.annual_budget),
             money(l.actual_ytd),
@@ -596,12 +596,12 @@ export default function BudgetingPage() {
             r.revision_date,
             r.budget_name,
             r.revision_type,
-            r.from_account_name || "—",
-            r.to_account_name || "—",
+            r.from_account_name || "â€”",
+            r.to_account_name || "â€”",
             money(r.amount),
             r.reason,
             <StatusBadge status={r.status} />,
-            r.approved_by_name || "—",
+            r.approved_by_name || "â€”",
           ])}
         />
       )}
@@ -619,7 +619,7 @@ export default function BudgetingPage() {
           rows={approvals.map((b) => [
             b.budget_name,
             b.budget_type_display || b.budget_type,
-            b.budget_owner_name || "—",
+            b.budget_owner_name || "â€”",
             money(b.total_budget),
             b.approval_priority,
             <StatusBadge status={b.status} />,
@@ -791,7 +791,7 @@ function BudgetForm({
                   setForm((x) => ({ ...x, currency: e.target.value }))
                 }
               >
-                <option value="AED">د.إ</option>
+                <option value="AED">AED</option>
                 <option>USD</option>
               </select>
             </Field>
@@ -919,7 +919,7 @@ function BudgetForm({
                     <option value="">Account</option>
                     {accounts.map((a) => (
                       <option key={a.id} value={a.id}>
-                        {a.code} — {a.name}
+                        {a.code} â€” {a.name}
                       </option>
                     ))}
                   </select>
@@ -1059,7 +1059,7 @@ function BudgetForm({
             <Field label="Workflow">
               <Input
                 disabled
-                value="Department Heads → Finance Manager → Managing Director"
+                value="Department Heads â†’ Finance Manager â†’ Managing Director"
               />
             </Field>
             <Field label="Primary Approver">
@@ -1191,7 +1191,7 @@ function SimpleTable({ headers, rows }) {
             <tr key={i} className="border-b">
               {r.map((v, j) => (
                 <td key={j} className="px-4 py-3">
-                  {v ?? "—"}
+                  {v ?? "â€”"}
                 </td>
               ))}
             </tr>
@@ -1229,3 +1229,4 @@ function Kpi({ l, v, tone }) {
     </div>
   );
 }
+

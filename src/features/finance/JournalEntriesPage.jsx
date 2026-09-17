@@ -94,7 +94,7 @@ const niceStatus = (status) =>
     .toLowerCase()
     .replace(/\b\w/g, (c) => c.toUpperCase());
 
-const detailValue = (value) => value || "—";
+const detailValue = (value) => value || "â€”";
 
 export default function JournalEntriesPage() {
   const queryClient = useQueryClient();
@@ -840,9 +840,9 @@ export default function JournalEntriesPage() {
                     <StatusBadge status={journal.status} />
                   </td>
                   <td className="px-4 py-3">
-                    {journal.approved_by_name || "—"}
+                    {journal.approved_by_name || "â€”"}
                   </td>
-                  <td className="px-4 py-3">{journal.posted_by_name || "—"}</td>
+                  <td className="px-4 py-3">{journal.posted_by_name || "â€”"}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
                       <IconAction
@@ -1170,7 +1170,7 @@ function JournalForm({
                   }))
                 }
               >
-                <option value="AED">د.إ</option>
+                <option value="AED">AED</option>
                 <option value="USD">USD</option>
               </select>
             </Field>
@@ -1286,7 +1286,7 @@ function JournalForm({
                       <option value="">Select account</option>
                       {accounts.map((account) => (
                         <option key={account.id} value={account.id}>
-                          {account.code} — {account.name}
+                          {account.code} â€” {account.name}
                         </option>
                       ))}
                     </select>
@@ -1577,7 +1577,7 @@ function JournalForm({
                 }
               >
                 <option value="ACCOUNTANT_FINANCE_MANAGER">
-                  Standard — Accountant → Finance Manager
+                  Standard â€” Accountant â†’ Finance Manager
                 </option>
               </select>
             </Field>
@@ -1654,27 +1654,27 @@ function JournalForm({
                 activeJournal?.created_by_name ||
                 (mode === "create"
                   ? user?.full_name || user?.email || "Current user"
-                  : "—")
+                  : "â€”")
               }
               meta={activeJournal?.created_at || "Recorded when saved"}
             />
 
             <AuditCard
               label="Last Modified"
-              value={activeJournal?.updated_by_name || "—"}
-              meta={activeJournal?.updated_at || "—"}
+              value={activeJournal?.updated_by_name || "â€”"}
+              meta={activeJournal?.updated_at || "â€”"}
             />
 
             <AuditCard
               label="Approved By"
               value={activeJournal?.approved_by_name || "Pending"}
-              meta={activeJournal?.approved_at || "—"}
+              meta={activeJournal?.approved_at || "â€”"}
             />
 
             <AuditCard
               label="Posted By"
               value={activeJournal?.posted_by_name || "Pending"}
-              meta={activeJournal?.posted_at || "—"}
+              meta={activeJournal?.posted_at || "â€”"}
             />
           </div>
         </Section>
@@ -1911,3 +1911,4 @@ function WorkflowModal({
     </div>
   );
 }
+

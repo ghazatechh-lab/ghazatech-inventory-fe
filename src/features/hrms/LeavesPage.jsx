@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -246,7 +246,7 @@ export default function LeavesPage() {
                   </Button>
                 </div>
               ) : (
-                "—"
+                "â€”"
               ),
           },
         ]}
@@ -276,7 +276,7 @@ export default function LeavesPage() {
                   <SelectContent>
                     {normalizeList(options.employees).map((item) => (
                       <SelectItem key={item.id} value={String(item.id)}>
-                        {item.employee_code} — {item.full_name}
+                        {item.employee_code} â€” {item.full_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -465,3 +465,4 @@ export default function LeavesPage() {
     </div>
   );
 }
+

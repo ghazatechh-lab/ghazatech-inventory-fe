@@ -1,4 +1,5 @@
-import React from "react";
+﻿import React from "react";
+import DirhamSymbol from "@/components/common/DirhamSymbol";
 import { Download, Plus, Save, Trash2, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -6,7 +7,7 @@ import { toast } from "sonner";
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
-import { PageHeader } from "@/components/common/PageHeader";
+import { SalesHeroHeader } from "@/components/sales/SalesHeroHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -295,8 +296,8 @@ export default function PriceListsPage() {
   ];
 
   return (
-    <div className="sales-module-page sales-workspace mx-auto max-w-7xl space-y-5">
-      <PageHeader
+    <div className="sales-module-page sales-workspace w-full space-y-5">
+      <SalesHeroHeader
         title="Price Lists & Discounts"
         subtitle="Branch-specific or customer-tier pricing, bulk discount rules, and promotional periods."
         actions={
@@ -410,7 +411,12 @@ export default function PriceListsPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="AED">د.إ</SelectItem>
+                        <SelectItem value="AED">
+                          <span className="inline-flex items-center gap-2">
+                            <DirhamSymbol size={14} decorative />
+                            UAE Dirham
+                          </span>
+                        </SelectItem>
                         <SelectItem value="SAR">SAR</SelectItem>
                         <SelectItem value="USD">USD</SelectItem>
                       </SelectContent>
@@ -450,19 +456,19 @@ export default function PriceListsPage() {
                   {[
                     [
                       "CUSTOMER_TIER",
-                      "👤",
+                      "ðŸ‘¤",
                       "Customer-Tier",
                       "Applies to a customer or customer group",
                     ],
                     [
                       "BRANCH_SPECIFIC",
-                      "🏢",
+                      "ðŸ¢",
                       "Branch-Specific",
                       "Applies to one branch",
                     ],
                     [
                       "PROMOTIONAL",
-                      "🎉",
+                      "ðŸŽ‰",
                       "Promotional",
                       "Time-based, applies to selected customers",
                     ],
@@ -632,7 +638,7 @@ export default function PriceListsPage() {
                               />
                             </td>
                             <td className="p-2 font-semibold text-green-500">
-                              {form.currency === "AED" ? "د.إ" : form.currency}{" "}
+                              {form.currency === "AED" ? "AED" : form.currency}{" "}
                               {finalPrice.toFixed(2)}
                             </td>
                             <td className="p-2">

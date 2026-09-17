@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api, { unwrap } from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -34,3 +34,4 @@ export default function NotificationsPage() {
     </div>
   );
 }
+

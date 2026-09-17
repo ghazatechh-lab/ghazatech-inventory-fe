@@ -332,7 +332,7 @@ export default function SalaryHistoryPage() {
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>
 
-      <div className="mt-1 font-medium">{value || "—"}</div>
+      <div className="mt-1 font-medium">{value || "â€”"}</div>
     </div>
   );
 
@@ -402,7 +402,7 @@ export default function SalaryHistoryPage() {
                   {filteredEmployees.length ? (
                     filteredEmployees.map((item) => (
                       <SelectItem key={item.id} value={String(item.id)}>
-                        {item.full_name} — {item.designation_name || "Employee"}
+                        {item.full_name} â€” {item.designation_name || "Employee"}
                       </SelectItem>
                     ))
                   ) : (
@@ -542,20 +542,20 @@ export default function SalaryHistoryPage() {
                         item.payment_reference) && (
                         <div className="mt-3 rounded-lg border bg-muted/30 p-3 text-xs">
                           <span className="font-medium">Payroll:</span>{" "}
-                          {item.payroll_status_display || "—"}
+                          {item.payroll_status_display || "â€”"}
                           {item.payment_date ? (
                             <>
                               {" "}
-                              · Paid <DateText value={item.payment_date} />
+                              Â· Paid <DateText value={item.payment_date} />
                             </>
                           ) : null}
                           {item.payment_reference ? (
-                            <> · Ref: {item.payment_reference}</>
+                            <> Â· Ref: {item.payment_reference}</>
                           ) : null}
                           {toNumber(item.deductions) > 0 ? (
                             <>
                               {" "}
-                              · Deductions{" "}
+                              Â· Deductions{" "}
                               <CurrencyText value={item.deductions} />
                             </>
                           ) : null}
@@ -609,7 +609,7 @@ export default function SalaryHistoryPage() {
                   <span>
                     {currentRevision?.effective_from ||
                       employee.joining_date ||
-                      "—"}
+                      "â€”"}
                   </span>
                 </div>
               </div>
@@ -639,7 +639,7 @@ export default function SalaryHistoryPage() {
                       <div
                         className="w-full rounded-t-md bg-blue-100 dark:bg-blue-500/20"
                         style={{ height: `${height}%` }}
-                        title={`د.إ ${value.toLocaleString("en-US")}`}
+                        title={`AED ${value.toLocaleString("en-US")}`}
                       />
 
                       <span className="text-[10px] text-muted-foreground">
@@ -863,3 +863,4 @@ export default function SalaryHistoryPage() {
     </div>
   );
 }
+

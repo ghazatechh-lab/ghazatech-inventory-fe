@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Controller, useForm } from "react-hook-form";
 import {
@@ -58,10 +58,10 @@ const emptyAdjustment = (branchId = "") => ({
 });
 
 const formatTime = (value) => {
-  if (!value) return "—";
+  if (!value) return "â€”";
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) return "â€”";
 
   return date.toLocaleTimeString([], {
     hour: "2-digit",
@@ -70,10 +70,10 @@ const formatTime = (value) => {
 };
 
 const formatDate = (value) => {
-  if (!value) return "—";
+  if (!value) return "â€”";
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) return "â€”";
 
   return date.toLocaleDateString();
 };
@@ -110,7 +110,7 @@ function SearchableProductSelect({
   placeholder = "Select product",
   searchPlaceholder = "Search product or SKU",
   getValue = (product) => String(product.id),
-  getLabel = (product) => `${product.product_name} — ${product.sku}`,
+  getLabel = (product) => `${product.product_name} â€” ${product.sku}`,
   onChange,
 }) {
   const wrapperRef = React.useRef(null);
@@ -248,7 +248,7 @@ function ProductSearchInput({
   React.useEffect(() => {
     setProductSearch(
       selectedProduct
-        ? `${selectedProduct.product_name} — ${selectedProduct.sku || "No SKU"}`
+        ? `${selectedProduct.product_name} â€” ${selectedProduct.sku || "No SKU"}`
         : "",
     );
   }, [selectedProduct]);
@@ -297,7 +297,7 @@ function ProductSearchInput({
           if (
             selectedProduct &&
             nextValue !==
-              `${selectedProduct.product_name} — ${selectedProduct.sku || "No SKU"}`
+              `${selectedProduct.product_name} â€” ${selectedProduct.sku || "No SKU"}`
           ) {
             onChange("");
           }
@@ -318,7 +318,7 @@ function ProductSearchInput({
                 onClick={() => {
                   onChange(String(product.id));
                   setProductSearch(
-                    `${product.product_name} — ${product.sku || "No SKU"}`,
+                    `${product.product_name} â€” ${product.sku || "No SKU"}`,
                   );
                   setProductSearchOpen(false);
                 }}
@@ -327,8 +327,8 @@ function ProductSearchInput({
                 <span className="font-medium">{product.product_name}</span>
                 <span className="text-xs text-muted-foreground">
                   {product.sku || "No SKU"}
-                  {product.brand_name ? ` · ${product.brand_name}` : ""}
-                  {product.category_name ? ` · ${product.category_name}` : ""}
+                  {product.brand_name ? ` Â· ${product.brand_name}` : ""}
+                  {product.category_name ? ` Â· ${product.category_name}` : ""}
                 </span>
               </button>
             ))
@@ -941,7 +941,7 @@ export default function StockAdjustmentPage() {
       cell: (item) => (
         <div>
           <div className="font-medium text-foreground">
-            {item.product_name || "—"}
+            {item.product_name || "â€”"}
           </div>
           <div className="text-xs text-muted-foreground">
             {item.variant_label && item.variant_label !== "Base product"
@@ -955,7 +955,7 @@ export default function StockAdjustmentPage() {
       key: "branch_code",
       header: "Branch",
       sortKey: "branch__branch_code",
-      cell: (item) => item.branch_code || item.branch_name || "—",
+      cell: (item) => item.branch_code || item.branch_name || "â€”",
     },
     {
       key: "adjustment_type",
@@ -990,7 +990,7 @@ export default function StockAdjustmentPage() {
     {
       key: "reason",
       header: "Reason",
-      cell: (item) => item.reason || "—",
+      cell: (item) => item.reason || "â€”",
     },
     {
       key: "status",
@@ -1442,3 +1442,4 @@ export default function StockAdjustmentPage() {
     </div>
   );
 }
+

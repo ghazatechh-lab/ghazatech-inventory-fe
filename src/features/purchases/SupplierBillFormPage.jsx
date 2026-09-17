@@ -13,7 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import api, { unwrap } from "@/lib/api";
-import { PageHeader } from "@/components/common/PageHeader";
+import { PageHeader } from "./PurchasePageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -587,7 +587,7 @@ export default function SupplierBillFormPage() {
       setPurchaseOrderSearch(
         [selectedPurchaseOrder.po_number, selectedPurchaseOrder.supplier_name]
           .filter(Boolean)
-          .join(" · "),
+          .join(" Â· "),
       );
     } else if (!form.purchase_order) {
       setPurchaseOrderSearch("");
@@ -889,7 +889,7 @@ export default function SupplierBillFormPage() {
           supplierRecord?.name,
       ]
         .filter(Boolean)
-        .join(" · "),
+        .join(" Â· "),
     );
     setPurchaseOrderSearchOpen(false);
 
@@ -1473,7 +1473,7 @@ export default function SupplierBillFormPage() {
             >
               {CURRENCY_OPTIONS.map((currency) => (
                 <option key={currency} value={currency}>
-                  {currency === "AED" ? "د.إ" : currency}
+                  {currency === "AED" ? "AED" : currency}
                 </option>
               ))}
             </select>
@@ -1569,7 +1569,7 @@ export default function SupplierBillFormPage() {
 
               {branches.map((branch) => (
                 <option key={branch.id} value={String(branch.id)}>
-                  {branch.branch_code ? `${branch.branch_code} — ` : ""}
+                  {branch.branch_code ? `${branch.branch_code} â€” ` : ""}
                   {branch.branch_name || branch.name}
                 </option>
               ))}
@@ -1599,7 +1599,7 @@ export default function SupplierBillFormPage() {
                         selectedPurchaseOrder.supplier_name,
                       ]
                         .filter(Boolean)
-                        .join(" · ")
+                        .join(" Â· ")
                     : "";
 
                   if (selectedPurchaseOrder && value !== selectedLabel) {
@@ -1644,7 +1644,7 @@ export default function SupplierBillFormPage() {
                             purchaseOrder.status,
                           ]
                             .filter(Boolean)
-                            .join(" · ")}
+                            .join(" Â· ")}
                         </span>
                       </button>
                     ))
@@ -1681,7 +1681,7 @@ export default function SupplierBillFormPage() {
               {availableGrns.map((grn) => (
                 <option key={grn.id} value={String(grn.id)}>
                   {grn.grn_number || `GRN ${grn.id}`}
-                  {grn.po_number ? ` — ${grn.po_number}` : ""}
+                  {grn.po_number ? ` â€” ${grn.po_number}` : ""}
                 </option>
               ))}
             </select>
@@ -1743,7 +1743,7 @@ export default function SupplierBillFormPage() {
                   {item.product_name ? (
                     <p className="mt-1 text-sm text-muted-foreground">
                       {item.product_name}
-                      {item.sku ? ` • ${item.sku}` : ""}
+                      {item.sku ? ` â€¢ ${item.sku}` : ""}
                     </p>
                   ) : null}
                 </div>
@@ -1780,7 +1780,7 @@ export default function SupplierBillFormPage() {
                   />
 
                   <p className="mt-1 text-[11px] text-muted-foreground">
-                    Accepted: {numberValue(item.received_quantity)} · Available:{" "}
+                    Accepted: {numberValue(item.received_quantity)} Â· Available:{" "}
                     {numberValue(item.available_bill_quantity)}
                   </p>
 
@@ -2039,3 +2039,4 @@ export default function SupplierBillFormPage() {
     </div>
   );
 }
+

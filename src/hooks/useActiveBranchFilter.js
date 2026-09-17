@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 
 import { useAuth } from "@/lib/auth";
 import { canViewAllBranches, isAdmin } from "@/lib/permissions";
@@ -94,3 +94,4 @@ export function useActiveBranchFilter() {
 }
 
 export default useActiveBranchFilter;
+

@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Controller, useForm } from "react-hook-form";
@@ -455,10 +455,10 @@ export default function RackFormPage() {
               </h3>
             </div>
             <ul className="mt-4 space-y-3 text-xs leading-5 text-slate-500 dark:text-slate-400">
-              <li>• Keep rack codes short and unique.</li>
-              <li>• Use a consistent pattern such as RACK-A01.</li>
-              <li>• Include aisle or zone information when useful.</li>
-              <li>• Disable racks that are temporarily unavailable.</li>
+              <li>â€¢ Keep rack codes short and unique.</li>
+              <li>â€¢ Use a consistent pattern such as RACK-A01.</li>
+              <li>â€¢ Include aisle or zone information when useful.</li>
+              <li>â€¢ Disable racks that are temporarily unavailable.</li>
             </ul>
           </div>
         </aside>
@@ -466,3 +466,4 @@ export default function RackFormPage() {
     </div>
   );
 }
+

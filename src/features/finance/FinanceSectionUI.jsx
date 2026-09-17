@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -217,7 +217,7 @@ export function Stat({ label, value, hint, accent, className = "" }) {
         {label}
       </p>
 
-      <p className="mt-2 text-xl font-semibold">{value ?? "—"}</p>
+      <p className="mt-2 text-xl font-semibold">{value ?? "â€”"}</p>
 
       {hint && <p className="mt-1 text-xs opacity-70">{hint}</p>}
     </div>
@@ -237,3 +237,4 @@ export function MetricCard({ label, value, hint }) {
     </div>
   );
 }
+

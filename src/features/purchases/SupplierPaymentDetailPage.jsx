@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   AlertCircle,
@@ -10,7 +10,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 
 import api from "@/lib/api";
-import { PageHeader } from "@/components/common/PageHeader";
+import { PageHeader } from "./PurchasePageHeader";
 import { Button } from "@/components/ui/button";
 import {
   AttachmentList,
@@ -152,10 +152,10 @@ export default function SupplierPaymentDetailPage() {
               {(record.allocations || []).map((item) => (
                 <tr key={item.id} className="border-b">
                   <td className="px-4 py-4">
-                    {item.bill_number || item.bill || "—"}
+                    {item.bill_number || item.bill || "â€”"}
                   </td>
                   <td className="px-4 py-4">{renderMoney(item.amount)}</td>
-                  <td className="px-4 py-4">{item.notes || "—"}</td>
+                  <td className="px-4 py-4">{item.notes || "â€”"}</td>
                 </tr>
               ))}
               {!record.allocations?.length ? (
@@ -186,3 +186,4 @@ export default function SupplierPaymentDetailPage() {
     </div>
   );
 }
+

@@ -1,11 +1,11 @@
-import React from "react";
+﻿import React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, CheckCircle2, Download, Edit } from "lucide-react";
 import { toast } from "sonner";
 
 import api, { unwrap } from "@/lib/api";
-import { PageHeader } from "@/components/common/PageHeader";
+import { SalesHeroHeader } from "@/components/sales/SalesHeroHeader";
 import { Button } from "@/components/ui/button";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -55,8 +55,8 @@ export default function SalesOrderDetailPage() {
   }
 
   return (
-    <div className="sales-module-page sales-workspace mx-auto max-w-6xl space-y-5">
-      <PageHeader
+    <div className="sales-module-page sales-workspace w-full space-y-5">
+      <SalesHeroHeader
         title={order.order_number}
         subtitle="Sales order details, fulfillment, and invoice conversion"
         actions={

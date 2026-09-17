@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import api, { unwrap } from "@/lib/api";
@@ -43,3 +43,4 @@ export default function BranchDetailPage() {
     </div>
   );
 }
+

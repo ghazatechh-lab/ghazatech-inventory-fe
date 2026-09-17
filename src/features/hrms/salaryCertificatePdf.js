@@ -9,7 +9,7 @@ const money = (value) =>
   }).format(n(value));
 
 const dateText = (value) => {
-  if (!value) return "—";
+  if (!value) return "â€”";
   const d = new Date(`${String(value).slice(0, 10)}T00:00:00`);
   return Number.isNaN(d.getTime())
     ? String(value)
@@ -36,7 +36,7 @@ export function generateSalaryCertificatePdf(certificate, options = {}) {
   doc.setTextColor(80, 80, 85);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text(`Reference No.: ${certificate.reference_number || "—"}`, margin, 56);
+  doc.text(`Reference No.: ${certificate.reference_number || "â€”"}`, margin, 56);
   doc.text(
     `Date: ${dateText(certificate.certificate_date)}`,
     width - margin,
@@ -62,9 +62,9 @@ export function generateSalaryCertificatePdf(certificate, options = {}) {
     margin: { left: margin, right: margin },
     theme: "grid",
     body: [
-      ["Employee Name", certificate.employee_name || "—"],
-      ["Passport / Emirates ID No.", certificate.identity_number || "—"],
-      ["Designation", certificate.designation_name || "—"],
+      ["Employee Name", certificate.employee_name || "â€”"],
+      ["Passport / Emirates ID No.", certificate.identity_number || "â€”"],
+      ["Designation", certificate.designation_name || "â€”"],
       ["Date of Joining", dateText(certificate.joining_date)],
     ],
     styles: { fontSize: 9.5, cellPadding: 3 },
@@ -75,7 +75,7 @@ export function generateSalaryCertificatePdf(certificate, options = {}) {
 
   let y = doc.lastAutoTable.finalY + 8;
   doc.text(
-    "The employee’s current monthly salary is structured as follows:",
+    "The employeeâ€™s current monthly salary is structured as follows:",
     margin,
     y,
   );
@@ -84,7 +84,7 @@ export function generateSalaryCertificatePdf(certificate, options = {}) {
     startY: y + 5,
     margin: { left: margin, right: margin },
     theme: "grid",
-    head: [["Salary Component", "Amount (د.إ)"]],
+    head: [["Salary Component", "Amount (AED)"]],
     body: [
       ["Basic Salary", money(certificate.basic_salary)],
       [
@@ -114,7 +114,7 @@ export function generateSalaryCertificatePdf(certificate, options = {}) {
 
   y = doc.lastAutoTable.finalY + 8;
   const note =
-    "This certificate is issued at the employee’s request for official purposes. The company assumes no responsibility beyond confirming the employment and salary information stated above.";
+    "This certificate is issued at the employeeâ€™s request for official purposes. The company assumes no responsibility beyond confirming the employment and salary information stated above.";
   doc.setTextColor(35, 35, 38);
   doc.text(doc.splitTextToSize(note, width - margin * 2), margin, y);
 
@@ -125,8 +125,8 @@ export function generateSalaryCertificatePdf(certificate, options = {}) {
 
   const valueX = margin + 76;
   [
-    ["Authorized Signatory", certificate.authorized_signatory || "—"],
-    ["Designation", certificate.signatory_designation || "—"],
+    ["Authorized Signatory", certificate.authorized_signatory || "â€”"],
+    ["Designation", certificate.signatory_designation || "â€”"],
     ["Company Stamp", " "],
   ].forEach(([label, value], index) => {
     doc.setFont("helvetica", "bold");
@@ -154,3 +154,4 @@ export function generateSalaryCertificatePdf(certificate, options = {}) {
       `${certificate.reference_number || "Salary-Certificate"}.pdf`,
   );
 }
+

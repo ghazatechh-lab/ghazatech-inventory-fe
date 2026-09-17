@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Download } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -112,3 +112,4 @@ export default function HRMSReportPage() {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -22,3 +22,4 @@ export function MobileSidebar({ open, onOpenChange }) {
 }
 
 export default MobileSidebar;
+

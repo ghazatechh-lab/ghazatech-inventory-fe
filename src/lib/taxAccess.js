@@ -1,4 +1,4 @@
-import { hasPermission, isAdmin } from "@/lib/permissions";
+﻿import { hasPermission, isAdmin } from "@/lib/permissions";
 import { PERMISSIONS } from "@/config/permissions";
 
 export { isAdmin };
@@ -185,3 +185,4 @@ export const calculateTaxLine = ({
     total: discounted + tax,
   };
 };
+

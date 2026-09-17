@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { GHAZA_LOGO_DATA_URL } from "@/lib/documentLogo";
 
 export const GHAZA_COMPANY = {
   name: "GHAZA COMPUTER TR LLC",
@@ -43,7 +44,7 @@ const getAedSymbolDataUrl = () => {
   context.textAlign = "left";
   context.textBaseline = "middle";
   context.direction = "rtl";
-  context.fillText("د.إ", 88, 24);
+  context.fillText("AED", 88, 24);
 
   aedSymbolDataUrl = canvas.toDataURL("image/png");
   return aedSymbolDataUrl;
@@ -193,14 +194,18 @@ const drawWrappedText = (
   return y + lines.length * lineHeight;
 };
 
-const drawBrandMark = (doc, x, y) => {
-  doc.setFont("helvetica", "bolditalic");
-  doc.setFontSize(31);
-  doc.setTextColor(...BRAND_DARK);
-  doc.text("GC", x, y);
-
-  doc.setFillColor(...BRAND_RED);
-  doc.triangle(x + 6, y - 4, x + 23, y - 9, x + 19, y - 5, "F");
+const drawBrandMark = (doc, x, y, width = 30) => {
+  const height = width * (260 / 401);
+  doc.addImage(
+    GHAZA_LOGO_DATA_URL,
+    "JPEG",
+    x,
+    y,
+    width,
+    height,
+    undefined,
+    "FAST",
+  );
 };
 
 const drawCompanyHeader = (doc) => {
@@ -209,7 +214,7 @@ const drawCompanyHeader = (doc) => {
   doc.setFillColor(...LIGHT_GRAY);
   doc.rect(10, 8, pageWidth - 20, 38, "F");
 
-  drawBrandMark(doc, 17, 31);
+  drawBrandMark(doc, 15, 15.2, 30);
 
   doc.setDrawColor(...BRAND_RED);
   doc.setLineWidth(0.4);
@@ -229,7 +234,7 @@ const drawCompanyHeader = (doc) => {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(6.7);
   doc.setTextColor(...BRAND_RED);
-  doc.text("LAPTOPS  •  SPARE PARTS  •  ACCESSORIES", 57, 34);
+  doc.text("LAPTOPS  â€¢  SPARE PARTS  â€¢  ACCESSORIES", 57, 34);
 
   drawWrappedText(doc, GHAZA_COMPANY.address, 57, 38.2, 62, {
     fontSize: 5.6,
@@ -252,7 +257,7 @@ const drawCompanyHeader = (doc) => {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(5.8);
   doc.setTextColor(...BRAND_DARK);
-  doc.text("QUALITY PARTS • PROFESSIONAL SERVICE", 144, 35.5, {
+  doc.text("QUALITY PARTS â€¢ PROFESSIONAL SERVICE", 144, 35.5, {
     align: "center",
   });
 
@@ -739,3 +744,4 @@ export function findSalesCustomer(customers, customerValue) {
   const id = entityId(customerValue);
   return customers.find((customer) => String(customer.id || "") === id) || null;
 }
+

@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -38,7 +38,7 @@ const emptyForm = {
 };
 
 const formatDate = (value) => {
-  if (!value) return "—";
+  if (!value) return "â€”";
 
   return new Intl.DateTimeFormat("en-AE", {
     day: "2-digit",
@@ -533,3 +533,4 @@ export default function ReferenceDataPage({
     </div>
   );
 }
+

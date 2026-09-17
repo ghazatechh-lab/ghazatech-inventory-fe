@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Download, Edit } from "lucide-react";
@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import api, { unwrap } from "@/lib/api";
 import { downloadSalesPdf } from "@/lib/salesPdf";
-import { PageHeader } from "@/components/common/PageHeader";
+import { SalesHeroHeader } from "@/components/sales/SalesHeroHeader";
 import { Button } from "@/components/ui/button";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -31,9 +31,7 @@ const getEntityId = (value) => {
 };
 
 const isQuotationEditLocked = (status) =>
-  ["CONVERTED", "CANCELLED"].includes(
-    String(status || "").toUpperCase(),
-  );
+  ["CONVERTED", "CANCELLED"].includes(String(status || "").toUpperCase());
 
 const getItemProductName = (item) =>
   item?.product_name ||
@@ -141,10 +139,9 @@ export default function QuotationDetailPage() {
         secondaryLabel: "Valid Until",
         secondaryValue: quotation.valid_until,
         paymentTerms: quotation.payment_terms,
-        customer:
-          customerDetail || {
-            customer_name: quotation.customer_name || "Customer",
-          },
+        customer: customerDetail || {
+          customer_name: quotation.customer_name || "Customer",
+        },
         items,
         products: [],
         subtotal: quotation.subtotal,
@@ -166,8 +163,8 @@ export default function QuotationDetailPage() {
   };
 
   return (
-    <div className="sales-module-page sales-workspace mx-auto max-w-6xl space-y-5">
-      <PageHeader
+    <div className="sales-module-page sales-workspace w-full space-y-5">
+      <SalesHeroHeader
         title={quotation.quote_number}
         subtitle="Quotation details and customer pricing"
         actions={
@@ -190,12 +187,9 @@ export default function QuotationDetailPage() {
               </Button>
             )}
 
-            {![
-              "CONVERTED",
-              "CANCELLED",
-              "REJECTED",
-              "EXPIRED",
-            ].includes(String(quotation.status || "").toUpperCase()) && (
+            {!["CONVERTED", "CANCELLED", "REJECTED", "EXPIRED"].includes(
+              String(quotation.status || "").toUpperCase(),
+            ) && (
               <Button
                 type="button"
                 onClick={() => convert.mutate()}

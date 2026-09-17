@@ -1,4 +1,5 @@
-import React from "react";
+﻿import React from "react";
+import DirhamSymbol from "@/components/common/DirhamSymbol";
 import { Download, Plus, Save, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -6,7 +7,7 @@ import { toast } from "sonner";
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
-import { PageHeader } from "@/components/common/PageHeader";
+import { SalesHeroHeader } from "@/components/sales/SalesHeroHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -248,8 +249,8 @@ export default function SalesPaymentsPage() {
   ];
 
   return (
-    <div className="sales-module-page sales-workspace mx-auto max-w-7xl space-y-5">
-      <PageHeader
+    <div className="sales-module-page sales-workspace w-full space-y-5">
+      <SalesHeroHeader
         title="Sales Payments"
         subtitle="Payments received against invoices and direct sales"
         actions={
@@ -436,7 +437,12 @@ export default function SalesPaymentsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="AED">د.إ</SelectItem>
+                      <SelectItem value="AED">
+                        <span className="inline-flex items-center gap-2">
+                          <DirhamSymbol size={14} decorative />
+                          UAE Dirham
+                        </span>
+                      </SelectItem>
                       <SelectItem value="USD">USD</SelectItem>
                     </SelectContent>
                   </Select>

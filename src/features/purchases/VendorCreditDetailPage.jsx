@@ -13,7 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { toast } from "sonner";
-import { PageHeader } from "@/components/common/PageHeader";
+import { PageHeader } from "./PurchasePageHeader";
 import { Button } from "@/components/ui/button";
 import {
   AttachmentList,
@@ -25,7 +25,7 @@ import {
   renderStatus,
 } from "./purchaseUi";
 
-function displayValue(value, fallback = "—") {
+function displayValue(value, fallback = "â€”") {
   if (value === null || value === undefined || value === "") {
     return fallback;
   }
@@ -52,7 +52,7 @@ function displayValue(value, fallback = "—") {
 
 function displayUser(value) {
   if (!value) {
-    return "—";
+    return "â€”";
   }
 
   if (typeof value === "object") {
@@ -329,7 +329,7 @@ export default function VendorCreditDetailPage() {
           <div>
             <p className="text-sm font-semibold">Vendor Credit Workflow</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Draft → Approved → Open → Partially Applied → Fully Applied
+              Draft â†’ Approved â†’ Open â†’ Partially Applied â†’ Fully Applied
             </p>
           </div>
 
@@ -372,7 +372,7 @@ export default function VendorCreditDetailPage() {
             label="Currency"
             value={
               String(record.currency || "AED").toUpperCase() === "AED"
-                ? "د.إ"
+                ? "AED"
                 : displayValue(record.currency, "AED")
             }
           />
@@ -526,13 +526,13 @@ export default function VendorCreditDetailPage() {
                   >
                     <td className="px-4 py-4">
                       <div className="purchase-module-page purchase-workspace font-medium">
-                        {item.description || "—"}
+                        {item.description || "â€”"}
                       </div>
 
                       {item.product_name ? (
                         <div className="mt-1 text-xs text-muted-foreground">
                           {item.product_name}
-                          {item.sku ? ` · ${item.sku}` : ""}
+                          {item.sku ? ` Â· ${item.sku}` : ""}
                         </div>
                       ) : null}
                     </td>
@@ -731,3 +731,4 @@ export default function VendorCreditDetailPage() {
     </div>
   );
 }
+

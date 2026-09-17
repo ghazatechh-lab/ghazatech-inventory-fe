@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Download, FileSpreadsheet, Plus, Save, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -361,7 +361,7 @@ export default function SalesReportsPage() {
         sortKey: "generated_at",
         sortType: "date",
         cell: (row) =>
-          row.generated_at ? <DateText value={row.generated_at} /> : "—",
+          row.generated_at ? <DateText value={row.generated_at} /> : "â€”",
       },
 
       {
@@ -377,7 +377,7 @@ export default function SalesReportsPage() {
         sortKey: "owner_team",
         sortType: "text",
         cell: (row) => (
-          <span className="font-medium">{row.owner_team || "—"}</span>
+          <span className="font-medium">{row.owner_team || "â€”"}</span>
         ),
       },
 
@@ -439,7 +439,7 @@ export default function SalesReportsPage() {
 
         <MetricCard
           label="Top Customer"
-          value={summary.top_customer || "—"}
+          value={summary.top_customer || "â€”"}
           subtitle={
             summary.top_customer_value ? (
               <CurrencyText value={summary.top_customer_value} />
@@ -452,7 +452,7 @@ export default function SalesReportsPage() {
         <MetricCard
           label="Conversion Rate"
           value={`${summary.conversion_rate || 0}%`}
-          subtitle="Quotation → order"
+          subtitle="Quotation â†’ order"
         />
       </div>
 
@@ -812,3 +812,4 @@ export default function SalesReportsPage() {
     </div>
   );
 }
+

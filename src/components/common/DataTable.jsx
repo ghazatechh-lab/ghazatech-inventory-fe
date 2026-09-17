@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   ArrowDown01,
@@ -544,9 +544,9 @@ export function DataTable({
 
       <div className="flex flex-col gap-3 border-t border-white/5 px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          Showing {firstVisible}–{lastVisible} of {effectiveTotal}
+          Showing {firstVisible}â€“{lastVisible} of {effectiveTotal}
           <span className="ml-2 text-slate-600">
-            · {pageSize} entries per page
+            Â· {pageSize} entries per page
           </span>
         </div>
 
@@ -614,3 +614,4 @@ export function DataTable({
     </div>
   );
 }
+

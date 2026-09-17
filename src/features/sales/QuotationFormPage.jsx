@@ -1,4 +1,5 @@
-import React from "react";
+﻿import React from "react";
+import DirhamSymbol from "@/components/common/DirhamSymbol";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -17,7 +18,7 @@ import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { calculateTaxLine } from "@/lib/taxAccess";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
-import { PageHeader } from "@/components/common/PageHeader";
+import { SalesHeroHeader } from "@/components/sales/SalesHeroHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -293,7 +294,7 @@ function ProductSearchPicker({
                     </div>
 
                     <span className="shrink-0 pl-3 text-xs font-semibold text-blue-600 dark:text-blue-300">
-                      د.إ {getProductPrice(product).toFixed(2)}
+                      <CurrencyText value={getProductPrice(product)} />
                     </span>
                   </CommandItem>
                 );
@@ -1093,8 +1094,8 @@ export default function QuotationFormPage() {
   }
 
   return (
-    <div className="sales-module-page sales-workspace mx-auto max-w-7xl space-y-5 pb-10">
-      <PageHeader
+    <div className="sales-module-page sales-workspace w-full space-y-5 pb-10">
+      <SalesHeroHeader
         title={isEdit ? "Edit Quotation" : "New Quotation"}
         subtitle="Prepare customer pricing, validity, items, tax, and terms"
         actions={
@@ -1247,7 +1248,12 @@ export default function QuotationFormPage() {
               </SelectTrigger>
 
               <SelectContent>
-                <SelectItem value="AED">د.إ — UAE Dirham</SelectItem>
+                <SelectItem value="AED">
+                  <span className="inline-flex items-center gap-2">
+                    <DirhamSymbol size={14} decorative />
+                    UAE Dirham
+                  </span>
+                </SelectItem>
 
                 <SelectItem value="USD">USD — US Dollar</SelectItem>
 

@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -836,8 +836,8 @@ export default function EmployeeFormPage() {
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {item.document_type_display || item.document_type}
-                      {item.document_number ? ` · ${item.document_number}` : ""}
-                      {item.expiry_date ? ` · Expires ${item.expiry_date}` : ""}
+                      {item.document_number ? ` Â· ${item.document_number}` : ""}
+                      {item.expiry_date ? ` Â· Expires ${item.expiry_date}` : ""}
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-2">
@@ -984,3 +984,4 @@ export default function EmployeeFormPage() {
     </div>
   );
 }
+

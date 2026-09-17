@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -16,7 +16,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { PageHeader } from "@/components/common/PageHeader";
+import { PageHeader } from "./PurchasePageHeader";
 import { Button } from "@/components/ui/button";
 import { CurrencyText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -40,7 +40,7 @@ const DEFAULT_TRANSITIONS = {
 };
 
 const formatDate = (value) => {
-  if (!value) return "—";
+  if (!value) return "â€”";
 
   const date = new Date(`${value}T00:00:00`);
 
@@ -69,7 +69,7 @@ function InfoItem({ icon: Icon, label, value }) {
           {label}
         </p>
 
-        <p className="mt-1 text-sm font-medium">{value || "—"}</p>
+        <p className="mt-1 text-sm font-medium">{value || "â€”"}</p>
       </div>
     </div>
   );
@@ -275,7 +275,7 @@ export default function PODetailPage() {
                 label="Branch"
                 value={
                   purchaseOrder.branch_code
-                    ? `${purchaseOrder.branch_code} — ${purchaseOrder.branch_name || ""}`
+                    ? `${purchaseOrder.branch_code} â€” ${purchaseOrder.branch_name || ""}`
                     : purchaseOrder.branch_name
                 }
               />
@@ -295,7 +295,7 @@ export default function PODetailPage() {
               <InfoItem
                 icon={Package}
                 label="Supplier Reference"
-                value={purchaseOrder.supplier_reference || "—"}
+                value={purchaseOrder.supplier_reference || "â€”"}
               />
 
               <InfoItem
@@ -366,7 +366,7 @@ export default function PODetailPage() {
                       item.product?.name ||
                       "Product";
 
-                    const sku = item.sku || item.product?.sku || "—";
+                    const sku = item.sku || item.product?.sku || "â€”";
 
                     const remaining =
                       item.remaining_quantity ??
@@ -414,7 +414,7 @@ export default function PODetailPage() {
                         <td className="px-4 py-4">
                           {item.variant_name ||
                             item.variant?.display_name ||
-                            "—"}
+                            "â€”"}
                         </td>
 
                         <td className="px-4 py-4 text-right">
@@ -594,7 +594,7 @@ export default function PODetailPage() {
                 </Button>
 
                 <p className="mt-3 text-center text-[11px] text-slate-500">
-                  Next: Shipment → GRN → Stock Receipt
+                  Next: Shipment â†’ GRN â†’ Stock Receipt
                 </p>
               </div>
             </section>
@@ -604,3 +604,4 @@ export default function PODetailPage() {
     </div>
   );
 }
+

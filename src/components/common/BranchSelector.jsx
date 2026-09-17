@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Building2, Check, ChevronDown, Loader2 } from "lucide-react";
 
@@ -267,3 +267,4 @@ export function BranchSelector() {
     </DropdownMenu>
   );
 }
+

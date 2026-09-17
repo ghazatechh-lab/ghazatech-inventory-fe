@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import ReferenceDataPage from "./ReferenceDataPage";
 
 export default function CategoryListPage() {
@@ -13,3 +13,4 @@ export default function CategoryListPage() {
     />
   );
 }
+

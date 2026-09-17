@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import {
   BarChart3,
@@ -872,9 +872,9 @@ export default function LoginPage() {
         </section>
 
         <footer className="ghaza-footer">
-          <span>© 2026 GHAZA COMPUTER TR LLC</span>
+          <span>Â© 2026 GHAZA COMPUTER TR LLC</span>
 
-          <span>Privacy · Security · Support</span>
+          <span>Privacy Â· Security Â· Support</span>
         </footer>
       </main>
     </div>
@@ -892,3 +892,4 @@ function FeatureTile({ icon: Icon, title, subtitle }) {
     </div>
   );
 }
+

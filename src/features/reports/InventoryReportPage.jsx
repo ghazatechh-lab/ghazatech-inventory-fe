@@ -126,7 +126,7 @@ export default function InventoryReportPage() {
                 <YAxis fontSize={11} />
                 <Tooltip
                   formatter={(value) => [
-                    `د.إ ${Number(value || 0).toFixed(2)}`,
+                    `AED ${Number(value || 0).toFixed(2)}`,
                     "Inventory Value",
                   ]}
                 />
@@ -157,7 +157,7 @@ export default function InventoryReportPage() {
                 <div>
                   <p className="font-medium">{row.product}</p>
                   <p className="text-xs text-muted-foreground">
-                    {[row.variant, row.sku].filter(Boolean).join(" · ") || "—"}
+                    {[row.variant, row.sku].filter(Boolean).join(" Â· ") || "â€”"}
                   </p>
                 </div>
               ),
@@ -213,3 +213,4 @@ export default function InventoryReportPage() {
     </div>
   );
 }
+

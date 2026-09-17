@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -16,7 +16,7 @@ import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
-import { PageHeader } from "@/components/common/PageHeader";
+import { PageHeader } from "./PurchasePageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -583,7 +583,7 @@ export default function SupplierReturnsPage() {
                                 grn.received_date,
                               ]
                                 .filter(Boolean)
-                                .join(" · ")}
+                                .join(" Â· ")}
                             </div>
                           </div>
                         </SelectItem>
@@ -619,11 +619,11 @@ export default function SupplierReturnsPage() {
               {selectedGRN ? (
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/35 px-4 py-3 text-xs">
                   <span className="font-medium">
-                    {selectedGRN.grn_number} · {selectedGRN.supplier_name} ·{" "}
+                    {selectedGRN.grn_number} Â· {selectedGRN.supplier_name} Â·{" "}
                     {selectedGRN.branch_name}
                   </span>
                   <span className="text-blue-600">
-                    Linked PO: {selectedGRN.po_number || "—"}
+                    Linked PO: {selectedGRN.po_number || "â€”"}
                   </span>
                 </div>
               ) : null}
@@ -987,7 +987,7 @@ export default function SupplierReturnsPage() {
                 <span className="text-right font-medium">
                   {selectedGRN?.supplier_name ||
                     existingQuery.data?.supplier_name ||
-                    "—"}
+                    "â€”"}
                 </span>
               </div>
               <div className="flex justify-between gap-3">
@@ -995,7 +995,7 @@ export default function SupplierReturnsPage() {
                 <span className="font-medium">
                   {selectedGRN?.grn_number ||
                     existingQuery.data?.grn_number ||
-                    "—"}
+                    "â€”"}
                 </span>
               </div>
               <div className="flex justify-between gap-3">
@@ -1072,3 +1072,4 @@ export default function SupplierReturnsPage() {
     </div>
   );
 }
+

@@ -555,7 +555,7 @@ export function ServiceJobForm({
                   onChange={(e) =>
                     updateCharge(index, "unit_price", e.target.value)
                   }
-                  placeholder="د.إ"
+                  placeholder="AED"
                 />
                 <Button
                   type="button"

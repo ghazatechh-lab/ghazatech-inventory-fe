@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Link } from "react-router-dom";
 import { FilterX, Info, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -7,7 +7,7 @@ import api, { unwrap } from "@/lib/api";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { useSupplierUrlFilter } from "@/hooks/useSupplierUrlFilter";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
-import { PageHeader } from "@/components/common/PageHeader";
+import { PageHeader } from "./PurchasePageHeader";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -149,7 +149,7 @@ export default function SupplierBillsPage() {
             to={`/purchases/supplier-bills/${row.id}`}
             className="font-medium text-blue-600 hover:underline dark:text-blue-400"
           >
-            {row.bill_number || "—"}
+            {row.bill_number || "â€”"}
           </Link>
         ),
       },
@@ -172,7 +172,7 @@ export default function SupplierBillsPage() {
         sortType: "date",
 
         cell: (row) =>
-          row.bill_date ? <DateText value={row.bill_date} /> : "—",
+          row.bill_date ? <DateText value={row.bill_date} /> : "â€”",
       },
       {
         key: "due_date",
@@ -180,7 +180,7 @@ export default function SupplierBillsPage() {
         sortKey: "due_date",
         sortType: "date",
 
-        cell: (row) => (row.due_date ? <DateText value={row.due_date} /> : "—"),
+        cell: (row) => (row.due_date ? <DateText value={row.due_date} /> : "â€”"),
       },
       {
         key: "total_amount",
@@ -295,7 +295,7 @@ export default function SupplierBillsPage() {
         <Info className="mt-0.5 h-4 w-4 shrink-0" />
 
         <p>
-          Three-way match: PO → GRN → Bill before approval for payment. Tracks
+          Three-way match: PO â†’ GRN â†’ Bill before approval for payment. Tracks
           due date, aging, partial payments and outstanding balance.
         </p>
       </div>
@@ -380,3 +380,4 @@ export default function SupplierBillsPage() {
     </div>
   );
 }
+

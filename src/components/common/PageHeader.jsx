@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 
 import { useAuth } from "@/lib/auth";
 import { canChangeActiveBranch } from "@/lib/permissions";
@@ -50,3 +50,4 @@ export function PageHeader({
 }
 
 export default PageHeader;
+

@@ -1,10 +1,10 @@
-import React from "react";
+﻿import React from "react";
 import { Link } from "react-router-dom";
 import { AlertCircle, Plus, RefreshCcw } from "lucide-react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import api from "@/lib/api";
-import { PageHeader } from "@/components/common/PageHeader";
+import { PageHeader } from "./PurchasePageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ListingRowActions } from "@/components/common/ListingRowActions";
@@ -72,23 +72,23 @@ export default function GRNListPage() {
     {
       key: "po_number",
       header: "Purchase Order",
-      cell: (row) => row.po_number || "—",
+      cell: (row) => row.po_number || "â€”",
     },
     {
       key: "supplier_name",
       header: "Supplier",
-      cell: (row) => row.supplier_name || "—",
+      cell: (row) => row.supplier_name || "â€”",
     },
     {
       key: "branch_name",
       header: "Branch",
-      cell: (row) => row.branch_name || "—",
+      cell: (row) => row.branch_name || "â€”",
     },
     {
       key: "received_date",
       header: "Received Date",
       cell: (row) =>
-        row.received_date ? <DateText value={row.received_date} /> : "—",
+        row.received_date ? <DateText value={row.received_date} /> : "â€”",
     },
     {
       key: "item_count",
@@ -198,7 +198,7 @@ export default function GRNListPage() {
                     >
                       {column.cell
                         ? column.cell(row)
-                        : (row[column.key] ?? "—")}
+                        : (row[column.key] ?? "â€”")}
                     </td>
                   ))}
                 </tr>
@@ -263,3 +263,4 @@ export default function GRNListPage() {
     </div>
   );
 }
+

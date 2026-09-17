@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { useListQuery, DataTable } from "@/hooks/useListQuery";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -25,3 +25,4 @@ export default function AuditLogsPage() {
     </div>
   );
 }
+

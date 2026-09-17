@@ -1,4 +1,4 @@
-import {
+﻿import {
   BadgeDollarSign,
   Banknote,
   BarChart3,
@@ -891,3 +891,4 @@ export const openModule = (module, navigate, user) => {
 };
 
 export default modules;
+

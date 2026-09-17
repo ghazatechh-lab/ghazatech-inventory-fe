@@ -1,10 +1,10 @@
-import React from "react";
+﻿import React from "react";
 import { Link } from "react-router-dom";
 import { AlertCircle, Eye, FilterX, Plus, RefreshCcw } from "lucide-react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import api, { unwrap } from "@/lib/api";
-import { PageHeader } from "@/components/common/PageHeader";
+import { PageHeader } from "./PurchasePageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -163,8 +163,8 @@ export default function SupplierReturnListPage() {
       />
 
       <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
-        Correct flow: create from a confirmed GRN → submit for approval →
-        approve stock OUT → issue vendor credit or adjust the next bill.
+        Correct flow: create from a confirmed GRN â†’ submit for approval â†’
+        approve stock OUT â†’ issue vendor credit or adjust the next bill.
       </div>
 
       {supplierId ? (
@@ -281,20 +281,20 @@ export default function SupplierReturnListPage() {
                     </Link>
                   </td>
 
-                  <td className="px-4 py-4">{row.grn_number || "—"}</td>
+                  <td className="px-4 py-4">{row.grn_number || "â€”"}</td>
 
-                  <td className="px-4 py-4">{row.supplier_name || "—"}</td>
+                  <td className="px-4 py-4">{row.supplier_name || "â€”"}</td>
 
                   <td className="px-4 py-4">
                     {row.return_date ? (
                       <DateText value={row.return_date} />
                     ) : (
-                      "—"
+                      "â€”"
                     )}
                   </td>
 
                   <td className="px-4 py-4">
-                    {row.reason_display || row.reason || "—"}
+                    {row.reason_display || row.reason || "â€”"}
                   </td>
 
                   <td className="px-4 py-4">
@@ -401,3 +401,4 @@ export default function SupplierReturnListPage() {
     </div>
   );
 }
+
