@@ -73,10 +73,10 @@ const getAvailableQuantity = (product) => {
 
 const getRelatedName = (value, fallback) => {
   if (value && typeof value === "object") {
-    return value.name || fallback || "â€”";
+    return value.name || fallback || "—";
   }
 
-  return fallback || value || "â€”";
+  return fallback || value || "—";
 };
 
 export default function ProductListPage() {
@@ -491,7 +491,7 @@ export default function ProductListPage() {
       header: "SKU",
       cell: (product) => (
         <span className="font-numeric text-slate-300">
-          {product.sku || "â€”"}
+          {product.sku || "—"}
         </span>
       ),
     },
@@ -509,7 +509,7 @@ export default function ProductListPage() {
     {
       key: "branch",
       header: "Branch",
-      cell: (product) => product.branch_code || product.branch_name || "â€”",
+      cell: (product) => product.branch_code || product.branch_name || "—",
     },
     {
       key: "available_qty",
@@ -534,7 +534,7 @@ export default function ProductListPage() {
       header: "Rack",
       cell: (product) => (
         <span className="font-numeric text-xs font-bold text-slate-200">
-          {product.rack_code || product.rack_name || "â€”"}
+          {product.rack_code || product.rack_name || "—"}
         </span>
       ),
     },
@@ -595,8 +595,8 @@ export default function ProductListPage() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-6 pb-10">
-      <section className="relative overflow-hidden rounded-3xl border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 text-white shadow-xl">
+    <div className="w-full space-y-6 pb-10">
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200/20 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] text-white shadow-xl">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.12),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(14,165,233,0.08),transparent_30%)]" />
         <div className="relative flex flex-col gap-5 px-6 py-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex items-start gap-4">
@@ -664,7 +664,7 @@ export default function ProductListPage() {
 
             <Button
               asChild
-              className="h-11 rounded-xl bg-blue-600 px-5 font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700"
+              className="h-11 rounded-xl bg-amber-400 px-5 font-bold text-slate-950 shadow-lg hover:bg-amber-300"
               data-testid="new-product-btn"
             >
               <Link to="/inventory/products/new">
@@ -760,7 +760,7 @@ export default function ProductListPage() {
             <SearchInput
               value={search}
               onChange={(value) => updateParam("search", value)}
-              placeholder="Search name, SKU, barcode or modelâ€¦"
+              placeholder="Search name, SKU, barcode or model…"
             />
           </div>
 

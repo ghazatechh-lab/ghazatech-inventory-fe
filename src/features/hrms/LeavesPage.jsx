@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -166,13 +166,14 @@ export default function LeavesPage() {
   });
 
   return (
-    <div className="hrms-module-page hrms-workspace space-y-5">
+    <div className="hrms-module-page hrms-workspace w-full space-y-5 pb-10">
       <PageHeader
+        variant="hero"
         title="Leave Requests"
         subtitle="Pending and historical leave applications"
         actions={
           <Button
-            className="bg-blue-600 text-white"
+            className="bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             onClick={() => setOpen(true)}
           >
             <Plus className="mr-2 h-4 w-4" /> Apply Leave
@@ -180,32 +181,44 @@ export default function LeavesPage() {
         }
       />
 
-      <div className="flex gap-2">
-        {[
-          ["", "All"],
-          ["PENDING", "Pending"],
-          ["APPROVED", "Approved"],
-          ["REJECTED", "Rejected"],
-        ].map(([value, label]) => (
-          <button
-            key={value}
-            onClick={() => setTab(value)}
-            className={
-              tab === value
-                ? "rounded-lg bg-blue-600 px-4 py-2 text-sm text-white"
-                : "rounded-lg border px-4 py-2 text-sm"
-            }
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <section className="rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_12px_35px_rgba(22,42,73,0.06)] dark:border-white/10 dark:bg-slate-950/70">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-sky-600 dark:text-sky-300">
+              Leave Filters
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {[
+                ["", "All"],
+                ["PENDING", "Pending"],
+                ["APPROVED", "Approved"],
+                ["REJECTED", "Rejected"],
+              ].map(([value, label]) => (
+                <button
+                  type="button"
+                  key={value}
+                  onClick={() => setTab(value)}
+                  className={
+                    tab === value
+                      ? "rounded-lg border border-amber-300 bg-amber-400 px-4 py-2 text-sm font-bold text-slate-950 shadow-sm"
+                      : "rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-white/[0.04]"
+                  }
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      <SearchInput
-        value={q}
-        onChange={setQ}
-        placeholder="Search employee or reason"
-      />
+          <div className="w-full lg:max-w-sm">
+            <SearchInput
+              value={q}
+              onChange={setQ}
+              placeholder="Search employee or reason"
+            />
+          </div>
+        </div>
+      </section>
 
       <DataTable
         columns={[
@@ -228,10 +241,10 @@ export default function LeavesPage() {
                 <div className="flex gap-2">
                   <Button
                     size="sm"
-                    variant="outline"
                     onClick={() =>
                       action.mutate({ id: row.id, type: "approve" })
                     }
+                    className="bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
                   >
                     Approve
                   </Button>
@@ -241,12 +254,13 @@ export default function LeavesPage() {
                     onClick={() =>
                       action.mutate({ id: row.id, type: "reject" })
                     }
+                    className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-500/20 dark:hover:bg-red-500/10"
                   >
                     Reject
                   </Button>
                 </div>
               ) : (
-                "â€”"
+                "—"
               ),
           },
         ]}
@@ -259,9 +273,19 @@ export default function LeavesPage() {
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-xl rounded-2xl bg-background p-5">
-            <h2 className="text-xl font-semibold">Apply Leave</h2>
-            <div className="mt-5 space-y-4">
+          <div className="w-full max-w-xl overflow-hidden rounded-[22px] border border-slate-200 bg-background shadow-2xl dark:border-white/10">
+            <div className="border-b border-slate-200 px-5 py-4 dark:border-white/10">
+              <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-sky-600 dark:text-sky-300">
+                Leave Management
+              </p>
+              <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">
+                Apply Leave
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Submit a leave request and manage leave type details.
+              </p>
+            </div>
+            <div className="space-y-4 px-5 py-5">
               <div>
                 <Label>Employee</Label>
                 <Select
@@ -276,7 +300,7 @@ export default function LeavesPage() {
                   <SelectContent>
                     {normalizeList(options.employees).map((item) => (
                       <SelectItem key={item.id} value={String(item.id)}>
-                        {item.employee_code} â€” {item.full_name}
+                        {item.employee_code} — {item.full_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -323,7 +347,7 @@ export default function LeavesPage() {
                   </Button>
                 </div>
                 {showLeaveTypeForm && (
-                  <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50/70 p-4 shadow-sm dark:border-blue-500/20 dark:bg-blue-500/5">
+                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm dark:border-amber-500/20 dark:bg-amber-500/5">
                     <div className="mb-3">
                       <p className="text-sm font-semibold text-slate-900 dark:text-white">
                         Add New Leave Type
@@ -403,7 +427,7 @@ export default function LeavesPage() {
                       <Button
                         type="button"
                         size="sm"
-                        className="bg-blue-600 text-white hover:bg-blue-700"
+                        className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
                         disabled={leaveTypeSaving}
                         onClick={addLeaveType}
                       >
@@ -448,12 +472,12 @@ export default function LeavesPage() {
                 />
               </div>
             </div>
-            <div className="mt-5 flex justify-end gap-2">
+            <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-4 dark:border-white/10">
               <Button variant="outline" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
               <Button
-                className="bg-blue-600 text-white"
+                className="bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
                 onClick={() => save.mutate()}
               >
                 Submit Leave
@@ -465,4 +489,3 @@ export default function LeavesPage() {
     </div>
   );
 }
-

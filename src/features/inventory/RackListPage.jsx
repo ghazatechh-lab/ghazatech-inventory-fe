@@ -34,7 +34,7 @@ const getUserBranchId = (user) =>
   user?.branch?.id ?? user?.branch_id ?? user?.branch_detail?.id ?? null;
 
 const formatDate = (value) => {
-  if (!value) return "â€”";
+  if (!value) return "—";
 
   return new Intl.DateTimeFormat("en-AE", {
     day: "2-digit",
@@ -130,7 +130,7 @@ export default function RackListPage() {
             </div>
             <div className="min-w-0">
               <p className="truncate font-bold text-slate-950 dark:text-white">
-                {row.rack_code || "â€”"}
+                {row.rack_code || "—"}
               </p>
               <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
                 {row.rack_name || "Unnamed rack"}
@@ -154,7 +154,7 @@ export default function RackListPage() {
               <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
               <div>
                 <p className="font-semibold text-slate-800 dark:text-slate-200">
-                  {branchName || branchCode || "â€”"}
+                  {branchName || branchCode || "—"}
                 </p>
                 {branchCode && branchName && (
                   <p className="mt-0.5 text-xs font-medium text-slate-500">
@@ -244,13 +244,13 @@ export default function RackListPage() {
 
   return (
     <div className="space-y-6 pb-10">
-      <section className="relative overflow-hidden rounded-3xl border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 px-6 py-7 text-white shadow-xl sm:px-8">
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200/20 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] px-6 py-7 text-white shadow-xl sm:px-8">
         <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-blue-500/10 blur-3xl" />
         <div className="pointer-events-none absolute bottom-0 right-28 h-32 w-32 rounded-full bg-amber-400/10 blur-3xl" />
 
         <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-lg shadow-blue-600/20">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-300/35 bg-amber-300/10 text-amber-300 shadow-inner backdrop-blur">
               <Warehouse className="h-6 w-6" />
             </div>
             <div>
@@ -280,7 +280,7 @@ export default function RackListPage() {
           {canManage && (
             <Button
               asChild
-              className="h-11 rounded-xl bg-blue-600 px-5 font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700"
+              className="h-11 rounded-xl bg-amber-400 px-5 font-bold text-slate-950 shadow-lg hover:bg-amber-300"
             >
               <Link to="/inventory/racks/new">
                 <Plus className="mr-2 h-4 w-4" />

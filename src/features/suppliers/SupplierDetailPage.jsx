@@ -1,6 +1,7 @@
 ﻿import React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -9,6 +10,7 @@ import {
   Building2,
   CalendarDays,
   CreditCard,
+  Download,
   FileText,
   Landmark,
   Mail,
@@ -32,7 +34,7 @@ const value = (...items) => {
   for (const item of items) {
     if (item !== undefined && item !== null && String(item).trim()) return item;
   }
-  return "â€”";
+  return "—";
 };
 
 const normalizeList = (input) => {
@@ -60,7 +62,7 @@ function InfoItem({ icon: Icon, label, children }) {
       <div className="min-w-0">
         <p className="supplier-info-label">{label}</p>
         <div className="mt-1 break-words text-sm font-semibold text-slate-900 dark:text-slate-100">
-          {children || "â€”"}
+          {children || "—"}
         </div>
       </div>
     </div>
@@ -83,6 +85,58 @@ function MoneyCard({ label, value: cardValue, icon: Icon, tone = "blue" }) {
     </div>
   );
 }
+
+const csvValue = (input) => {
+  const text = String(input ?? "");
+  return /[",\\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+};
+
+const fileSafeName = (input) =>
+  String(input || "supplier")
+    .trim()
+    .replace(/[^\\w.-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase() || "supplier";
+
+const fetchAllSupplierRows = async (endpoint, supplierId, ordering) => {
+  const pageSize = 500;
+  let page = 1;
+  let rows = [];
+  let expectedCount = null;
+
+  while (page <= 100) {
+    const payload = unwrap(
+      await api.get(endpoint, {
+        params: {
+          supplier: supplierId,
+          page,
+          page_size: pageSize,
+          ordering,
+        },
+        skipGlobalErrorToast: true,
+      }),
+    );
+
+    const batch = normalizeList(payload);
+    rows = rows.concat(batch);
+
+    if (expectedCount === null && Number.isFinite(Number(payload?.count))) {
+      expectedCount = Number(payload.count);
+    }
+
+    if (
+      batch.length < pageSize ||
+      (expectedCount !== null && rows.length >= expectedCount)
+    ) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  return rows;
+};
 
 function SupplierActivityCard({
   title,
@@ -131,6 +185,8 @@ function SupplierActivityCard({
 export default function SupplierDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [exportingTransactions, setExportingTransactions] =
+    React.useState(false);
 
   const openSupplierActivity = React.useCallback(
     (path) => {
@@ -245,10 +301,150 @@ export default function SupplierDetailPage() {
   const supplierReturns = normalizeList(returnsQuery.data);
   const supplierCredits = normalizeList(creditsQuery.data);
 
+  const exportTransactionHistory = async () => {
+    if (!id || exportingTransactions) return;
+
+    setExportingTransactions(true);
+
+    try {
+      const [bills, payments, returns, credits] = await Promise.all([
+        fetchAllSupplierRows("/purchases/supplier-bills/", id, "-bill_date"),
+        fetchAllSupplierRows(
+          "/purchases/supplier-payments/",
+          id,
+          "-payment_date",
+        ),
+        fetchAllSupplierRows(
+          "/purchases/supplier-returns/",
+          id,
+          "-return_date",
+        ),
+        fetchAllSupplierRows("/purchases/vendor-credits/", id, "-credit_date"),
+      ]);
+
+      const transactions = [
+        ...bills.map((bill) => ({
+          date: bill.bill_date,
+          type: "Supplier Bill",
+          reference: value(
+            bill.bill_number,
+            bill.supplier_invoice_number,
+            `Bill ${bill.id}`,
+          ),
+          effect: "Increase payable",
+          amount: amount(bill.total_amount, bill.amount, bill.balance_due),
+          currency: bill.currency || s.currency || "AED",
+          status: bill.payment_status || bill.status || "OPEN",
+        })),
+        ...payments.map((payment) => ({
+          date: payment.payment_date,
+          type: "Supplier Payment",
+          reference: value(
+            payment.payment_number,
+            payment.reference_number,
+            `Payment ${payment.id}`,
+          ),
+          effect: "Reduce payable",
+          amount: amount(payment.amount, payment.total_amount),
+          currency: payment.currency || s.currency || "AED",
+          status: payment.status || "PAID",
+        })),
+        ...returns.map((supplierReturn) => ({
+          date: supplierReturn.return_date,
+          type: "Supplier Return",
+          reference: value(
+            supplierReturn.return_number,
+            `Return ${supplierReturn.id}`,
+          ),
+          effect: "Reduce payable",
+          amount: amount(supplierReturn.total_amount, supplierReturn.amount),
+          currency: supplierReturn.currency || s.currency || "AED",
+          status: supplierReturn.status || "DRAFT",
+        })),
+        ...credits.map((credit) => ({
+          date: credit.credit_date,
+          type: "Supplier Credit",
+          reference: value(
+            credit.credit_number,
+            credit.reference_number,
+            `Credit ${credit.id}`,
+          ),
+          effect: "Reduce payable",
+          amount: amount(
+            credit.total_amount,
+            credit.amount,
+            credit.remaining_amount,
+          ),
+          currency: credit.currency || s.currency || "AED",
+          status: credit.status || "OPEN",
+        })),
+      ].sort((a, b) => {
+        const aTime = a.date ? new Date(a.date).getTime() : 0;
+        const bTime = b.date ? new Date(b.date).getTime() : 0;
+        return bTime - aTime;
+      });
+
+      if (!transactions.length) {
+        toast.info("No supplier transactions available to export.");
+        return;
+      }
+
+      const headers = [
+        "Date",
+        "Transaction Type",
+        "Reference",
+        "Effect",
+        "Amount",
+        "Currency",
+        "Status",
+      ];
+
+      const lines = transactions.map((transaction) =>
+        [
+          transaction.date || "",
+          transaction.type,
+          transaction.reference,
+          transaction.effect,
+          Number(transaction.amount || 0).toFixed(2),
+          transaction.currency,
+          String(transaction.status || "").replaceAll("_", " "),
+        ]
+          .map(csvValue)
+          .join(","),
+      );
+
+      const csv = [headers.map(csvValue).join(","), ...lines].join("\n");
+
+      const blob = new Blob(["\ufeff", csv], {
+        type: "text/csv;charset=utf-8",
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `${fileSafeName(supplierName)}-transaction-history.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success(
+        `${transactions.length} supplier transaction${
+          transactions.length === 1 ? "" : "s"
+        } exported.`,
+      );
+    } catch (error) {
+      console.error("[Supplier transaction export] Failed:", error);
+      toast.error("Unable to export supplier transaction history.");
+    } finally {
+      setExportingTransactions(false);
+    }
+  };
+
   return (
     <div className="supplier-module-page min-h-full px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-[1500px] space-y-6">
-        <section className="supplier-detail-hero">
+      <div className="w-full space-y-6">
+        <section className="supplier-detail-hero w-full rounded-[28px]">
           <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <Link
@@ -286,14 +482,27 @@ export default function SupplierDetailPage() {
                 </div>
               </div>
             </div>
-            <Button
-              asChild
-              className="bg-white text-slate-950 shadow-lg hover:bg-slate-100"
-            >
-              <Link to={`/suppliers/${id}/edit`}>
-                <Pencil className="mr-2 h-4 w-4" /> Edit supplier
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-2 lg:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={exportTransactionHistory}
+                disabled={exportingTransactions}
+                className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {exportingTransactions ? "Exporting..." : "Export transactions"}
+              </Button>
+
+              <Button
+                asChild
+                className="bg-white text-slate-950 shadow-lg hover:bg-slate-100"
+              >
+                <Link to={`/suppliers/${id}/edit`}>
+                  <Pencil className="mr-2 h-4 w-4" /> Edit supplier
+                </Link>
+              </Button>
+            </div>
           </div>
         </section>
 
@@ -352,7 +561,7 @@ export default function SupplierDetailPage() {
                       {s.phone}
                     </a>
                   ) : (
-                    "â€”"
+                    "—"
                   )}
                 </InfoItem>
                 <InfoItem icon={Mail} label="Email">
@@ -364,7 +573,7 @@ export default function SupplierDetailPage() {
                       {s.email}
                     </a>
                   ) : (
-                    "â€”"
+                    "—"
                   )}
                 </InfoItem>
                 <InfoItem icon={ShieldCheck} label="TRN number">
@@ -389,7 +598,7 @@ export default function SupplierDetailPage() {
                   {value(s.billing_address, s.address)}
                 </InfoItem>
                 <InfoItem icon={Building2} label="City and country">
-                  {[s.city, s.country].filter(Boolean).join(", ") || "â€”"}
+                  {[s.city, s.country].filter(Boolean).join(", ") || "—"}
                 </InfoItem>
               </div>
             </div>
@@ -738,4 +947,3 @@ export default function SupplierDetailPage() {
     </div>
   );
 }
-

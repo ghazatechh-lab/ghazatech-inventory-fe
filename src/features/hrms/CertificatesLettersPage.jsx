@@ -476,13 +476,14 @@ export default function CertificatesLettersPage() {
   return (
     <div className="w-full space-y-5 pb-10">
       <PageHeader
+        variant="hero"
         title="Certificates & Letters"
         subtitle="Create, issue, preview and archive official employee certificates and HR letters."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Button
               onClick={openSalary}
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               <Plus className="mr-2 h-4 w-4" />
               Create Salary Certificate
@@ -717,26 +718,26 @@ export default function CertificatesLettersPage() {
                     </p>
                   </td>
 
-                  <td className="px-4 py-3">{item.designation_name || "â€”"}</td>
+                  <td className="px-4 py-3">{item.designation_name || "—"}</td>
 
                   <td className="max-w-[360px] px-4 py-3">
                     {item.document_type === "SALARY" ? (
                       <span>
-                        {item.purpose || "Official purposes"} Â·{" "}
+                        {item.purpose || "Official purposes"} ·{" "}
                         <CurrencyText value={item.total_monthly_salary} />
                       </span>
                     ) : item.document_type === "WARNING" ? (
                       <span className="line-clamp-2">
-                        {item.reason || item.subject || "â€”"}
+                        {item.reason || item.subject || "—"}
                       </span>
                     ) : item.document_type === "EXPERIENCE" ? (
                       <span>
-                        Employment period: {item.joining_date || "â€”"} â†’{" "}
-                        {item.last_working_date || "â€”"}
+                        Employment period: {item.joining_date || "—"} →{" "}
+                        {item.last_working_date || "—"}
                       </span>
                     ) : (
                       <span className="line-clamp-2">
-                        {item.reason || item.details || item.subject || "â€”"}
+                        {item.reason || item.details || item.subject || "—"}
                       </span>
                     )}
                   </td>
@@ -747,7 +748,7 @@ export default function CertificatesLettersPage() {
                     </span>
                   </td>
 
-                  <td className="px-4 py-3">{item.issued_by_name || "â€”"}</td>
+                  <td className="px-4 py-3">{item.issued_by_name || "—"}</td>
 
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
@@ -954,7 +955,7 @@ export default function CertificatesLettersPage() {
                 />
                 <PreviewMeta
                   label="Designation"
-                  value={previewRow.designation_name || "â€”"}
+                  value={previewRow.designation_name || "—"}
                 />
               </div>
 
@@ -975,7 +976,7 @@ export default function CertificatesLettersPage() {
                 ) : previewRow.document_type === "WARNING" ? (
                   <p>
                     <strong>Reason:</strong>{" "}
-                    {previewRow.reason || previewRow.subject || "â€”"}
+                    {previewRow.reason || previewRow.subject || "—"}
                   </p>
                 ) : previewRow.document_type === "EXPERIENCE" ? (
                   <p>
@@ -1186,7 +1187,7 @@ function PreviewMeta({ label, value }) {
       <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className="mt-1 font-medium">{value || "â€”"}</p>
+      <p className="mt-1 font-medium">{value || "—"}</p>
     </div>
   );
 }
@@ -1227,7 +1228,7 @@ function SalaryModal({
         <Button
           disabled={pending}
           onClick={onSave}
-          className="bg-blue-600 text-white hover:bg-blue-700"
+          className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
         >
           <FileBadge2 className="mr-2 h-4 w-4" />
 
@@ -1639,7 +1640,7 @@ function ExperienceModal({
         <Button
           disabled={pending}
           onClick={onSave}
-          className="bg-blue-600 text-white hover:bg-blue-700"
+          className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
         >
           <FileText className="mr-2 h-4 w-4" />
 
@@ -1787,7 +1788,7 @@ function Preview({ item, onClose, onDownload }) {
 
           <div className="mt-8 flex justify-between text-sm text-gray-600">
             <span>
-              Reference No.: <strong>{item.reference_number || "â€”"}</strong>
+              Reference No.: <strong>{item.reference_number || "—"}</strong>
             </span>
 
             <span>
@@ -1875,11 +1876,11 @@ function WarningPreviewBody({ letter }) {
         </p>
 
         <p>
-          <strong>Employee Code:</strong> {letter.employee_code || "â€”"}
+          <strong>Employee Code:</strong> {letter.employee_code || "—"}
         </p>
 
         <p>
-          <strong>Designation:</strong> {letter.designation_name || "â€”"}
+          <strong>Designation:</strong> {letter.designation_name || "—"}
         </p>
       </div>
 
@@ -1926,7 +1927,7 @@ function ExperiencePreviewBody({ letter }) {
 
         <strong>Department</strong>
 
-        <span>{letter.department_name || "â€”"}</span>
+        <span>{letter.department_name || "—"}</span>
       </div>
 
       {letter.experience_summary && (
@@ -1957,7 +1958,7 @@ function EmployeeSelect({ employees, value, onChange }) {
 
       {employees.map((employee) => (
         <option key={employee.id} value={employee.id}>
-          {employee.full_name} â€” {employee.employee_code}
+          {employee.full_name} — {employee.employee_code}
         </option>
       ))}
     </select>

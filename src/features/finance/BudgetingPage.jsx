@@ -334,6 +334,7 @@ export default function BudgetingPage() {
   return (
     <div className="finance-module-page finance-workspace mx-auto w-full max-w-[1500px] space-y-5 pb-10">
       <PageHeader
+        variant="hero"
         title="Budgeting"
         subtitle="Plan annual and departmental budgets, monitor actuals, manage revisions, and control overspending."
         actions={
@@ -475,9 +476,9 @@ export default function BudgetingPage() {
             rows={budgets.map((b) => [
               b.budget_name,
               <StatusBadge status={b.status} />,
-              b.budget_owner_name || "â€”",
+              b.budget_owner_name || "—",
               b.version_label || `Rev ${b.version || 1}`,
-              b.updated_at ? new Date(b.updated_at).toLocaleDateString() : "â€”",
+              b.updated_at ? new Date(b.updated_at).toLocaleDateString() : "—",
               <div className="flex gap-1">
                 <Button
                   size="icon"
@@ -516,7 +517,7 @@ export default function BudgetingPage() {
           ]}
           rows={lines.map((l) => [
             `${l.account_code || ""} ${l.account_name || ""}`.trim(),
-            l.department || "â€”",
+            l.department || "—",
             l.branch_name || "All",
             money(l.annual_budget),
             money(l.actual_ytd),
@@ -596,12 +597,12 @@ export default function BudgetingPage() {
             r.revision_date,
             r.budget_name,
             r.revision_type,
-            r.from_account_name || "â€”",
-            r.to_account_name || "â€”",
+            r.from_account_name || "—",
+            r.to_account_name || "—",
             money(r.amount),
             r.reason,
             <StatusBadge status={r.status} />,
-            r.approved_by_name || "â€”",
+            r.approved_by_name || "—",
           ])}
         />
       )}
@@ -619,7 +620,7 @@ export default function BudgetingPage() {
           rows={approvals.map((b) => [
             b.budget_name,
             b.budget_type_display || b.budget_type,
-            b.budget_owner_name || "â€”",
+            b.budget_owner_name || "—",
             money(b.total_budget),
             b.approval_priority,
             <StatusBadge status={b.status} />,
@@ -699,7 +700,7 @@ function BudgetForm({
     }));
   return (
     <div className="finance-module-page finance-workspace mx-auto w-full max-w-[1500px] space-y-5 pb-10">
-      <PageHeader
+      <PageHeader variant="hero"
         title={
           mode === "create" ? "New Budget" : active?.budget_number || "Budget"
         }
@@ -919,7 +920,7 @@ function BudgetForm({
                     <option value="">Account</option>
                     {accounts.map((a) => (
                       <option key={a.id} value={a.id}>
-                        {a.code} â€” {a.name}
+                        {a.code} — {a.name}
                       </option>
                     ))}
                   </select>
@@ -1059,7 +1060,7 @@ function BudgetForm({
             <Field label="Workflow">
               <Input
                 disabled
-                value="Department Heads â†’ Finance Manager â†’ Managing Director"
+                value="Department Heads → Finance Manager → Managing Director"
               />
             </Field>
             <Field label="Primary Approver">
@@ -1191,7 +1192,7 @@ function SimpleTable({ headers, rows }) {
             <tr key={i} className="border-b">
               {r.map((v, j) => (
                 <td key={j} className="px-4 py-3">
-                  {v ?? "â€”"}
+                  {v ?? "—"}
                 </td>
               ))}
             </tr>

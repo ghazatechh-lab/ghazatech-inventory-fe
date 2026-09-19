@@ -728,8 +728,8 @@ export default function ProductFormPage() {
     return <div className="p-6">Loading product details...</div>;
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] space-y-6 pb-10">
-      <section className="relative overflow-hidden rounded-3xl border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 text-white shadow-xl">
+    <div className="w-full space-y-6 pb-10">
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200/20 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] text-white shadow-xl">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.14),transparent_36%),radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.08),transparent_30%)]" />
         <div className="relative flex flex-col gap-5 px-6 py-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex items-start gap-4">
@@ -815,7 +815,7 @@ export default function ProductFormPage() {
                     ref={fileRef}
                     type="file"
                     accept="image/png,image/jpeg,image/webp"
-                    className="cursor-pointer border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80 file:mr-4 file:rounded-md file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-950 dark:text-white hover:file:bg-blue-700"
+                    className="cursor-pointer border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80 file:mr-4 file:rounded-md file:border-0 file:bg-amber-400 file:text-slate-950 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-950 dark:text-white hover:file:bg-blue-700"
                     onChange={(event) => {
                       const file = event.target.files?.[0] || null;
 
@@ -1463,7 +1463,7 @@ export default function ProductFormPage() {
                             .map((rack) => (
                               <option key={rack.id} value={String(rack.id)}>
                                 {rack.rack_code}
-                                {rack.rack_name ? ` â€” ${rack.rack_name}` : ""}
+                                {rack.rack_name ? ` — ${rack.rack_name}` : ""}
                               </option>
                             ))}
                         </select>
@@ -1598,7 +1598,7 @@ export default function ProductFormPage() {
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="min-w-44 rounded-xl bg-blue-600 font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700"
+            className="min-w-44 rounded-xl bg-amber-400 font-bold text-slate-950 shadow-lg hover:bg-amber-300"
           >
             {isSubmitting ? (
               <>
@@ -1636,7 +1636,7 @@ export default function ProductFormPage() {
                     {change.label}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-500">
-                    {change.before} â†’ {change.after}
+                    {change.before} → {change.after}
                   </p>
                 </div>
                 <span
@@ -1664,7 +1664,7 @@ export default function ProductFormPage() {
             <Button
               type="button"
               onClick={confirmProductStockUpdate}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-amber-400 text-slate-950 hover:bg-amber-300"
             >
               Confirm and update stock
             </Button>

@@ -332,15 +332,16 @@ export default function SalaryHistoryPage() {
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>
 
-      <div className="mt-1 font-medium">{value || "â€”"}</div>
+      <div className="mt-1 font-medium">{value || "—"}</div>
     </div>
   );
 
   const isLoading = employeesLoading || employeeLoading || historyLoading;
 
   return (
-    <div className="hrms-module-page hrms-workspace mx-auto max-w-7xl space-y-5">
+    <div className="hrms-module-page hrms-workspace w-full space-y-5">
       <PageHeader
+        variant="hero"
         title="Salary History"
         subtitle="Effective-dated salary ledger, from joining to today"
         actions={
@@ -359,7 +360,7 @@ export default function SalaryHistoryPage() {
               type="button"
               onClick={openRevision}
               disabled={!employeeId}
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               <Plus className="mr-2 h-4 w-4" />
               Add Revision
@@ -402,7 +403,7 @@ export default function SalaryHistoryPage() {
                   {filteredEmployees.length ? (
                     filteredEmployees.map((item) => (
                       <SelectItem key={item.id} value={String(item.id)}>
-                        {item.full_name} â€” {item.designation_name || "Employee"}
+                        {item.full_name} — {item.designation_name || "Employee"}
                       </SelectItem>
                     ))
                   ) : (
@@ -542,20 +543,20 @@ export default function SalaryHistoryPage() {
                         item.payment_reference) && (
                         <div className="mt-3 rounded-lg border bg-muted/30 p-3 text-xs">
                           <span className="font-medium">Payroll:</span>{" "}
-                          {item.payroll_status_display || "â€”"}
+                          {item.payroll_status_display || "—"}
                           {item.payment_date ? (
                             <>
                               {" "}
-                              Â· Paid <DateText value={item.payment_date} />
+                              · Paid <DateText value={item.payment_date} />
                             </>
                           ) : null}
                           {item.payment_reference ? (
-                            <> Â· Ref: {item.payment_reference}</>
+                            <> · Ref: {item.payment_reference}</>
                           ) : null}
                           {toNumber(item.deductions) > 0 ? (
                             <>
                               {" "}
-                              Â· Deductions{" "}
+                              · Deductions{" "}
                               <CurrencyText value={item.deductions} />
                             </>
                           ) : null}
@@ -609,7 +610,7 @@ export default function SalaryHistoryPage() {
                   <span>
                     {currentRevision?.effective_from ||
                       employee.joining_date ||
-                      "â€”"}
+                      "—"}
                   </span>
                 </div>
               </div>

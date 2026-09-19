@@ -1,4 +1,4 @@
-﻿export const normalizeList = (value) => {
+export const normalizeList = (value) => {
   if (Array.isArray(value)) return value;
   if (Array.isArray(value?.results)) return value.results;
   if (Array.isArray(value?.data)) return value.data;

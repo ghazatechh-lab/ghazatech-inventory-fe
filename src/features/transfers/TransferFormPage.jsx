@@ -47,7 +47,7 @@ function SearchableProductSelect({
   placeholder = "Search and select product",
   searchPlaceholder = "Search and select product",
   getValue = (product) => String(product.id),
-  getLabel = (product) => `${product.product_name} â€” ${product.sku}`,
+  getLabel = (product) => `${product.product_name} — ${product.sku}`,
   onChange,
 }) {
   const wrapperRef = React.useRef(null);
@@ -406,9 +406,9 @@ export default function TransferFormPage() {
   return (
     <div
       data-stock-module="stock-transfer-form"
-      className="stock-module-page stock-workspace mx-auto max-w-6xl space-y-5 pb-10"
+      className="stock-module-page stock-workspace w-full space-y-5 pb-10"
     >
-      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
+      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
         <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-400/20 blur-3xl" />
 
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -444,7 +444,7 @@ export default function TransferFormPage() {
             type="button"
             variant="outline"
             onClick={() => navigate("/transfers")}
-            className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+            className="border-amber-300 bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950 hover:text-slate-950"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Transfers
@@ -472,7 +472,7 @@ export default function TransferFormPage() {
               <div className="mt-2 flex h-10 items-center rounded-md border bg-muted/30 px-3 text-sm font-medium">
                 {sourceBranch
                   ? `${sourceBranch.branch_code || ""}${
-                      sourceBranch.branch_code ? " Â· " : ""
+                      sourceBranch.branch_code ? " · " : ""
                     }${sourceBranch.branch_name || sourceBranch.name || ""}`
                   : from
                     ? `Branch ${from}`
@@ -493,7 +493,7 @@ export default function TransferFormPage() {
                     .filter((branch) => String(branch.id) !== String(from))
                     .map((branch) => (
                       <SelectItem key={branch.id} value={String(branch.id)}>
-                        {branch.branch_code} Â·{" "}
+                        {branch.branch_code} ·{" "}
                         {branch.branch_name || branch.name}
                       </SelectItem>
                     ))}
@@ -573,7 +573,7 @@ export default function TransferFormPage() {
                         searchPlaceholder="Search product, SKU or variant"
                         getValue={(product) => product.stock_key}
                         getLabel={(product) =>
-                          `${product.sku || "No SKU"} Â· ${product.product_name} Â· ${product.variant_label}`
+                          `${product.sku || "No SKU"} · ${product.product_name} · ${product.variant_label}`
                         }
                         onChange={(value) => {
                           const selected = products.find(
@@ -686,7 +686,7 @@ export default function TransferFormPage() {
           <Button
             type="submit"
             disabled={mutation.isPending || !from}
-            className="min-w-40 bg-blue-600 text-white hover:bg-blue-700"
+            className="min-w-40 bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950 !bg-amber-400 !text-slate-950 hover:!bg-amber-300 hover:!text-slate-950"
           >
             {mutation.isPending ? "Submitting..." : "Create Transfer"}
           </Button>

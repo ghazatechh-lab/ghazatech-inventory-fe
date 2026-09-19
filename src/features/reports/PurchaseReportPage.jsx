@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Download } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -95,6 +95,7 @@ export default function PurchaseReportPage() {
   return (
     <div className="reports-module-page reports-workspace space-y-5">
       <PageHeader
+        variant="hero"
         title="Purchase Reports"
         subtitle="Purchase order value, supplier activity, and outstanding payables"
         actions={
@@ -194,7 +195,7 @@ export default function PurchaseReportPage() {
             {
               key: "date",
               header: "Date",
-              cell: (row) => (row.date ? <DateText value={row.date} /> : "â€”"),
+              cell: (row) => (row.date ? <DateText value={row.date} /> : "—"),
             },
             {
               key: "supplier",

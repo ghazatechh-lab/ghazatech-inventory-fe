@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Download, Printer } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -81,6 +81,7 @@ export default function FinancialReportsPage() {
   return (
     <div className="finance-module-page finance-workspace mx-auto w-full max-w-[1500px] space-y-5 pb-10">
       <PageHeader
+        variant="hero"
         title="Financial Reports"
         subtitle="Review trial balance, profit and loss, balance sheet, cash flow, and changes in equity."
         actions={
@@ -412,7 +413,7 @@ function Table({ headers, rows }) {
             <tr key={i} className="border-b">
               {r.map((v, j) => (
                 <td key={j} className="px-4 py-3">
-                  {v ?? "â€”"}
+                  {v ?? "—"}
                 </td>
               ))}
             </tr>

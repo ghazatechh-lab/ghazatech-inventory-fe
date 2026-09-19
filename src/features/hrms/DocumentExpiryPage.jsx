@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -323,6 +323,7 @@ export default function DocumentExpiryPage() {
   return (
     <div className="w-full space-y-5 pb-10">
       <PageHeader
+        variant="hero"
         title="Document Expiry"
         subtitle="Track employee documents with expiry dates, renewal alerts and attachments."
         actions={
@@ -338,7 +339,7 @@ export default function DocumentExpiryPage() {
                 setForm(emptyDocument());
                 setAddOpen(true);
               }}
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               <FilePlus2 className="mr-2 h-4 w-4" />
               Add Document
@@ -486,12 +487,12 @@ export default function DocumentExpiryPage() {
                       </div>
                       <div>
                         <p className="font-semibold">
-                          {row.employee_name || "â€”"}
+                          {row.employee_name || "—"}
                         </p>
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           {[row.department_name, row.branch_name]
                             .filter(Boolean)
-                            .join(" â€¢ ") ||
+                            .join(" • ") ||
                             row.employee_code ||
                             "Employee"}
                         </p>
@@ -509,11 +510,11 @@ export default function DocumentExpiryPage() {
                   </td>
 
                   <td className="px-4 py-3 font-mono text-xs">
-                    {row.document_number || "â€”"}
+                    {row.document_number || "—"}
                   </td>
 
                   <td className="px-4 py-3">
-                    {row.issue_date ? <DateText value={row.issue_date} /> : "â€”"}
+                    {row.issue_date ? <DateText value={row.issue_date} /> : "—"}
                   </td>
 
                   <td className="px-4 py-3 font-medium">
@@ -544,11 +545,11 @@ export default function DocumentExpiryPage() {
                         <ExternalLink className="h-3.5 w-3.5" />
                       </a>
                     ) : (
-                      <span className="text-muted-foreground">â€”</span>
+                      <span className="text-muted-foreground">—</span>
                     )}
                   </td>
 
-                  <td className="px-4 py-3">{row.uploaded_by_name || "â€”"}</td>
+                  <td className="px-4 py-3">{row.uploaded_by_name || "—"}</td>
                 </tr>
               ))}
 
@@ -605,11 +606,11 @@ export default function DocumentExpiryPage() {
                 <div className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-amber-500" />
                 <div>
                   <p className="text-sm font-semibold">
-                    {row.document_type_display || "Document"} â€”{" "}
+                    {row.document_type_display || "Document"} —{" "}
                     {row.employee_name}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    <DateText value={row.expiry_date} /> â€¢{" "}
+                    <DateText value={row.expiry_date} /> •{" "}
                     {row.days_left === 0
                       ? "Expires today"
                       : `${row.days_left} day${
@@ -696,7 +697,7 @@ function StatCard({ label, value, hint, tone = "default" }) {
 }
 
 function DaysLeft({ value }) {
-  if (value === null) return <span>â€”</span>;
+  if (value === null) return <span>—</span>;
 
   if (value < 0) {
     return (
@@ -841,7 +842,7 @@ function AddDocumentModal({
                       <SelectItem key={employee.id} value={String(employee.id)}>
                         <div className="flex flex-col py-0.5">
                           <span>
-                            {employee.employee_code} â€” {employee.full_name}
+                            {employee.employee_code} — {employee.full_name}
                           </span>
                           {(employee.designation_name ||
                             employee.department_name ||
@@ -853,7 +854,7 @@ function AddDocumentModal({
                                 employee.branch_name,
                               ]
                                 .filter(Boolean)
-                                .join(" â€¢ ")}
+                                .join(" • ")}
                             </span>
                           )}
                         </div>
@@ -989,7 +990,7 @@ function AddDocumentModal({
             type="button"
             onClick={onSave}
             disabled={pending}
-            className="bg-blue-600 text-white hover:bg-blue-700"
+            className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
           >
             {pending ? "Saving..." : "Save Document"}
           </Button>

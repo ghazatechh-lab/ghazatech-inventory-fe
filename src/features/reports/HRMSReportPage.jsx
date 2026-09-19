@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Download } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -65,6 +65,7 @@ export default function HRMSReportPage() {
   return (
     <div className="reports-module-page reports-workspace space-y-5">
       <PageHeader
+        variant="hero"
         title="HRMS Reports"
         subtitle="Employee, attendance, leave, and payroll reports"
       />

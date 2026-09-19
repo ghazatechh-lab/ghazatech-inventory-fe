@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Download, FileDown, Filter, Printer, Search } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -20,7 +20,7 @@ const firstDay = () => {
 };
 
 const formatDate = (value) => {
-  if (!value) return "â€”";
+  if (!value) return "—";
 
   const date = new Date(`${String(value).slice(0, 10)}T00:00:00`);
 
@@ -180,12 +180,12 @@ export default function GeneralLedgerPage() {
   };
 
   return (
-    <div className="finance-module-page finance-workspace mx-auto w-full max-w-[1500px] space-y-5 pb-10">
+    <div className="finance-module-page finance-workspace w-full space-y-5 pb-10">
       <section
-        className="relative overflow-hidden rounded-[22px] px-6 py-7 text-white shadow-[0_18px_45px_rgba(5,29,55,0.20)] md:px-8 md:py-8"
+        className="relative overflow-hidden rounded-[28px] px-6 py-7 text-white shadow-[0_18px_45px_rgba(5,29,55,0.20)] md:px-8 md:py-8"
         style={{
           background:
-            "linear-gradient(112deg, #071b33 0%, #0b4674 65%, #1889ad 100%)",
+            "linear-gradient(90deg, #082a4a 0%, #0d4678 50%, #2e7197 100%)",
         }}
       >
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_92%_72%,rgba(101,211,239,0.22),transparent_23%)]" />
@@ -195,8 +195,8 @@ export default function GeneralLedgerPage() {
             <p
               className="text-xs font-extrabold uppercase tracking-[0.18em]"
               style={{
-                color: "#67d8f3",
-                WebkitTextFillColor: "#67d8f3",
+                color: "#7dd3fc",
+                WebkitTextFillColor: "#7dd3fc",
               }}
             >
               Finance & Accounting
@@ -215,8 +215,8 @@ export default function GeneralLedgerPage() {
             <p
               className="mt-2 text-sm"
               style={{
-                color: "#d9eaf4",
-                WebkitTextFillColor: "#d9eaf4",
+                color: "#e2e8f0",
+                WebkitTextFillColor: "#e2e8f0",
               }}
             >
               Review account activity, debit and credit movements, and the
@@ -229,7 +229,7 @@ export default function GeneralLedgerPage() {
               type="button"
               variant="outline"
               onClick={() => window.print()}
-              className="border-white/30 bg-white/10 text-white shadow-none hover:bg-white/20 hover:text-white"
+              className="border-amber-300 bg-amber-400 !text-slate-950 shadow-none hover:bg-amber-300 hover:!text-slate-950"
             >
               <Printer className="mr-2 h-4 w-4" />
               Print
@@ -239,7 +239,7 @@ export default function GeneralLedgerPage() {
               type="button"
               variant="outline"
               onClick={() => downloadFile("xlsx")}
-              className="border-white/30 bg-white/10 text-white shadow-none hover:bg-white/20 hover:text-white"
+              className="border-amber-300 bg-amber-400 !text-slate-950 shadow-none hover:bg-amber-300 hover:!text-slate-950"
             >
               <Download className="mr-2 h-4 w-4" />
               Export Excel
@@ -249,7 +249,7 @@ export default function GeneralLedgerPage() {
               type="button"
               variant="outline"
               onClick={() => downloadFile("pdf")}
-              className="border-white/30 bg-white/10 text-white shadow-none hover:bg-white/20 hover:text-white"
+              className="border-amber-300 bg-amber-400 !text-slate-950 shadow-none hover:bg-amber-300 hover:!text-slate-950"
             >
               <FileDown className="mr-2 h-4 w-4" />
               Export PDF
@@ -274,7 +274,7 @@ export default function GeneralLedgerPage() {
 
               {accounts.map((account) => (
                 <option key={account.id} value={account.id}>
-                  {account.code} â€” {account.name}
+                  {account.code} — {account.name}
                 </option>
               ))}
             </select>
@@ -310,7 +310,7 @@ export default function GeneralLedgerPage() {
             <Button
               type="button"
               onClick={handleApplyFilter}
-              className="h-11 rounded-[10px] bg-[#0a689b] px-5 text-white hover:bg-[#085881]"
+              className="h-11 rounded-[10px] bg-amber-400 px-5 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               Apply Filter
             </Button>
@@ -356,7 +356,7 @@ export default function GeneralLedgerPage() {
 
             <p className="mt-1 text-xs text-muted-foreground">
               Account code:{" "}
-              {payload.account?.code || selectedAccount?.code || "â€”"}
+              {payload.account?.code || selectedAccount?.code || "—"}
             </p>
           </div>
 
@@ -398,7 +398,7 @@ export default function GeneralLedgerPage() {
                 </strong>
               </span>
 
-              {branchId && <span>â€¢ Active branch filter applied</span>}
+              {branchId && <span>• Active branch filter applied</span>}
             </div>
           </div>
         )}
@@ -443,24 +443,24 @@ export default function GeneralLedgerPage() {
                       </Link>
                     ) : (
                       <span className="font-extrabold text-[#0c67a0]">
-                        {entry.entry_number || "â€”"}
+                        {entry.entry_number || "—"}
                       </span>
                     )}
                   </td>
 
                   <td className="px-[15px] py-[14px]">
-                    {entry.remarks || entry.transaction_type || "â€”"}
+                    {entry.remarks || entry.transaction_type || "—"}
                   </td>
 
                   <td className="px-[15px] py-[14px] text-right font-semibold tabular-nums text-[#0767a1]">
                     {isZero(entry.debit_amount)
-                      ? "â€”"
+                      ? "—"
                       : money(entry.debit_amount)}
                   </td>
 
                   <td className="px-[15px] py-[14px] text-right font-semibold tabular-nums text-red-500">
                     {isZero(entry.credit_amount)
-                      ? "â€”"
+                      ? "—"
                       : money(entry.credit_amount)}
                   </td>
 
@@ -522,10 +522,10 @@ export default function GeneralLedgerPage() {
               onClick={() => setPage((current) => Math.max(1, current - 1))}
               className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white font-bold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-card"
             >
-              â€¹
+              ‹
             </button>
 
-            <span className="grid h-9 min-w-9 place-items-center rounded-lg bg-[#0a689b] px-3 font-bold text-white">
+            <span className="grid h-9 min-w-9 place-items-center rounded-lg bg-amber-400 px-3 font-bold text-slate-950">
               {page}
             </span>
 
@@ -537,7 +537,7 @@ export default function GeneralLedgerPage() {
               }
               className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white font-bold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-card"
             >
-              â€º
+              ›
             </button>
           </div>
         </div>
@@ -586,4 +586,3 @@ function LedgerTh({ children, right = false }) {
     </th>
   );
 }
-

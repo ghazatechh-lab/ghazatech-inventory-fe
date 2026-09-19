@@ -232,14 +232,14 @@ export default function TransferDetailPage() {
     transfer.from_branch_name ||
     transfer.from_branch?.branch_code ||
     transfer.from_branch?.branch_name ||
-    "â€”";
+    "—";
 
   const toBranch =
     transfer.to_branch_code ||
     transfer.to_branch_name ||
     transfer.to_branch?.branch_code ||
     transfer.to_branch?.branch_name ||
-    "â€”";
+    "—";
 
   const totalQuantity =
     transfer.total_quantity ??
@@ -252,9 +252,9 @@ export default function TransferDetailPage() {
   return (
     <div
       data-stock-module="stock-transfer-detail"
-      className="stock-module-page stock-workspace mx-auto max-w-7xl space-y-5 pb-10"
+      className="stock-module-page stock-workspace w-full space-y-5 pb-10"
     >
-      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
+      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
         <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-400/20 blur-3xl" />
 
         <div className="relative flex flex-col gap-6">
@@ -283,7 +283,7 @@ export default function TransferDetailPage() {
                 style={{ color: "#f1f5f9" }}
               >
                 <span>{fromBranch}</span>
-                <span>â†’</span>
+                <span>→</span>
                 <span>{toBranch}</span>
               </p>
             </div>
@@ -293,7 +293,7 @@ export default function TransferDetailPage() {
                 type="button"
                 variant="outline"
                 onClick={() => navigate("/transfers")}
-                className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                className="border-amber-300 bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
@@ -304,7 +304,7 @@ export default function TransferDetailPage() {
                 variant="outline"
                 disabled={isFetching}
                 onClick={() => refetch()}
-                className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                className="border-amber-300 bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
               >
                 <RefreshCcw
                   className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
@@ -321,7 +321,7 @@ export default function TransferDetailPage() {
               <Button
                 disabled={Boolean(actionName)}
                 onClick={() => runAction("approve", "Transfer approved.")}
-                className="bg-white text-blue-950 hover:bg-slate-100"
+                className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
               >
                 <CheckCircle2 className="mr-2 h-4 w-4" />
                 {actionName === "approve" ? "Approving..." : "Approve"}
@@ -332,7 +332,7 @@ export default function TransferDetailPage() {
               <Button
                 disabled={Boolean(actionName)}
                 onClick={() => runAction("dispatch", "Transfer dispatched.")}
-                className="bg-white text-blue-950 hover:bg-slate-100"
+                className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
               >
                 <Send className="mr-2 h-4 w-4" />
                 {actionName === "dispatch" ? "Dispatching..." : "Dispatch"}
@@ -341,7 +341,7 @@ export default function TransferDetailPage() {
 
             {["DISPATCHED", "IN_TRANSIT"].includes(status) ? (
               <Button
-                className="bg-emerald-600 text-white hover:bg-emerald-700"
+                className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
                 disabled={Boolean(actionName)}
                 onClick={() => runAction("receive", "Transfer received.")}
               >
@@ -355,7 +355,7 @@ export default function TransferDetailPage() {
                 variant="outline"
                 disabled={Boolean(actionName)}
                 onClick={() => runAction("cancel", "Transfer cancelled.")}
-                className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                className="border-amber-300 bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
               >
                 <X className="mr-2 h-4 w-4" />
                 {actionName === "cancel" ? "Cancelling..." : "Cancel"}
@@ -447,13 +447,13 @@ export default function TransferDetailPage() {
                   >
                     <td className="px-4 py-4">
                       <p className="font-medium">
-                        {item.product_name || item.product?.product_name || "â€”"}
+                        {item.product_name || item.product?.product_name || "—"}
                       </p>
 
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {item.sku || "â€”"}
+                        {item.sku || "—"}
 
-                        {item.variant_label ? ` Â· ${item.variant_label}` : ""}
+                        {item.variant_label ? ` · ${item.variant_label}` : ""}
                       </p>
                     </td>
 
@@ -519,18 +519,18 @@ export default function TransferDetailPage() {
             </DetailRow>
 
             <DetailRow label="Requested by">
-              {transfer.requested_by_name || "â€”"}
+              {transfer.requested_by_name || "—"}
             </DetailRow>
 
             <DetailRow label="Approved by">
-              {transfer.approved_by_name || "â€”"}
+              {transfer.approved_by_name || "—"}
             </DetailRow>
 
             <DetailRow label="Transfer date">
               {transfer.transfer_date ? (
                 <DateText value={transfer.transfer_date} />
               ) : (
-                "â€”"
+                "—"
               )}
             </DetailRow>
 
@@ -538,7 +538,7 @@ export default function TransferDetailPage() {
               {transfer.dispatch_date ? (
                 <DateText value={transfer.dispatch_date} />
               ) : (
-                "â€”"
+                "—"
               )}
             </DetailRow>
 
@@ -546,7 +546,7 @@ export default function TransferDetailPage() {
               {transfer.received_date ? (
                 <DateText value={transfer.received_date} />
               ) : (
-                "â€”"
+                "—"
               )}
             </DetailRow>
           </div>
@@ -586,4 +586,3 @@ export default function TransferDetailPage() {
     </div>
   );
 }
-

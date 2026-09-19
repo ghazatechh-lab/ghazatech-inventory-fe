@@ -262,7 +262,7 @@ export default function SupplierListPage() {
   return (
     <div className="supplier-module-page min-h-full text-slate-900 dark:text-white">
       <div className="supplier-topbar">
-        <div className="mx-auto flex max-w-[1600px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-slate-500 dark:text-slate-400">
             Purchases /{" "}
             <span className="font-semibold text-slate-950 dark:text-white">
@@ -280,7 +280,7 @@ export default function SupplierListPage() {
         </div>
       </div>
 
-      <main className="mx-auto max-w-[1600px] space-y-6 px-5 py-6 lg:px-7">
+      <main className="w-full space-y-6 px-5 py-6 lg:px-7">
         <section className="supplier-hero supplier-list-hero">
           <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="supplier-hero-content flex min-w-0 items-start gap-4">
@@ -430,7 +430,7 @@ export default function SupplierListPage() {
                           {textValue(
                             supplier.contact_person,
                             supplier.primary_contact_name,
-                            "â€”",
+                            "—",
                           )}
                         </td>
 
@@ -443,12 +443,12 @@ export default function SupplierListPage() {
                               {supplier.email}
                             </a>
                           ) : (
-                            "â€”"
+                            "—"
                           )}
                         </td>
 
                         <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
-                          {textValue(supplier.phone, supplier.mobile, "â€”")}
+                          {textValue(supplier.phone, supplier.mobile, "—")}
                         </td>
 
                         <td className="px-4 py-4">{paymentTerms}</td>
@@ -458,7 +458,7 @@ export default function SupplierListPage() {
                             supplier.trn,
                             supplier.tax_registration_number,
                             supplier.tax_id,
-                            "â€”",
+                            "—",
                           )}
                         </td>
 
@@ -545,4 +545,3 @@ export default function SupplierListPage() {
     </div>
   );
 }
-

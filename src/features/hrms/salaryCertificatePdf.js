@@ -9,7 +9,7 @@ const money = (value) =>
   }).format(n(value));
 
 const dateText = (value) => {
-  if (!value) return "â€”";
+  if (!value) return "—";
   const d = new Date(`${String(value).slice(0, 10)}T00:00:00`);
   return Number.isNaN(d.getTime())
     ? String(value)
@@ -36,7 +36,7 @@ export function generateSalaryCertificatePdf(certificate, options = {}) {
   doc.setTextColor(80, 80, 85);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text(`Reference No.: ${certificate.reference_number || "â€”"}`, margin, 56);
+  doc.text(`Reference No.: ${certificate.reference_number || "—"}`, margin, 56);
   doc.text(
     `Date: ${dateText(certificate.certificate_date)}`,
     width - margin,
@@ -62,9 +62,9 @@ export function generateSalaryCertificatePdf(certificate, options = {}) {
     margin: { left: margin, right: margin },
     theme: "grid",
     body: [
-      ["Employee Name", certificate.employee_name || "â€”"],
-      ["Passport / Emirates ID No.", certificate.identity_number || "â€”"],
-      ["Designation", certificate.designation_name || "â€”"],
+      ["Employee Name", certificate.employee_name || "—"],
+      ["Passport / Emirates ID No.", certificate.identity_number || "—"],
+      ["Designation", certificate.designation_name || "—"],
       ["Date of Joining", dateText(certificate.joining_date)],
     ],
     styles: { fontSize: 9.5, cellPadding: 3 },
@@ -125,8 +125,8 @@ export function generateSalaryCertificatePdf(certificate, options = {}) {
 
   const valueX = margin + 76;
   [
-    ["Authorized Signatory", certificate.authorized_signatory || "â€”"],
-    ["Designation", certificate.signatory_designation || "â€”"],
+    ["Authorized Signatory", certificate.authorized_signatory || "—"],
+    ["Designation", certificate.signatory_designation || "—"],
     ["Company Stamp", " "],
   ].forEach(([label, value], index) => {
     doc.setFont("helvetica", "bold");

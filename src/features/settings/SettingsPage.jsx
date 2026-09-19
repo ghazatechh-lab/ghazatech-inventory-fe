@@ -197,6 +197,7 @@ export default function SettingsPage() {
   return (
     <div className="settings-module-page settings-workspace space-y-6">
       <PageHeader
+        variant="hero"
         title="Settings"
         subtitle="Manage your account, security, preferences, users, roles, and permissions"
       />
@@ -424,7 +425,7 @@ export default function SettingsPage() {
               <Button
                 type="submit"
                 disabled={passwordLoading}
-                className="bg-blue-600 text-white hover:bg-blue-700"
+                className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
               >
                 <LockKeyhole className="mr-2 h-4 w-4" />
 
@@ -494,7 +495,7 @@ export default function SettingsPage() {
                 type="button"
                 disabled={preferencesSaving}
                 onClick={savePreferences}
-                className="bg-blue-600 text-white hover:bg-blue-700"
+                className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
               >
                 <Save className="mr-2 h-4 w-4" />
 

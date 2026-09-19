@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import {
   Banknote,
   Eye,
@@ -163,7 +163,7 @@ export default function CashRegistersPage() {
     register?.branch_name ||
     branches.find((b) => Number(b.id) === Number(register?.branch))
       ?.branch_name ||
-    (register?.branch ? `Branch ${register.branch}` : "â€”");
+    (register?.branch ? `Branch ${register.branch}` : "—");
 
   const handleDelete = (register) => {
     const confirmed = window.confirm(
@@ -175,6 +175,7 @@ export default function CashRegistersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        variant="hero"
         title="Cash Registers"
         subtitle="Create and manage branch cash registers used for cash receipts and payments."
         actions={
@@ -255,7 +256,7 @@ export default function CashRegistersPage() {
             <tbody className="divide-y">
               {registers.map((register) => (
                 <tr key={register.id} className="hover:bg-muted/20">
-                  <td className="px-5 py-4">{register.register_date || "â€”"}</td>
+                  <td className="px-5 py-4">{register.register_date || "—"}</td>
                   <td className="px-5 py-4">{branchName(register)}</td>
                   <td className="px-5 py-4 text-right font-medium">
                     {money(register.opening_balance)}
@@ -316,7 +317,7 @@ export default function CashRegistersPage() {
                     colSpan={8}
                     className="px-5 py-12 text-center text-muted-foreground"
                   >
-                    No cash registers found. Click â€œOpen Cash Registerâ€ to
+                    No cash registers found. Click “Open Cash Register” to
                     create one.
                   </td>
                 </tr>
@@ -382,7 +383,7 @@ export default function CashRegistersPage() {
               <Detail label="Branch" value={branchName(viewRegister)} />
               <Detail
                 label="Register Date"
-                value={viewRegister.register_date || "â€”"}
+                value={viewRegister.register_date || "—"}
               />
               <Detail
                 label="Opening Balance"

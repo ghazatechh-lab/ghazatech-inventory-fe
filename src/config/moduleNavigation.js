@@ -539,12 +539,6 @@ export const modules = [
         icon: CarFront,
       },
       {
-        id: "fleet-add-vehicle",
-        label: "Add Vehicle",
-        to: "/fleet/vehicles/new",
-        icon: PackagePlus,
-      },
-      {
         id: "fleet-movements",
         label: "Checkout & Return",
         to: "/fleet/checkout",
@@ -891,4 +885,3 @@ export const openModule = (module, navigate, user) => {
 };
 
 export default modules;
-

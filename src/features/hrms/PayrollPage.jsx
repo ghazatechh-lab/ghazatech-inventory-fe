@@ -1121,6 +1121,7 @@ export default function PayrollPage() {
   return (
     <div className="hrms-module-page hrms-workspace mx-auto w-full max-w-[1800px] space-y-5 pb-8">
       <PageHeader
+        variant="hero"
         title="Payroll"
         subtitle="Review salary history, manage advance salary and employee loans, and generate payroll"
         actions={
@@ -1142,7 +1143,7 @@ export default function PayrollPage() {
 
             <Button
               onClick={openPayrollModal}
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               <Plus className="mr-2 h-4 w-4" />
               Generate Payroll
@@ -1443,7 +1444,7 @@ export default function PayrollPage() {
                   <div>
                     <p className="text-xs text-muted-foreground">Period</p>
                     <p className="mt-1 font-medium">
-                      {payingPayroll.period || "â€”"}
+                      {payingPayroll.period || "—"}
                     </p>
                   </div>
 
@@ -1558,7 +1559,7 @@ export default function PayrollPage() {
                     editingPayroll.employee_name,
                   ]
                     .filter(Boolean)
-                    .join(" â€” ")}
+                    .join(" — ")}
                   disabled
                 />
               </div>
@@ -1728,7 +1729,7 @@ export default function PayrollPage() {
                 type="button"
                 onClick={submitPayrollEdit}
                 disabled={payrollEditMutation.isPending}
-                className="bg-blue-600 text-white hover:bg-blue-700"
+                className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
               >
                 <Pencil className="mr-2 h-4 w-4" />
                 {payrollEditMutation.isPending
@@ -1999,7 +2000,7 @@ export default function PayrollPage() {
                                   {employee.full_name}
                                 </p>
                                 <p className="truncate text-xs text-muted-foreground">
-                                  {employee.employee_code} Â·{" "}
+                                  {employee.employee_code} ·{" "}
                                   {employee.branch_name}
                                 </p>
                                 <p className="mt-1 text-xs text-muted-foreground">
@@ -2148,7 +2149,7 @@ export default function PayrollPage() {
                 <p className="text-sm text-muted-foreground">
                   {advanceDetail.employee_code}
                   {advanceDetail.branch_name
-                    ? ` Â· ${advanceDetail.branch_name}`
+                    ? ` · ${advanceDetail.branch_name}`
                     : ""}
                 </p>
               </div>
@@ -2264,7 +2265,7 @@ export default function PayrollPage() {
                   className="mt-2"
                   value={[loanDetail.employee_code, loanDetail.employee_name]
                     .filter(Boolean)
-                    .join(" â€” ")}
+                    .join(" — ")}
                   readOnly
                 />
               </div>
@@ -2446,7 +2447,7 @@ export default function PayrollPage() {
                             key={employee.id}
                             value={String(employee.id)}
                           >
-                            {employee.employee_code} â€” {employee.full_name}
+                            {employee.employee_code} — {employee.full_name}
                           </SelectItem>
                         ))
                       ) : (
@@ -2702,7 +2703,7 @@ export default function PayrollPage() {
                             key={employee.id}
                             value={String(employee.id)}
                           >
-                            {employee.employee_code} â€” {employee.full_name}
+                            {employee.employee_code} — {employee.full_name}
                           </SelectItem>
                         ))
                       ) : (

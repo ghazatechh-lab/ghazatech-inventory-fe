@@ -411,8 +411,9 @@ export default function UserRoleManagementPage() {
   };
 
   return (
-    <div className="settings-module-page settings-workspace space-y-5">
+    <div className="settings-module-page settings-workspace w-full space-y-5 pb-10">
       <PageHeader
+        variant="hero"
         title="Users & Access"
         subtitle="Roles identify the employee's job function. Permissions are assigned directly to each user."
       />
@@ -426,8 +427,11 @@ export default function UserRoleManagementPage() {
 
         <TabsContent value="users" className="mt-4 space-y-4">
           <div className="flex justify-end">
-            <Button onClick={() => openUser()}>
-              <Plus className="mr-2 h-4 w-4" />
+            <Button
+              onClick={() => openUser()}
+              className="bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
+            >
+              <Plus className="mr-2 h-4 w-4 text-slate-950" />
               Add User
             </Button>
           </div>
@@ -556,8 +560,11 @@ export default function UserRoleManagementPage() {
 
         <TabsContent value="roles" className="mt-4 space-y-4">
           <div className="flex justify-end">
-            <Button onClick={() => openRole()}>
-              <Plus className="mr-2 h-4 w-4" />
+            <Button
+              onClick={() => openRole()}
+              className="bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
+            >
+              <Plus className="mr-2 h-4 w-4 text-slate-950" />
               Add Role
             </Button>
           </div>
@@ -607,6 +614,7 @@ export default function UserRoleManagementPage() {
                         size="sm"
                         variant="outline"
                         onClick={() => remove("role", role.id)}
+                        className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-500/20 dark:hover:bg-red-500/10"
                       >
                         Delete
                       </Button>
@@ -864,9 +872,14 @@ export default function UserRoleManagementPage() {
                                 <Button
                                   type="button"
                                   size="sm"
-                                  variant="outline"
+                                  variant={allSelected ? "outline" : "default"}
                                   onClick={() =>
                                     toggleResource(group, resource)
+                                  }
+                                  className={
+                                    allSelected
+                                      ? ""
+                                      : "bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
                                   }
                                 >
                                   {allSelected ? "Clear" : "Select all"}
@@ -889,8 +902,8 @@ export default function UserRoleManagementPage() {
                                       key={code}
                                       className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-xs ${
                                         checked
-                                          ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300"
-                                          : "hover:border-blue-300"
+                                          ? "border-amber-400 bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300"
+                                          : "hover:border-amber-300"
                                       }`}
                                     >
                                       <input
@@ -929,7 +942,11 @@ export default function UserRoleManagementPage() {
                 Cancel
               </Button>
 
-              <Button type="submit" disabled={userMutation.isPending}>
+              <Button
+                type="submit"
+                disabled={userMutation.isPending}
+                className="min-w-36 bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
+              >
                 {userMutation.isPending
                   ? "Saving..."
                   : editingUser
@@ -1042,7 +1059,11 @@ export default function UserRoleManagementPage() {
                 Cancel
               </Button>
 
-              <Button type="submit" disabled={roleMutation.isPending}>
+              <Button
+                type="submit"
+                disabled={roleMutation.isPending}
+                className="min-w-32 bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
+              >
                 {roleMutation.isPending ? "Saving..." : "Save Role"}
               </Button>
             </div>

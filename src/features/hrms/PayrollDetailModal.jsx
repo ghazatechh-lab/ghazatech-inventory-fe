@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { createPortal } from "react-dom";
 import { FileText, Save, X } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -20,7 +20,7 @@ const STATUS_OPTIONS = [
 ];
 
 const formatDate = (value) => {
-  if (!value) return "â€”";
+  if (!value) return "—";
 
   const date = new Date(`${String(value).slice(0, 10)}T00:00:00`);
 
@@ -152,7 +152,7 @@ export default function PayrollDetailModal({ payroll, onClose, onUpdated }) {
             </div>
 
             <p className="mt-1 text-sm text-muted-foreground">
-              {payroll.employee_name || "Employee"} Â· {payroll.period || "â€”"}
+              {payroll.employee_name || "Employee"} · {payroll.period || "—"}
             </p>
           </div>
 
@@ -166,13 +166,13 @@ export default function PayrollDetailModal({ payroll, onClose, onUpdated }) {
             <Title>Employee & Payroll</Title>
 
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <Info label="Employee" value={payroll.employee_name || "â€”"} />
+              <Info label="Employee" value={payroll.employee_name || "—"} />
               <Info
                 label="Employee Code"
-                value={payroll.employee_code || "â€”"}
+                value={payroll.employee_code || "—"}
               />
-              <Info label="Branch" value={payroll.branch_name || "â€”"} />
-              <Info label="Period" value={payroll.period || "â€”"} />
+              <Info label="Branch" value={payroll.branch_name || "—"} />
+              <Info label="Period" value={payroll.period || "—"} />
 
               <Info
                 label="Payroll Date"
@@ -193,11 +193,11 @@ export default function PayrollDetailModal({ payroll, onClose, onUpdated }) {
                 value={
                   payroll.salary_calculation_method_display ||
                   payroll.salary_calculation_method ||
-                  "â€”"
+                  "—"
                 }
               />
 
-              <Info label="Paid By" value={payroll.paid_by || "â€”"} />
+              <Info label="Paid By" value={payroll.paid_by || "—"} />
             </div>
           </section>
 
@@ -236,10 +236,10 @@ export default function PayrollDetailModal({ payroll, onClose, onUpdated }) {
             <div className="grid gap-3 sm:grid-cols-3">
               <Info
                 label="Period Days"
-                value={payroll.total_period_days ?? "â€”"}
+                value={payroll.total_period_days ?? "—"}
               />
 
-              <Info label="Payable Days" value={payroll.payable_days ?? "â€”"} />
+              <Info label="Payable Days" value={payroll.payable_days ?? "—"} />
 
               <Info
                 label="Unpaid Leave Days"
@@ -315,7 +315,7 @@ export default function PayrollDetailModal({ payroll, onClose, onUpdated }) {
             <Button
               onClick={saveStatus}
               disabled={mutation.isPending || !statusChanged}
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               <Save className="mr-2 h-4 w-4" />
               {mutation.isPending ? "Updating..." : "Update Status"}

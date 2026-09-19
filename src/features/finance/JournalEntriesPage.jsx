@@ -94,7 +94,7 @@ const niceStatus = (status) =>
     .toLowerCase()
     .replace(/\b\w/g, (c) => c.toUpperCase());
 
-const detailValue = (value) => value || "â€”";
+const detailValue = (value) => value || "—";
 
 export default function JournalEntriesPage() {
   const queryClient = useQueryClient();
@@ -641,6 +641,7 @@ export default function JournalEntriesPage() {
   return (
     <div className="finance-module-page finance-workspace mx-auto w-full max-w-[1500px] space-y-5 pb-10">
       <PageHeader
+        variant="hero"
         title="Journal Entries"
         subtitle="Create, approve, post, and review balanced journal vouchers."
         actions={
@@ -657,7 +658,7 @@ export default function JournalEntriesPage() {
             <Button
               type="button"
               onClick={openCreate}
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               <Plus className="mr-2 h-4 w-4" />
               New Journal Entry
@@ -840,9 +841,9 @@ export default function JournalEntriesPage() {
                     <StatusBadge status={journal.status} />
                   </td>
                   <td className="px-4 py-3">
-                    {journal.approved_by_name || "â€”"}
+                    {journal.approved_by_name || "—"}
                   </td>
-                  <td className="px-4 py-3">{journal.posted_by_name || "â€”"}</td>
+                  <td className="px-4 py-3">{journal.posted_by_name || "—"}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
                       <IconAction
@@ -1039,7 +1040,7 @@ function JournalForm({
 
   return (
     <div className="finance-module-page finance-workspace mx-auto w-full max-w-[1500px] space-y-5 pb-10">
-      <PageHeader
+      <PageHeader variant="hero"
         title={title}
         subtitle="The voucher can be posted only when debit and credit totals are equal and approval is complete."
         actions={
@@ -1286,7 +1287,7 @@ function JournalForm({
                       <option value="">Select account</option>
                       {accounts.map((account) => (
                         <option key={account.id} value={account.id}>
-                          {account.code} â€” {account.name}
+                          {account.code} — {account.name}
                         </option>
                       ))}
                     </select>
@@ -1577,7 +1578,7 @@ function JournalForm({
                 }
               >
                 <option value="ACCOUNTANT_FINANCE_MANAGER">
-                  Standard â€” Accountant â†’ Finance Manager
+                  Standard — Accountant → Finance Manager
                 </option>
               </select>
             </Field>
@@ -1654,27 +1655,27 @@ function JournalForm({
                 activeJournal?.created_by_name ||
                 (mode === "create"
                   ? user?.full_name || user?.email || "Current user"
-                  : "â€”")
+                  : "—")
               }
               meta={activeJournal?.created_at || "Recorded when saved"}
             />
 
             <AuditCard
               label="Last Modified"
-              value={activeJournal?.updated_by_name || "â€”"}
-              meta={activeJournal?.updated_at || "â€”"}
+              value={activeJournal?.updated_by_name || "—"}
+              meta={activeJournal?.updated_at || "—"}
             />
 
             <AuditCard
               label="Approved By"
               value={activeJournal?.approved_by_name || "Pending"}
-              meta={activeJournal?.approved_at || "â€”"}
+              meta={activeJournal?.approved_at || "—"}
             />
 
             <AuditCard
               label="Posted By"
               value={activeJournal?.posted_by_name || "Pending"}
-              meta={activeJournal?.posted_at || "â€”"}
+              meta={activeJournal?.posted_at || "—"}
             />
           </div>
         </Section>
@@ -1706,7 +1707,7 @@ function JournalForm({
                   type="button"
                   disabled={saveMutation.isPending || !balanced}
                   onClick={() => saveMutation.mutate({ submitAfterSave: true })}
-                  className="bg-blue-600 text-white hover:bg-blue-700"
+                  className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
                 >
                   <Send className="mr-2 h-4 w-4" />
                   Submit for Approval
@@ -1788,7 +1789,7 @@ function WorkflowModal({
       description:
         "The journal will become read-only until it is approved or rejected.",
       button: "Submit for Approval",
-      className: "bg-blue-600 text-white hover:bg-blue-700",
+      className: "bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950",
     },
     approve: {
       title: "Approve Journal Entry?",
@@ -1815,7 +1816,7 @@ function WorkflowModal({
       description:
         "A new Draft voucher will be created with the same accounts and values.",
       button: "Duplicate",
-      className: "bg-blue-600 text-white hover:bg-blue-700",
+      className: "bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950",
     },
     reverse: {
       title: "Reverse Posted Journal?",

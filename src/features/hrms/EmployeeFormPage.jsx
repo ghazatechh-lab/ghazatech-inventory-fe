@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -456,8 +456,9 @@ export default function EmployeeFormPage() {
   );
 
   return (
-    <div className="hrms-module-page hrms-workspace mx-auto max-w-7xl space-y-5">
+    <div className="hrms-module-page hrms-workspace w-full space-y-5">
       <PageHeader
+        variant="hero"
         title={isEdit ? "Edit Employee" : "New Employee"}
         subtitle="Personal, employment, immigration, and labor contract information"
         actions={
@@ -650,7 +651,7 @@ export default function EmployeeFormPage() {
                   <Button
                     type="button"
                     size="sm"
-                    className="bg-blue-600 text-white hover:bg-blue-700"
+                    className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
                     disabled={inlineSaving}
                     onClick={createDepartment}
                   >
@@ -741,7 +742,7 @@ export default function EmployeeFormPage() {
                   <Button
                     type="button"
                     size="sm"
-                    className="bg-blue-600 text-white hover:bg-blue-700"
+                    className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
                     disabled={inlineSaving}
                     onClick={createDesignation}
                   >
@@ -836,8 +837,8 @@ export default function EmployeeFormPage() {
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {item.document_type_display || item.document_type}
-                      {item.document_number ? ` Â· ${item.document_number}` : ""}
-                      {item.expiry_date ? ` Â· Expires ${item.expiry_date}` : ""}
+                      {item.document_number ? ` · ${item.document_number}` : ""}
+                      {item.expiry_date ? ` · Expires ${item.expiry_date}` : ""}
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-2">

@@ -232,15 +232,21 @@ export default function BranchFormPage() {
   const saving = isSubmitting || branchLoading;
 
   return (
-    <div className="max-w-3xl">
+    <div className="branch-module-page branch-workspace mx-auto w-full max-w-5xl space-y-5 pb-10">
       <PageHeader
-        title={isEdit ? "Edit branch" : "New branch"}
-        subtitle="Manage branch details"
+        variant="hero"
+        eyebrow="Branch Management"
+        title={isEdit ? "Edit Branch" : "New Branch"}
+        subtitle={
+          isEdit
+            ? "Update branch identity, location, manager, contact details, and status."
+            : "Create a new branch for retail, warehouse, or office operations."
+        }
       />
 
       <form
         onSubmit={handleSubmit(submit)}
-        className="card-surface space-y-5 p-6"
+        className="card-surface w-full space-y-6 rounded-[22px] p-6 sm:p-7"
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
@@ -341,7 +347,7 @@ export default function BranchFormPage() {
                   <SelectItem key={manager.id} value={String(manager.id)}>
                     {manager.display_name}
 
-                    {manager.role_name ? ` â€” ${manager.role_name}` : ""}
+                    {manager.role_name ? ` — ${manager.role_name}` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -410,11 +416,11 @@ export default function BranchFormPage() {
           <Label>Active</Label>
         </div>
 
-        <div className="flex gap-2 pt-2">
+        <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-5 dark:border-white/10">
           <Button
             type="submit"
             disabled={saving}
-            className="bg-blue-600 hover:bg-blue-700"
+            className="min-w-40 bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             data-testid="branch-save-btn"
           >
             {saving ? "Saving..." : isEdit ? "Save changes" : "Create branch"}
@@ -422,7 +428,7 @@ export default function BranchFormPage() {
 
           <Button
             type="button"
-            variant="ghost"
+            variant="outline"
             disabled={saving}
             onClick={() => navigate("/branches")}
           >
@@ -433,4 +439,3 @@ export default function BranchFormPage() {
     </div>
   );
 }
-

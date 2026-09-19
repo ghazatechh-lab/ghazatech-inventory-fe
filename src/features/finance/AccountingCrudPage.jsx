@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -225,16 +225,17 @@ export default function AccountingCrudPage({
   return (
     <div className="finance-module-page finance-workspace space-y-5">
       <PageHeader
+        variant="hero"
         title={title}
         subtitle={`${subtitle}${
-          isAllBranches ? " Â· All branches" : " Â· Selected branch"
+          isAllBranches ? " · All branches" : " · Selected branch"
         }`}
         actions={
           !readOnly ? (
             <Button
               type="button"
               onClick={() => show()}
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               <Plus className="mr-2 h-4 w-4" />
               {addLabel}
@@ -286,7 +287,7 @@ export default function AccountingCrudPage({
                         ? money(row[column.key])
                         : column.render
                           ? column.render(row)
-                          : (row[column.key] ?? "â€”")}
+                          : (row[column.key] ?? "—")}
                     </td>
                   ))}
 
@@ -427,7 +428,7 @@ export default function AccountingCrudPage({
               <Button
                 type="submit"
                 disabled={save.isPending}
-                className="bg-blue-600 text-white hover:bg-blue-700 disabled:text-white/80"
+                className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950 disabled:text-white/80"
               >
                 <CheckCircle2 className="mr-2 h-4 w-4" />
 

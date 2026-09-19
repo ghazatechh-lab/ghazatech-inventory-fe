@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import { FileBadge2, Plus, Users } from "lucide-react";
 
@@ -79,7 +79,7 @@ export default function EmployeeListPage() {
         header: "Code",
         cell: (row) => (
           <span className="font-mono text-xs font-semibold text-slate-200">
-            {row.employee_code || "â€”"}
+            {row.employee_code || "—"}
           </span>
         ),
       },
@@ -118,7 +118,7 @@ export default function EmployeeListPage() {
       {
         key: "department_name",
         header: "Department",
-        cell: (row) => row.department_name || "â€”",
+        cell: (row) => row.department_name || "—",
       },
       {
         key: "branch_name",
@@ -137,12 +137,12 @@ export default function EmployeeListPage() {
       {
         key: "passport_number",
         header: "Passport",
-        cell: (row) => row.passport_number || "â€”",
+        cell: (row) => row.passport_number || "—",
       },
       {
         key: "emirates_id_number",
         header: "Emirates ID",
-        cell: (row) => row.emirates_id_number || "â€”",
+        cell: (row) => row.emirates_id_number || "—",
       },
       {
         key: "total_salary",
@@ -204,6 +204,7 @@ export default function EmployeeListPage() {
   return (
     <div className="space-y-5">
       <PageHeader
+        variant="hero"
         title="Employees"
         subtitle={
           isAllBranches
@@ -221,7 +222,7 @@ export default function EmployeeListPage() {
 
             <Button
               asChild
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               <Link to="/hrms/employees/new">
                 <Plus className="mr-2 h-4 w-4" />

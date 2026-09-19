@@ -524,7 +524,7 @@ export default function CreditNotesPage() {
             <Button
               type="button"
               onClick={openNew}
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               <Plus className="mr-2 h-4 w-4" />
               New Credit Note
@@ -923,7 +923,7 @@ export default function CreditNotesPage() {
                   type="button"
                   onClick={() => submit("ISSUED")}
                   disabled={saveMutation.isPending}
-                  className="bg-blue-600 text-white hover:bg-blue-700"
+                  className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
                 >
                   <Save className="mr-2 h-4 w-4" />
                   Issue Credit Note

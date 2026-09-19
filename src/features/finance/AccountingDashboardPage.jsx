@@ -21,6 +21,7 @@ export default function AccountingDashboardPage() {
   return (
     <div className="finance-module-page finance-workspace space-y-5">
       <PageHeader
+        variant="hero"
         title="Accounting Dashboard"
         subtitle="Finance and accounting overview"
       />

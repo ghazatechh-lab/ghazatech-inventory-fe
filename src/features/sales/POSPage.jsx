@@ -668,7 +668,7 @@ export default function POSPage() {
             <Button
               type="button"
               onClick={openNew}
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               <Plus className="mr-2 h-4 w-4" />
               New Sale
@@ -1452,7 +1452,7 @@ export default function POSPage() {
                     type="button"
                     onClick={submit}
                     disabled={saveMutation.isPending}
-                    className="min-w-36 bg-blue-600 text-white hover:bg-blue-700"
+                    className="min-w-36 bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
                   >
                     <Save className="mr-2 h-4 w-4" />
                     {saveMutation.isPending ? "Completing..." : "Complete Sale"}

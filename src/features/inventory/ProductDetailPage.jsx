@@ -20,7 +20,7 @@ import api, { unwrap } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 
 const money = (value) =>
-  value == null || value === "" ? "â€”" : `AED ${Number(value).toFixed(2)}`;
+  value == null || value === "" ? "—" : `AED ${Number(value).toFixed(2)}`;
 
 const DetailItem = ({ icon: Icon, label, value }) => (
   <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-white/[0.025]">
@@ -33,7 +33,7 @@ const DetailItem = ({ icon: Icon, label, value }) => (
           {label}
         </p>
         <p className="mt-1 break-words text-sm font-bold text-slate-950 dark:text-white">
-          {value || "â€”"}
+          {value || "—"}
         </p>
       </div>
     </div>
@@ -93,12 +93,12 @@ export default function ProductDetailPage() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] space-y-6 pb-10">
-      <section className="relative overflow-hidden rounded-3xl border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 text-white shadow-xl">
+    <div className="w-full space-y-6 pb-10">
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200/20 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] text-white shadow-xl">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.14),transparent_36%),radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.08),transparent_32%)]" />
         <div className="relative flex flex-col gap-6 px-6 py-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex min-w-0 items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-500/20">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-300/35 bg-amber-300/10 text-amber-300 shadow-inner backdrop-blur">
               <Package className="h-7 w-7" />
             </div>
             <div className="min-w-0">
@@ -131,7 +131,7 @@ export default function ProductDetailPage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" className="h-11 rounded-xl">
+            <Button asChild variant="outline" className="h-11 rounded-xl border-amber-300 bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950">
               <Link to="/inventory/products">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Products
@@ -139,7 +139,7 @@ export default function ProductDetailPage() {
             </Button>
             <Button
               asChild
-              className="h-11 rounded-xl bg-blue-600 px-5 font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700"
+              className="h-11 rounded-xl bg-amber-400 px-5 font-bold text-slate-950 shadow-lg hover:bg-amber-300"
             >
               <Link to={`/inventory/products/${id}/edit`}>
                 <Pencil className="mr-2 h-4 w-4" />
@@ -253,7 +253,7 @@ export default function ProductDetailPage() {
                   Compatible models
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">
-                  {product.compatible_models || "â€”"}
+                  {product.compatible_models || "—"}
                 </p>
               </div>
               <div>
@@ -261,7 +261,7 @@ export default function ProductDetailPage() {
                   Description
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">
-                  {product.description || "â€”"}
+                  {product.description || "—"}
                 </p>
               </div>
             </div>
@@ -299,7 +299,7 @@ export default function ProductDetailPage() {
                 <span className="font-bold text-slate-950 dark:text-white">
                   {product.warranty_period_days
                     ? `${product.warranty_period_days} days`
-                    : "â€”"}
+                    : "—"}
                 </span>
               </div>
             </div>

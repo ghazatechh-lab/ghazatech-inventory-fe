@@ -444,9 +444,9 @@ export default function StockPage() {
   return (
     <div
       data-stock-module="stock-overview"
-      className="stock-module-page stock-workspace mx-auto max-w-7xl space-y-5 pb-10"
+      className="stock-module-page stock-workspace w-full space-y-5 pb-10"
     >
-      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
+      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
         <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-400/20 blur-3xl" />
         <div className="pointer-events-none absolute bottom-0 left-1/3 h-24 w-56 rounded-full bg-amber-300/10 blur-2xl" />
 
@@ -500,7 +500,7 @@ export default function StockPage() {
             variant="outline"
             disabled={isFetching}
             onClick={() => refetch()}
-            className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+            className="border-amber-300 bg-amber-400 text-slate-950 hover:bg-amber-300 hover:text-slate-950"
           >
             <RefreshCcw
               className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
@@ -680,7 +680,7 @@ export default function StockPage() {
             <h2 className="font-semibold">Branch inventory</h2>
 
             <p className="mt-1 text-xs text-muted-foreground">
-              {selectedBranchLabel} Â· {filteredRows.length} product records
+              {selectedBranchLabel} · {filteredRows.length} product records
             </p>
           </div>
 
@@ -787,17 +787,17 @@ export default function StockPage() {
                         <p className="font-semibold">{row.product_name}</p>
 
                         <p className="mt-1 text-xs text-muted-foreground">
-                          {row.sku || row.product_sku || "â€”"}
+                          {row.sku || row.product_sku || "—"}
 
                           {row.variant_label &&
                           row.variant_label !== "Base product"
-                            ? ` Â· ${row.variant_label}`
+                            ? ` · ${row.variant_label}`
                             : ""}
                         </p>
                       </td>
 
                       <td className="px-5 py-4 text-sm">
-                        {row.category_name || "â€”"}
+                        {row.category_name || "—"}
                       </td>
 
                       <td className="px-5 py-4 text-right font-medium">
@@ -810,7 +810,7 @@ export default function StockPage() {
                         </div>
 
                         <div className="text-xs text-muted-foreground">
-                          {row.vat_treatment || "OUT_OF_SCOPE"} Â·{" "}
+                          {row.vat_treatment || "OUT_OF_SCOPE"} ·{" "}
                           {numberValue(row.vat_percentage)}%
                         </div>
                       </td>

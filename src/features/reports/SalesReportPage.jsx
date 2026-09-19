@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Download, FileSpreadsheet, Plus, Save, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -361,7 +361,7 @@ export default function SalesReportsPage() {
         sortKey: "generated_at",
         sortType: "date",
         cell: (row) =>
-          row.generated_at ? <DateText value={row.generated_at} /> : "â€”",
+          row.generated_at ? <DateText value={row.generated_at} /> : "—",
       },
 
       {
@@ -377,7 +377,7 @@ export default function SalesReportsPage() {
         sortKey: "owner_team",
         sortType: "text",
         cell: (row) => (
-          <span className="font-medium">{row.owner_team || "â€”"}</span>
+          <span className="font-medium">{row.owner_team || "—"}</span>
         ),
       },
 
@@ -393,8 +393,9 @@ export default function SalesReportsPage() {
   );
 
   return (
-    <div className="reports-module-page reports-workspace mx-auto max-w-7xl space-y-5">
+    <div className="reports-module-page reports-workspace w-full space-y-5">
       <PageHeader
+        variant="hero"
         title="Sales Reports"
         subtitle="Performance summaries across the sales cycle"
         actions={
@@ -407,7 +408,7 @@ export default function SalesReportsPage() {
             <Button
               type="button"
               onClick={openNew}
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               <Plus className="mr-2 h-4 w-4" />
               New Report
@@ -439,7 +440,7 @@ export default function SalesReportsPage() {
 
         <MetricCard
           label="Top Customer"
-          value={summary.top_customer || "â€”"}
+          value={summary.top_customer || "—"}
           subtitle={
             summary.top_customer_value ? (
               <CurrencyText value={summary.top_customer_value} />
@@ -452,7 +453,7 @@ export default function SalesReportsPage() {
         <MetricCard
           label="Conversion Rate"
           value={`${summary.conversion_rate || 0}%`}
-          subtitle="Quotation â†’ order"
+          subtitle="Quotation → order"
         />
       </div>
 
@@ -800,7 +801,7 @@ export default function SalesReportsPage() {
                 type="button"
                 onClick={submit}
                 disabled={generateMutation.isPending}
-                className="bg-blue-600 text-white hover:bg-blue-700"
+                className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
               >
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
                 Generate Report

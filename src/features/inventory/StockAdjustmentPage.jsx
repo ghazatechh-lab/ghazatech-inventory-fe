@@ -58,10 +58,10 @@ const emptyAdjustment = (branchId = "") => ({
 });
 
 const formatTime = (value) => {
-  if (!value) return "â€”";
+  if (!value) return "—";
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "â€”";
+  if (Number.isNaN(date.getTime())) return "—";
 
   return date.toLocaleTimeString([], {
     hour: "2-digit",
@@ -70,10 +70,10 @@ const formatTime = (value) => {
 };
 
 const formatDate = (value) => {
-  if (!value) return "â€”";
+  if (!value) return "—";
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "â€”";
+  if (Number.isNaN(date.getTime())) return "—";
 
   return date.toLocaleDateString();
 };
@@ -110,7 +110,7 @@ function SearchableProductSelect({
   placeholder = "Select product",
   searchPlaceholder = "Search product or SKU",
   getValue = (product) => String(product.id),
-  getLabel = (product) => `${product.product_name} â€” ${product.sku}`,
+  getLabel = (product) => `${product.product_name} — ${product.sku}`,
   onChange,
 }) {
   const wrapperRef = React.useRef(null);
@@ -248,7 +248,7 @@ function ProductSearchInput({
   React.useEffect(() => {
     setProductSearch(
       selectedProduct
-        ? `${selectedProduct.product_name} â€” ${selectedProduct.sku || "No SKU"}`
+        ? `${selectedProduct.product_name} — ${selectedProduct.sku || "No SKU"}`
         : "",
     );
   }, [selectedProduct]);
@@ -297,7 +297,7 @@ function ProductSearchInput({
           if (
             selectedProduct &&
             nextValue !==
-              `${selectedProduct.product_name} â€” ${selectedProduct.sku || "No SKU"}`
+              `${selectedProduct.product_name} — ${selectedProduct.sku || "No SKU"}`
           ) {
             onChange("");
           }
@@ -318,7 +318,7 @@ function ProductSearchInput({
                 onClick={() => {
                   onChange(String(product.id));
                   setProductSearch(
-                    `${product.product_name} â€” ${product.sku || "No SKU"}`,
+                    `${product.product_name} — ${product.sku || "No SKU"}`,
                   );
                   setProductSearchOpen(false);
                 }}
@@ -327,8 +327,8 @@ function ProductSearchInput({
                 <span className="font-medium">{product.product_name}</span>
                 <span className="text-xs text-muted-foreground">
                   {product.sku || "No SKU"}
-                  {product.brand_name ? ` Â· ${product.brand_name}` : ""}
-                  {product.category_name ? ` Â· ${product.category_name}` : ""}
+                  {product.brand_name ? ` · ${product.brand_name}` : ""}
+                  {product.category_name ? ` · ${product.category_name}` : ""}
                 </span>
               </button>
             ))
@@ -941,7 +941,7 @@ export default function StockAdjustmentPage() {
       cell: (item) => (
         <div>
           <div className="font-medium text-foreground">
-            {item.product_name || "â€”"}
+            {item.product_name || "—"}
           </div>
           <div className="text-xs text-muted-foreground">
             {item.variant_label && item.variant_label !== "Base product"
@@ -955,7 +955,7 @@ export default function StockAdjustmentPage() {
       key: "branch_code",
       header: "Branch",
       sortKey: "branch__branch_code",
-      cell: (item) => item.branch_code || item.branch_name || "â€”",
+      cell: (item) => item.branch_code || item.branch_name || "—",
     },
     {
       key: "adjustment_type",
@@ -990,7 +990,7 @@ export default function StockAdjustmentPage() {
     {
       key: "reason",
       header: "Reason",
-      cell: (item) => item.reason || "â€”",
+      cell: (item) => item.reason || "—",
     },
     {
       key: "status",
@@ -1022,9 +1022,9 @@ export default function StockAdjustmentPage() {
   return (
     <div
       data-stock-module="stock-adjustments"
-      className="stock-module-page stock-workspace mx-auto max-w-7xl space-y-5 pb-10"
+      className="stock-module-page stock-workspace w-full space-y-5 pb-10"
     >
-      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
+      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
         <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-400/20 blur-3xl" />
         <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -1057,7 +1057,7 @@ export default function StockAdjustmentPage() {
             variant="outline"
             disabled={adjustmentQuery.isFetching}
             onClick={() => adjustmentQuery.refetch()}
-            className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+            className="border-amber-300 bg-amber-400 text-slate-950 hover:bg-amber-300 hover:text-slate-950"
           >
             <RefreshCcw
               className={`mr-2 h-4 w-4 ${adjustmentQuery.isFetching ? "animate-spin" : ""}`}
@@ -1260,7 +1260,7 @@ export default function StockAdjustmentPage() {
             <Button
               type="submit"
               disabled={isSubmitting || createMutation.isPending}
-              className="w-full bg-blue-600 hover:bg-blue-700"
+              className="w-full bg-amber-400 text-slate-950 hover:bg-amber-300"
             >
               {createMutation.isPending ? "Applying..." : "Review Adjustment"}
             </Button>

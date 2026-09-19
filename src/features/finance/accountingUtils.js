@@ -1,4 +1,4 @@
-﻿export const extractRows = (response) => {
+export const extractRows = (response) => {
   const value = response?.data ?? response;
 
   if (Array.isArray(value)) {
@@ -154,7 +154,7 @@ export const calculateLineAmount = ({ quantity, unitPrice, vatRate = 0 }) => {
 
 export const formatDate = (value, options = {}) => {
   if (!value) {
-    return "â€”";
+    return "—";
   }
 
   const date = new Date(value);
@@ -185,7 +185,7 @@ export const normalizeBoolean = (value) => {
 
 export const getStatusLabel = (value) => {
   if (!value) {
-    return "â€”";
+    return "—";
   }
 
   return String(value)

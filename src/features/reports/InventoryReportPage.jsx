@@ -87,6 +87,7 @@ export default function InventoryReportPage() {
   return (
     <div className="reports-module-page reports-workspace space-y-5">
       <PageHeader
+        variant="hero"
         title="Inventory Reports"
         subtitle="Stock quantity, valuation, damaged stock, and reorder visibility"
         actions={
@@ -157,7 +158,7 @@ export default function InventoryReportPage() {
                 <div>
                   <p className="font-medium">{row.product}</p>
                   <p className="text-xs text-muted-foreground">
-                    {[row.variant, row.sku].filter(Boolean).join(" Â· ") || "â€”"}
+                    {[row.variant, row.sku].filter(Boolean).join(" · ") || "—"}
                   </p>
                 </div>
               ),

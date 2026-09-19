@@ -83,6 +83,7 @@ export default function ReportsDashboardPage() {
   return (
     <div className="reports-module-page reports-workspace space-y-5">
       <PageHeader
+        variant="hero"
         title="Reports Overview"
         subtitle="Current business performance for the active branch filter"
         actions={

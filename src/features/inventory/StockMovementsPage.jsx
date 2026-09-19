@@ -177,7 +177,7 @@ export default function StockMovementsPage() {
       data-stock-module="stock-movements"
       className="stock-module-page space-y-6"
     >
-      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
+      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
         <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-400/20 blur-3xl" />
         <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -210,7 +210,7 @@ export default function StockMovementsPage() {
             variant="outline"
             disabled={isFetching}
             onClick={() => refetch()}
-            className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+            className="border-amber-300 bg-amber-400 text-slate-950 hover:bg-amber-300 hover:text-slate-950"
           >
             <RefreshCcw
               className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
@@ -222,7 +222,7 @@ export default function StockMovementsPage() {
 
       <section className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200">
         <Warehouse className="mr-2 inline h-4 w-4" />
-        Purchase +50 â†’ Sale -5 â†’ Transfer -10 â†’ Adjustment +2
+        Purchase +50 → Sale -5 → Transfer -10 → Adjustment +2
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -407,7 +407,7 @@ export default function StockMovementsPage() {
                                 year: "numeric",
                               },
                             )
-                          : "â€”"}
+                          : "—"}
                       </td>
 
                       <td className="px-4 py-4">
@@ -422,21 +422,21 @@ export default function StockMovementsPage() {
 
                       <td className="px-4 py-4">
                         <p className="font-medium">
-                          {movement.product_name || "â€”"}
+                          {movement.product_name || "—"}
                         </p>
 
                         <p className="mt-1 text-xs text-muted-foreground">
-                          {movement.sku || movement.product_sku || "â€”"}
+                          {movement.sku || movement.product_sku || "—"}
 
                           {movement.variant_label &&
                           movement.variant_label !== "Base product"
-                            ? ` Â· ${movement.variant_label}`
+                            ? ` · ${movement.variant_label}`
                             : ""}
                         </p>
                       </td>
 
                       <td className="whitespace-nowrap px-4 py-4">
-                        {movement.branch_code || movement.branch_name || "â€”"}
+                        {movement.branch_code || movement.branch_name || "—"}
                       </td>
 
                       <td className="px-4 py-4">
@@ -459,11 +459,11 @@ export default function StockMovementsPage() {
                       </td>
 
                       <td className="px-4 py-4 text-right font-mono text-muted-foreground">
-                        {movement.previous_stock ?? "â€”"}
+                        {movement.previous_stock ?? "—"}
                       </td>
 
                       <td className="px-4 py-4 text-right font-mono font-bold">
-                        {movement.new_stock ?? "â€”"}
+                        {movement.new_stock ?? "—"}
                       </td>
 
                       <td className="px-4 py-4 text-right font-mono">
@@ -477,7 +477,7 @@ export default function StockMovementsPage() {
                           ).replaceAll("_", " ")}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {Number(movement.vat_percentage || 0).toFixed(2)}% Â·
+                          {Number(movement.vat_percentage || 0).toFixed(2)}% ·
                           Recoverable AED{" "}
                           {Number(movement.recoverable_vat_amount || 0).toFixed(
                             2,
@@ -498,7 +498,7 @@ export default function StockMovementsPage() {
                           movement.reference_id || movement.movement_number,
                         ]
                           .filter(Boolean)
-                          .join(" / ") || "â€”"}
+                          .join(" / ") || "—"}
                       </td>
 
                       <td className="whitespace-nowrap px-4 py-4 text-sm text-muted-foreground">

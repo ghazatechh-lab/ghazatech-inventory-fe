@@ -152,7 +152,7 @@ const money = (value) =>
     minimumFractionDigits: 2,
   }).format(Number(value || 0));
 
-const accountTypeTitle = (group) => `${group.prefix} â€” ${group.label}`;
+const accountTypeTitle = (group) => `${group.prefix} — ${group.label}`;
 
 export default function ChartOfAccountsPage() {
   const queryClient = useQueryClient();
@@ -477,7 +477,7 @@ export default function ChartOfAccountsPage() {
 
   const confirmDelete = (account) => {
     const confirmed = window.confirm(
-      `Delete account ${account.code} â€” ${account.name}?\n\nThis action cannot be undone.`,
+      `Delete account ${account.code} — ${account.name}?\n\nThis action cannot be undone.`,
     );
 
     if (confirmed) {
@@ -587,8 +587,9 @@ export default function ChartOfAccountsPage() {
   return (
     <div className="finance-module-page finance-workspace space-y-5">
       <PageHeader
+        variant="hero"
         title="Chart of Accounts"
-        subtitle={`Master ledger accounts grouped by type${isAllBranches ? " Â· All branches" : " Â· Selected branch"}`}
+        subtitle={`Master ledger accounts grouped by type${isAllBranches ? " · All branches" : " · Selected branch"}`}
         actions={
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={exportCsv}>
@@ -608,7 +609,7 @@ export default function ChartOfAccountsPage() {
             <Button
               type="button"
               onClick={() => showForm()}
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               <Plus className="mr-2 h-4 w-4" />
               New Account
@@ -650,7 +651,7 @@ export default function ChartOfAccountsPage() {
           </span>
 
           <span className="text-xs text-muted-foreground">
-            Open browser DevTools â†’ Console and search for
+            Open browser DevTools → Console and search for
             <code className="mx-1 rounded bg-background px-1.5 py-0.5">
               [ChartOfAccounts]
             </code>
@@ -719,7 +720,7 @@ export default function ChartOfAccountsPage() {
                             <p className="font-medium">{account.name}</p>
                             {account.parent_name && (
                               <p className="text-xs text-muted-foreground">
-                                Under {account.parent_code} â€”{" "}
+                                Under {account.parent_code} —{" "}
                                 {account.parent_name}
                               </p>
                             )}
@@ -820,7 +821,7 @@ export default function ChartOfAccountsPage() {
               <div className="flex shrink-0 items-start justify-between gap-4 border-b bg-background px-5 py-4 sm:px-6 sm:py-5">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                    Finance & Accounting Â· Chart of Accounts
+                    Finance & Accounting · Chart of Accounts
                   </p>
                   <h2 className="mt-1.5 text-xl font-semibold sm:text-2xl">
                     {editing ? "Edit Account" : "New Account"}
@@ -867,7 +868,7 @@ export default function ChartOfAccountsPage() {
                     </Field>
                     <Field label="Account name *">
                       <Input
-                        placeholder="e.g. Bank â€” Branch 2"
+                        placeholder="e.g. Bank — Branch 2"
                         value={form.name}
                         onChange={(event) =>
                           setForm({ ...form, name: event.target.value })
@@ -906,10 +907,10 @@ export default function ChartOfAccountsPage() {
                           setForm({ ...form, parent: event.target.value })
                         }
                         options={[
-                          ["", "â€” None (top-level account) â€”"],
+                          ["", "— None (top-level account) —"],
                           ...parentOptions.map((account) => [
                             String(account.id),
-                            `${account.code} â€” ${account.name}`,
+                            `${account.code} — ${account.name}`,
                           ]),
                         ]}
                       />
@@ -926,11 +927,11 @@ export default function ChartOfAccountsPage() {
                             (item) => item.value === form.account_type,
                           )?.label
                         }{" "}
-                        â†’{" "}
+                        →{" "}
                         {parentOptions.find(
                           (item) => String(item.id) === String(form.parent),
                         )?.name || "top level"}{" "}
-                        â†’ {form.name || "(new account)"}
+                        → {form.name || "(new account)"}
                       </div>
                     </Field>
                   </FormSection>
@@ -977,7 +978,7 @@ export default function ChartOfAccountsPage() {
                         }
                         options={[
                           ["NOT_APPLICABLE", "Not Applicable"],
-                          ["VAT_STANDARD", "VAT Applicable â€” Standard 5%"],
+                          ["VAT_STANDARD", "VAT Applicable — Standard 5%"],
                           ["VAT_ZERO", "VAT Zero-rated"],
                           ["VAT_EXEMPT", "VAT Exempt"],
                           ["VAT_INPUT", "VAT Input / Recoverable"],
@@ -1052,7 +1053,7 @@ export default function ChartOfAccountsPage() {
                   <Button
                     type="submit"
                     disabled={save.isPending}
-                    className="bg-blue-600 text-white hover:bg-blue-700 disabled:text-white/80"
+                    className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950 disabled:text-white/80"
                   >
                     {save.isPending
                       ? "Saving..."

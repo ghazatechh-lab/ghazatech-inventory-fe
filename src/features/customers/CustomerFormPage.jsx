@@ -198,21 +198,21 @@ export default function CustomerFormPage() {
 
   return (
     <div className="customer-module-page customer-workspace w-full space-y-5 pb-10">
-      <section className="overflow-hidden rounded-[28px] border border-slate-200/70 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 text-white shadow-sm dark:border-white/10">
+      <section className="overflow-hidden rounded-[28px] border border-slate-200/70 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] text-white shadow-sm dark:border-white/10">
         <div className="flex flex-col gap-6 px-6 py-7 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex min-w-0 items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 shadow-inner backdrop-blur">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-300/35 bg-amber-300/10 text-amber-300 shadow-inner backdrop-blur">
               <UserRoundPlus className="h-7 w-7" />
             </div>
 
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-200">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">
                 Customer Master
               </p>
               <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
                 {isEdit ? "Edit Customer" : "New Customer"}
               </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-200">
                 {isEdit
                   ? "Update identity, contact information, commercial terms, and customer status."
                   : "Create a complete customer record for sales, invoicing, and account management."}
@@ -225,7 +225,7 @@ export default function CustomerFormPage() {
               type="button"
               variant="outline"
               onClick={() => navigate(backTarget)}
-              className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+              className="border-amber-300 bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               {isEdit ? "Back to Customer" : "Back to Customers"}
@@ -468,7 +468,7 @@ export default function CustomerFormPage() {
           <Button
             type="submit"
             disabled={saveMutation.isPending}
-            className="min-w-40 bg-blue-600 text-white hover:bg-blue-700"
+            className="min-w-40 bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
           >
             <Save className="mr-2 h-4 w-4" />
             {saveMutation.isPending

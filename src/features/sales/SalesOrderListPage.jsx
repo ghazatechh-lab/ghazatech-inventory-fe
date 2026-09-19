@@ -132,7 +132,7 @@ export default function SalesOrderListPage() {
 
             <Button
               asChild
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               <Link to="/sales/orders/new">
                 <Plus className="mr-2 h-4 w-4" />

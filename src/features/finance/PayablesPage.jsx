@@ -445,6 +445,7 @@ export default function PayablesPage() {
   return (
     <div className="finance-module-page finance-workspace mx-auto w-full max-w-[1500px] space-y-5 pb-10">
       <PageHeader
+        variant="hero"
         title="Accounts Payable"
         subtitle="Manage supplier bills, approvals, payments, aging, tax, and PO / GRN matching."
         actions={
@@ -601,9 +602,9 @@ export default function PayablesPage() {
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             {[
               ["Current", "current"],
-              ["1â€“30", "days_1_30"],
-              ["31â€“60", "days_31_60"],
-              ["61â€“90", "days_61_90"],
+              ["1–30", "days_1_30"],
+              ["31–60", "days_31_60"],
+              ["61–90", "days_61_90"],
               ["90+", "days_90_plus"],
             ].map(([l, k]) => (
               <Kpi key={k} l={l} v={money(agingBuckets[k] || 0)} />
@@ -613,9 +614,9 @@ export default function PayablesPage() {
             headers={[
               "Supplier",
               "Current",
-              "1â€“30",
-              "31â€“60",
-              "61â€“90",
+              "1–30",
+              "31–60",
+              "61–90",
               "90+",
               "Total",
             ]}
@@ -698,7 +699,7 @@ function BillForm({
     }));
   return (
     <div className="finance-module-page finance-workspace mx-auto w-full max-w-[1420px] space-y-5 pb-10">
-      <PageHeader
+      <PageHeader variant="hero"
         title={
           mode === "create"
             ? "Record Supplier Bill"
@@ -874,7 +875,7 @@ function BillForm({
             <Field label="Supplier TRN">
               <Input
                 disabled
-                value={supplier?.trn_number || supplier?.trn || "â€”"}
+                value={supplier?.trn_number || supplier?.trn || "—"}
               />
             </Field>
           </div>
@@ -885,8 +886,8 @@ function BillForm({
               {supplier?.name || active?.supplier_name || "Select supplier"}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              TRN: {supplier?.trn_number || supplier?.trn || "â€”"} Â· Contact:{" "}
-              {supplier?.email || "â€”"}
+              TRN: {supplier?.trn_number || supplier?.trn || "—"} · Contact:{" "}
+              {supplier?.email || "—"}
             </p>
           </div>
         </Section>
@@ -1074,7 +1075,7 @@ function BillForm({
                     )
                     .map((a) => (
                       <option key={a.id} value={a.id}>
-                        {a.code} â€” {a.name}
+                        {a.code} — {a.name}
                       </option>
                     ))}
                 </select>
@@ -1167,7 +1168,7 @@ function BillForm({
                 value={form.approval_workflow}
               >
                 <option value="AP_ACCOUNTANT_FINANCE_MANAGER">
-                  AP Accountant â†’ Finance Manager
+                  AP Accountant → Finance Manager
                 </option>
               </select>
             </Field>
@@ -1378,7 +1379,7 @@ function SimpleTable({ headers, rows }) {
             <tr key={i} className="border-b">
               {r.map((v, j) => (
                 <td key={j} className="px-4 py-3">
-                  {v ?? "â€”"}
+                  {v ?? "—"}
                 </td>
               ))}
             </tr>
@@ -1466,7 +1467,7 @@ function PaymentModal({
               )
               .map((b) => (
                 <option key={b.id} value={b.id}>
-                  {b.bill_number} â€” {money(b.balance_due)}
+                  {b.bill_number} — {money(b.balance_due)}
                 </option>
               ))}
           </select>

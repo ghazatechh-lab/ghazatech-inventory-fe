@@ -149,7 +149,7 @@ import SalaryHistoryPage from "@/features/hrms/SalaryHistoryPage";
 import DocumentExpiryPage from "@/features/hrms/DocumentExpiryPage";
 import FleetDashboardPage from "@/features/fleet/FleetDashboardPage";
 import VehicleListPage from "@/features/fleet/VehicleListPage";
-import VehicleFormPage from "@/features/fleet/VehicleFormPage";
+// import VehicleFormPage from "@/features/fleet/VehicleFormPage";
 import VehicleCheckoutPage from "@/features/fleet/VehicleCheckoutPage";
 import TripLogPage from "@/features/fleet/TripLogPage";
 import ServiceManagementPage from "@/features/serviceRepairs/ServiceManagementPage";
@@ -866,7 +866,7 @@ export default function App() {
               {/* Fleet Management */}
               <Route path="/fleet" element={<FleetDashboardPage />} />
               <Route path="/fleet/vehicles" element={<VehicleListPage />} />
-              <Route path="/fleet/vehicles/new" element={<VehicleFormPage />} />
+              {/* <Route path="/fleet/vehicles/new" element={<VehicleFormPage />} /> */}
               <Route path="/fleet/checkout" element={<VehicleCheckoutPage />} />
               <Route path="/fleet/returns" element={<VehicleCheckoutPage />} />
               <Route path="/fleet/trips" element={<TripLogPage />} />
@@ -994,4 +994,3 @@ export default function App() {
     </QueryClientProvider>
   );
 }
-

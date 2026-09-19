@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import { CarFront, Gauge, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ export const inputClass =
   "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-white/10 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-blue-500/10";
 
 export const formatDateTime = (value) =>
-  value ? new Date(value).toLocaleString() : "â€”";
+  value ? new Date(value).toLocaleString() : "—";
 
 export const getEmployeeName = (row) =>
   row.full_name ||
@@ -27,7 +27,7 @@ export const getEmployeeName = (row) =>
 
 export function FleetHero({ eyebrow, title, description, actions }) {
   return (
-    <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-cyan-800 px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
+    <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
       <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-blue-400/15 blur-3xl" />
       <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -111,7 +111,7 @@ export function VehicleIdentity({ row }) {
           {row.display_name || `${row.make || ""} ${row.model || ""}`.trim()}
         </div>
         <div className="text-xs text-muted-foreground">
-          {row.registration_number || "â€”"}
+          {row.registration_number || "—"}
         </div>
       </div>
     </div>
@@ -124,7 +124,7 @@ export function FleetQuickLinks() {
       <Button
         asChild
         variant="outline"
-        className="border-white/70 bg-white/10 !text-white hover:bg-white/20 hover:!text-white"
+        className="border-amber-300 bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
       >
         <Link to="/fleet/vehicles">
           <CarFront className="mr-2 h-4 w-4" />
@@ -134,7 +134,7 @@ export function FleetQuickLinks() {
       <Button
         asChild
         variant="outline"
-        className="border-white/70 bg-white/10 !text-white hover:bg-white/20 hover:!text-white"
+        className="border-amber-300 bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
       >
         <Link to="/fleet/trips">
           <MapPin className="mr-2 h-4 w-4" />

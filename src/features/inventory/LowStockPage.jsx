@@ -69,7 +69,7 @@ export default function LowStockPage() {
             {row.sku}
 
             {row.variant_label !== "Base product"
-              ? ` Â· ${row.variant_label}`
+              ? ` · ${row.variant_label}`
               : ""}
           </div>
         </div>
@@ -136,7 +136,7 @@ export default function LowStockPage() {
 
   return (
     <div data-stock-module="low-stock" className="stock-module-page space-y-6">
-      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
+      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
         <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-400/20 blur-3xl" />
         <div className="relative flex items-start gap-4">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/15">

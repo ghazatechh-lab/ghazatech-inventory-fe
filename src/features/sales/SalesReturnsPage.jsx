@@ -487,7 +487,7 @@ export default function SalesReturnsPage() {
         confirmLabel: "Submit for Approval",
         iconClass:
           "bg-blue-100 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300",
-        buttonClass: "bg-blue-600 text-white hover:bg-blue-700",
+        buttonClass: "bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950",
         icon: Send,
       },
       approve: {
@@ -497,7 +497,7 @@ export default function SalesReturnsPage() {
         confirmLabel: "Approve Return",
         iconClass:
           "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300",
-        buttonClass: "bg-emerald-600 text-white hover:bg-emerald-700",
+        buttonClass: "bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950",
         icon: CheckCircle2,
       },
       complete: {
@@ -507,7 +507,7 @@ export default function SalesReturnsPage() {
         confirmLabel: "Complete Return",
         iconClass:
           "bg-violet-100 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300",
-        buttonClass: "bg-violet-600 text-white hover:bg-violet-700",
+        buttonClass: "bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950",
         icon: CheckCircle2,
       },
       cancel: {
@@ -677,7 +677,7 @@ export default function SalesReturnsPage() {
 
             <Button
               onClick={openNewReturn}
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               <Plus className="mr-2 h-4 w-4" />
               New Return
@@ -1190,7 +1190,7 @@ export default function SalesReturnsPage() {
                       type="button"
                       onClick={() => submit("PENDING_APPROVAL")}
                       disabled={mutation.isPending}
-                      className="bg-blue-600 text-white hover:bg-blue-700"
+                      className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
                     >
                       <Send className="mr-2 h-4 w-4" />
                       {mutation.isPending ? "Submitting..." : "Submit Return"}

@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Eye, Lock, Plus, Printer, Unlock, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -112,6 +112,7 @@ export default function PeriodClosePage() {
   return (
     <div className="finance-module-page finance-workspace mx-auto w-full max-w-[1500px] space-y-5 pb-10">
       <PageHeader
+        variant="hero"
         title="Period Close"
         subtitle="Manage month-end and year-end close tasks, reconciliations, adjustments, approvals, and posting locks."
         actions={
@@ -148,7 +149,7 @@ export default function PeriodClosePage() {
           >
             {periods.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name || `${p.start_date} â†’ ${p.end_date}`}
+                {p.name || `${p.start_date} → ${p.end_date}`}
               </option>
             ))}
           </select>
@@ -200,7 +201,7 @@ export default function PeriodClosePage() {
               v={`${data.reconciliations_complete || 0} / ${data.reconciliations_total || 0}`}
               tone="green"
             />
-            <Kpi l="Target Close Date" v={data.target_close_date || "â€”"} />
+            <Kpi l="Target Close Date" v={data.target_close_date || "—"} />
           </div>
           <Table
             headers={[
@@ -223,8 +224,8 @@ export default function PeriodClosePage() {
               p.end_date,
               `${Number(p.progress_percent || 0).toFixed(0)}%`,
               <StatusBadge status={p.status} />,
-              p.owner_name || "â€”",
-              p.target_close_date || "â€”",
+              p.owner_name || "—",
+              p.target_close_date || "—",
               <Button size="icon" variant="ghost">
                 <Eye className="h-4 w-4" />
               </Button>,
@@ -244,8 +245,8 @@ export default function PeriodClosePage() {
                   <p className="font-semibold">{t.title}</p>
                   <p className="text-xs text-muted-foreground">{t.module}</p>
                 </div>
-                <span>{t.owner_name || "â€”"}</span>
-                <span>{t.due_date || "â€”"}</span>
+                <span>{t.owner_name || "—"}</span>
+                <span>{t.due_date || "—"}</span>
                 <StatusBadge status={t.status} />
                 <Button
                   size="sm"
@@ -306,7 +307,7 @@ export default function PeriodClosePage() {
               money(r.difference),
               r.owner_name,
               <StatusBadge status={r.status} />,
-              r.approved_by_name || "â€”",
+              r.approved_by_name || "—",
             ])}
           />
         </>
@@ -354,7 +355,7 @@ export default function PeriodClosePage() {
               money(a.credit),
               a.reversing_date || "No",
               <StatusBadge status={a.status} />,
-              a.approved_by_name || "â€”",
+              a.approved_by_name || "—",
             ])}
           />
         </>
@@ -378,8 +379,8 @@ export default function PeriodClosePage() {
               l.lock_through,
               l.allowed_roles,
               <StatusBadge status={l.status} />,
-              l.locked_by_name || "â€”",
-              l.locked_at || "â€”",
+              l.locked_by_name || "—",
+              l.locked_at || "—",
               <Button
                 size="sm"
                 variant="outline"
@@ -505,7 +506,7 @@ function Table({ headers, rows }) {
             <tr key={i} className="border-b">
               {r.map((v, j) => (
                 <td key={j} className="px-4 py-3">
-                  {v ?? "â€”"}
+                  {v ?? "—"}
                 </td>
               ))}
             </tr>

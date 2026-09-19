@@ -284,6 +284,7 @@ export default function BankAccountsPage() {
   return (
     <div className="finance-module-page finance-workspace mx-auto w-full max-w-[1500px] space-y-5 pb-10">
       <PageHeader
+        variant="hero"
         title="Bank & Cash"
         subtitle="Manage bank accounts, cashbook entries, reconciliation, and internal fund transfers."
         actions={
@@ -450,8 +451,8 @@ function AccountsTab({ accounts, onNew }) {
           a.account_name,
           a.bank_name || "Cash",
           a.account_type_display || a.account_type,
-          a.account_number || "â€”",
-          a.iban_number || "â€”",
+          a.account_number || "—",
+          a.iban_number || "—",
           a.currency || "AED",
           money(a.current_balance),
           money(a.statement_balance),
@@ -556,9 +557,9 @@ function CashbookTab({ accounts, transactions, filters, setFilters, onNew }) {
           t.bank_account_name,
           t.transaction_type_display || t.transaction_type,
           t.particulars,
-          t.reference || "â€”",
-          num(t.receipt_amount) ? money(t.receipt_amount) : "â€”",
-          num(t.payment_amount) ? money(t.payment_amount) : "â€”",
+          t.reference || "—",
+          num(t.receipt_amount) ? money(t.receipt_amount) : "—",
+          num(t.payment_amount) ? money(t.payment_amount) : "—",
           money(t.running_balance),
           <StatusBadge status={t.reconciliation_status} />,
         ])}
@@ -583,7 +584,7 @@ function ReconciliationTab({ rows, onReconcile }) {
         t.voucher_number,
         t.transaction_date,
         t.bank_account_name,
-        t.reference || "â€”",
+        t.reference || "—",
         money(num(t.receipt_amount) || num(t.payment_amount)),
         <StatusBadge status={t.reconciliation_status} />,
         <Button size="sm" variant="outline" onClick={() => onReconcile(t.id)}>
@@ -622,7 +623,7 @@ function TransfersTab({ rows, onNew }) {
           t.to_account_name,
           money(t.amount),
           <StatusBadge status={t.status || "POSTED"} />,
-          t.notes || "â€”",
+          t.notes || "—",
         ])}
       />
     </div>
@@ -756,7 +757,7 @@ function AccountModal({
             <option value="">Select GL account</option>
             {glAccounts.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.code} â€” {a.name}
+                {a.code} — {a.name}
               </option>
             ))}
           </select>
@@ -1008,7 +1009,7 @@ function TransferModal({
             <option value="">Select source</option>
             {available.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.account_name} â€” {money(a.current_balance)}
+                {a.account_name} — {money(a.current_balance)}
               </option>
             ))}
           </select>
@@ -1113,7 +1114,7 @@ function SimpleTable({ headers, rows }) {
             <tr key={i} className="border-b">
               {row.map((v, j) => (
                 <td key={j} className="px-4 py-3">
-                  {v ?? "â€”"}
+                  {v ?? "—"}
                 </td>
               ))}
             </tr>

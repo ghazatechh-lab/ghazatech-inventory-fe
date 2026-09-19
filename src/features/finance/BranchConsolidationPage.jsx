@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Printer } from "lucide-react";
 import api from "@/lib/api";
@@ -25,6 +25,7 @@ export default function BranchConsolidationPage() {
   return (
     <div className="finance-module-page finance-workspace space-y-6">
       <PageHeader
+        variant="hero"
         title="Branch Consolidation"
         subtitle="Combined view across Head Office and all branches, with inter-branch balances eliminated."
         actions={

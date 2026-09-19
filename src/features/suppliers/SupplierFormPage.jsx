@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Controller, useForm } from "react-hook-form";
@@ -7,7 +7,6 @@ import {
   Building2,
   FileText,
   Landmark,
-  RefreshCw,
   Save,
   ShieldCheck,
   UploadCloud,
@@ -18,7 +17,6 @@ import {
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { PageHeader } from "@/components/common/PageHeader";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -361,32 +359,46 @@ export default function SupplierFormPage() {
 
   return (
     <div className="supplier-module-page min-h-full px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <div className="supplier-form-hero">
-          <button
-            type="button"
-            onClick={() => navigate(backTarget)}
-            className="supplier-back-button"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {edit ? "Back to supplier" : "Back to suppliers"}
-          </button>
-          <div className="supplier-hero-content mt-5 flex items-start gap-4">
-            <span className="supplier-hero-icon">
-              <Building2 className="h-6 w-6" />
-            </span>
-            <div className="supplier-hero-copy min-w-0">
-              <p className="supplier-eyebrow">Supplier master</p>
-              <h1 className="supplier-hero-title mt-1">
-                {edit ? "Edit supplier" : "Add supplier"}
-              </h1>
-              <p className="supplier-hero-description mt-2">
-                Company identity, contacts, commercial terms, bank details,
-                supporting documents and operational preferences.
-              </p>
+      <div className="w-full space-y-6">
+        <section className="relative overflow-hidden rounded-[28px] border border-blue-400/10 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] text-white shadow-xl shadow-slate-950/10">
+          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-amber-400/10 blur-3xl" />
+
+          <div className="relative z-10 flex flex-col gap-6 px-6 py-7 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+            <div className="flex min-w-0 items-start gap-4">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-300/35 bg-amber-300/10 text-amber-300 shadow-inner backdrop-blur">
+                <Building2 className="h-7 w-7" />
+              </span>
+
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">
+                  Supplier Master
+                </p>
+
+                <h1 className="mt-2 break-words text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+                  {edit ? "Edit Supplier" : "Add Supplier"}
+                </h1>
+
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                  Company identity, contacts, commercial terms, bank details,
+                  supporting documents and operational preferences.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex shrink-0 flex-wrap gap-2 lg:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate(backTarget)}
+                className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                {edit ? "Back to Supplier" : "Back to Suppliers"}
+              </Button>
             </div>
           </div>
-        </div>
+        </section>
 
         <form onSubmit={handleSubmit(submit)} className="space-y-5" noValidate>
           <Section
@@ -633,7 +645,7 @@ export default function SupplierFormPage() {
               </span>
 
               <span className="mt-1 text-xs text-slate-500">
-                PDF, JPG, PNG, DOC or DOCX Â· maximum 10 MB per file
+                PDF, JPG, PNG, DOC or DOCX · maximum 10 MB per file
               </span>
 
               <input
@@ -800,7 +812,7 @@ export default function SupplierFormPage() {
             </div>
           </Section>
 
-          <div className="supplier-form-actions">
+          <div className="supplier-form-actions flex flex-wrap items-center justify-end gap-2">
             <Button
               type="button"
               variant="ghost"
@@ -813,7 +825,7 @@ export default function SupplierFormPage() {
             <Button
               type="submit"
               disabled={save.isPending}
-              className="min-w-[160px] bg-blue-600 text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700"
+              className="min-w-[160px] bg-blue-600 text-white shadow-lg hover:bg-blue-700"
             >
               <Save className="mr-2 h-4 w-4" />
               {save.isPending
@@ -828,4 +840,3 @@ export default function SupplierFormPage() {
     </div>
   );
 }
-

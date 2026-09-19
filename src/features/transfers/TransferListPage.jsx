@@ -108,7 +108,7 @@ export default function TransferListPage() {
             to={`/transfers/${row.id}`}
             className="font-semibold text-blue-600 hover:underline dark:text-blue-400"
           >
-            {row.transfer_number || "â€”"}
+            {row.transfer_number || "—"}
           </Link>
         ),
       },
@@ -124,7 +124,7 @@ export default function TransferListPage() {
           row.from_branch_name ||
           row.from_branch?.branch_name ||
           row.from_branch?.name ||
-          "â€”",
+          "—",
       },
       {
         key: "route",
@@ -145,7 +145,7 @@ export default function TransferListPage() {
           row.to_branch_name ||
           row.to_branch?.branch_name ||
           row.to_branch?.name ||
-          "â€”",
+          "—",
       },
       {
         key: "items",
@@ -176,7 +176,7 @@ export default function TransferListPage() {
         sortType: "datetime",
 
         cell: (row) =>
-          row.created_at ? <DateText value={row.created_at} /> : "â€”",
+          row.created_at ? <DateText value={row.created_at} /> : "—",
       },
       {
         key: "status",
@@ -205,9 +205,9 @@ export default function TransferListPage() {
   return (
     <div
       data-stock-module="stock-transfers"
-      className="stock-module-page stock-workspace mx-auto max-w-7xl space-y-5 pb-10"
+      className="stock-module-page stock-workspace w-full space-y-5 pb-10"
     >
-      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
+      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
         <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-400/20 blur-3xl" />
 
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -253,7 +253,7 @@ export default function TransferListPage() {
               variant="outline"
               disabled={query.isFetching}
               onClick={() => query.refetch()}
-              className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+              className="border-amber-300 bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950 hover:text-slate-950"
             >
               <RefreshCcw
                 className={`mr-2 h-4 w-4 ${
@@ -265,7 +265,7 @@ export default function TransferListPage() {
 
             <Button
               asChild
-              className="bg-white text-blue-950 hover:bg-slate-100"
+              className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950 !bg-amber-400 !text-slate-950 hover:!bg-amber-300 hover:!text-slate-950"
             >
               <Link to="/transfers/new">
                 <Plus className="mr-2 h-4 w-4" />

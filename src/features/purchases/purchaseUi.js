@@ -70,7 +70,7 @@ export function DetailField({ label, value }) {
       </p>
 
       <div className="mt-1 break-words text-sm font-medium">
-        {isEmpty ? "â€”" : value}
+        {isEmpty ? "—" : value}
       </div>
     </div>
   );
@@ -128,7 +128,7 @@ export function AttachmentList({ attachments = [] }) {
                 <p className="text-xs text-muted-foreground">
                   {attachment.content_type || "File"}
 
-                  {fileSize > 0 ? ` â€¢ ${Math.ceil(fileSize / 1024)} KB` : ""}
+                  {fileSize > 0 ? ` • ${Math.ceil(fileSize / 1024)} KB` : ""}
                 </p>
               </div>
             </div>
@@ -142,7 +142,7 @@ export function AttachmentList({ attachments = [] }) {
 }
 
 export function renderDate(value) {
-  return value ? <DateText value={value} /> : "â€”";
+  return value ? <DateText value={value} /> : "—";
 }
 
 export function renderMoney(value) {
@@ -163,4 +163,3 @@ export function DocumentLink({ to, children }) {
     </Link>
   );
 }
-

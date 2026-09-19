@@ -1,4 +1,4 @@
-﻿export const VEHICLE_TYPES = [
+export const VEHICLE_TYPES = [
   "Sedan",
   "Hatchback",
   "Coupe",

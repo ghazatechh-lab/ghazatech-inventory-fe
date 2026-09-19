@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CarFront, CheckCircle2, Clock3, Wrench } from "lucide-react";
 import api, { unwrap } from "@/lib/api";
@@ -53,7 +53,7 @@ export default function FleetDashboardPage() {
     ],
   ];
   return (
-    <div className="mx-auto max-w-7xl space-y-5 pb-10">
+    <div className="w-full space-y-5 pb-10">
       <FleetHero
         eyebrow="Fleet Operations"
         title="Fleet Overview"

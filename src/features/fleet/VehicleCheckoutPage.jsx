@@ -102,7 +102,7 @@ const DetailItem = ({ label, value }) => (
       {label}
     </div>
     <div className="mt-1 break-words text-sm font-medium text-slate-900 dark:text-white">
-      {value || "â€”"}
+      {value || "—"}
     </div>
   </div>
 );
@@ -341,7 +341,7 @@ export default function VehicleCheckoutPage() {
   ).length;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 pb-10">
+    <div className="w-full space-y-5 pb-10">
       <FleetHero
         eyebrow="Vehicle Movement"
         title="Vehicle Checkout & Return"
@@ -349,10 +349,10 @@ export default function VehicleCheckoutPage() {
         actions={
           <Button
             type="button"
-            className="bg-white !text-slate-900 hover:bg-slate-100"
+            className="bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             onClick={openAddCheckout}
           >
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="mr-2 h-4 w-4 text-slate-950" />
             Add Checkout
           </Button>
         }
@@ -389,8 +389,12 @@ export default function VehicleCheckoutPage() {
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <Button type="button" onClick={openAddCheckout}>
-                <Plus className="mr-2 h-4 w-4" />
+              <Button
+                type="button"
+                onClick={openAddCheckout}
+                className="bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
+              >
+                <Plus className="mr-2 h-4 w-4 text-slate-950" />
                 Add Checkout
               </Button>
               <div className="relative min-w-64">
@@ -462,14 +466,14 @@ export default function VehicleCheckoutPage() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="font-medium">
-                          {trip.driver_name || "â€”"}
+                          {trip.driver_name || "—"}
                         </div>
                         <div className="mt-1 text-xs text-muted-foreground">
-                          {trip.branch_name || "â€”"}
+                          {trip.branch_name || "—"}
                         </div>
                       </td>
                       <td className="max-w-64 px-5 py-4">
-                        <div className="font-medium">{trip.purpose || "â€”"}</div>
+                        <div className="font-medium">{trip.purpose || "—"}</div>
                         <div className="mt-1 truncate text-xs text-muted-foreground">
                           {trip.destination || "No destination"}
                         </div>
@@ -528,6 +532,7 @@ export default function VehicleCheckoutPage() {
                                   type="button"
                                   size="sm"
                                   onClick={() => openReturn(trip)}
+                                  className="bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
                                 >
                                   <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
                                   Return
@@ -600,7 +605,7 @@ export default function VehicleCheckoutPage() {
                 <option value="">Select available vehicle</option>
                 {selectableVehicles.map((vehicle) => (
                   <option key={vehicle.id} value={vehicle.id}>
-                    {vehicle.display_name} Â· {vehicle.registration_number}
+                    {vehicle.display_name} · {vehicle.registration_number}
                   </option>
                 ))}
               </select>
@@ -629,7 +634,7 @@ export default function VehicleCheckoutPage() {
                   <option key={employee.id} value={employee.id}>
                     {getEmployeeName(employee)}
                     {employee.employee_code
-                      ? ` Â· ${employee.employee_code}`
+                      ? ` · ${employee.employee_code}`
                       : ""}
                   </option>
                 ))}
@@ -758,8 +763,12 @@ export default function VehicleCheckoutPage() {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={checkoutMutation.isPending}>
-              <Save className="mr-2 h-4 w-4" />
+            <Button
+              type="submit"
+              disabled={checkoutMutation.isPending}
+              className="min-w-40 bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
+            >
+              <Save className="mr-2 h-4 w-4 text-slate-950" />
               {checkoutMutation.isPending
                 ? "Saving..."
                 : editingTrip
@@ -775,7 +784,7 @@ export default function VehicleCheckoutPage() {
         title="Return Vehicle"
         description={
           selectedTrip
-            ? `${selectedTrip.vehicle_name} Â· ${selectedTrip.driver_name}`
+            ? `${selectedTrip.vehicle_name} · ${selectedTrip.driver_name}`
             : ""
         }
         onClose={closeReturnModal}
@@ -905,8 +914,12 @@ export default function VehicleCheckoutPage() {
             <Button type="button" variant="outline" onClick={closeReturnModal}>
               Cancel
             </Button>
-            <Button type="submit" disabled={returnMutation.isPending}>
-              <RotateCcw className="mr-2 h-4 w-4" />
+            <Button
+              type="submit"
+              disabled={returnMutation.isPending}
+              className="min-w-40 bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
+            >
+              <RotateCcw className="mr-2 h-4 w-4 text-slate-950" />
               {returnMutation.isPending ? "Completing..." : "Complete Return"}
             </Button>
           </div>
@@ -954,7 +967,7 @@ export default function VehicleCheckoutPage() {
                 value={
                   selectedTrip.ending_odometer_km
                     ? `${Number(selectedTrip.ending_odometer_km).toLocaleString()} km`
-                    : "â€”"
+                    : "—"
                 }
               />
               <DetailItem
@@ -962,7 +975,7 @@ export default function VehicleCheckoutPage() {
                 value={
                   selectedTrip.distance_km
                     ? `${Number(selectedTrip.distance_km).toLocaleString()} km`
-                    : "â€”"
+                    : "—"
                 }
               />
               <DetailItem
@@ -1008,4 +1021,3 @@ export default function VehicleCheckoutPage() {
     </div>
   );
 }
-

@@ -311,7 +311,7 @@ export default function PriceListsPage() {
                 setErrors({});
                 setOpen(true);
               }}
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               <Plus className="mr-2 h-4 w-4" /> New Price List
             </Button>
@@ -731,7 +731,7 @@ export default function PriceListsPage() {
                       key={status}
                       type="button"
                       onClick={() => updateForm("status", status)}
-                      className={`rounded-lg border px-4 py-2 text-sm ${form.status === status ? "border-blue-500 bg-blue-600 text-white" : "border-border"}`}
+                      className={`rounded-lg border px-4 py-2 text-sm ${form.status === status ? "border-amber-300 bg-amber-400 text-slate-950" : "border-border"}`}
                     >
                       {status.charAt(0) + status.slice(1).toLowerCase()}
                     </button>
@@ -752,7 +752,7 @@ export default function PriceListsPage() {
                 <Save className="mr-2 h-4 w-4" /> Save as Draft
               </Button>
               <Button
-                className="bg-blue-600 text-white hover:bg-blue-700"
+                className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
                 disabled={saveMutation.isPending}
                 onClick={() =>
                   validate() &&

@@ -149,21 +149,21 @@ export default function CustomerDetailPage() {
 
   return (
     <div className="customer-module-page customer-workspace w-full space-y-5 pb-10">
-      <section className="overflow-hidden rounded-[28px] border border-slate-200/70 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 text-white shadow-sm dark:border-white/10">
+      <section className="overflow-hidden rounded-[28px] border border-slate-200/70 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] text-white shadow-sm dark:border-white/10">
         <div className="flex flex-col gap-6 px-6 py-7 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex min-w-0 items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 shadow-inner backdrop-blur">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-300/35 bg-amber-300/10 text-amber-300 shadow-inner backdrop-blur">
               <Building2 className="h-7 w-7" />
             </div>
 
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-200">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">
                 Customer Profile
               </p>
               <h1 className="mt-2 truncate text-3xl font-semibold tracking-tight sm:text-4xl">
                 {c.customer_name || "Customer"}
               </h1>
-              <p className="mt-2 text-sm text-slate-300">
+              <p className="mt-2 text-sm text-slate-200">
                 {displayValue(c.customer_code, `Customer #${id}`)}
                 <span className="mx-2 text-slate-500">•</span>
                 {displayValue(c.customer_type, c.category)}
@@ -175,7 +175,7 @@ export default function CustomerDetailPage() {
             <Button
               asChild
               variant="outline"
-              className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+              className="border-amber-300 bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               <Link to="/customers">
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -185,7 +185,7 @@ export default function CustomerDetailPage() {
 
             <Button
               asChild
-              className="bg-white text-slate-950 hover:bg-slate-100"
+              className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               <Link to={`/customers/${id}/edit`}>
                 <Pencil className="mr-2 h-4 w-4" />
@@ -313,7 +313,7 @@ export default function CustomerDetailPage() {
         </DetailCard>
 
         <DetailCard title="Internal notes" icon={FileText}>
-          <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700 dark:text-slate-300">
+          <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700 dark:text-slate-200">
             {displayValue(c.notes)}
           </p>
         </DetailCard>

@@ -5,7 +5,7 @@ import { Info, Plus } from "lucide-react";
 
 import api, { unwrap } from "@/lib/api";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
-import { DataTable, useListQuery } from "@/hooks/useListQuery";
+import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { PageHeader } from "./PurchasePageHeader";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,7 +46,7 @@ function SummaryCard({ label, children, accent = false }) {
 export default function POListPage() {
   const { branchParams } = useActiveBranchFilter();
 
-  const { query, page, setPage, getFilter, setFilter } = useListQuery(
+  const { query, q, setQ, page, setPage, getFilter, setFilter } = useListQuery(
     "purchase-orders",
     "/purchases/orders/",
     branchParams,
@@ -115,7 +115,7 @@ export default function POListPage() {
         sortType: "text",
         cell: (row) => (
           <span className="font-numeric font-semibold text-slate-950 dark:text-white">
-            {row.po_number || "â€”"}
+            {row.po_number || "—"}
           </span>
         ),
       },
@@ -124,7 +124,7 @@ export default function POListPage() {
         header: "Supplier",
         sortKey: "supplier__supplier_name",
         sortType: "text",
-        cell: (row) => row.supplier_name || "â€”",
+        cell: (row) => row.supplier_name || "—",
       },
       {
         key: "order_date",
@@ -132,7 +132,7 @@ export default function POListPage() {
         sortKey: "order_date",
         sortType: "date",
         cell: (row) =>
-          row.order_date ? <DateText value={row.order_date} /> : "â€”",
+          row.order_date ? <DateText value={row.order_date} /> : "—",
       },
       {
         key: "expected_delivery_date",
@@ -143,7 +143,7 @@ export default function POListPage() {
           row.expected_delivery_date ? (
             <DateText value={row.expected_delivery_date} />
           ) : (
-            "â€”"
+            "—"
           ),
       },
       {
@@ -197,17 +197,32 @@ export default function POListPage() {
   );
 
   return (
-    <div className="purchase-module-page purchase-workspace mx-auto max-w-7xl space-y-5">
+    <div className="purchase-module-page purchase-workspace w-full space-y-5">
       <PageHeader
         title="Purchase Orders"
         subtitle="Orders raised against suppliers, tracked to delivery"
         actions={
-          <Button asChild className="bg-blue-600 text-white hover:bg-blue-700">
-            <Link to="/purchases/orders/new">
-              <Plus className="mr-2 h-4 w-4" />
+          <Link
+            to="/purchases/orders/new"
+            className="inline-flex h-10 items-center justify-center rounded-md border border-amber-300 bg-amber-400 px-4 py-2 text-sm font-bold"
+            style={{
+              color: "#020617",
+              WebkitTextFillColor: "#020617",
+            }}
+          >
+            <Plus
+              className="mr-2 h-4 w-4"
+              style={{ color: "#020617", stroke: "#020617" }}
+            />
+            <span
+              style={{
+                color: "#020617",
+                WebkitTextFillColor: "#020617",
+              }}
+            >
               New Purchase Order
-            </Link>
-          </Button>
+            </span>
+          </Link>
         }
       />
 
@@ -234,47 +249,55 @@ export default function POListPage() {
         </SummaryCard>
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <Select
-          value={status || "all"}
-          onValueChange={(value) =>
-            setFilter("status", value === "all" ? "" : value)
-          }
-        >
-          <SelectTrigger className="w-44 bg-white dark:bg-slate-950">
-            <SelectValue placeholder="All statuses" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="DRAFT">Draft</SelectItem>
-            <SelectItem value="PENDING_APPROVAL">Pending approval</SelectItem>
-            <SelectItem value="APPROVED">Approved</SelectItem>
-            <SelectItem value="PARTIALLY_RECEIVED">
-              Partially received
-            </SelectItem>
-            <SelectItem value="RECEIVED">Received</SelectItem>
-            <SelectItem value="CANCELLED">Cancelled</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/60">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px_280px]">
+          <SearchInput
+            value={q}
+            onChange={setQ}
+            placeholder="Search PO number, supplier, reference, status..."
+          />
 
-        <Select
-          value={supplier || "all"}
-          onValueChange={(value) =>
-            setFilter("supplier", value === "all" ? "" : value)
-          }
-        >
-          <SelectTrigger className="w-64 bg-white dark:bg-slate-950">
-            <SelectValue placeholder="All suppliers" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All suppliers</SelectItem>
-            {suppliers.map((item) => (
-              <SelectItem key={item.id} value={String(item.id)}>
-                {item.supplier_name}
+          <Select
+            value={status || "all"}
+            onValueChange={(value) =>
+              setFilter("status", value === "all" ? "" : value)
+            }
+          >
+            <SelectTrigger className="w-full bg-white dark:bg-slate-950">
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="DRAFT">Draft</SelectItem>
+              <SelectItem value="PENDING_APPROVAL">Pending approval</SelectItem>
+              <SelectItem value="APPROVED">Approved</SelectItem>
+              <SelectItem value="PARTIALLY_RECEIVED">
+                Partially received
               </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+              <SelectItem value="RECEIVED">Received</SelectItem>
+              <SelectItem value="CANCELLED">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={supplier || "all"}
+            onValueChange={(value) =>
+              setFilter("supplier", value === "all" ? "" : value)
+            }
+          >
+            <SelectTrigger className="w-full bg-white dark:bg-slate-950">
+              <SelectValue placeholder="All suppliers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All suppliers</SelectItem>
+              {suppliers.map((item) => (
+                <SelectItem key={item.id} value={String(item.id)}>
+                  {item.supplier_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <DataTable
@@ -291,4 +314,3 @@ export default function POListPage() {
     </div>
   );
 }
-

@@ -1,8 +1,8 @@
-﻿import jsPDF from "jspdf";
+import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 const dateText = (value) => {
-  if (!value) return "â€”";
+  if (!value) return "—";
   const date = new Date(`${String(value).slice(0, 10)}T00:00:00`);
   return Number.isNaN(date.getTime())
     ? String(value)
@@ -30,7 +30,7 @@ const header = (doc, title, reference, letterDate) => {
   doc.setTextColor(80, 80, 85);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text(`Reference No.: ${reference || "â€”"}`, margin, 56);
+  doc.text(`Reference No.: ${reference || "—"}`, margin, 56);
   doc.text(`Date: ${dateText(letterDate)}`, width - margin, 56, {
     align: "right",
   });
@@ -47,12 +47,12 @@ const signature = (doc, y, letter) => {
 
   doc.setFont("helvetica", "normal");
   doc.text(
-    `Authorized Signatory: ${letter.authorized_signatory || "â€”"}`,
+    `Authorized Signatory: ${letter.authorized_signatory || "—"}`,
     margin,
     y + 12,
   );
   doc.text(
-    `Designation: ${letter.signatory_designation || "â€”"}`,
+    `Designation: ${letter.signatory_designation || "—"}`,
     margin,
     y + 19,
   );
@@ -94,8 +94,8 @@ export function generateEmployeeLetterPdf(letter) {
     doc.text(`To: ${letter.employee_name || "Employee"}`, margin, 72);
 
     doc.setFont("helvetica", "normal");
-    doc.text(`Employee Code: ${letter.employee_code || "â€”"}`, margin, 80);
-    doc.text(`Designation: ${letter.designation_name || "â€”"}`, margin, 87);
+    doc.text(`Employee Code: ${letter.employee_code || "—"}`, margin, 80);
+    doc.text(`Designation: ${letter.designation_name || "—"}`, margin, 87);
 
     doc.setFont("helvetica", "bold");
     doc.text(`Subject: ${letter.subject || "Warning Letter"}`, margin, 101);
@@ -110,8 +110,8 @@ export function generateEmployeeLetterPdf(letter) {
       margin: { left: margin, right: margin },
       theme: "grid",
       body: [
-        ["Reason", letter.reason || "â€”"],
-        ["Details / Required Improvement", letter.details || "â€”"],
+        ["Reason", letter.reason || "—"],
+        ["Details / Required Improvement", letter.details || "—"],
       ],
       styles: {
         fontSize: 10,
@@ -150,10 +150,10 @@ export function generateEmployeeLetterPdf(letter) {
       margin: { left: margin, right: margin },
       theme: "grid",
       body: [
-        ["Employee Name", letter.employee_name || "â€”"],
-        ["Employee Code", letter.employee_code || "â€”"],
-        ["Designation", letter.designation_name || "â€”"],
-        ["Department", letter.department_name || "â€”"],
+        ["Employee Name", letter.employee_name || "—"],
+        ["Employee Code", letter.employee_code || "—"],
+        ["Designation", letter.designation_name || "—"],
+        ["Department", letter.department_name || "—"],
         ["Date of Joining", dateText(letter.joining_date)],
         ["Last Working Date", dateText(letter.last_working_date)],
       ],
@@ -197,9 +197,9 @@ export function generateEmployeeLetterPdf(letter) {
     doc.text(`To: ${letter.employee_name || "Employee"}`, margin, 72);
 
     doc.setFont("helvetica", "normal");
-    doc.text(`Employee Code: ${letter.employee_code || "â€”"}`, margin, 80);
-    doc.text(`Designation: ${letter.designation_name || "â€”"}`, margin, 87);
-    doc.text(`Department: ${letter.department_name || "â€”"}`, margin, 94);
+    doc.text(`Employee Code: ${letter.employee_code || "—"}`, margin, 80);
+    doc.text(`Designation: ${letter.designation_name || "—"}`, margin, 87);
+    doc.text(`Department: ${letter.department_name || "—"}`, margin, 94);
 
     if (letter.subject) {
       doc.setFont("helvetica", "bold");

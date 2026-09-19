@@ -261,7 +261,7 @@ export default function SalesPaymentsPage() {
             </Button>
             <Button
               onClick={openNew}
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               <Plus className="mr-2 h-4 w-4" />
               Record Payment
@@ -599,7 +599,7 @@ export default function SalesPaymentsPage() {
               <Button
                 onClick={submit}
                 disabled={mutation.isPending}
-                className="bg-blue-600 text-white hover:bg-blue-700"
+                className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
               >
                 Save Payment
               </Button>

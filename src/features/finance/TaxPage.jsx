@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Printer } from "lucide-react";
 import api from "@/lib/api";
@@ -41,6 +41,7 @@ export default function TaxPage() {
   return (
     <div className="finance-module-page finance-workspace space-y-6">
       <PageHeader
+        variant="hero"
         title="VAT / Tax"
         subtitle={
           isAllBranches

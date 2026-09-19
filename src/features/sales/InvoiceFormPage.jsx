@@ -1017,7 +1017,7 @@ export default function InvoiceFormPage() {
               type="button"
               onClick={submit}
               disabled={saveMutation.isPending}
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               <Save className="mr-2 h-4 w-4" />
               {historicalMode ? "Save Previous Invoice" : "Save Invoice"}
@@ -1785,7 +1785,7 @@ export default function InvoiceFormPage() {
           type="button"
           onClick={submit}
           disabled={saveMutation.isPending}
-          className="bg-blue-600 text-white hover:bg-blue-700"
+          className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
         >
           <Save className="mr-2 h-4 w-4" />
           {historicalMode ? "Save Previous Invoice" : "Save Invoice"}

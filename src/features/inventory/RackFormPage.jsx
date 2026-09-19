@@ -242,13 +242,13 @@ export default function RackFormPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-6 pb-12">
-      <section className="relative overflow-hidden rounded-3xl border border-slate-200/20 bg-gradient-to-r from-slate-950 via-blue-950 to-sky-800 px-6 py-7 text-white shadow-xl sm:px-8">
+    <div className="w-full space-y-6 pb-12">
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200/20 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] px-6 py-7 text-white shadow-xl sm:px-8">
         <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-blue-500/10 blur-3xl" />
 
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-lg shadow-blue-600/20">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-300/35 bg-amber-300/10 text-amber-300 shadow-inner backdrop-blur">
               <Warehouse className="h-6 w-6" />
             </div>
             <div>
@@ -274,7 +274,7 @@ export default function RackFormPage() {
           <Button
             type="button"
             variant="outline"
-            className="h-10 rounded-xl"
+            className="h-10 rounded-xl border-amber-300 bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             onClick={() => navigate("/inventory/racks")}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -394,7 +394,7 @@ export default function RackFormPage() {
               disabled={
                 isSubmitting || saveMutation.isPending || !branches.length
               }
-              className="h-11 min-w-36 rounded-xl bg-blue-600 px-5 font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700"
+              className="h-11 min-w-36 rounded-xl bg-amber-400 px-5 font-bold text-slate-950 shadow-lg hover:bg-amber-300"
             >
               {saveMutation.isPending ? (
                 <>
@@ -418,7 +418,7 @@ export default function RackFormPage() {
             </p>
             <div className="mt-4 rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50 p-4 dark:border-blue-500/20 dark:from-blue-500/10 dark:to-indigo-500/10">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-600/20">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-400 text-slate-950 shadow-md">
                   <Layers3 className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
@@ -455,10 +455,10 @@ export default function RackFormPage() {
               </h3>
             </div>
             <ul className="mt-4 space-y-3 text-xs leading-5 text-slate-500 dark:text-slate-400">
-              <li>â€¢ Keep rack codes short and unique.</li>
-              <li>â€¢ Use a consistent pattern such as RACK-A01.</li>
-              <li>â€¢ Include aisle or zone information when useful.</li>
-              <li>â€¢ Disable racks that are temporarily unavailable.</li>
+              <li>• Keep rack codes short and unique.</li>
+              <li>• Use a consistent pattern such as RACK-A01.</li>
+              <li>• Include aisle or zone information when useful.</li>
+              <li>• Disable racks that are temporarily unavailable.</li>
             </ul>
           </div>
         </aside>

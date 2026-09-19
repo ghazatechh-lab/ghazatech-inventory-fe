@@ -149,7 +149,7 @@ export default function SupplierBillsPage() {
             to={`/purchases/supplier-bills/${row.id}`}
             className="font-medium text-blue-600 hover:underline dark:text-blue-400"
           >
-            {row.bill_number || "â€”"}
+            {row.bill_number || "—"}
           </Link>
         ),
       },
@@ -172,7 +172,7 @@ export default function SupplierBillsPage() {
         sortType: "date",
 
         cell: (row) =>
-          row.bill_date ? <DateText value={row.bill_date} /> : "â€”",
+          row.bill_date ? <DateText value={row.bill_date} /> : "—",
       },
       {
         key: "due_date",
@@ -180,7 +180,7 @@ export default function SupplierBillsPage() {
         sortKey: "due_date",
         sortType: "date",
 
-        cell: (row) => (row.due_date ? <DateText value={row.due_date} /> : "â€”"),
+        cell: (row) => (row.due_date ? <DateText value={row.due_date} /> : "—"),
       },
       {
         key: "total_amount",
@@ -243,25 +243,38 @@ export default function SupplierBillsPage() {
   );
 
   return (
-    <div className="purchase-module-page purchase-workspace mx-auto max-w-7xl space-y-5 pb-10">
+    <div className="purchase-module-page purchase-workspace w-full space-y-5 pb-10">
       <PageHeader
         title="Supplier Bills"
         subtitle="Invoices received from suppliers, matched to GRNs"
         actions={
-          <Button asChild className="bg-blue-600 text-white hover:bg-blue-700">
-            <Link
-              to={
-                supplierFilter
-                  ? `/purchases/supplier-bills/new?supplier=${encodeURIComponent(
-                      supplierFilter,
-                    )}`
-                  : "/purchases/supplier-bills/new"
-              }
+          <Link
+            to={
+              supplierFilter
+                ? `/purchases/supplier-bills/new?supplier=${encodeURIComponent(
+                    supplierFilter,
+                  )}`
+                : "/purchases/supplier-bills/new"
+            }
+            className="inline-flex h-10 items-center justify-center rounded-md border border-amber-300 bg-amber-400 px-4 py-2 text-sm font-bold hover:bg-amber-300"
+            style={{
+              color: "#020617",
+              WebkitTextFillColor: "#020617",
+            }}
+          >
+            <Plus
+              className="mr-2 h-4 w-4"
+              style={{ color: "#020617", stroke: "#020617" }}
+            />
+            <span
+              style={{
+                color: "#020617",
+                WebkitTextFillColor: "#020617",
+              }}
             >
-              <Plus className="mr-2 h-4 w-4" />
               Record Bill
-            </Link>
-          </Button>
+            </span>
+          </Link>
         }
       />
 
@@ -295,7 +308,7 @@ export default function SupplierBillsPage() {
         <Info className="mt-0.5 h-4 w-4 shrink-0" />
 
         <p>
-          Three-way match: PO â†’ GRN â†’ Bill before approval for payment. Tracks
+          Three-way match: PO → GRN → Bill before approval for payment. Tracks
           due date, aging, partial payments and outstanding balance.
         </p>
       </div>
@@ -380,4 +393,3 @@ export default function SupplierBillsPage() {
     </div>
   );
 }
-

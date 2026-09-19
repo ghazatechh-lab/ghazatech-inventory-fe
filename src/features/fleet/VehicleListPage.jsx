@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CarFront,
@@ -402,13 +402,27 @@ function VehicleFormModal({ open, vehicle, branchId, onClose, onSaved }) {
               <X className="mr-2 h-4 w-4" />
               Cancel
             </Button>
-            <Button disabled={saveMutation.isPending}>
-              <Save className="mr-2 h-4 w-4" />
-              {saveMutation.isPending
-                ? "Saving..."
-                : vehicle?.id
-                  ? "Update Vehicle"
-                  : "Save Vehicle"}
+            <Button
+              type="submit"
+              disabled={saveMutation.isPending}
+              className="min-w-40 bg-amber-400 font-bold !text-slate-950 shadow-lg shadow-amber-500/10 hover:bg-amber-300 hover:!text-slate-950"
+            >
+              <Save
+                className="mr-2 h-4 w-4"
+                style={{ color: "#020617", stroke: "#020617" }}
+              />
+              <span
+                style={{
+                  color: "#020617",
+                  WebkitTextFillColor: "#020617",
+                }}
+              >
+                {saveMutation.isPending
+                  ? "Saving..."
+                  : vehicle?.id
+                    ? "Update Vehicle"
+                    : "Save Vehicle"}
+              </span>
             </Button>
           </div>
         </form>
@@ -510,14 +524,14 @@ export default function VehicleListPage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 pb-10">
+    <div className="w-full space-y-5 pb-10">
       <FleetHero
         eyebrow="Fleet Registry"
         title="Vehicles"
         description="Add, edit, delete, and manage company vehicles from one section, including make, model, type, mileage, fuel, status, and service details."
         actions={
           <Button
-            className="bg-white text-slate-950 hover:bg-slate-100"
+            className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             onClick={() => setFormState({ open: true, vehicle: null })}
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -610,15 +624,15 @@ export default function VehicleListPage() {
                     <td className="px-4 py-3 font-medium">
                       {vehicle.vehicle_code}
                     </td>
-                    <td className="px-4 py-3">{vehicle.branch_name || "â€”"}</td>
-                    <td className="px-4 py-3">{vehicle.vehicle_type || "â€”"}</td>
+                    <td className="px-4 py-3">{vehicle.branch_name || "—"}</td>
+                    <td className="px-4 py-3">{vehicle.vehicle_type || "—"}</td>
                     <td className="whitespace-nowrap px-4 py-3">
                       {Number(vehicle.odometer_km || 0).toLocaleString()} km
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">
                       {vehicle.service_due_km
                         ? `${Number(vehicle.service_due_km).toLocaleString()} km`
-                        : "â€”"}
+                        : "—"}
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={vehicle.status} />
@@ -672,4 +686,3 @@ export default function VehicleListPage() {
     </div>
   );
 }
-
