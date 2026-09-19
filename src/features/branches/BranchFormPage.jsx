@@ -232,7 +232,7 @@ export default function BranchFormPage() {
   const saving = isSubmitting || branchLoading;
 
   return (
-    <div className="branch-module-page branch-workspace mx-auto w-full max-w-5xl space-y-5 pb-10">
+    <div className="branch-module-page branch-workspace w-full space-y-5 pb-10">
       <PageHeader
         variant="hero"
         eyebrow="Branch Management"
