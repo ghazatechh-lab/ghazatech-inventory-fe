@@ -30,103 +30,25 @@
    PREMIUM FINANCE HERO
    --------------------------------------------------------- */
 
-.finance-workspace > [data-testid="page-header"] {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  min-height: 154px;
-  margin-bottom: 1.5rem !important;
-  padding: 1.75rem 1.8rem;
-  align-items: center;
-  border: 1px solid rgba(125, 211, 252, 0.14);
-  border-radius: 24px;
-  background:
-    radial-gradient(circle at 92% 2%, rgba(56, 189, 248, 0.24), transparent 31%),
-    radial-gradient(circle at 78% 120%, rgba(251, 191, 36, 0.12), transparent 28%),
-    linear-gradient(135deg, #05142b 0%, #082a54 56%, #18527e 100%);
-  box-shadow:
-    0 24px 58px rgba(15, 23, 42, 0.17),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
 
-.finance-workspace > [data-testid="page-header"]::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  right: -92px;
-  bottom: -168px;
-  width: 270px;
-  height: 270px;
-  border-radius: 999px;
-  background: rgba(251, 191, 36, 0.12);
-}
 
-.finance-workspace > [data-testid="page-header"] > div:first-child::before {
-  content: "FINANCE & ACCOUNTING";
-  display: block;
-  margin-bottom: 0.45rem;
-  color: #7dd3fc !important;
-  -webkit-text-fill-color: #7dd3fc !important;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.18em;
-}
 
-.finance-workspace > [data-testid="page-header"] h1 {
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  font-size: clamp(1.8rem, 2.6vw, 2.4rem) !important;
-  font-weight: 900 !important;
-  line-height: 1.12 !important;
-  letter-spacing: -0.035em !important;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
-}
 
-.finance-workspace > [data-testid="page-header"] p {
-  max-width: 790px;
-  color: #dbeafe !important;
-  -webkit-text-fill-color: #dbeafe !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  font-size: 13px !important;
-  font-weight: 600 !important;
-  line-height: 1.65 !important;
-}
 
-.finance-workspace > [data-testid="page-header"] > div:last-child {
-  position: relative;
-  z-index: 2;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
+
+
+
+
+
+
 
 /* Primary hero actions. */
-.finance-workspace > [data-testid="page-header"] button:not([class*="outline"]),
-.finance-workspace > [data-testid="page-header"] a:not([class*="outline"]) {
-  border-color: rgba(255, 255, 255, 0.25) !important;
-  background: linear-gradient(135deg, #fcd34d, #f59e0b) !important;
-  color: #0f172a !important;
-  -webkit-text-fill-color: #0f172a !important;
-  font-weight: 800 !important;
-  box-shadow: 0 12px 26px rgba(245, 158, 11, 0.24);
-}
+
 
 /* Secondary hero actions. */
-.finance-workspace > [data-testid="page-header"] button[class*="outline"],
-.finance-workspace > [data-testid="page-header"] a[class*="outline"] {
-  border-color: rgba(255, 255, 255, 0.22) !important;
-  background: rgba(255, 255, 255, 0.10) !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-  backdrop-filter: blur(12px);
-}
 
-.finance-workspace > [data-testid="page-header"] button:hover,
-.finance-workspace > [data-testid="page-header"] a:hover {
-  transform: translateY(-1px);
-}
+
+
 
 /* ---------------------------------------------------------
    DASHBOARD METRICS AND CARDS
@@ -374,22 +296,11 @@ body > .fixed.inset-0 > div {
 }
 
 @media (max-width: 767px) {
-  .finance-workspace > [data-testid="page-header"] {
-    min-height: auto;
-    padding: 1.25rem;
-    align-items: stretch;
-    flex-direction: column;
-    border-radius: 20px;
-  }
+  
 
-  .finance-workspace > [data-testid="page-header"] > div:last-child {
-    width: 100%;
-    justify-content: stretch;
-  }
+  
 
-  .finance-workspace > [data-testid="page-header"] > div:last-child > * {
-    flex: 1 1 auto;
-  }
+  
 
   .finance-workspace .flex.flex-wrap.gap-6.border-b {
     align-items: stretch;

@@ -587,7 +587,7 @@ export default function SupplierBillFormPage() {
       setPurchaseOrderSearch(
         [selectedPurchaseOrder.po_number, selectedPurchaseOrder.supplier_name]
           .filter(Boolean)
-          .join(" Â· "),
+          .join(" · "),
       );
     } else if (!form.purchase_order) {
       setPurchaseOrderSearch("");
@@ -889,7 +889,7 @@ export default function SupplierBillFormPage() {
           supplierRecord?.name,
       ]
         .filter(Boolean)
-        .join(" Â· "),
+        .join(" · "),
     );
     setPurchaseOrderSearchOpen(false);
 
@@ -1280,7 +1280,7 @@ export default function SupplierBillFormPage() {
   }
 
   return (
-    <div className="purchase-module-page purchase-workspace space-y-6">
+    <div className="purchase-module-page purchase-workspace w-full space-y-6 pb-10">
       <PageHeader
         title={isEdit ? "Edit Supplier Bill" : "New Supplier Bill"}
         subtitle={
@@ -1569,7 +1569,7 @@ export default function SupplierBillFormPage() {
 
               {branches.map((branch) => (
                 <option key={branch.id} value={String(branch.id)}>
-                  {branch.branch_code ? `${branch.branch_code} â€” ` : ""}
+                  {branch.branch_code ? `${branch.branch_code} — ` : ""}
                   {branch.branch_name || branch.name}
                 </option>
               ))}
@@ -1599,7 +1599,7 @@ export default function SupplierBillFormPage() {
                         selectedPurchaseOrder.supplier_name,
                       ]
                         .filter(Boolean)
-                        .join(" Â· ")
+                        .join(" · ")
                     : "";
 
                   if (selectedPurchaseOrder && value !== selectedLabel) {
@@ -1644,7 +1644,7 @@ export default function SupplierBillFormPage() {
                             purchaseOrder.status,
                           ]
                             .filter(Boolean)
-                            .join(" Â· ")}
+                            .join(" · ")}
                         </span>
                       </button>
                     ))
@@ -1681,7 +1681,7 @@ export default function SupplierBillFormPage() {
               {availableGrns.map((grn) => (
                 <option key={grn.id} value={String(grn.id)}>
                   {grn.grn_number || `GRN ${grn.id}`}
-                  {grn.po_number ? ` â€” ${grn.po_number}` : ""}
+                  {grn.po_number ? ` — ${grn.po_number}` : ""}
                 </option>
               ))}
             </select>
@@ -1743,7 +1743,7 @@ export default function SupplierBillFormPage() {
                   {item.product_name ? (
                     <p className="mt-1 text-sm text-muted-foreground">
                       {item.product_name}
-                      {item.sku ? ` â€¢ ${item.sku}` : ""}
+                      {item.sku ? ` • ${item.sku}` : ""}
                     </p>
                   ) : null}
                 </div>
@@ -1780,7 +1780,7 @@ export default function SupplierBillFormPage() {
                   />
 
                   <p className="mt-1 text-[11px] text-muted-foreground">
-                    Accepted: {numberValue(item.received_quantity)} Â· Available:{" "}
+                    Accepted: {numberValue(item.received_quantity)} · Available:{" "}
                     {numberValue(item.available_bill_quantity)}
                   </p>
 

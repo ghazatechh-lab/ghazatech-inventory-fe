@@ -1,0 +1,162 @@
+/* =========================================================
+   GHAZATECH — GLOBAL VISUAL CONSISTENCY
+   Reference: Inventory Categories / Brands / Racks
+   ========================================================= */
+
+:root {
+  --ghaza-page-max: 1540px;
+  --ghaza-hero-start: #082a4a;
+  --ghaza-hero-mid: #0d4678;
+  --ghaza-hero-end: #2e7197;
+  --ghaza-amber: #fbbf24;
+  --ghaza-amber-hover: #fcd34d;
+  --ghaza-ink: #020617;
+}
+
+/* One page frame for every route. Preserve intentional inner form widths. */
+.app-page-frame,
+.app-topbar-frame {
+  width: 100%;
+  max-width: var(--ghaza-page-max);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.app-page-frame {
+  min-width: 0;
+}
+
+/* The shared hero must remain blue in light and dark mode. */
+.app-page-frame [data-testid="page-header"] {
+  background-image: linear-gradient(
+    90deg,
+    var(--ghaza-hero-start),
+    var(--ghaza-hero-mid),
+    var(--ghaza-hero-end)
+  ) !important;
+  background-color: var(--ghaza-hero-mid) !important;
+  color: #ffffff !important;
+}
+
+.app-page-frame [data-testid="page-header"] .page-header-title {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.app-page-frame [data-testid="page-header"] .page-header-subtitle {
+  color: #f1f5f9 !important;
+  -webkit-text-fill-color: #f1f5f9 !important;
+}
+
+.app-page-frame [data-testid="page-header"] .page-header-icon,
+.app-page-frame [data-testid="page-header"] .page-header-icon svg,
+.app-page-frame [data-testid="page-header"] .page-header-icon svg * {
+  color: #fcd34d !important;
+  stroke: #fcd34d !important;
+}
+
+/* Same amber action treatment as Categories / Brands / Racks. */
+.app-page-frame [data-testid="page-header"] .module-hero-actions button,
+.app-page-frame [data-testid="page-header"] .module-hero-actions a {
+  min-height: 44px;
+  border-radius: 12px !important;
+  border-color: #fcd34d !important;
+  background: var(--ghaza-amber) !important;
+  color: var(--ghaza-ink) !important;
+  -webkit-text-fill-color: var(--ghaza-ink) !important;
+  font-weight: 800 !important;
+}
+
+.app-page-frame [data-testid="page-header"] .module-hero-actions button:hover,
+.app-page-frame [data-testid="page-header"] .module-hero-actions a:hover {
+  background: var(--ghaza-amber-hover) !important;
+  color: var(--ghaza-ink) !important;
+  -webkit-text-fill-color: var(--ghaza-ink) !important;
+}
+
+.app-page-frame [data-testid="page-header"] .module-hero-actions svg,
+.app-page-frame [data-testid="page-header"] .module-hero-actions svg * {
+  color: var(--ghaza-ink) !important;
+  stroke: var(--ghaza-ink) !important;
+}
+
+/* Custom heroes that already use the approved palette stay blue in light mode. */
+html.light body section[class*="from-[#082a4a]"],
+html.dark body section[class*="from-[#082a4a]"] {
+  background-image: linear-gradient(
+    90deg,
+    var(--ghaza-hero-start),
+    var(--ghaza-hero-mid),
+    var(--ghaza-hero-end)
+  ) !important;
+}
+
+/* Shared search appearance follows Inventory. */
+.app-page-frame input[type="search"],
+.app-page-frame input[placeholder*="Search"],
+.app-page-frame input[placeholder*="search"] {
+  border-color: #dbe3ee !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-radius: 12px !important;
+}
+
+html.dark .app-page-frame input[type="search"],
+html.dark .app-page-frame input[placeholder*="Search"],
+html.dark .app-page-frame input[placeholder*="search"] {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.025) !important;
+  color: #f8fafc !important;
+}
+
+.app-page-frame input[type="search"]::placeholder,
+.app-page-frame input[placeholder*="Search"]::placeholder,
+.app-page-frame input[placeholder*="search"]::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+
+/* Shared table surface follows Inventory without modifying table layout logic. */
+.app-page-frame [data-testid="data-table"] {
+  overflow: hidden;
+  border-color: #e2e8f0 !important;
+  background: #ffffff !important;
+}
+
+html.dark .app-page-frame [data-testid="data-table"] {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: #0f172a !important;
+}
+
+.app-page-frame [data-testid="data-table"] thead {
+  background: #f8fafc !important;
+}
+
+html.dark .app-page-frame [data-testid="data-table"] thead {
+  background: rgba(255, 255, 255, 0.025) !important;
+}
+
+/* Top bar / breadcrumbs align with the same content frame. */
+header.sticky.top-0 {
+  border-color: #e2e8f0 !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+}
+
+html.dark header.sticky.top-0 {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  background: rgba(10, 14, 23, 0.92) !important;
+}
+
+@media (max-width: 1023px) {
+  .app-page-frame [data-testid="page-header"] .page-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media print {
+  .app-page-frame,
+  .app-topbar-frame {
+    max-width: none !important;
+  }
+}

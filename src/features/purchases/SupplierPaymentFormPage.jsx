@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import {
   Link,
   useNavigate,
@@ -1019,7 +1019,7 @@ export default function SupplierPaymentFormPage() {
   }
 
   return (
-    <div className="purchase-module-page purchase-workspace space-y-6 pb-10">
+    <div className="purchase-module-page purchase-workspace w-full space-y-6 pb-10">
       <PageHeader
         title={isEdit ? "Edit Supplier Payment" : "New Supplier Payment"}
         subtitle="Record a payment and allocate it against one or more outstanding supplier bills."
@@ -1112,7 +1112,7 @@ export default function SupplierPaymentFormPage() {
 
               {branches.map((branch) => (
                 <option key={branch.id} value={String(branch.id)}>
-                  {branch.branch_code ? `${branch.branch_code} â€” ` : ""}
+                  {branch.branch_code ? `${branch.branch_code} — ` : ""}
 
                   {branch.branch_name || branch.name}
                 </option>
@@ -1175,7 +1175,7 @@ export default function SupplierPaymentFormPage() {
                             <div className="text-xs text-muted-foreground">
                               {[supplier.supplier_code, supplier.contact_person]
                                 .filter(Boolean)
-                                .join(" Â· ")}
+                                .join(" · ")}
                             </div>
                           )}
                         </div>
@@ -1288,7 +1288,7 @@ export default function SupplierPaymentFormPage() {
                       account.account_number,
                     ]
                       .filter(Boolean)
-                      .join(" â€” ") || `Account ${account.id}`}
+                      .join(" — ") || `Account ${account.id}`}
                   </option>
                 ))}
               </select>
@@ -1325,7 +1325,7 @@ export default function SupplierPaymentFormPage() {
                   <option key={register.id} value={String(register.id)}>
                     {register.name ||
                       register.register_name ||
-                      `${register.branch_name || "Cash Register"} â€” ${register.register_date || register.id}`}
+                      `${register.branch_name || "Cash Register"} — ${register.register_date || register.id}`}
                   </option>
                 ))}
               </select>
@@ -1518,14 +1518,14 @@ export default function SupplierPaymentFormPage() {
                     </td>
 
                     <td className="px-4 py-4">
-                      {allocation.supplier_invoice_number || "â€”"}
+                      {allocation.supplier_invoice_number || "—"}
                     </td>
 
                     <td className="px-4 py-4">
                       {allocation.bill_date ? (
                         <DateText value={allocation.bill_date} />
                       ) : (
-                        "â€”"
+                        "—"
                       )}
                     </td>
 
@@ -1533,7 +1533,7 @@ export default function SupplierPaymentFormPage() {
                       {allocation.due_date ? (
                         <DateText value={allocation.due_date} />
                       ) : (
-                        "â€”"
+                        "—"
                       )}
                     </td>
 
@@ -1761,7 +1761,7 @@ export default function SupplierPaymentFormPage() {
                 variant="ghost"
                 onClick={() => setFinanceDialog(null)}
               >
-                Ã—
+                ×
               </Button>
             </div>
 

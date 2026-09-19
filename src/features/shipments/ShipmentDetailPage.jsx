@@ -46,7 +46,7 @@ const Field = ({ label, value }) => (
       {label}
     </p>
     <div className="mt-1 break-words text-sm font-medium">
-      {value === undefined || value === null || value === "" ? "â€”" : value}
+      {value === undefined || value === null || value === "" ? "—" : value}
     </div>
   </div>
 );
@@ -169,7 +169,7 @@ export default function ShipmentDetailPage() {
     Boolean(purchaseOrderId);
 
   return (
-    <div className="purchase-module-page purchase-workspace space-y-6">
+    <div className="purchase-module-page purchase-workspace w-full space-y-6 pb-10">
       <PageHeader
         title={shipment.shipment_number || `Shipment ${id}`}
         subtitle="Complete shipment and received-product information."
@@ -245,7 +245,7 @@ export default function ShipmentDetailPage() {
             label="Branch"
             value={
               shipment.branch_code
-                ? `${shipment.branch_code} â€” ${shipment.branch_name || ""}`
+                ? `${shipment.branch_code} — ${shipment.branch_name || ""}`
                 : shipment.branch_name
             }
           />
@@ -259,7 +259,7 @@ export default function ShipmentDetailPage() {
               shipment.shipment_date ? (
                 <DateText value={shipment.shipment_date} />
               ) : (
-                "â€”"
+                "—"
               )
             }
           />
@@ -269,7 +269,7 @@ export default function ShipmentDetailPage() {
               shipment.expected_date ? (
                 <DateText value={shipment.expected_date} />
               ) : (
-                "â€”"
+                "—"
               )
             }
           />
@@ -279,7 +279,7 @@ export default function ShipmentDetailPage() {
               shipment.received_date ? (
                 <DateText value={shipment.received_date} />
               ) : (
-                "â€”"
+                "—"
               )
             }
           />
@@ -344,13 +344,13 @@ export default function ShipmentDetailPage() {
                             "Product"}
                         </p>
                         <p className="font-mono text-xs text-muted-foreground">
-                          {item.sku || item.product?.sku || "â€”"}
+                          {item.sku || item.product?.sku || "—"}
                         </p>
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-4">
-                    {item.variant_name || item.variant?.display_name || "â€”"}
+                    {item.variant_name || item.variant?.display_name || "—"}
                   </td>
                   <td className="px-4 py-4">{item.expected_quantity ?? 0}</td>
                   <td className="px-4 py-4">{item.received_quantity ?? 0}</td>
@@ -363,7 +363,7 @@ export default function ShipmentDetailPage() {
                     {item.rack_code ||
                       item.rack_name ||
                       item.rack?.rack_code ||
-                      "â€”"}
+                      "—"}
                   </td>
                   <td className="px-4 py-4">
                     <CurrencyText value={item.unit_cost || 0} />
@@ -381,9 +381,9 @@ export default function ShipmentDetailPage() {
                     />
                   </td>
                   <td className="px-4 py-4">
-                    <p>Serial: {item.serial_number || "â€”"}</p>
+                    <p>Serial: {item.serial_number || "—"}</p>
                     <p className="text-xs text-muted-foreground">
-                      Batch: {item.batch_number || "â€”"}
+                      Batch: {item.batch_number || "—"}
                     </p>
                   </td>
                 </tr>
@@ -411,9 +411,9 @@ export default function ShipmentDetailPage() {
           {logs.map((log) => (
             <div key={log.id} className="border-l-2 pl-4">
               <StatusBadge status={log.status} />
-              <p className="mt-2 text-sm">{log.location || "â€”"}</p>
+              <p className="mt-2 text-sm">{log.location || "—"}</p>
               <p className="text-sm text-muted-foreground">
-                {log.remarks || "â€”"}
+                {log.remarks || "—"}
               </p>
             </div>
           ))}
@@ -438,4 +438,3 @@ export default function ShipmentDetailPage() {
     </div>
   );
 }
-

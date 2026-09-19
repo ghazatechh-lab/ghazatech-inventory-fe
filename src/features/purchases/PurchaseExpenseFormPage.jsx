@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Loader2, Paperclip, Save, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -529,7 +529,7 @@ export default function PurchaseExpenseFormPage() {
   }
 
   return (
-    <div className="purchase-module-page purchase-workspace space-y-6 pb-10">
+    <div className="purchase-module-page purchase-workspace w-full space-y-6 pb-10">
       <PageHeader
         title={isEdit ? "Edit Purchase Expense" : "New Purchase Expense"}
         subtitle="Record purchase-related expenses with fixed 5% VAT."
@@ -601,7 +601,7 @@ export default function PurchaseExpenseFormPage() {
 
               {branches.map((branch) => (
                 <option key={branch.id} value={String(branch.id)}>
-                  {branch.branch_code ? `${branch.branch_code} â€” ` : ""}
+                  {branch.branch_code ? `${branch.branch_code} — ` : ""}
                   {branch.branch_name || branch.name}
                 </option>
               ))}

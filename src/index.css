@@ -435,3 +435,5 @@ html.light .sidebar-always-blue .hover\:text-white:hover {
 @import "./styles/hrms-module.css";
 @import "./styles/reports-module.css";
 @import "./styles/settings-module.css";
+
+@import "./styles/app-consistency.css";

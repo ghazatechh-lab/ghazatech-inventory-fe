@@ -2,6 +2,7 @@ import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowDown,
+  ArrowRightLeft,
   ArrowUp,
   FilterX,
   RefreshCcw,
@@ -180,30 +181,34 @@ export default function StockMovementsPage() {
       <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
         <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-400/20 blur-3xl" />
         <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p
-              className="text-xs font-extrabold uppercase tracking-[0.2em]"
-              style={{ color: "#bae6fd" }}
-            >
-              Inventory ledger
-            </p>
-            <h1
-              className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl"
-              style={{
-                color: "#ffffff",
-                WebkitTextFillColor: "#ffffff",
-                textShadow: "0 2px 12px rgba(0,0,0,.28)",
-              }}
-            >
-              Stock Movements
-            </h1>
-            <p
-              className="mt-2 max-w-2xl text-sm leading-6"
-              style={{ color: "#f1f5f9" }}
-            >
-              Inventory transaction history for {selectedBranchLabel}. Branch
-              scope follows the global branch filter.
-            </p>
+          <div className="flex items-start gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-300/35 bg-amber-300/10 text-amber-300 shadow-inner backdrop-blur">
+              <ArrowRightLeft className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.15em] text-blue-700 dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-300">
+                  Inventory ledger
+                </span>
+              </div>
+              <h1
+                className="mt-1 text-2xl font-extrabold tracking-tight !text-white sm:text-3xl"
+                style={{
+                  color: "#ffffff",
+                  WebkitTextFillColor: "#ffffff",
+                  textShadow: "0 2px 12px rgba(0,0,0,.28)",
+                }}
+              >
+                Stock Movements
+              </h1>
+              <p
+                className="mt-2 max-w-2xl text-sm leading-6"
+                style={{ color: "#f1f5f9" }}
+              >
+                Inventory transaction history for {selectedBranchLabel}. Branch
+                scope follows the global branch filter.
+              </p>
+            </div>
           </div>
           <Button
             type="button"
@@ -515,4 +520,3 @@ export default function StockMovementsPage() {
     </div>
   );
 }
-

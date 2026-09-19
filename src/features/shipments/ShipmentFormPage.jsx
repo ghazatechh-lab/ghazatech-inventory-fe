@@ -594,7 +594,7 @@ export default function ShipmentFormPage() {
     }
 
     if (item.product_name) {
-      return [item.product_name, item.sku].filter(Boolean).join(" Â· ");
+      return [item.product_name, item.sku].filter(Boolean).join(" · ");
     }
 
     const selected = products.find(
@@ -602,7 +602,7 @@ export default function ShipmentFormPage() {
     );
 
     return selected
-      ? [selected.product_name, selected.sku].filter(Boolean).join(" Â· ")
+      ? [selected.product_name, selected.sku].filter(Boolean).join(" · ")
       : "";
   };
 
@@ -612,7 +612,7 @@ export default function ShipmentFormPage() {
     );
 
     const selectedLabel = selected
-      ? [selected.product_name, selected.sku].filter(Boolean).join(" Â· ")
+      ? [selected.product_name, selected.sku].filter(Boolean).join(" · ")
       : "";
 
     const search = getProductSearchValue(index, item).trim().toLowerCase();
@@ -652,7 +652,7 @@ export default function ShipmentFormPage() {
 
     const label = [product.product_name, defaultVariant?.sku || product.sku]
       .filter(Boolean)
-      .join(" Â· ");
+      .join(" · ");
 
     updateItem(index, {
       product: String(product.id),
@@ -917,7 +917,7 @@ export default function ShipmentFormPage() {
   }
 
   return (
-    <div className="purchase-module-page purchase-workspace mx-auto max-w-[1500px] space-y-5 pb-10">
+    <div className="purchase-module-page purchase-workspace w-full space-y-5 pb-10">
       <PageHeader
         title={edit ? "Edit Shipment" : "New Shipment"}
         subtitle={
@@ -926,7 +926,7 @@ export default function ShipmentFormPage() {
             : "Log an incoming supplier shipment against a purchase order"
         }
         actions={
-          <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
+          <span className="purchase-header-status-badge inline-flex items-center rounded-xl border px-3 py-1.5 text-xs font-extrabold shadow-sm">
             {form.status.replace(/_/g, " ")}
           </span>
         }
@@ -1033,7 +1033,7 @@ export default function ShipmentFormPage() {
                             order.branch_code || order.branch_name,
                           ]
                             .filter(Boolean)
-                            .join(" Â· ")}
+                            .join(" · ")}
                         </span>
                       )}
                     </button>
@@ -1117,7 +1117,7 @@ export default function ShipmentFormPage() {
                             supplier.email,
                           ]
                             .filter(Boolean)
-                            .join(" Â· ")}
+                            .join(" · ")}
                         </span>
                       )}
                     </button>
@@ -1215,7 +1215,7 @@ export default function ShipmentFormPage() {
                 {receivers.map((receiver) => (
                   <SelectItem key={receiver.id} value={String(receiver.id)}>
                     {receiver.display_name}
-                    {receiver.role_name ? ` Â· ${receiver.role_name}` : ""}
+                    {receiver.role_name ? ` · ${receiver.role_name}` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1493,7 +1493,7 @@ export default function ShipmentFormPage() {
                                         productOption.brand_name,
                                       ]
                                         .filter(Boolean)
-                                        .join(" Â· ")}
+                                        .join(" · ")}
                                     </span>
                                   )}
                                 </button>
@@ -1832,4 +1832,3 @@ export default function ShipmentFormPage() {
     </div>
   );
 }
-

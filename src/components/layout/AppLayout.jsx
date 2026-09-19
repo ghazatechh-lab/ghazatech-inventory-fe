@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Outlet } from "react-router-dom";
 
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -58,7 +58,9 @@ export function AppLayout() {
 
         {/* Only this section scrolls. The sidebar and header remain visible. */}
         <main className="fade-in-up min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain bg-slate-50 p-4 transition-colors sm:p-6 lg:p-8 dark:bg-transparent">
-          <Outlet />
+          <div className="app-page-frame">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>
@@ -66,4 +68,3 @@ export function AppLayout() {
 }
 
 export default AppLayout;
-

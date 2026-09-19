@@ -1,134 +1,151 @@
-﻿import React from "react";
+import React from "react";
+import { useLocation } from "react-router-dom";
+import { Boxes } from "lucide-react";
 
-import { useAuth } from "@/lib/auth";
-import { canChangeActiveBranch } from "@/lib/permissions";
-import { BranchSelector } from "@/components/common/BranchSelector";
+import {
+  getModuleByPath,
+  getNavigationItemByPath,
+} from "@/config/moduleNavigation";
+
+const moduleEyebrow = (module) => {
+  if (!module) return "Ghazatech ERP";
+
+  const labels = {
+    dashboard: "Business Overview",
+    inventory: "Inventory Setup",
+    purchase: "Purchase Management",
+    sales: "Sales Management",
+    hrms: "Human Resources",
+    fleet: "Fleet Management",
+    reports: "Reports & Analytics",
+    accounting: "Finance & Accounting",
+    settings: "System Administration",
+    recovery: "System Recovery",
+    website: "Website Management",
+  };
+
+  return (
+    labels[module.id] || module.title || module.shortTitle || "Ghazatech ERP"
+  );
+};
 
 export function PageHeader({
   title,
   subtitle,
   actions,
   eyebrow,
+  icon,
   className = "",
   children,
-  variant = "default",
+  variant = "hero",
 }) {
-  const { user } = useAuth();
-  const canSwitchBranch = canChangeActiveBranch(user);
-  const isHero = variant === "hero";
+  const location = useLocation();
 
-  if (isHero) {
+  const module = React.useMemo(
+    () => getModuleByPath(location.pathname),
+    [location.pathname],
+  );
+
+  const navigationMatch = React.useMemo(
+    () => getNavigationItemByPath(location.pathname),
+    [location.pathname],
+  );
+
+  const Icon =
+    icon ||
+    navigationMatch?.item?.icon ||
+    navigationMatch?.module?.icon ||
+    module?.icon ||
+    Boxes;
+
+  const resolvedEyebrow = eyebrow || moduleEyebrow(module);
+
+  if (variant === "plain") {
     return (
-      <>
-        <style>{`
-          .module-hero-actions,
-          .module-hero-actions *,
-          .module-hero-actions *::before,
-          .module-hero-actions *::after {
-            color: #020617 !important;
-            -webkit-text-fill-color: #020617 !important;
-          }
-
-          .module-hero-actions button,
-          .module-hero-actions a {
-            background: #fbbf24 !important;
-            background-color: #fbbf24 !important;
-            border-color: #fcd34d !important;
-            color: #020617 !important;
-            -webkit-text-fill-color: #020617 !important;
-            font-weight: 700 !important;
-          }
-
-          .module-hero-actions button:hover,
-          .module-hero-actions a:hover {
-            background: #fcd34d !important;
-            background-color: #fcd34d !important;
-            color: #020617 !important;
-            -webkit-text-fill-color: #020617 !important;
-          }
-
-          .module-hero-actions svg,
-          .module-hero-actions svg * {
-            color: #020617 !important;
-            stroke: #020617 !important;
-          }
-        `}</style>
-
-        <section
-          className={`relative w-full overflow-hidden rounded-[28px] border border-blue-400/10 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] text-white shadow-xl shadow-slate-950/10 ${className}`}
-        >
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_42%,rgba(90,178,225,0.28),transparent_30%),linear-gradient(90deg,rgba(2,18,37,0.28),transparent_55%)]" />
-          <div className="pointer-events-none absolute -right-16 -top-20 h-72 w-72 rounded-full bg-sky-300/10 blur-3xl" />
-
-          <div className="relative z-10 flex min-h-[168px] flex-col gap-6 px-6 py-7 sm:px-7 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-            <div className="min-w-0">
-              {eyebrow ? (
-                <p
-                  className="mb-1 text-xs font-extrabold uppercase tracking-[0.16em]"
-                  style={{ color: "#7dd3fc", WebkitTextFillColor: "#7dd3fc" }}
-                >
-                  {eyebrow}
-                </p>
-              ) : null}
-
-              <h1
-                className="break-words text-3xl font-extrabold tracking-tight sm:text-[40px] sm:leading-[1.05]"
-                style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
-              >
-                {title}
-              </h1>
-
-              {subtitle ? (
-                <p
-                  className="mt-2 max-w-4xl text-sm font-medium leading-6"
-                  style={{ color: "#e2e8f0", WebkitTextFillColor: "#e2e8f0" }}
-                >
-                  {subtitle}
-                </p>
-              ) : null}
-
-              {children}
-            </div>
-
-            <div className="module-hero-actions flex shrink-0 flex-wrap items-center gap-2">
-              {canSwitchBranch ? <BranchSelector /> : null}
-              {actions}
-            </div>
+      <div
+        className={`flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between ${className}`}
+      >
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
+            <Icon className="h-5 w-5" />
           </div>
-        </section>
-      </>
+
+          <div className="min-w-0">
+            <p className="mb-1 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              {resolvedEyebrow}
+            </p>
+
+            <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
+              {title}
+            </h1>
+
+            {subtitle ? (
+              <p className="mt-1.5 max-w-3xl text-sm leading-6 text-muted-foreground">
+                {subtitle}
+              </p>
+            ) : null}
+
+            {children}
+          </div>
+        </div>
+
+        {actions ? (
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {actions}
+          </div>
+        ) : null}
+      </div>
     );
   }
 
   return (
-    <div
-      className={`flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between ${className}`}
+    <section
+      data-testid="page-header"
+      className={`relative overflow-hidden rounded-3xl border border-slate-200/20 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] p-6 text-white shadow-xl sm:p-7 ${className}`}
     >
-      <div className="min-w-0">
-        {eyebrow ? (
-          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            {eyebrow}
-          </p>
+      <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 right-1/3 h-36 w-36 rounded-full bg-amber-300/10 blur-3xl" />
+
+      <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="page-header-content flex min-w-0 items-start gap-4">
+          <div className="page-header-icon flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-300/35 bg-amber-300/10 text-amber-300 shadow-inner backdrop-blur">
+            <Icon className="h-6 w-6" />
+          </div>
+
+          <div className="page-header-copy min-w-0">
+            <div className="mb-1.5 flex flex-wrap items-center gap-2">
+              <span className="page-header-eyebrow text-[11px] font-extrabold uppercase tracking-[0.18em] text-sky-200">
+                {resolvedEyebrow}
+              </span>
+            </div>
+
+            <h1
+              className="page-header-title text-2xl font-extrabold tracking-tight !text-white sm:text-3xl"
+              style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
+            >
+              {title}
+            </h1>
+
+            {subtitle ? (
+              <p
+                className="page-header-subtitle mt-2 max-w-2xl text-sm leading-6 !text-slate-100"
+                style={{ color: "#f1f5f9", WebkitTextFillColor: "#f1f5f9" }}
+              >
+                {subtitle}
+              </p>
+            ) : null}
+
+            {children}
+          </div>
+        </div>
+
+        {actions ? (
+          <div className="page-header-actions module-hero-actions flex shrink-0 flex-wrap gap-2 lg:justify-end">
+            {actions}
+          </div>
         ) : null}
-
-        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          {title}
-        </h1>
-
-        {subtitle ? (
-          <p className="mt-1.5 max-w-3xl text-sm leading-6 text-muted-foreground">
-            {subtitle}
-          </p>
-        ) : null}
-
-        {children}
       </div>
-
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        {canSwitchBranch ? <BranchSelector /> : null}
-        {actions}
-      </div>
-    </div>
+    </section>
   );
 }
 

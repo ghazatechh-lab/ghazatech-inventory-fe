@@ -4,6 +4,7 @@ import { Loader2, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { PageHeader } from "@/components/common/PageHeader";
 
 export const ACTIVE_STATUSES = [
   ["RECEIVED", "Received"],
@@ -123,23 +124,12 @@ export const statusClass = (status) => {
 
 export function ServiceHero({ title, description, actions }) {
   return (
-    <section className="relative overflow-hidden rounded-[28px] border border-white/10 bg-gradient-to-r from-[#061126] via-[#142f68] to-[#0e7b8f] px-7 py-8 shadow-[0_22px_55px_rgba(15,23,42,.20)] md:px-9 md:py-10">
-      <div className="absolute -right-16 -top-24 h-64 w-64 rounded-full bg-cyan-300/15 blur-3xl" />
-      <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.22em] !text-cyan-200">
-            Sales · Service Operations
-          </p>
-          <h1 className="mt-3 text-3xl font-black tracking-tight !text-white drop-shadow-sm md:text-4xl">
-            {title}
-          </h1>
-          <p className="mt-3 max-w-3xl text-sm font-medium leading-6 !text-slate-200 md:text-base">
-            {description}
-          </p>
-        </div>
-        {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
-      </div>
-    </section>
+    <PageHeader
+      title={title}
+      subtitle={description}
+      eyebrow="Service Operations"
+      actions={actions}
+    />
   );
 }
 

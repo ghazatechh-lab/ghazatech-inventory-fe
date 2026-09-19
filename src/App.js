@@ -1,4 +1,4 @@
-﻿/** GHAZA COMPUTER ERP â€” Root Application */
+/** GHAZA COMPUTER ERP â€” Root Application */
 
 import React from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
@@ -191,6 +191,7 @@ import HRMSReportPage from "@/features/reports/HRMSReportPage";
 
 import NotificationsPage from "@/features/notifications/NotificationsPage";
 import AuditLogsPage from "@/features/auditLogs/AuditLogsPage";
+import RecoveryCentrePage from "@/features/recovery/RecoveryCentrePage";
 import SettingsPage from "@/features/settings/SettingsPage";
 import UserRoleManagementPage from "@/features/settings/UserRoleManagementPage";
 
@@ -967,6 +968,8 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+
+              <Route path="/recovery-centre" element={<RecoveryCentrePage />} />
 
               <Route
                 path="/settings/users-roles"

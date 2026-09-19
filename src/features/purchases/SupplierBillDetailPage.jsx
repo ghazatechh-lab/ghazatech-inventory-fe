@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -39,7 +39,7 @@ const value = (...items) => {
     }
   }
 
-  return "â€”";
+  return "—";
 };
 
 function MetricCard({ label, amount, currency, icon: Icon }) {
@@ -91,7 +91,7 @@ export default function SupplierBillDetailPage() {
 
   if (billQuery.isError || !billQuery.data) {
     return (
-      <div className="purchase-module-page purchase-workspace space-y-4">
+      <div className="purchase-module-page purchase-workspace w-full space-y-4 pb-10">
         <Button asChild variant="outline">
           <Link to="/purchases/supplier-bills">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -120,7 +120,7 @@ export default function SupplierBillDetailPage() {
     !["PAID", "CANCELLED"].includes(billStatus);
 
   return (
-    <div className="purchase-module-page purchase-workspace mx-auto max-w-7xl space-y-5 pb-10">
+    <div className="purchase-module-page purchase-workspace w-full space-y-5 pb-10">
       <PageHeader
         title={bill.bill_number || `Supplier Bill ${id}`}
         subtitle="Supplier invoice, received items, payments and outstanding balance"
@@ -229,14 +229,14 @@ export default function SupplierBillDetailPage() {
           <div>
             <p className="text-xs text-muted-foreground">Bill date</p>
             <div className="mt-1 font-medium">
-              {bill.bill_date ? <DateText value={bill.bill_date} /> : "â€”"}
+              {bill.bill_date ? <DateText value={bill.bill_date} /> : "—"}
             </div>
           </div>
 
           <div>
             <p className="text-xs text-muted-foreground">Due date</p>
             <div className="mt-1 font-medium">
-              {bill.due_date ? <DateText value={bill.due_date} /> : "â€”"}
+              {bill.due_date ? <DateText value={bill.due_date} /> : "—"}
             </div>
           </div>
 
@@ -250,7 +250,7 @@ export default function SupplierBillDetailPage() {
                 {value(bill.po_number)}
               </Link>
             ) : (
-              <p className="mt-1 font-medium">â€”</p>
+              <p className="mt-1 font-medium">—</p>
             )}
           </div>
 
@@ -264,7 +264,7 @@ export default function SupplierBillDetailPage() {
                 {value(bill.grn_number)}
               </Link>
             ) : (
-              <p className="mt-1 font-medium">â€”</p>
+              <p className="mt-1 font-medium">—</p>
             )}
           </div>
 
@@ -317,7 +317,7 @@ export default function SupplierBillDetailPage() {
                     <td>
                       {[item.variant_name, item.sku]
                         .filter(Boolean)
-                        .join(" Â· ") || "â€”"}
+                        .join(" · ") || "—"}
                     </td>
 
                     <td className="text-right">
@@ -418,9 +418,9 @@ export default function SupplierBillDetailPage() {
                         {allocation.payment_date ? (
                           <DateText value={allocation.payment_date} />
                         ) : (
-                          "â€”"
+                          "—"
                         )}
-                        {" Â· "}
+                        {" · "}
                         {String(
                           allocation.payment_method || "Payment",
                         ).replaceAll("_", " ")}

@@ -600,16 +600,15 @@ export default function ProductListPage() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.12),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(14,165,233,0.08),transparent_30%)]" />
         <div className="relative flex flex-col gap-5 px-6 py-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-500/20">
-              <Boxes className="h-7 w-7" />
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-300/35 bg-amber-300/10 text-amber-300 shadow-inner backdrop-blur">
+              <Package className="h-6 w-6" />
             </div>
             <div>
-              <p
-                className="text-xs font-bold uppercase tracking-[0.18em] !text-sky-200"
-                style={{ color: "#bae6fd" }}
-              >
-                Inventory catalogue
-              </p>
+              <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.15em] text-blue-700 dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-300">
+                  Inventory catalogue
+                </span>
+              </div>
               <h1
                 className="mt-1 text-2xl font-extrabold tracking-tight !text-white sm:text-3xl"
                 style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
@@ -853,4 +852,3 @@ export default function ProductListPage() {
     </div>
   );
 }
-

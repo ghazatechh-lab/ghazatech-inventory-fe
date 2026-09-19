@@ -29,10 +29,7 @@
     );
 }
 
-.stock-module-page > header,
-.stock-module-page > [data-testid="page-header"] {
-  margin-bottom: 0.25rem;
-}
+
 
 .stock-module-page .card-surface,
 .stock-module-page section.rounded-2xl,

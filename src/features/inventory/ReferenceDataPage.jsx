@@ -1,4 +1,5 @@
-﻿import React from "react";
+import React from "react";
+import { useLocation } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -9,7 +10,6 @@ import {
   Layers3,
   Plus,
   Search,
-  Tag,
   Trash2,
   XCircle,
 } from "lucide-react";
@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { getNavigationItemByPath } from "@/config/moduleNavigation";
 import {
   Dialog,
   DialogContent,
@@ -58,6 +59,12 @@ export default function ReferenceDataPage({
   testIdPrefix,
 }) {
   const queryClient = useQueryClient();
+  const location = useLocation();
+  const navigationMatch = React.useMemo(
+    () => getNavigationItemByPath(location.pathname),
+    [location.pathname],
+  );
+  const HeaderIcon = navigationMatch?.item?.icon || FolderTree;
   const { user } = useAuth();
   const canManage = isAdmin(user);
 
@@ -256,7 +263,7 @@ export default function ReferenceDataPage({
         <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-4">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-300/35 bg-amber-300/10 text-amber-300 shadow-inner backdrop-blur">
-              <Tag className="h-6 w-6" />
+              <HeaderIcon className="h-6 w-6" />
             </div>
 
             <div>

@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { CarFront, Gauge, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/common/PageHeader";
 
 export const rowsFrom = (value) => {
   if (Array.isArray(value)) return value;
@@ -27,24 +28,12 @@ export const getEmployeeName = (row) =>
 
 export function FleetHero({ eyebrow, title, description, actions }) {
   return (
-    <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
-      <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-blue-400/15 blur-3xl" />
-      <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-        <div className="max-w-3xl">
-          <p className="text-xs font-extrabold uppercase tracking-[0.2em] !text-cyan-200">
-            {eyebrow}
-          </p>
-          <h1 className="mt-3 text-3xl font-black tracking-tight !text-white sm:text-4xl">
-            {title}
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 !text-slate-200 sm:text-base">
-            {description}
-          </p>
-        </div>
-        {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
-      </div>
-    </section>
+    <PageHeader
+      title={title}
+      subtitle={description}
+      eyebrow={eyebrow || "Fleet Management"}
+      actions={actions}
+    />
   );
 }
 
@@ -150,4 +139,3 @@ export function FleetQuickLinks() {
     </div>
   );
 }
-

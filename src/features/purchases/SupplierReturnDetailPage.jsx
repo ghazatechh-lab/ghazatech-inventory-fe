@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   AlertCircle,
@@ -128,7 +128,7 @@ export default function SupplierReturnDetailPage() {
   const canIssueCredit = status === "APPROVED";
 
   return (
-    <div className="purchase-module-page purchase-workspace space-y-6">
+    <div className="purchase-module-page purchase-workspace w-full space-y-6 pb-10">
       <PageHeader
         title={record.return_number || `Return ${id}`}
         subtitle="Review the return, complete approval, and finalize the vendor credit workflow."
@@ -203,7 +203,7 @@ export default function SupplierReturnDetailPage() {
           </span>
           {renderStatus(status)}
           <span className="text-sm text-muted-foreground">
-            Draft â†’ Pending Approval â†’ Approved â†’ Credit Issued
+            Draft → Pending Approval → Approved → Credit Issued
           </span>
         </div>
       </div>
@@ -298,10 +298,10 @@ export default function SupplierReturnDetailPage() {
                 return (
                   <tr key={item.id} className="border-b">
                     <td className="px-4 py-4 font-medium">
-                      {item.product_name || "â€”"}
+                      {item.product_name || "—"}
                     </td>
                     <td className="px-4 py-4 font-mono text-xs">
-                      {item.sku || "â€”"}
+                      {item.sku || "—"}
                     </td>
                     <td className="px-4 py-4 font-semibold">{quantity}</td>
                     <td className="px-4 py-4">{treatmentLabel}</td>
@@ -311,7 +311,7 @@ export default function SupplierReturnDetailPage() {
                     <td className="px-4 py-4 font-semibold">
                       {renderMoney(lineTotal)}
                     </td>
-                    <td className="px-4 py-4">{item.reason || "â€”"}</td>
+                    <td className="px-4 py-4">{item.reason || "—"}</td>
                   </tr>
                 );
               })}

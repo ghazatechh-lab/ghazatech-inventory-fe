@@ -206,13 +206,22 @@ export default function CustomerFormPage() {
             </div>
 
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">
+              <p
+                className="text-xs font-semibold uppercase tracking-[0.22em] !text-sky-200"
+                style={{ color: "#bae6fd", WebkitTextFillColor: "#bae6fd" }}
+              >
                 Customer Master
               </p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+              <h1
+                className="mt-2 text-3xl font-semibold tracking-tight !text-white sm:text-4xl"
+                style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
+              >
                 {isEdit ? "Edit Customer" : "New Customer"}
               </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-200">
+              <p
+                className="mt-2 max-w-2xl text-sm leading-6 !text-slate-100"
+                style={{ color: "#f1f5f9", WebkitTextFillColor: "#f1f5f9" }}
+              >
                 {isEdit
                   ? "Update identity, contact information, commercial terms, and customer status."
                   : "Create a complete customer record for sales, invoicing, and account management."}

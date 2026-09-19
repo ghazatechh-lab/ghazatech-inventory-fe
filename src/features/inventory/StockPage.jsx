@@ -451,47 +451,51 @@ export default function StockPage() {
         <div className="pointer-events-none absolute bottom-0 left-1/3 h-24 w-56 rounded-full bg-amber-300/10 blur-2xl" />
 
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p
-              className="text-xs font-bold uppercase tracking-[0.22em] !text-sky-200"
-              style={{ color: "#bae6fd" }}
-            >
-              Inventory Management
-            </p>
+          <div className="flex items-start gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-300/35 bg-amber-300/10 text-amber-300 shadow-inner backdrop-blur">
+              <Warehouse className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.15em] text-blue-700 dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-300">
+                  Inventory Management
+                </span>
+              </div>
 
-            <h1
-              className="mt-2 text-3xl font-extrabold tracking-tight !text-white sm:text-4xl"
-              style={{
-                color: "#ffffff",
-                WebkitTextFillColor: "#ffffff",
-                opacity: 1,
-                textShadow: "0 2px 12px rgba(0, 0, 0, 0.28)",
-              }}
-            >
-              Stock Overview
-            </h1>
-
-            <p
-              className="mt-2 max-w-2xl text-sm leading-6 !text-slate-100"
-              style={{ color: "#f1f5f9" }}
-            >
-              Live inventory availability, valuation and product distribution
-              for{" "}
-              <strong
-                className="font-semibold !text-white"
+              <h1
+                className="mt-1 text-2xl font-extrabold tracking-tight !text-white sm:text-3xl"
                 style={{
                   color: "#ffffff",
                   WebkitTextFillColor: "#ffffff",
+                  opacity: 1,
+                  textShadow: "0 2px 12px rgba(0, 0, 0, 0.28)",
                 }}
               >
-                {selectedBranchLabel}
-              </strong>
-              .
-            </p>
+                Stock Overview
+              </h1>
 
-            <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs text-slate-100 backdrop-blur">
-              <PackageCheck className="h-4 w-4 text-emerald-300" />
-              Unified available-stock visibility
+              <p
+                className="mt-2 max-w-2xl text-sm leading-6 !text-slate-100"
+                style={{ color: "#f1f5f9" }}
+              >
+                Live inventory availability, valuation and product distribution
+                for{" "}
+                <strong
+                  className="font-semibold !text-white"
+                  style={{
+                    color: "#ffffff",
+                    WebkitTextFillColor: "#ffffff",
+                  }}
+                >
+                  {selectedBranchLabel}
+                </strong>
+                .
+              </p>
+
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs text-slate-100 backdrop-blur">
+                <PackageCheck className="h-4 w-4 text-emerald-300" />
+                Unified available-stock visibility
+              </div>
             </div>
           </div>
 
@@ -883,4 +887,3 @@ export default function StockPage() {
     </div>
   );
 }
-

@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -40,7 +40,7 @@ const DEFAULT_TRANSITIONS = {
 };
 
 const formatDate = (value) => {
-  if (!value) return "â€”";
+  if (!value) return "—";
 
   const date = new Date(`${value}T00:00:00`);
 
@@ -69,7 +69,7 @@ function InfoItem({ icon: Icon, label, value }) {
           {label}
         </p>
 
-        <p className="mt-1 text-sm font-medium">{value || "â€”"}</p>
+        <p className="mt-1 text-sm font-medium">{value || "—"}</p>
       </div>
     </div>
   );
@@ -194,7 +194,7 @@ export default function PODetailPage() {
   const totalAmount = numberValue(purchaseOrder.total_amount);
 
   return (
-    <div className="space-y-6">
+    <div className="purchase-module-page purchase-workspace w-full space-y-6 pb-10">
       <PageHeader
         title={purchaseOrder.po_number || "Purchase Order"}
         subtitle="Purchase-order details, products, receiving progress, and workflow status."
@@ -275,7 +275,7 @@ export default function PODetailPage() {
                 label="Branch"
                 value={
                   purchaseOrder.branch_code
-                    ? `${purchaseOrder.branch_code} â€” ${purchaseOrder.branch_name || ""}`
+                    ? `${purchaseOrder.branch_code} — ${purchaseOrder.branch_name || ""}`
                     : purchaseOrder.branch_name
                 }
               />
@@ -295,7 +295,7 @@ export default function PODetailPage() {
               <InfoItem
                 icon={Package}
                 label="Supplier Reference"
-                value={purchaseOrder.supplier_reference || "â€”"}
+                value={purchaseOrder.supplier_reference || "—"}
               />
 
               <InfoItem
@@ -366,7 +366,7 @@ export default function PODetailPage() {
                       item.product?.name ||
                       "Product";
 
-                    const sku = item.sku || item.product?.sku || "â€”";
+                    const sku = item.sku || item.product?.sku || "—";
 
                     const remaining =
                       item.remaining_quantity ??
@@ -382,7 +382,7 @@ export default function PODetailPage() {
                         className="border-b"
                       >
                         <td className="px-4 py-4">
-                          <div className="purchase-module-page purchase-workspace flex items-center gap-3">
+                          <div className="flex items-center gap-3">
                             <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted">
                               {item.product_image ? (
                                 <img
@@ -414,7 +414,7 @@ export default function PODetailPage() {
                         <td className="px-4 py-4">
                           {item.variant_name ||
                             item.variant?.display_name ||
-                            "â€”"}
+                            "—"}
                         </td>
 
                         <td className="px-4 py-4 text-right">
@@ -594,7 +594,7 @@ export default function PODetailPage() {
                 </Button>
 
                 <p className="mt-3 text-center text-[11px] text-slate-500">
-                  Next: Shipment â†’ GRN â†’ Stock Receipt
+                  Next: Shipment → GRN → Stock Receipt
                 </p>
               </div>
             </section>

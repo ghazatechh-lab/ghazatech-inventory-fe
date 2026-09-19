@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   AlertCircle,
@@ -78,7 +78,7 @@ export default function SupplierPaymentDetailPage() {
   }
 
   return (
-    <div className="purchase-module-page purchase-workspace space-y-6">
+    <div className="purchase-module-page purchase-workspace w-full space-y-6 pb-10">
       <PageHeader
         title={record.payment_number || `Payment ${id}`}
         subtitle="Complete document information and related records."
@@ -152,10 +152,10 @@ export default function SupplierPaymentDetailPage() {
               {(record.allocations || []).map((item) => (
                 <tr key={item.id} className="border-b">
                   <td className="px-4 py-4">
-                    {item.bill_number || item.bill || "â€”"}
+                    {item.bill_number || item.bill || "—"}
                   </td>
                   <td className="px-4 py-4">{renderMoney(item.amount)}</td>
-                  <td className="px-4 py-4">{item.notes || "â€”"}</td>
+                  <td className="px-4 py-4">{item.notes || "—"}</td>
                 </tr>
               ))}
               {!record.allocations?.length ? (

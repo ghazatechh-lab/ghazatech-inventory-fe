@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileText, Save, Send, UploadCloud, X } from "lucide-react";
@@ -715,13 +715,13 @@ export default function GRNFormPage() {
   }
 
   return (
-    <div className="purchase-module-page purchase-workspace mx-auto max-w-7xl space-y-5 pb-10">
+    <div className="purchase-module-page purchase-workspace w-full space-y-5 pb-10">
       <PageHeader
         title={edit ? "Edit GRN" : "New GRN"}
         subtitle="Confirm physical receipt of stock against a purchase order"
         actions={
-          <span className="rounded-md bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-600 dark:bg-violet-500/10 dark:text-violet-300">
-            {form.grn_number || "Auto GRN"} Â·{" "}
+          <span className="purchase-header-status-badge inline-flex items-center rounded-xl border px-3 py-1.5 text-xs font-extrabold shadow-sm">
+            {form.grn_number || "Auto GRN"} ·{" "}
             {form.is_confirmed ? "Confirmed" : "Draft"}
           </span>
         }
@@ -789,7 +789,7 @@ export default function GRNFormPage() {
                                 order.status,
                               ]
                                 .filter(Boolean)
-                                .join(" Â· ")}
+                                .join(" · ")}
                             </p>
                           </div>
 
@@ -819,7 +819,7 @@ export default function GRNFormPage() {
               {selectedOrder && (
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-xs dark:border-white/10 dark:bg-white/[0.025]">
                   <span className="font-medium">
-                    {selectedOrder.po_number} Â· {selectedOrder.supplier_name}
+                    {selectedOrder.po_number} · {selectedOrder.supplier_name}
                   </span>
                   <span className="text-blue-600 dark:text-blue-400">
                     Linked shipment:{" "}
@@ -932,7 +932,7 @@ export default function GRNFormPage() {
                         <p className="text-xs text-muted-foreground">
                           {item.sku || "No SKU"}
                           {item.previously_received_quantity
-                            ? ` Â· Previously received ${item.previously_received_quantity}`
+                            ? ` · Previously received ${item.previously_received_quantity}`
                             : ""}
                         </p>
                       </div>
@@ -1147,20 +1147,20 @@ export default function GRNFormPage() {
           <section className="card-surface p-5">
             <h2 className="font-semibold">GRN summary</h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              {form.grn_number || "Auto GRN"} Â· Draft
+              {form.grn_number || "Auto GRN"} · Draft
             </p>
 
             <div className="mt-5 space-y-3 text-sm">
               <div className="flex justify-between gap-3">
                 <span className="text-muted-foreground">Linked PO</span>
                 <span className="font-medium">
-                  {selectedOrder?.po_number || "â€”"}
+                  {selectedOrder?.po_number || "—"}
                 </span>
               </div>
               <div className="flex justify-between gap-3">
                 <span className="text-muted-foreground">Supplier</span>
                 <span className="text-right font-medium">
-                  {selectedOrder?.supplier_name || "â€”"}
+                  {selectedOrder?.supplier_name || "—"}
                 </span>
               </div>
               <div className="flex justify-between gap-3">
@@ -1168,13 +1168,13 @@ export default function GRNFormPage() {
                 <span className="font-medium">
                   {branches.find(
                     (item) => String(item.id) === String(form.branch),
-                  )?.branch_name || "â€”"}
+                  )?.branch_name || "—"}
                 </span>
               </div>
               <div className="flex justify-between gap-3">
                 <span className="text-muted-foreground">Received by</span>
                 <span className="font-medium">
-                  {selectedReceiver?.display_name || "â€”"}
+                  {selectedReceiver?.display_name || "—"}
                 </span>
               </div>
 
@@ -1241,4 +1241,3 @@ export default function GRNFormPage() {
     </div>
   );
 }
-

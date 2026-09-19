@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Menu,
@@ -24,6 +24,7 @@ import { isAdmin } from "@/lib/permissions";
 import { BranchSelector } from "@/components/common/BranchSelector";
 import { NotificationDrawer } from "@/components/common/NotificationDrawer";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
+import { getNavigationItemByPath } from "@/config/moduleNavigation";
 
 const routeLabels = {
   dashboard: "Dashboard",
@@ -84,24 +85,57 @@ function Breadcrumbs() {
     return null;
   }
 
+  const navigationMatch = getNavigationItemByPath(pathname);
+  const matchedModule = navigationMatch?.module;
+  const modulePathPart = matchedModule?.path?.split("/").filter(Boolean)[0];
+  const shouldPrefixModule =
+    matchedModule &&
+    modulePathPart &&
+    parts[0] !== modulePathPart &&
+    matchedModule.id !== "dashboard";
+
+  const breadcrumbParts = shouldPrefixModule
+    ? [
+        {
+          key: `module-${matchedModule.id}`,
+          part: modulePathPart,
+          label:
+            matchedModule.shortTitle || matchedModule.title || matchedModule.id,
+          path: matchedModule.path,
+          synthetic: true,
+        },
+        ...parts.map((part, index) => ({
+          key: `${index}-${part}`,
+          part,
+          label: routeLabels[part] || formatDynamicLabel(part),
+          path: "/" + parts.slice(0, index + 1).join("/"),
+          synthetic: false,
+        })),
+      ]
+    : parts.map((part, index) => ({
+        key: `${index}-${part}`,
+        part,
+        label: routeLabels[part] || formatDynamicLabel(part),
+        path: "/" + parts.slice(0, index + 1).join("/"),
+        synthetic: false,
+      }));
+
   return (
     <nav
       className="hidden items-center gap-1.5 text-sm md:flex"
       aria-label="Breadcrumb"
     >
-      {parts.map((part, index) => {
-        const generatedPath = "/" + parts.slice(0, index + 1).join("/");
-
-        const label = routeLabels[part] || formatDynamicLabel(part);
-
-        const isLast = index === parts.length - 1;
-
+      {breadcrumbParts.map((crumb, index) => {
+        const generatedPath = crumb.path;
+        const part = crumb.part;
+        const label = crumb.label;
+        const isLast = index === breadcrumbParts.length - 1;
         const isDynamicId = /^\d+$/.test(part);
-
-        const isSectionOnly = nonClickableSegments.has(part) || isDynamicId;
+        const isSectionOnly =
+          crumb.synthetic || nonClickableSegments.has(part) || isDynamicId;
 
         return (
-          <React.Fragment key={generatedPath}>
+          <React.Fragment key={crumb.key}>
             {index > 0 && (
               <span
                 className="text-slate-300 dark:text-slate-600"
@@ -182,7 +216,7 @@ export function Header({ onOpenMobileSidebar }) {
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 shadow-sm backdrop-blur-xl dark:border-white/5 dark:bg-[#0A0E17]/85 dark:shadow-none">
-      <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
+      <div className="app-topbar-frame flex h-14 items-center gap-3 px-4 sm:px-6">
         <button
           type="button"
           className="rounded-md p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white lg:hidden"
@@ -281,4 +315,3 @@ export function Header({ onOpenMobileSidebar }) {
     </header>
   );
 }
-

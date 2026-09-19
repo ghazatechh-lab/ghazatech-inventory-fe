@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -10,7 +10,7 @@ import {
   Plus,
   Search,
   Trash2,
-  Warehouse,
+  Rows3,
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -251,7 +251,7 @@ export default function RackListPage() {
         <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-4">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-300/35 bg-amber-300/10 text-amber-300 shadow-inner backdrop-blur">
-              <Warehouse className="h-6 w-6" />
+              <Rows3 className="h-6 w-6" />
             </div>
             <div>
               <div className="mb-2 flex flex-wrap items-center gap-2">

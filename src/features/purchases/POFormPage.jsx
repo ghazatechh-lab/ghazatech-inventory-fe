@@ -109,7 +109,7 @@ const getSupplierMeta = (supplier) => {
 
   const parts = [supplier.contact_person, supplier.email].filter(Boolean);
 
-  return parts.join(" Â· ");
+  return parts.join(" · ");
 };
 
 function ApprovalStep({ number, title, detail, complete = false }) {
@@ -411,7 +411,7 @@ export default function POFormPage() {
 
     if (!selected) return "";
 
-    return [selected.product_name, selected.sku].filter(Boolean).join(" Â· ");
+    return [selected.product_name, selected.sku].filter(Boolean).join(" · ");
   };
 
   const getFilteredProducts = (index, item) => {
@@ -431,7 +431,7 @@ export default function POFormPage() {
     );
 
     const selectedLabel = selected
-      ? [selected.product_name, selected.sku].filter(Boolean).join(" Â· ")
+      ? [selected.product_name, selected.sku].filter(Boolean).join(" · ")
       : "";
 
     const search = getProductSearchValue(index, item).trim().toLowerCase();
@@ -659,13 +659,13 @@ export default function POFormPage() {
   const orderStatus = form.status === "DRAFT" ? "Draft" : form.status;
 
   return (
-    <div className="purchase-module-page purchase-workspace mx-auto max-w-7xl space-y-5 pb-10">
+    <div className="purchase-module-page purchase-workspace w-full space-y-5 pb-10">
       <PageHeader
         title={edit ? "Edit Purchase Order" : "New Purchase Order"}
         subtitle="Raise an order against a supplier and track it through to delivery"
         actions={
-          <span className="rounded-md bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-600 dark:bg-violet-500/10 dark:text-violet-300">
-            {orderLabel} Â· {orderStatus}
+          <span className="purchase-header-status-badge inline-flex items-center rounded-xl border px-3 py-1.5 text-xs font-extrabold shadow-sm">
+            {orderLabel} · {orderStatus}
           </span>
         }
       />
@@ -746,7 +746,7 @@ export default function POFormPage() {
                                 supplier.email,
                               ]
                                 .filter(Boolean)
-                                .join(" Â· ")}
+                                .join(" · ")}
                             </span>
                           )}
                         </button>
@@ -905,7 +905,7 @@ export default function POFormPage() {
                 </div>
 
                 <p className="text-[11px] font-medium text-blue-600 dark:text-blue-400">
-                  Net {selectedSupplier.payment_terms_days || 0} Â· Credit used{" "}
+                  Net {selectedSupplier.payment_terms_days || 0} · Credit used{" "}
                   <CurrencyText
                     value={selectedSupplier.outstanding_balance || 0}
                   />{" "}
@@ -1031,7 +1031,7 @@ export default function POFormPage() {
                                           productOption.sku,
                                         ]
                                           .filter(Boolean)
-                                          .join(" Â· ");
+                                          .join(" · ");
 
                                         updateItem(index, {
                                           product: String(productOption.id),
@@ -1253,7 +1253,7 @@ export default function POFormPage() {
           <section className="card-surface p-5">
             <h2 className="font-semibold">Order summary</h2>
             <p className="mt-1 text-xs text-slate-500">
-              {orderLabel} Â· {form.items.length} item
+              {orderLabel} · {form.items.length} item
               {form.items.length === 1 ? "" : "s"}
             </p>
 
@@ -1261,7 +1261,7 @@ export default function POFormPage() {
               <div className="flex justify-between gap-3">
                 <span className="text-slate-500">Supplier</span>
                 <span className="text-right font-medium">
-                  {selectedSupplier?.supplier_name || "â€”"}
+                  {selectedSupplier?.supplier_name || "—"}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -1300,7 +1300,7 @@ export default function POFormPage() {
               <ApprovalStep
                 number="1"
                 title="Draft created"
-                detail="You Â· just now"
+                detail="You · just now"
                 complete
               />
               <ApprovalStep
@@ -1316,7 +1316,7 @@ export default function POFormPage() {
               <ApprovalStep
                 number="4"
                 title="Receipt tracking"
-                detail="Open â†’ Partial â†’ Fully received"
+                detail="Open → Partial → Fully received"
               />
             </div>
           </section>
@@ -1325,4 +1325,3 @@ export default function POFormPage() {
     </div>
   );
 }
-

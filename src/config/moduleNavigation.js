@@ -1,4 +1,4 @@
-﻿import {
+import {
   BadgeDollarSign,
   Banknote,
   BarChart3,
@@ -20,6 +20,11 @@
   LayoutDashboard,
   LockKeyhole,
   PackageCheck,
+  Package,
+  PackageSearch,
+  Warehouse,
+  ArrowRightLeft,
+  SlidersHorizontal,
   PackagePlus,
   ReceiptText,
   RotateCcw,
@@ -103,35 +108,35 @@ export const modules = [
         id: "inventory-products",
         label: "Products",
         to: "/inventory/products",
-        icon: Boxes,
+        icon: Package,
         permission: "inventory.products.view",
       },
       {
         id: "inventory-stock",
         label: "Stock Overview",
         to: "/inventory/stock",
-        icon: PackageCheck,
+        icon: Warehouse,
         permission: "inventory.stock.view",
       },
       {
         id: "inventory-movements",
         label: "Stock Movements",
         to: "/inventory/movements",
-        icon: GitBranch,
+        icon: ArrowRightLeft,
         permission: "inventory.movements.view",
       },
       {
         id: "inventory-adjustments",
         label: "Stock Adjustments",
         to: "/inventory/adjustments",
-        icon: FileText,
+        icon: SlidersHorizontal,
         permission: "inventory.adjustments.view",
       },
       {
         id: "inventory-low-stock",
         label: "Low Stock Items",
         to: "/inventory/low-stock",
-        icon: TrendingDown,
+        icon: PackageSearch,
         permission: "inventory.low_stock.view",
         badge: "!",
       },
@@ -139,7 +144,7 @@ export const modules = [
         id: "inventory-transfers",
         label: "Stock Transfers",
         to: "/transfers",
-        icon: GitBranch,
+        icon: ArrowRightLeft,
         permission: "inventory.transfers.view",
       },
     ],
@@ -613,9 +618,33 @@ export const modules = [
   },
 
   {
+    id: "recovery",
+    key: "recovery",
+    order: 8,
+    title: "Recovery Centre",
+    shortTitle: "Recovery",
+    description:
+      "Recover deleted ERP records, review recovery activity, and control retention and permanent deletion.",
+    icon: RotateCcw,
+    path: "/recovery-centre",
+    landingPath: "/recovery-centre",
+    color: "amber",
+    adminOnly: true,
+    items: [
+      {
+        id: "recovery-centre",
+        label: "Recovery Centre",
+        to: "/recovery-centre",
+        icon: RotateCcw,
+        adminOnly: true,
+      },
+    ],
+  },
+
+  {
     id: "settings",
     key: "settings",
-    order: 8,
+    order: 9,
     title: "Settings",
     shortTitle: "Settings",
     description:
@@ -660,7 +689,7 @@ export const modules = [
   {
     id: "website",
     key: "website",
-    order: 9,
+    order: 10,
     title: "Website",
     shortTitle: "Website",
     description: "Open the official Ghazatech website in a new browser tab.",
@@ -856,6 +885,30 @@ export const getModuleByPath = (pathname = "") => {
       });
     }) || null
   );
+};
+
+export const getNavigationItemByPath = (pathname = "") => {
+  const safePath = typeof pathname === "string" ? pathname : "";
+
+  if (!safePath) {
+    return null;
+  }
+
+  const matches = modules
+    .flatMap((module) =>
+      (module.items || []).map((item) => ({
+        module,
+        item,
+        target: typeof item?.to === "string" ? item.to : "",
+      })),
+    )
+    .filter(
+      ({ target }) =>
+        target && (safePath === target || safePath.startsWith(`${target}/`)),
+    )
+    .sort((first, second) => second.target.length - first.target.length);
+
+  return matches[0] || null;
 };
 
 export const getSidebarItemsForPath = (pathname, user) => {

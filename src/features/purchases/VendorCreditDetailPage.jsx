@@ -25,7 +25,7 @@ import {
   renderStatus,
 } from "./purchaseUi";
 
-function displayValue(value, fallback = "â€”") {
+function displayValue(value, fallback = "—") {
   if (value === null || value === undefined || value === "") {
     return fallback;
   }
@@ -52,7 +52,7 @@ function displayValue(value, fallback = "â€”") {
 
 function displayUser(value) {
   if (!value) {
-    return "â€”";
+    return "—";
   }
 
   if (typeof value === "object") {
@@ -266,7 +266,7 @@ export default function VendorCreditDetailPage() {
   );
 
   return (
-    <div className="space-y-6 pb-10">
+    <div className="purchase-module-page purchase-workspace w-full space-y-6 pb-10">
       <PageHeader
         title={record.credit_number || `Vendor Credit ${id}`}
         subtitle="Complete vendor credit information, linked documents, financial values, and audit history."
@@ -329,7 +329,7 @@ export default function VendorCreditDetailPage() {
           <div>
             <p className="text-sm font-semibold">Vendor Credit Workflow</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Draft â†’ Approved â†’ Open â†’ Partially Applied â†’ Fully Applied
+              Draft → Approved → Open → Partially Applied → Fully Applied
             </p>
           </div>
 
@@ -525,14 +525,14 @@ export default function VendorCreditDetailPage() {
                     className="border-b"
                   >
                     <td className="px-4 py-4">
-                      <div className="purchase-module-page purchase-workspace font-medium">
-                        {item.description || "â€”"}
+                      <div className="font-medium">
+                        {item.description || "—"}
                       </div>
 
                       {item.product_name ? (
                         <div className="mt-1 text-xs text-muted-foreground">
                           {item.product_name}
-                          {item.sku ? ` Â· ${item.sku}` : ""}
+                          {item.sku ? ` · ${item.sku}` : ""}
                         </div>
                       ) : null}
                     </td>

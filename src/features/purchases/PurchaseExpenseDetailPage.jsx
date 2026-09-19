@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   AlertCircle,
@@ -239,7 +239,7 @@ export default function PurchaseExpenseDetailPage() {
   }
 
   return (
-    <div className="purchase-module-page purchase-workspace space-y-6">
+    <div className="purchase-module-page purchase-workspace w-full space-y-6 pb-10">
       <PageHeader
         title={record.expense_number || `Expense ${id}`}
         subtitle="Purchase expense with fixed 5% VAT."

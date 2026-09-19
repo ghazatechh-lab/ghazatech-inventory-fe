@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { CurrencyText } from "@/components/common/CurrencyText";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { PageHeader } from "@/features/purchases/PurchasePageHeader";
 
 const PAGE_SIZE = 12;
 
@@ -260,288 +261,256 @@ export default function SupplierListPage() {
   const totalPages = Math.max(1, Math.ceil(summary.totalSuppliers / PAGE_SIZE));
 
   return (
-    <div className="supplier-module-page min-h-full text-slate-900 dark:text-white">
-      <div className="supplier-topbar">
-        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Purchases /{" "}
-            <span className="font-semibold text-slate-950 dark:text-white">
-              Suppliers
-            </span>
+    <div className="purchase-module-page purchase-workspace w-full space-y-5 pb-10">
+      <PageHeader
+        title="Suppliers"
+        subtitle={`Manage vendor identities, tax records, commercial terms, credit exposure and payment readiness.${
+          normalizedBranchId
+            ? " Showing suppliers for the selected branch."
+            : " Showing suppliers from all branches."
+        }`}
+        actions={
+          <Button asChild>
+            <Link to="/suppliers/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Add Supplier
+            </Link>
+          </Button>
+        }
+      />
+
+      <section className="flex items-start gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-950 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-200">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-300" />
+        <p>
+          Fields captured per supplier: legal name, TRN/tax ID, contact person,
+          phone/email, address, payment terms, bank details, credit limit, and
+          linked purchase history.
+        </p>
+      </section>
+
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <MetricCard
+          label="Total Suppliers"
+          value={summary.totalSuppliers}
+          icon={Users}
+        />
+        <MetricCard
+          label="Active"
+          value={summary.active}
+          tone="text-emerald-600 dark:text-emerald-400"
+          icon={Building2}
+        />
+        <MetricCard
+          label="Total Outstanding"
+          value={formatCurrency(summary.outstanding)}
+          tone="text-amber-700 dark:text-amber-400"
+          icon={WalletCards}
+        />
+        <MetricCard
+          label="Total Payable"
+          value={formatCurrency(summary.payable)}
+          tone="text-red-600 dark:text-red-400"
+          icon={CreditCard}
+        />
+        <MetricCard
+          label="Credit Used"
+          value={formatCurrency(summary.creditUsed)}
+          icon={ArrowUpRight}
+        />
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/60">
+        <SearchInput
+          value={q}
+          onChange={setQ}
+          placeholder="Search supplier name, contact, email, phone or TRN..."
+        />
+      </section>
+
+      <section className="supplier-table-card">
+        <div className="overflow-x-auto">
+          <table className="min-w-[1280px] w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:border-white/10 dark:bg-white/[0.025] dark:text-slate-400">
+                <th className="px-4 py-3">Supplier</th>
+                <th className="px-4 py-3">Contact</th>
+                <th className="px-4 py-3">Email</th>
+                <th className="px-4 py-3">Phone</th>
+                <th className="px-4 py-3">Terms</th>
+                <th className="px-4 py-3">TRN</th>
+                <th className="px-4 py-3 text-right">Balance</th>
+                <th className="px-4 py-3 text-right">Payable</th>
+                <th className="px-4 py-3">Credit Used</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {query.isLoading ? (
+                <tr>
+                  <td
+                    colSpan={11}
+                    className="px-4 py-14 text-center text-slate-500"
+                  >
+                    Loading suppliers...
+                  </td>
+                </tr>
+              ) : rows.length ? (
+                rows.map((supplier) => {
+                  const outstanding = getOutstanding(supplier);
+                  const payable = getPayable(supplier);
+                  const creditLimit = getCreditLimit(supplier);
+                  const creditUsed = getCreditUsed(supplier);
+                  const status = getStatus(supplier);
+                  const paymentTerms =
+                    textValue(
+                      supplier.payment_terms,
+                      supplier.payment_terms_display,
+                    ) || `Net ${numberValue(supplier.payment_terms_days)}`;
+
+                  return (
+                    <tr
+                      key={supplier.id}
+                      className="border-b border-slate-100 transition last:border-0 hover:bg-slate-50/80 dark:border-white/5 dark:hover:bg-white/[0.025]"
+                    >
+                      <td className="px-4 py-4">
+                        <Link
+                          to={`/suppliers/${supplier.id}`}
+                          className="font-bold text-slate-950 transition hover:text-blue-600 dark:text-white dark:hover:text-blue-300"
+                        >
+                          {textValue(
+                            supplier.supplier_name,
+                            supplier.legal_name,
+                            supplier.name,
+                            "Unnamed supplier",
+                          )}
+                        </Link>
+                        {(supplier.trade_name || supplier.supplier_code) && (
+                          <p className="mt-1 text-xs text-slate-500">
+                            {textValue(
+                              supplier.trade_name,
+                              supplier.supplier_code,
+                            )}
+                          </p>
+                        )}
+                      </td>
+
+                      <td className="px-4 py-4">
+                        {textValue(
+                          supplier.contact_person,
+                          supplier.primary_contact_name,
+                          "—",
+                        )}
+                      </td>
+
+                      <td className="px-4 py-4">
+                        {supplier.email ? (
+                          <a
+                            href={`mailto:${supplier.email}`}
+                            className="font-medium text-blue-600 hover:underline dark:text-blue-300"
+                          >
+                            {supplier.email}
+                          </a>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+
+                      <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
+                        {textValue(supplier.phone, supplier.mobile, "—")}
+                      </td>
+
+                      <td className="px-4 py-4">{paymentTerms}</td>
+
+                      <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
+                        {textValue(
+                          supplier.trn,
+                          supplier.tax_registration_number,
+                          supplier.tax_id,
+                          "—",
+                        )}
+                      </td>
+
+                      <td className="px-4 py-4 text-right font-medium">
+                        <CurrencyText value={outstanding} />
+                      </td>
+
+                      <td className="px-4 py-4 text-right font-medium">
+                        <CurrencyText value={payable} />
+                      </td>
+
+                      <td className="px-4 py-4">
+                        <CreditUsage used={creditUsed} limit={creditLimit} />
+                      </td>
+
+                      <td className="px-4 py-4">
+                        <StatusBadge status={status} />
+                      </td>
+
+                      <td className="px-4 py-4 text-right">
+                        <Button
+                          asChild
+                          size="sm"
+                          variant="outline"
+                          className="h-8 px-4"
+                        >
+                          <Link to={`/suppliers/${supplier.id}`}>View</Link>
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={11} className="px-4 py-14 text-center">
+                    <AlertCircle className="mx-auto h-7 w-7 text-slate-400" />
+                    <p className="mt-3 font-medium">No suppliers found</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Add a supplier for the selected branch or change the
+                      search.
+                    </p>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/10">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Showing {rows.length} of {summary.totalSuppliers}
           </p>
 
-          <div className="w-full sm:max-w-sm">
-            <SearchInput
-              value={q}
-              onChange={setQ}
-              placeholder="Search anything..."
-            />
-          </div>
-        </div>
-      </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              className="h-8 w-8"
+              disabled={page <= 1}
+              onClick={() => setPage(Math.max(1, page - 1))}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
 
-      <main className="w-full space-y-6 px-5 py-6 lg:px-7">
-        <section className="supplier-hero supplier-list-hero">
-          <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="supplier-hero-content flex min-w-0 items-start gap-4">
-              <span className="supplier-hero-icon shrink-0">
-                <Building2 className="h-6 w-6" />
-              </span>
-
-              <div className="min-w-0 flex-1">
-                <p className="supplier-eyebrow supplier-list-eyebrow">
-                  Purchase management
-                </p>
-                <h1 className="supplier-hero-title supplier-list-title mt-1">
-                  Suppliers
-                </h1>
-                <p className="supplier-hero-description supplier-list-description mt-2 max-w-3xl">
-                  Manage vendor identities, tax records, commercial terms,
-                  credit exposure and payment readiness.
-                  {normalizedBranchId
-                    ? " Showing suppliers for the selected branch."
-                    : " Showing suppliers from all branches."}
-                </p>
-              </div>
-            </div>
+            <span className="flex h-8 min-w-8 items-center justify-center rounded-lg bg-blue-600 px-2 text-xs font-bold text-white shadow-sm shadow-blue-600/20">
+              {page}
+            </span>
 
             <Button
-              asChild
-              className="supplier-hero-action h-11 shrink-0 rounded-xl bg-amber-400 px-5 font-extrabold text-slate-950 shadow-lg shadow-black/15 hover:bg-amber-300"
+              type="button"
+              size="icon"
+              variant="outline"
+              className="h-8 w-8"
+              disabled={page >= totalPages}
+              onClick={() => setPage(Math.min(totalPages, page + 1))}
             >
-              <Link to="/suppliers/new">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Supplier
-              </Link>
+              <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-        </section>
-
-        <section className="flex items-start gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-950 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-200">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-300" />
-          <p>
-            Fields captured per supplier: legal name, TRN/tax ID, contact
-            person, phone/email, address, payment terms, bank details, credit
-            limit, and linked purchase history.
-          </p>
-        </section>
-
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <MetricCard
-            label="Total Suppliers"
-            value={summary.totalSuppliers}
-            icon={Users}
-          />
-          <MetricCard
-            label="Active"
-            value={summary.active}
-            tone="text-emerald-600 dark:text-emerald-400"
-            icon={Building2}
-          />
-          <MetricCard
-            label="Total Outstanding"
-            value={formatCurrency(summary.outstanding)}
-            tone="text-amber-700 dark:text-amber-400"
-            icon={WalletCards}
-          />
-          <MetricCard
-            label="Total Payable"
-            value={formatCurrency(summary.payable)}
-            tone="text-red-600 dark:text-red-400"
-            icon={CreditCard}
-          />
-          <MetricCard
-            label="Credit Used"
-            value={formatCurrency(summary.creditUsed)}
-            icon={ArrowUpRight}
-          />
-        </section>
-
-        <section className="supplier-table-card">
-          <div className="overflow-x-auto">
-            <table className="min-w-[1280px] w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:border-white/10 dark:bg-white/[0.025] dark:text-slate-400">
-                  <th className="px-4 py-3">Supplier</th>
-                  <th className="px-4 py-3">Contact</th>
-                  <th className="px-4 py-3">Email</th>
-                  <th className="px-4 py-3">Phone</th>
-                  <th className="px-4 py-3">Terms</th>
-                  <th className="px-4 py-3">TRN</th>
-                  <th className="px-4 py-3 text-right">Balance</th>
-                  <th className="px-4 py-3 text-right">Payable</th>
-                  <th className="px-4 py-3">Credit Used</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {query.isLoading ? (
-                  <tr>
-                    <td
-                      colSpan={11}
-                      className="px-4 py-14 text-center text-slate-500"
-                    >
-                      Loading suppliers...
-                    </td>
-                  </tr>
-                ) : rows.length ? (
-                  rows.map((supplier) => {
-                    const outstanding = getOutstanding(supplier);
-                    const payable = getPayable(supplier);
-                    const creditLimit = getCreditLimit(supplier);
-                    const creditUsed = getCreditUsed(supplier);
-                    const status = getStatus(supplier);
-                    const paymentTerms =
-                      textValue(
-                        supplier.payment_terms,
-                        supplier.payment_terms_display,
-                      ) || `Net ${numberValue(supplier.payment_terms_days)}`;
-
-                    return (
-                      <tr
-                        key={supplier.id}
-                        className="border-b border-slate-100 transition last:border-0 hover:bg-slate-50/80 dark:border-white/5 dark:hover:bg-white/[0.025]"
-                      >
-                        <td className="px-4 py-4">
-                          <Link
-                            to={`/suppliers/${supplier.id}`}
-                            className="font-bold text-slate-950 transition hover:text-blue-600 dark:text-white dark:hover:text-blue-300"
-                          >
-                            {textValue(
-                              supplier.supplier_name,
-                              supplier.legal_name,
-                              supplier.name,
-                              "Unnamed supplier",
-                            )}
-                          </Link>
-                          {(supplier.trade_name || supplier.supplier_code) && (
-                            <p className="mt-1 text-xs text-slate-500">
-                              {textValue(
-                                supplier.trade_name,
-                                supplier.supplier_code,
-                              )}
-                            </p>
-                          )}
-                        </td>
-
-                        <td className="px-4 py-4">
-                          {textValue(
-                            supplier.contact_person,
-                            supplier.primary_contact_name,
-                            "—",
-                          )}
-                        </td>
-
-                        <td className="px-4 py-4">
-                          {supplier.email ? (
-                            <a
-                              href={`mailto:${supplier.email}`}
-                              className="font-medium text-blue-600 hover:underline dark:text-blue-300"
-                            >
-                              {supplier.email}
-                            </a>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-
-                        <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
-                          {textValue(supplier.phone, supplier.mobile, "—")}
-                        </td>
-
-                        <td className="px-4 py-4">{paymentTerms}</td>
-
-                        <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
-                          {textValue(
-                            supplier.trn,
-                            supplier.tax_registration_number,
-                            supplier.tax_id,
-                            "—",
-                          )}
-                        </td>
-
-                        <td className="px-4 py-4 text-right font-medium">
-                          <CurrencyText value={outstanding} />
-                        </td>
-
-                        <td className="px-4 py-4 text-right font-medium">
-                          <CurrencyText value={payable} />
-                        </td>
-
-                        <td className="px-4 py-4">
-                          <CreditUsage used={creditUsed} limit={creditLimit} />
-                        </td>
-
-                        <td className="px-4 py-4">
-                          <StatusBadge status={status} />
-                        </td>
-
-                        <td className="px-4 py-4 text-right">
-                          <Button
-                            asChild
-                            size="sm"
-                            variant="outline"
-                            className="h-8 px-4"
-                          >
-                            <Link to={`/suppliers/${supplier.id}`}>View</Link>
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={11} className="px-4 py-14 text-center">
-                      <AlertCircle className="mx-auto h-7 w-7 text-slate-400" />
-                      <p className="mt-3 font-medium">No suppliers found</p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        Add a supplier for the selected branch or change the
-                        search.
-                      </p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/10">
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Showing {rows.length} of {summary.totalSuppliers}
-            </p>
-
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                className="h-8 w-8"
-                disabled={page <= 1}
-                onClick={() => setPage(Math.max(1, page - 1))}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-
-              <span className="flex h-8 min-w-8 items-center justify-center rounded-lg bg-blue-600 px-2 text-xs font-bold text-white shadow-sm shadow-blue-600/20">
-                {page}
-              </span>
-
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                className="h-8 w-8"
-                disabled={page >= totalPages}
-                onClick={() => setPage(Math.min(totalPages, page + 1))}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </section>
-      </main>
+        </div>
+      </section>
     </div>
   );
 }
