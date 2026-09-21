@@ -1,6 +1,6 @@
 ﻿import React from "react";
 import { Link } from "react-router-dom";
-import { FilterX, Info, Plus } from "lucide-react";
+import { Download, FilterX, Info, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 import api, { unwrap } from "@/lib/api";
@@ -18,6 +18,31 @@ import {
 } from "@/components/ui/select";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
+
+const downloadCsv = (filename, headers, rows) => {
+  const escapeCell = (value) => {
+    const text = value === null || value === undefined ? "" : String(value);
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+
+  const csv = [
+    headers.map(escapeCell).join(","),
+    ...rows.map((row) => row.map(escapeCell).join(",")),
+  ].join("\n");
+
+  const blob = new Blob(["\uFEFF", csv], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
 
 const normalizeList = (value) => {
   if (Array.isArray(value)) return value;
@@ -130,6 +155,34 @@ export default function SupplierBillsPage() {
   };
 
   const rows = React.useMemo(() => payload.results || [], [payload.results]);
+
+  const exportRows = () => {
+    downloadCsv(
+      `supplier-bills-${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        "Bill No.",
+        "Supplier",
+        "GRN Ref",
+        "Bill Date",
+        "Due Date",
+        "Amount",
+        "Balance",
+        "Currency",
+        "Status",
+      ],
+      rows.map((row) => [
+        row.bill_number || "",
+        row.supplier_name || "",
+        row.grn_number || "",
+        row.bill_date || "",
+        row.due_date || "",
+        row.total_amount ?? 0,
+        row.balance_due ?? 0,
+        row.currency || "AED",
+        row.display_status || row.status || "",
+      ]),
+    );
+  };
 
   const updateSupplierFilter = (value) => {
     setSupplierId(value === "all" ? "" : value);
@@ -248,33 +301,40 @@ export default function SupplierBillsPage() {
         title="Supplier Bills"
         subtitle="Invoices received from suppliers, matched to GRNs"
         actions={
-          <Link
-            to={
-              supplierFilter
-                ? `/purchases/supplier-bills/new?supplier=${encodeURIComponent(
-                    supplierFilter,
-                  )}`
-                : "/purchases/supplier-bills/new"
-            }
-            className="inline-flex h-10 items-center justify-center rounded-md border border-amber-300 bg-amber-400 px-4 py-2 text-sm font-bold hover:bg-amber-300"
-            style={{
-              color: "#020617",
-              WebkitTextFillColor: "#020617",
-            }}
-          >
-            <Plus
-              className="mr-2 h-4 w-4"
-              style={{ color: "#020617", stroke: "#020617" }}
-            />
-            <span
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={exportRows}>
+              <Download className="mr-2 h-4 w-4" />
+              Export
+            </Button>
+
+            <Link
+              to={
+                supplierFilter
+                  ? `/purchases/supplier-bills/new?supplier=${encodeURIComponent(
+                      supplierFilter,
+                    )}`
+                  : "/purchases/supplier-bills/new"
+              }
+              className="inline-flex h-10 items-center justify-center rounded-md border border-amber-300 bg-amber-400 px-4 py-2 text-sm font-bold hover:bg-amber-300"
               style={{
                 color: "#020617",
                 WebkitTextFillColor: "#020617",
               }}
             >
-              Record Bill
-            </span>
-          </Link>
+              <Plus
+                className="mr-2 h-4 w-4"
+                style={{ color: "#020617", stroke: "#020617" }}
+              />
+              <span
+                style={{
+                  color: "#020617",
+                  WebkitTextFillColor: "#020617",
+                }}
+              >
+                Record Bill
+              </span>
+            </Link>
+          </div>
         }
       />
 

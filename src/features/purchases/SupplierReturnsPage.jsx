@@ -493,7 +493,7 @@ export default function SupplierReturnsPage() {
   const isEditable = !editingId || ["DRAFT", "REJECTED"].includes(form.status);
 
   return (
-    <div className="purchase-module-page purchase-workspace mx-auto max-w-7xl space-y-5 pb-10">
+    <div className="purchase-module-page purchase-workspace w-full max-w-none space-y-5 pb-10">
       <PageHeader
         title={editingId ? "Edit Supplier Return" : "New Supplier Return"}
         subtitle="Link the return to a confirmed GRN, select quantities, and submit it for approval."
@@ -1072,4 +1072,3 @@ export default function SupplierReturnsPage() {
     </div>
   );
 }
-

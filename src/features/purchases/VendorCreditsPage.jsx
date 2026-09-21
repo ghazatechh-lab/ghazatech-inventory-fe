@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -35,6 +35,31 @@ import {
 } from "@/components/ui/select";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
+
+const downloadCsv = (filename, headers, rows) => {
+  const escapeCell = (value) => {
+    const text = value === null || value === undefined ? "" : String(value);
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+
+  const csv = [
+    headers.map(escapeCell).join(","),
+    ...rows.map((row) => row.map(escapeCell).join(",")),
+  ].join("\n");
+
+  const blob = new Blob(["\uFEFF", csv], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
 
 const normalizeList = (value) => {
   if (Array.isArray(value)) return value;
@@ -988,6 +1013,39 @@ export default function VendorCreditsPage() {
     event.target.value = "";
   };
 
+  const exportRows = () => {
+    const payload = query.data || {};
+    const exportRowsData = payload.results || [];
+
+    downloadCsv(
+      `supplier-credits-${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        "Credit #",
+        "Vendor",
+        "Date",
+        "Reason",
+        "Reference",
+        "Total",
+        "Applied",
+        "Remaining",
+        "Currency",
+        "Status",
+      ],
+      exportRowsData.map((row) => [
+        row.credit_number || "",
+        row.supplier_name || "",
+        row.credit_date || "",
+        row.reason_display || row.reason || "",
+        row.reference_number || "",
+        row.total_amount ?? 0,
+        row.applied_amount ?? 0,
+        row.remaining_amount ?? 0,
+        row.currency || "AED",
+        row.status || "",
+      ]),
+    );
+  };
+
   const columns = [
     {
       key: "credit_number",
@@ -1162,7 +1220,7 @@ export default function VendorCreditsPage() {
     ];
 
     return (
-      <div className="purchase-module-page purchase-workspace vendor-credit-list-page mx-auto max-w-7xl space-y-6 pb-10">
+      <div className="purchase-module-page purchase-workspace vendor-credit-list-page space-y-6 pb-10 w-full max-w-none">
         <section className="vendor-credit-hero">
           <div className="vendor-credit-hero__glow" aria-hidden="true" />
 
@@ -1189,6 +1247,7 @@ export default function VendorCreditsPage() {
                 type="button"
                 variant="outline"
                 className="vendor-credit-secondary-action"
+                onClick={exportRows}
               >
                 <Download className="mr-2 h-4 w-4" />
                 Export
@@ -1331,7 +1390,7 @@ export default function VendorCreditsPage() {
   }
 
   return (
-    <div className="purchase-module-page purchase-workspace mx-auto max-w-7xl space-y-5 pb-10">
+    <div className="purchase-module-page purchase-workspace space-y-5 pb-10 w-full max-w-none">
       <PageHeader
         title={editingId ? "Edit Vendor Credit" : "New Vendor Credit"}
         subtitle="Record supplier credit and apply it against open bills"
@@ -1896,4 +1955,3 @@ export default function VendorCreditsPage() {
     </div>
   );
 }
-

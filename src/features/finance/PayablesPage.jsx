@@ -443,7 +443,7 @@ export default function PayablesPage() {
     );
 
   return (
-    <div className="finance-module-page finance-workspace mx-auto w-full max-w-[1500px] space-y-5 pb-10">
+    <div className="finance-module-page finance-workspace w-full space-y-5 pb-10 max-w-none">
       <PageHeader
         variant="hero"
         title="Accounts Payable"
@@ -698,8 +698,9 @@ function BillForm({
       lines: x.lines.map((l, j) => (j === i ? { ...l, [k]: v } : l)),
     }));
   return (
-    <div className="finance-module-page finance-workspace mx-auto w-full max-w-[1420px] space-y-5 pb-10">
-      <PageHeader variant="hero"
+    <div className="finance-module-page finance-workspace w-full space-y-5 pb-10 max-w-none">
+      <PageHeader
+        variant="hero"
         title={
           mode === "create"
             ? "Record Supplier Bill"
@@ -1606,4 +1607,3 @@ function Summary({ l, v, strong }) {
     </div>
   );
 }
-

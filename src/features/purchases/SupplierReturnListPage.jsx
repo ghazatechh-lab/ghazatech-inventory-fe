@@ -1,6 +1,13 @@
 ﻿import React from "react";
 import { Link } from "react-router-dom";
-import { AlertCircle, Eye, FilterX, Plus, RefreshCcw } from "lucide-react";
+import {
+  AlertCircle,
+  Download,
+  Eye,
+  FilterX,
+  Plus,
+  RefreshCcw,
+} from "lucide-react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import api, { unwrap } from "@/lib/api";
@@ -19,6 +26,31 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { useSupplierUrlFilter } from "@/hooks/useSupplierUrlFilter";
 import { normalizeApiResponse, rowsFromPayload } from "./purchaseUi";
+
+const downloadCsv = (filename, headers, rows) => {
+  const escapeCell = (value) => {
+    const text = value === null || value === undefined ? "" : String(value);
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+
+  const csv = [
+    headers.map(escapeCell).join(","),
+    ...rows.map((row) => row.map(escapeCell).join(",")),
+  ].join("\n");
+
+  const blob = new Blob(["\uFEFF", csv], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
 
 const PAGE_SIZE = 12;
 
@@ -121,6 +153,38 @@ export default function SupplierReturnListPage() {
   const total = Number(payload.count || payload.total || rows.length);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  const exportRows = () => {
+    downloadCsv(
+      `supplier-returns-${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        "Return #",
+        "GRN",
+        "Supplier",
+        "Date",
+        "Reason",
+        "Items",
+        "Net",
+        "VAT",
+        "Total",
+        "Currency",
+        "Status",
+      ],
+      rows.map((row) => [
+        row.return_number || `Return ${row.id}`,
+        row.grn_number || "",
+        row.supplier_name || "",
+        row.return_date || "",
+        row.reason_display || row.reason || "",
+        row.item_count ?? row.items?.length ?? 0,
+        row.subtotal ?? row.net_amount ?? 0,
+        row.vat_amount ?? row.tax_amount ?? 0,
+        row.total_amount ?? 0,
+        row.currency || "AED",
+        row.status || "DRAFT",
+      ]),
+    );
+  };
+
   React.useEffect(() => {
     if (page > totalPages) {
       setPage(totalPages);
@@ -128,7 +192,7 @@ export default function SupplierReturnListPage() {
   }, [page, totalPages]);
 
   return (
-    <div className="purchase-module-page purchase-workspace space-y-6">
+    <div className="purchase-module-page purchase-workspace w-full max-w-none space-y-6 pb-10">
       <PageHeader
         title="Supplier Returns"
         subtitle="Create returns from confirmed GRNs, approve stock deductions, and complete vendor credit settlement."
@@ -142,6 +206,11 @@ export default function SupplierReturnListPage() {
             >
               <RefreshCcw className="mr-2 h-4 w-4" />
               Refresh
+            </Button>
+
+            <Button type="button" variant="outline" onClick={exportRows}>
+              <Download className="mr-2 h-4 w-4" />
+              Export
             </Button>
 
             <Button asChild>
@@ -401,4 +470,3 @@ export default function SupplierReturnListPage() {
     </div>
   );
 }
-

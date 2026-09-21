@@ -639,7 +639,7 @@ export default function JournalEntriesPage() {
   }
 
   return (
-    <div className="finance-module-page finance-workspace mx-auto w-full max-w-[1500px] space-y-5 pb-10">
+    <div className="finance-module-page finance-workspace w-full space-y-5 pb-10 max-w-none">
       <PageHeader
         variant="hero"
         title="Journal Entries"
@@ -1039,8 +1039,9 @@ function JournalForm({
   const status = activeJournal?.status || "DRAFT";
 
   return (
-    <div className="finance-module-page finance-workspace mx-auto w-full max-w-[1500px] space-y-5 pb-10">
-      <PageHeader variant="hero"
+    <div className="finance-module-page finance-workspace w-full space-y-5 pb-10 max-w-none">
+      <PageHeader
+        variant="hero"
         title={title}
         subtitle="The voucher can be posted only when debit and credit totals are equal and approval is complete."
         actions={
@@ -1789,7 +1790,8 @@ function WorkflowModal({
       description:
         "The journal will become read-only until it is approved or rejected.",
       button: "Submit for Approval",
-      className: "bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950",
+      className:
+        "bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950",
     },
     approve: {
       title: "Approve Journal Entry?",
@@ -1816,7 +1818,8 @@ function WorkflowModal({
       description:
         "A new Draft voucher will be created with the same accounts and values.",
       button: "Duplicate",
-      className: "bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950",
+      className:
+        "bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950",
     },
     reverse: {
       title: "Reverse Posted Journal?",
@@ -1912,4 +1915,3 @@ function WorkflowModal({
     </div>
   );
 }
-

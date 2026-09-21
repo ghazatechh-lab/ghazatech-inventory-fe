@@ -282,7 +282,7 @@ export default function BankAccountsPage() {
   };
 
   return (
-    <div className="finance-module-page finance-workspace mx-auto w-full max-w-[1500px] space-y-5 pb-10">
+    <div className="finance-module-page finance-workspace w-full space-y-5 pb-10 max-w-none">
       <PageHeader
         variant="hero"
         title="Bank & Cash"
@@ -1192,4 +1192,3 @@ function Field({ label, children }) {
     </div>
   );
 }
-

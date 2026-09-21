@@ -266,7 +266,7 @@ export default function VendorCreditDetailPage() {
   );
 
   return (
-    <div className="purchase-module-page purchase-workspace w-full space-y-6 pb-10">
+    <div className="purchase-module-page purchase-workspace w-full space-y-6 pb-10 max-w-none">
       <PageHeader
         title={record.credit_number || `Vendor Credit ${id}`}
         subtitle="Complete vendor credit information, linked documents, financial values, and audit history."
@@ -731,4 +731,3 @@ export default function VendorCreditDetailPage() {
     </div>
   );
 }
-

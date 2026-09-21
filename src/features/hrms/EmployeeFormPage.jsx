@@ -335,6 +335,19 @@ export default function EmployeeFormPage() {
         toast.success("Designation deleted.");
       } else if (deleteTarget.type === "document") {
         await removeExistingDocument.mutateAsync(deleteTarget.id);
+      } else if (deleteTarget.type === "employee") {
+        await api.delete(`/hrms/employees/${deleteTarget.id}/`, {
+          data: {
+            reason: "Deleted from Employee edit page",
+          },
+          skipGlobalErrorToast: true,
+        });
+
+        await queryClient.invalidateQueries({ queryKey: ["employees"] });
+        toast.success("Employee moved to Recovery Centre.");
+        setDeleteTarget(null);
+        navigate("/hrms/employees");
+        return;
       }
 
       setDeleteTarget(null);
@@ -343,7 +356,11 @@ export default function EmployeeFormPage() {
 
       const details = getApiErrorDetails(error);
       const label =
-        deleteTarget.type === "department" ? "department" : "designation";
+        deleteTarget.type === "department"
+          ? "department"
+          : deleteTarget.type === "designation"
+            ? "designation"
+            : "employee";
 
       toast.error(details.title || `Unable to delete ${label}`, {
         description: details.summary || details.message,
@@ -462,7 +479,27 @@ export default function EmployeeFormPage() {
         title={isEdit ? "Edit Employee" : "New Employee"}
         subtitle="Personal, employment, immigration, and labor contract information"
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            {isEdit ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={() =>
+                  setDeleteTarget({
+                    type: "employee",
+                    id,
+                    title: "Delete Employee?",
+                    description:
+                      "This employee will be removed from the Employees list and moved to Recovery Centre. You can restore the employee later or permanently delete the employee and related HR data from Recovery Centre.",
+                  })
+                }
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Employee
+              </Button>
+            ) : null}
+
             <Button variant="outline" asChild>
               <Link to="/hrms/employees">Cancel</Link>
             </Button>
@@ -549,6 +586,33 @@ export default function EmployeeFormPage() {
           {field("Nationality", "nationality")}
           {field("Date of Birth (Optional)", "date_of_birth", "date")}
           {field("Joining Date", "joining_date", "date")}
+
+          {isEdit ? (
+            <div>
+              <Label>Employment Status</Label>
+              <Select
+                value={form.employment_status || "ACTIVE"}
+                onValueChange={(value) => update("employment_status", value)}
+              >
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Select employee status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="ON_LEAVE">On Leave</SelectItem>
+                  <SelectItem value="PROBATION">Probation</SelectItem>
+                  <SelectItem value="RESIGNED">Resigned</SelectItem>
+                  <SelectItem value="TERMINATED">Terminated</SelectItem>
+                  <SelectItem value="INACTIVE">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Changing status does not delete the employee. Use Delete
+                Employee to move the employee to Recovery Centre.
+              </p>
+            </div>
+          ) : null}
+
           <div>
             <Label>Branch</Label>
             <Input
@@ -985,4 +1049,3 @@ export default function EmployeeFormPage() {
     </div>
   );
 }
-

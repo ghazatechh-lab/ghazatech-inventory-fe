@@ -1,6 +1,6 @@
 ﻿import React from "react";
 import { Link } from "react-router-dom";
-import { AlertCircle, FilterX, Plus, RefreshCcw } from "lucide-react";
+import { AlertCircle, Download, FilterX, Plus, RefreshCcw } from "lucide-react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import api, { unwrap } from "@/lib/api";
@@ -20,6 +20,31 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { useSupplierUrlFilter } from "@/hooks/useSupplierUrlFilter";
 import { normalizeApiResponse, rowsFromPayload } from "./purchaseUi";
+
+const downloadCsv = (filename, headers, rows) => {
+  const escapeCell = (value) => {
+    const text = value === null || value === undefined ? "" : String(value);
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+
+  const csv = [
+    headers.map(escapeCell).join(","),
+    ...rows.map((row) => row.map(escapeCell).join(",")),
+  ].join("\n");
+
+  const blob = new Blob(["\uFEFF", csv], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
 
 const PAGE_SIZE = 12;
 
@@ -128,6 +153,32 @@ export default function SupplierPaymentListPage() {
     }
   }, [page, totalPages]);
 
+  const exportRows = () => {
+    downloadCsv(
+      `supplier-payments-${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        "Payment #",
+        "Supplier",
+        "Date",
+        "Method",
+        "Reference",
+        "Amount",
+        "Currency",
+        "Status",
+      ],
+      rows.map((row) => [
+        row.payment_number || `Payment ${row.id}`,
+        row.supplier_name || "",
+        row.payment_date || "",
+        row.payment_method_display || row.payment_method || "",
+        row.reference_number || "",
+        row.amount ?? 0,
+        row.currency || "AED",
+        row.status || "POSTED",
+      ]),
+    );
+  };
+
   const columns = React.useMemo(
     () => [
       {
@@ -160,7 +211,8 @@ export default function SupplierPaymentListPage() {
         key: "payment_method",
         header: "Method",
 
-        cell: (row) => row.payment_method_display || row.payment_method || "â€”",
+        cell: (row) =>
+          row.payment_method_display || row.payment_method || "â€”",
       },
       {
         key: "reference_number",
@@ -217,6 +269,11 @@ export default function SupplierPaymentListPage() {
             >
               <RefreshCcw className="mr-2 h-4 w-4" />
               Refresh
+            </Button>
+
+            <Button type="button" variant="outline" onClick={exportRows}>
+              <Download className="mr-2 h-4 w-4" />
+              Export
             </Button>
 
             <Button asChild>
@@ -408,4 +465,3 @@ export default function SupplierPaymentListPage() {
     </div>
   );
 }
-
