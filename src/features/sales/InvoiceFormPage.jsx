@@ -74,6 +74,8 @@ const number = (value) => {
 
 const money = (value) => Number(number(value).toFixed(2));
 
+const INVOICE_PRODUCT_RETURN_KEY = "ghazatech.invoice.product-return-draft";
+
 const getProductPrice = (product) =>
   number(
     product?.retail_price ??
@@ -100,7 +102,13 @@ const emptyItem = () => ({
   available_stock: 0,
 });
 
-function ProductSearchPicker({ products, value, onSelect, getPrice }) {
+function ProductSearchPicker({
+  products,
+  value,
+  onSelect,
+  getPrice,
+  onAddProduct,
+}) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const searchRef = React.useRef(null);
@@ -260,6 +268,21 @@ function ProductSearchPicker({ products, value, onSelect, getPrice }) {
             </CommandGroup>
           </CommandList>
         </Command>
+
+        <div className="border-t bg-muted/20 p-2">
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full justify-start text-blue-600 hover:text-blue-700"
+            onClick={() => {
+              setOpen(false);
+              onAddProduct?.();
+            }}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add New Product
+          </Button>
+        </div>
       </PopoverContent>
     </Popover>
   );
@@ -316,6 +339,29 @@ export default function InvoiceFormPage() {
         : "STANDALONE",
     items: [emptyItem()],
   });
+
+  React.useEffect(() => {
+    if (isEdit) return;
+
+    try {
+      const raw = window.sessionStorage.getItem(INVOICE_PRODUCT_RETURN_KEY);
+      if (!raw) return;
+
+      const saved = JSON.parse(raw);
+      const currentPath = `${window.location.pathname}${window.location.search}`;
+
+      if (saved?.returnTo !== currentPath || !saved?.form) return;
+
+      setForm(saved.form);
+      window.sessionStorage.removeItem(INVOICE_PRODUCT_RETURN_KEY);
+
+      queryClient.invalidateQueries({
+        queryKey: ["sales-invoice-form-options"],
+      });
+    } catch (_error) {
+      window.sessionStorage.removeItem(INVOICE_PRODUCT_RETURN_KEY);
+    }
+  }, [isEdit, queryClient]);
 
   const { data: existing, isLoading: existingLoading } = useQuery({
     queryKey: ["sales-invoice", id],
@@ -700,6 +746,24 @@ export default function InvoiceFormPage() {
       ...current,
       items: "",
     }));
+  };
+
+  const addProductFromInvoice = (lineIndex) => {
+    const returnTo = `${window.location.pathname}${window.location.search}`;
+
+    window.sessionStorage.setItem(
+      INVOICE_PRODUCT_RETURN_KEY,
+      JSON.stringify({
+        returnTo,
+        lineIndex,
+        form,
+        savedAt: Date.now(),
+      }),
+    );
+
+    navigate(
+      `/inventory/products/new?return_to=${encodeURIComponent(returnTo)}&source=invoice`,
+    );
   };
 
   const selectProduct = (index, optionValue) => {
@@ -1407,6 +1471,7 @@ export default function InvoiceFormPage() {
                     }
                     onSelect={(value) => selectProduct(index, value)}
                     getPrice={getProductPrice}
+                    onAddProduct={() => addProductFromInvoice(index)}
                   />
 
                   <Input

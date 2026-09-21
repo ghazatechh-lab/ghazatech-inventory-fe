@@ -1,5 +1,5 @@
 ﻿import React from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import {
@@ -100,7 +100,13 @@ export default function ProductFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
+
+  const requestedReturnTo = searchParams.get("return_to") || "";
+  const returnTo = requestedReturnTo.startsWith("/sales/invoices")
+    ? requestedReturnTo
+    : "/inventory/products";
   const { branchId: branchOverride } = useActiveBranchFilter();
   const fileRef = React.useRef(null);
   const hydratedRef = React.useRef(false);
@@ -637,16 +643,25 @@ export default function ProductFormPage() {
       console.log("Variants payload:", normalizedVariants);
       console.groupEnd();
 
-      if (isEdit) await api.patch(`/products/${id}/`, formData);
-      else await api.post("/products/", formData);
+      if (isEdit) {
+        await api.patch(`/products/${id}/`, formData);
+      } else {
+        await api.post("/products/", formData);
+      }
+
       await queryClient.invalidateQueries({ queryKey: ["products"] });
       await queryClient.invalidateQueries({ queryKey: ["product", id] });
+      await queryClient.invalidateQueries({
+        queryKey: ["sales-invoice-form-options"],
+      });
+
       toast.success(
         isEdit
           ? "Product updated successfully."
           : "Product created successfully.",
       );
-      navigate("/inventory/products");
+
+      navigate(!isEdit ? returnTo : "/inventory/products");
     } catch (error) {
       console.error("[Product Form] Save failed:", error);
       if (error instanceof Error && !error.response) toast.error(error.message);
@@ -762,10 +777,12 @@ export default function ProductFormPage() {
             type="button"
             variant="outline"
             className="h-11 rounded-xl"
-            onClick={() => navigate("/inventory/products")}
+            onClick={() => navigate(!isEdit ? returnTo : "/inventory/products")}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to products
+            {returnTo.startsWith("/sales/invoices")
+              ? "Back to Invoice"
+              : "Back to products"}
           </Button>
         </div>
       </section>
@@ -1588,7 +1605,7 @@ export default function ProductFormPage() {
           <Button
             type="button"
             variant="ghost"
-            onClick={() => navigate("/inventory/products")}
+            onClick={() => navigate(!isEdit ? returnTo : "/inventory/products")}
             disabled={isSubmitting}
             className="sm:min-w-28"
           >
@@ -1674,4 +1691,3 @@ export default function ProductFormPage() {
     </div>
   );
 }
-
