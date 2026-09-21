@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { PageHeader } from "@/components/common/PageHeader";
 
 const defaults = {
   customer_name: "",
@@ -198,50 +199,29 @@ export default function CustomerFormPage() {
 
   return (
     <div className="customer-module-page customer-workspace w-full space-y-5 pb-10">
-      <section className="overflow-hidden rounded-[28px] border border-slate-200/70 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] text-white shadow-sm dark:border-white/10">
-        <div className="flex flex-col gap-6 px-6 py-7 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <div className="flex min-w-0 items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-300/35 bg-amber-300/10 text-amber-300 shadow-inner backdrop-blur">
-              <UserRoundPlus className="h-7 w-7" />
-            </div>
-
-            <div className="min-w-0">
-              <p
-                className="text-xs font-semibold uppercase tracking-[0.22em] !text-sky-200"
-                style={{ color: "#bae6fd", WebkitTextFillColor: "#bae6fd" }}
-              >
-                Customer Master
-              </p>
-              <h1
-                className="mt-2 text-3xl font-semibold tracking-tight !text-white sm:text-4xl"
-                style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
-              >
-                {isEdit ? "Edit Customer" : "New Customer"}
-              </h1>
-              <p
-                className="mt-2 max-w-2xl text-sm leading-6 !text-slate-100"
-                style={{ color: "#f1f5f9", WebkitTextFillColor: "#f1f5f9" }}
-              >
-                {isEdit
-                  ? "Update identity, contact information, commercial terms, and customer status."
-                  : "Create a complete customer record for sales, invoicing, and account management."}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2 lg:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate(backTarget)}
-              className="border-amber-300 bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              {isEdit ? "Back to Customer" : "Back to Customers"}
-            </Button>
-          </div>
-        </div>
-      </section>
+      <PageHeader
+        variant="hero"
+        eyebrow="Customer Master"
+        icon={UserRoundPlus}
+        title={isEdit ? "Edit Customer" : "New Customer"}
+        subtitle={
+          isEdit
+            ? "Update identity, contact information, commercial terms, and customer status."
+            : "Create a complete customer record for sales, invoicing, and account management."
+        }
+        className="w-full max-w-none"
+        actions={
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => navigate(backTarget)}
+            className="border-amber-300 bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            {isEdit ? "Back to Customer" : "Back to Customers"}
+          </Button>
+        }
+      />
 
       <form
         onSubmit={handleSubmit((values) => saveMutation.mutate(values))}

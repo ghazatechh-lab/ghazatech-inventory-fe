@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import DirhamSymbol from "@/components/common/DirhamSymbol";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { PageHeader } from "@/components/common/PageHeader";
 import { DataTable } from "@/components/common/DataTable";
 import { Button } from "@/components/ui/button";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
@@ -149,33 +150,22 @@ export default function CustomerDetailPage() {
 
   return (
     <div className="customer-module-page customer-workspace w-full space-y-5 pb-10">
-      <section className="overflow-hidden rounded-[28px] border border-slate-200/70 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] text-white shadow-sm dark:border-white/10">
-        <div className="flex flex-col gap-6 px-6 py-7 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <div className="flex min-w-0 items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-300/35 bg-amber-300/10 text-amber-300 shadow-inner backdrop-blur">
-              <Building2 className="h-7 w-7" />
-            </div>
-
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">
-                Customer Profile
-              </p>
-              <h1 className="mt-2 truncate text-3xl font-semibold tracking-tight sm:text-4xl">
-                {c.customer_name || "Customer"}
-              </h1>
-              <p className="mt-2 text-sm text-slate-200">
-                {displayValue(c.customer_code, `Customer #${id}`)}
-                <span className="mx-2 text-slate-500">•</span>
-                {displayValue(c.customer_type, c.category)}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2 lg:justify-end">
+      <PageHeader
+        variant="hero"
+        eyebrow="Customer Profile"
+        icon={Building2}
+        title={c.customer_name || "Customer"}
+        subtitle={`${displayValue(c.customer_code, `Customer #${id}`)} · ${displayValue(
+          c.customer_type,
+          c.category,
+        )}`}
+        className="w-full max-w-none"
+        actions={
+          <>
             <Button
               asChild
               variant="outline"
-              className="border-amber-300 bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
+              className="border-amber-300 bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               <Link to="/customers">
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -185,16 +175,16 @@ export default function CustomerDetailPage() {
 
             <Button
               asChild
-              className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
+              className="bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             >
               <Link to={`/customers/${id}/edit`}>
                 <Pencil className="mr-2 h-4 w-4" />
                 Edit Customer
               </Link>
             </Button>
-          </div>
-        </div>
-      </section>
+          </>
+        }
+      />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Outstanding" tone="danger">

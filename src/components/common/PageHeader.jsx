@@ -114,7 +114,18 @@ export function PageHeader({
 
           <div className="page-header-copy min-w-0">
             <div className="mb-1.5 flex flex-wrap items-center gap-2">
-              <span className="page-header-eyebrow text-[11px] font-extrabold uppercase tracking-[0.18em] text-sky-200">
+              <span
+                className="page-header-eyebrow inline-flex w-fit items-center rounded-full border px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.16em]"
+                style={{
+                  backgroundColor: "#eff6ff",
+                  borderColor: "#bfdbfe",
+                  color: "#1d4ed8",
+                  WebkitTextFillColor: "#1d4ed8",
+                  lineHeight: "14px",
+                  minHeight: "24px",
+                  textShadow: "none",
+                }}
+              >
                 {resolvedEyebrow}
               </span>
             </div>

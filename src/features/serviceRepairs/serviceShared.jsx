@@ -129,6 +129,7 @@ export function ServiceHero({ title, description, actions }) {
       subtitle={description}
       eyebrow="Service Operations"
       actions={actions}
+      className="w-full max-w-none"
     />
   );
 }

@@ -8,6 +8,7 @@ import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { Button } from "@/components/ui/button";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { PageHeader } from "@/components/common/PageHeader";
 import { SalesDocumentFlow } from "@/components/sales/SalesDocumentFlow";
 import { MetricCard } from "@/components/sales/MetricCard";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
@@ -131,28 +132,15 @@ export default function CustomerListPage() {
 
   return (
     <div className="customer-module-page customer-workspace w-full space-y-5 pb-10">
-      <section className="overflow-hidden rounded-[28px] border border-slate-200/70 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] !text-white shadow-sm dark:border-white/10">
-        <div className="flex flex-col gap-6 px-6 py-7 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <div className="flex min-w-0 items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-300/35 bg-amber-300/10 !text-amber-300 shadow-inner backdrop-blur">
-              <Users className="h-7 w-7 !text-amber-300" />
-            </div>
-
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] !text-sky-300">
-                Sales & Customer Management
-              </p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight !text-white sm:text-4xl">
-                Customers
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 !text-slate-200">
-                Manage customer records, balances, contact details, sales
-                history, and account activity from one place.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2 lg:justify-end">
+      <PageHeader
+        variant="hero"
+        eyebrow="Sales & Customer Management"
+        icon={Users}
+        title="Customers"
+        subtitle="Manage customer records, balances, contact details, sales history, and account activity from one place."
+        className="w-full max-w-none"
+        actions={
+          <>
             <Button
               type="button"
               variant="outline"
@@ -172,9 +160,9 @@ export default function CustomerListPage() {
                 <span className="!text-slate-950">New Customer</span>
               </Link>
             </Button>
-          </div>
-        </div>
-      </section>
+          </>
+        }
+      />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
