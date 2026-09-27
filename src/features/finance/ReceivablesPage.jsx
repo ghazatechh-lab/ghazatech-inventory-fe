@@ -254,7 +254,7 @@ export default function ReceivablesPage() {
   }, [invoices]);
 
   return (
-    <div className="finance-module-page finance-workspace mx-auto w-full max-w-[1500px] space-y-5 pb-10">
+    <div className="finance-module-page finance-workspace w-full space-y-5 pb-10">
       <PageHeader
         variant="hero"
         title="Accounts Receivable"
@@ -710,4 +710,3 @@ function Field({ label, children }) {
     </div>
   );
 }
-

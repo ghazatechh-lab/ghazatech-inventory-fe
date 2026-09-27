@@ -79,7 +79,7 @@ export default function FinancialReportsPage() {
   };
 
   return (
-    <div className="finance-module-page finance-workspace mx-auto w-full max-w-[1500px] space-y-5 pb-10">
+    <div className="finance-module-page finance-workspace w-full space-y-5 pb-10">
       <PageHeader
         variant="hero"
         title="Financial Reports"
@@ -443,4 +443,3 @@ function Kpi({ l, v, tone }) {
     </div>
   );
 }
-
