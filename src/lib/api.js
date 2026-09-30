@@ -1,14 +1,19 @@
 ﻿import axios from "axios";
+
 import { toast } from "sonner";
+
+import { attachBranchHeader } from "@/lib/branchDatabase";
 
 const API_BASE_URL =
   process.env.REACT_APP_API_BASE_URL || "http://127.0.0.1:8000/api";
 
 const ACCESS_TOKEN_KEY = "access_token";
+
 const REFRESH_TOKEN_KEY = "refresh_token";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
+
   headers: {
     Accept: "application/json",
   },
@@ -16,8 +21,10 @@ const api = axios.create({
 
 const refreshClient = axios.create({
   baseURL: API_BASE_URL,
+
   headers: {
     "Content-Type": "application/json",
+
     Accept: "application/json",
   },
 });
@@ -28,7 +35,9 @@ const getRefreshToken = () => localStorage.getItem(REFRESH_TOKEN_KEY);
 
 const clearStoredAuth = () => {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
+
   localStorage.removeItem(REFRESH_TOKEN_KEY);
+
   localStorage.removeItem("user");
 };
 
@@ -41,14 +50,18 @@ const redirectToLogin = () => {
 const humanizeFieldName = (fieldName = "") =>
   String(fieldName)
     .replace(/\[(\d+)\]/g, " $1")
+
     .replace(/\./g, " ")
+
     .replace(/_/g, " ")
+
     .replace(/\b\w/g, (character) => character.toUpperCase());
 
 const friendlyClientMessage = (field, message) => {
   const label = humanizeFieldName(field || "field");
 
   const text = String(message || "").trim();
+
   const lower = text.toLowerCase();
 
   if (
@@ -131,6 +144,7 @@ const flattenValidationErrors = (value, path = "", output = []) => {
       if (["string", "number", "boolean"].includes(typeof item)) {
         output.push({
           field: path,
+
           message: friendlyClientMessage(path, item),
         });
       } else {
@@ -159,6 +173,7 @@ const flattenValidationErrors = (value, path = "", output = []) => {
 
   output.push({
     field: path,
+
     message: friendlyClientMessage(path, value),
   });
 
@@ -209,17 +224,22 @@ export const getApiErrorDetails = (error) => {
   if (!error?.response) {
     return {
       title: "Connection error",
+
       message:
         error?.message === "Network Error"
           ? "The server could not be reached. Check your connection and try again."
           : error?.message || "Something went wrong. Please try again.",
+
       summary: "",
+
       errors: [],
+
       status: null,
     };
   }
 
   const status = error.response.status;
+
   const responseData = error.response.data;
 
   if (typeof responseData === "string") {
@@ -234,9 +254,13 @@ export const getApiErrorDetails = (error) => {
 
     return {
       title: statusTitle(status),
+
       message: safeMessage,
+
       summary: safeMessage,
+
       errors: [],
+
       status,
     };
   }
@@ -249,15 +273,20 @@ export const getApiErrorDetails = (error) => {
 
   const errors = flattenValidationErrors(errorContainer).map((item) => ({
     field: item.field,
+
     label: item.field ? humanizeFieldName(item.field) : "",
+
     message: item.message,
   }));
 
   const uniqueMessages = [...new Set(errors.map((item) => item.message))];
 
   const fieldSummary = uniqueMessages
+
     .slice(0, 6)
-    .map((message) => `â€¢ ${message}`)
+
+    .map((message) => `• ${message}`)
+
     .join("\n");
 
   const backendMessage = responseData?.message || responseData?.detail || "";
@@ -283,23 +312,31 @@ export const getApiErrorDetails = (error) => {
 
   return {
     title: statusTitle(status),
+
     message: errors[0]?.message || backendMessage || fallback,
+
     summary,
+
     errors,
+
     status,
+
     code: responseData?.code,
   };
 };
 
 export const getApiErrorMessage = (
   error,
+
   fallbackMessage = "Something went wrong.",
 ) => getApiErrorDetails(error)?.message || fallbackMessage;
 
 const buildToastId = (details) => {
   const message = String(details.summary || details.message || "request-error")
     .toLowerCase()
+
     .replace(/[^a-z0-9]+/g, "-")
+
     .slice(0, 80);
 
   return `api-error-${details.status || "network"}-${message}`;
@@ -318,11 +355,14 @@ export const showApiError = (error, fallbackMessage) => {
       details.message ||
       fallbackMessage ||
       "The request could not be completed.",
+
     duration: 7000,
+
     id: buildToastId(details),
   });
 
   error.__apiErrorShown = true;
+
   error.apiErrorDetails = details;
 
   return details;
@@ -340,21 +380,25 @@ api.interceptors.request.use(
      * Never manually set Content-Type for FormData.
      * The browser must add the multipart boundary.
      */
+
     if (config.data instanceof FormData) {
       if (typeof config.headers?.setContentType === "function") {
         config.headers.setContentType(undefined);
       } else {
         delete config.headers["Content-Type"];
+
         delete config.headers["content-type"];
       }
     }
 
-    return config;
+    return attachBranchHeader(config);
   },
+
   (error) => Promise.reject(error),
 );
 
 let isRefreshing = false;
+
 let refreshQueue = [];
 
 const processRefreshQueue = (error, accessToken = null) => {
@@ -391,8 +435,10 @@ const shouldShowGlobalError = (error) => {
 
 api.interceptors.response.use(
   (response) => response,
+
   async (error) => {
     const originalRequest = error.config;
+
     const statusCode = error.response?.status;
 
     if (
@@ -406,6 +452,7 @@ api.interceptors.response.use(
 
       if (!refreshToken) {
         clearStoredAuth();
+
         redirectToLogin();
 
         return Promise.reject(error);
@@ -415,18 +462,22 @@ api.interceptors.response.use(
         return new Promise((resolve, reject) => {
           refreshQueue.push({
             resolve,
+
             reject,
           });
         })
+
           .then((newAccessToken) => {
             originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
 
             return api(originalRequest);
           })
+
           .catch((refreshError) => Promise.reject(refreshError));
       }
 
       originalRequest._retry = true;
+
       isRefreshing = true;
 
       try {
@@ -461,6 +512,7 @@ api.interceptors.response.use(
         processRefreshQueue(refreshError, null);
 
         clearStoredAuth();
+
         redirectToLogin();
 
         return Promise.reject(refreshError);
@@ -492,4 +544,3 @@ export {
 };
 
 export default api;
-
