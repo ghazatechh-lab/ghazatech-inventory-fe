@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import {
   Link,
   useNavigate,
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { CurrencyText } from "@/components/common/CurrencyText";
+import { SaleModeSelector } from "@/components/common/SaleModeSelector";
 import {
   Popover,
   PopoverContent,
@@ -388,6 +389,7 @@ export default function SalesOrderFormPage() {
   const [form, setForm] = React.useState({
     quotation: quotationId || "",
     branch: branchId ? String(branchId) : "",
+    sale_mode: "",
     customer: "",
     salesperson: "",
     order_number: "",
@@ -464,6 +466,7 @@ export default function SalesOrderFormPage() {
           : "",
 
       branch: String(source.branch?.id || source.branch || ""),
+      sale_mode: source.sale_mode || "",
       customer: String(source.customer?.id || source.customer || ""),
       salesperson: source.salesperson
         ? String(source.salesperson?.id || source.salesperson)
@@ -495,7 +498,8 @@ export default function SalesOrderFormPage() {
             description: item.description || "",
             quantity: number(item.quantity),
             unit_price: number(item.unit_price),
-            vat_percentage: number(item.vat_percentage),
+            vat_percentage:
+              source.sale_mode === "NON_VAT" ? 0 : number(item.vat_percentage),
             available_stock: number(item.available_stock),
           }))
         : [emptyItem()],
@@ -521,7 +525,9 @@ export default function SalesOrderFormPage() {
 
     const subtotal = number(item.quantity) * number(item.unit_price);
 
-    const vatAmount = (subtotal * number(item.vat_percentage)) / 100;
+    const effectiveVatRate =
+      form.sale_mode === "NON_VAT" ? 0 : number(item.vat_percentage);
+    const vatAmount = (subtotal * effectiveVatRate) / 100;
 
     return {
       ...item,
@@ -612,6 +618,7 @@ export default function SalesOrderFormPage() {
 
     if (!form.branch) next.branch = "Branch is required.";
     if (!form.customer) next.customer = "Customer is required.";
+    if (!form.sale_mode) next.sale_mode = "Select VAT Sale or Non-VAT Sale.";
     if (!form.order_date) next.order_date = "Order date is required.";
     if (!form.delivery_date) next.delivery_date = "Delivery date is required.";
 
@@ -748,6 +755,31 @@ export default function SalesOrderFormPage() {
           </div>
         }
       />
+
+      <SaleModeSelector
+        branchId={form.branch}
+        value={form.sale_mode}
+        onChange={(saleMode) =>
+          setForm((current) => ({
+            ...current,
+            sale_mode: saleMode,
+            items: current.items.map((item) => ({
+              ...item,
+              vat_percentage:
+                saleMode === "NON_VAT"
+                  ? 0
+                  : number(item.vat_percentage || 5),
+            })),
+          }))
+        }
+        disabled={isEdit || Boolean(sourceQuotation)}
+      />
+
+      {errors.sale_mode && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+          {errors.sale_mode}
+        </div>
+      )}
 
       <section className="card-surface p-5">
         <h2 className="font-semibold">Source</h2>

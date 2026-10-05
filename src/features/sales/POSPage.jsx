@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { createPortal } from "react-dom";
 import {
   Banknote,
@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CurrencyText } from "@/components/common/CurrencyText";
+import { SaleModeSelector } from "@/components/common/SaleModeSelector";
 import InlineCustomerDialog from "./InlineCustomerDialog";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { SalesDocumentFlow } from "@/components/sales/SalesDocumentFlow";
@@ -77,6 +78,7 @@ const emptyItem = () => ({
 
 const createForm = (branchId) => ({
   branch: branchId ? String(branchId) : "",
+  sale_mode: "",
   customer: "",
   cashier: "",
   receipt_number: "",
@@ -228,9 +230,11 @@ export default function POSPage() {
   );
 
   const commonVatRate =
-    form.vat_treatment === "STANDARD_VAT"
-      ? number(form.vat_percentage || 5)
-      : 0;
+    form.sale_mode === "NON_VAT"
+      ? 0
+      : form.vat_treatment === "STANDARD_VAT"
+        ? number(form.vat_percentage || 5)
+        : 0;
 
   const vatAmount = (subtotal * commonVatRate) / 100;
 
@@ -252,6 +256,7 @@ export default function POSPage() {
       return {
         ...current,
         branch: nextBranch,
+        sale_mode: "",
         items: current.items.map(() => emptyItem()),
       };
     });
@@ -368,6 +373,7 @@ export default function POSPage() {
     setForm((current) => ({
       ...current,
       branch: value,
+      sale_mode: "",
       customer: "",
       cashier: "",
       items: [emptyItem()],
@@ -396,6 +402,10 @@ export default function POSPage() {
 
     if (!form.cashier) {
       next.cashier = "Cashier is required.";
+    }
+
+    if (!form.sale_mode) {
+      next.sale_mode = "Select VAT Sale or Non-VAT Sale.";
     }
 
     if (!form.items.length) {
@@ -435,6 +445,8 @@ export default function POSPage() {
       const payload = {
         branch: Number(form.branch),
 
+        sale_mode: form.sale_mode,
+
         customer: form.customer ? Number(form.customer) : null,
 
         cashier: Number(form.cashier),
@@ -462,8 +474,14 @@ export default function POSPage() {
 
           vat_percentage: commonVatRate,
           tax_rate: commonVatRate,
-          tax_treatment: form.vat_treatment || "STANDARD_VAT",
-          tax_reason: String(form.vat_reason || "").trim(),
+          tax_treatment:
+            form.sale_mode === "NON_VAT"
+              ? "OUT_OF_SCOPE"
+              : form.vat_treatment || "STANDARD_VAT",
+          tax_reason:
+            form.sale_mode === "NON_VAT"
+              ? ""
+              : String(form.vat_reason || "").trim(),
           tax_inclusive: false,
         })),
       };
@@ -773,6 +791,32 @@ export default function POSPage() {
               <div className="min-h-0 flex-1 overflow-y-auto">
                 <div className="grid gap-5 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_350px] lg:p-6">
                   <div className="min-w-0 space-y-5">
+                    <SaleModeSelector
+                      branchId={form.branch}
+                      value={form.sale_mode}
+                      onChange={(saleMode) =>
+                        setForm((current) => ({
+                          ...current,
+                          sale_mode: saleMode,
+                          vat_treatment:
+                            saleMode === "NON_VAT"
+                              ? "OUT_OF_SCOPE"
+                              : current.vat_treatment === "OUT_OF_SCOPE"
+                                ? "STANDARD_VAT"
+                                : current.vat_treatment,
+                          vat_percentage:
+                            saleMode === "NON_VAT" ? 0 : current.vat_percentage || 5,
+                          vat_reason: saleMode === "NON_VAT" ? "" : current.vat_reason,
+                        }))
+                      }
+                    />
+
+                    {errors.sale_mode && (
+                      <p className="text-sm font-medium text-red-500">
+                        {errors.sale_mode}
+                      </p>
+                    )}
+
                     <section className="rounded-2xl border bg-card p-4 shadow-sm">
                       <div className="mb-4 flex items-center justify-between">
                         <div>

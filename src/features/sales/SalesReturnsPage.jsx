@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
+import { SaleModeSelector } from "@/components/common/SaleModeSelector";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { SalesDocumentFlow } from "@/components/sales/SalesDocumentFlow";
 import { MetricCard } from "@/components/sales/MetricCard";
@@ -59,6 +60,7 @@ const reasons = [
 
 const createForm = (branchId) => ({
   branch: branchId ? String(branchId) : "",
+  sale_mode: "",
   sales_order: "",
   invoice: "",
   customer: "",
@@ -169,6 +171,7 @@ export default function SalesReturnsPage() {
         ? String(orderDetail.branch_id)
         : current.branch,
       customer: orderDetail.customer_id ? String(orderDetail.customer_id) : "",
+      sale_mode: orderDetail.sale_mode || current.sale_mode || "",
       invoice: orderDetail.invoice_id ? String(orderDetail.invoice_id) : "",
       items: (orderDetail.items || []).map((item) => ({
         sales_order_item: item.id,
@@ -196,7 +199,7 @@ export default function SalesReturnsPage() {
     0,
   );
 
-  const vatAmount = subtotal * 0.05;
+  const vatAmount = form.sale_mode === "NON_VAT" ? 0 : subtotal * 0.05;
   const total = subtotal + vatAmount;
 
   const updateForm = (field, value) => {
@@ -241,6 +244,10 @@ export default function SalesReturnsPage() {
       next.sales_order = "Sales Order is required.";
     }
 
+    if (!form.sale_mode) {
+      next.sale_mode = "Sale mode must be inherited from the source order.";
+    }
+
     if (!form.return_date) {
       next.return_date = "Return date is required.";
     }
@@ -269,6 +276,7 @@ export default function SalesReturnsPage() {
         "/sales/returns/",
         {
           branch: form.branch ? Number(form.branch) : null,
+          sale_mode: form.sale_mode,
           sales_order: Number(form.sales_order),
           invoice: form.invoice ? Number(form.invoice) : null,
           customer: form.customer ? Number(form.customer) : null,
@@ -808,6 +816,19 @@ export default function SalesReturnsPage() {
                     Select the related sales order and return date.
                   </p>
                 </div>
+
+                <SaleModeSelector
+                  branchId={form.branch}
+                  value={form.sale_mode}
+                  onChange={(saleMode) => updateForm("sale_mode", saleMode)}
+                  disabled
+                />
+
+                {errors.sale_mode && (
+                  <p className="mt-1 text-xs text-red-500">
+                    {errors.sale_mode}
+                  </p>
+                )}
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>

@@ -35,6 +35,7 @@ export function normalizeSalePayload(payload, branch, saleMode) {
   if (!selected) {
     throw new Error("Select VAT Sale or Non-VAT Sale.");
   }
+
   if (!allowed.includes(selected)) {
     throw new Error("This sale type is not allowed for the selected branch.");
   }

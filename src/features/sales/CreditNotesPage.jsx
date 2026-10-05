@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Download, Plus, Save, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
+import { SaleModeSelector } from "@/components/common/SaleModeSelector";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { SalesDocumentFlow } from "@/components/sales/SalesDocumentFlow";
 import { MetricCard } from "@/components/sales/MetricCard";
@@ -70,6 +71,7 @@ const reasonOptions = [
 
 const createForm = (branchId) => ({
   branch: branchId ? String(branchId) : "",
+  sale_mode: "",
   invoice: "",
   customer: "",
   credit_note_number: "",
@@ -163,6 +165,7 @@ export default function CreditNotesPage() {
       branch: invoiceDetail.branch_id
         ? String(invoiceDetail.branch_id)
         : current.branch,
+      sale_mode: invoiceDetail.sale_mode || current.sale_mode || "",
       items: (invoiceDetail.items || []).map((item) => ({
         invoice_item: item.id,
         product: item.product_id,
@@ -243,10 +246,10 @@ export default function CreditNotesPage() {
     0,
   );
 
-  const vatAmount = calculatedItems.reduce(
-    (sum, item) => sum + item.vat_amount,
-    0,
-  );
+  const vatAmount =
+    form.sale_mode === "NON_VAT"
+      ? 0
+      : calculatedItems.reduce((sum, item) => sum + item.vat_amount, 0);
 
   const total = subtotal + vatAmount;
 
@@ -308,6 +311,10 @@ export default function CreditNotesPage() {
       next.invoice = "Related invoice is required.";
     }
 
+    if (!form.sale_mode) {
+      next.sale_mode = "Sale mode must be inherited from the source invoice.";
+    }
+
     if (!form.credit_date) {
       next.credit_date = "Credit-note date is required.";
     }
@@ -336,6 +343,7 @@ export default function CreditNotesPage() {
     mutationFn: async ({ status }) => {
       const payload = {
         branch: form.branch ? Number(form.branch) : null,
+        sale_mode: form.sale_mode,
         invoice: Number(form.invoice),
         customer: form.customer ? Number(form.customer) : null,
         credit_note_number: form.credit_note_number || undefined,
@@ -611,6 +619,17 @@ export default function CreditNotesPage() {
             </div>
 
             <div className="flex-1 space-y-5 overflow-y-auto p-5">
+              <SaleModeSelector
+                branchId={form.branch}
+                value={form.sale_mode}
+                onChange={(saleMode) => updateForm("sale_mode", saleMode)}
+                disabled
+              />
+
+              {errors.sale_mode && (
+                <p className="text-xs text-red-500">{errors.sale_mode}</p>
+              )}
+
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <Label>Related Invoice *</Label>

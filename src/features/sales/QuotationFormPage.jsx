@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import DirhamSymbol from "@/components/common/DirhamSymbol";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CurrencyText } from "@/components/common/CurrencyText";
+import { SaleModeSelector } from "@/components/common/SaleModeSelector";
 import { cn } from "@/lib/utils";
 import { downloadSalesPdf, findSalesCustomer } from "@/lib/salesPdf";
 import {
@@ -452,6 +453,7 @@ export default function QuotationFormPage() {
 
   const [form, setForm] = React.useState({
     branch: branchId ? String(branchId) : "",
+    sale_mode: "",
 
     customer: "",
     salesperson: "",
@@ -483,6 +485,7 @@ export default function QuotationFormPage() {
       return {
         ...current,
         branch: nextBranch,
+        sale_mode: "",
         customer: "",
         items: [emptyItem()],
       };
@@ -684,6 +687,8 @@ export default function QuotationFormPage() {
     setForm({
       branch: String(existing.branch?.id || existing.branch || ""),
 
+      sale_mode: existing.sale_mode || "",
+
       customer: String(existing.customer?.id || existing.customer || ""),
 
       salesperson: existing.salesperson
@@ -746,7 +751,10 @@ export default function QuotationFormPage() {
     });
   }, [existing]);
 
-  const selectedVatCategory = getVatCategory(form.vat_category);
+  const selectedVatCategory =
+    form.sale_mode === "NON_VAT"
+      ? getVatCategory("OUT_OF_SCOPE")
+      : getVatCategory(form.vat_category);
 
   const calculatedItems = form.items.map((item) => {
     const values = calculateTaxLine({
@@ -891,6 +899,10 @@ export default function QuotationFormPage() {
       next.customer = "Customer is required.";
     }
 
+    if (!form.sale_mode) {
+      next.sale_mode = "Select VAT Sale or Non-VAT Sale.";
+    }
+
     if (!form.quote_date) {
       next.quote_date = "Quote date is required.";
     }
@@ -912,6 +924,7 @@ export default function QuotationFormPage() {
     }
 
     if (
+      form.sale_mode !== "NON_VAT" &&
       form.vat_category !== "STANDARD_VAT" &&
       !String(form.vat_reason || "").trim()
     ) {
@@ -1125,6 +1138,31 @@ export default function QuotationFormPage() {
           </div>
         }
       />
+
+      <SaleModeSelector
+        branchId={form.branch}
+        value={form.sale_mode}
+        onChange={(saleMode) =>
+          setForm((current) => ({
+            ...current,
+            sale_mode: saleMode,
+            vat_category:
+              saleMode === "NON_VAT"
+                ? "OUT_OF_SCOPE"
+                : current.vat_category === "OUT_OF_SCOPE"
+                  ? "STANDARD_VAT"
+                  : current.vat_category,
+            vat_reason: saleMode === "NON_VAT" ? "" : current.vat_reason,
+          }))
+        }
+        disabled={isEdit}
+      />
+
+      {errors.sale_mode && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+          {errors.sale_mode}
+        </div>
+      )}
 
       {!isEdit && !form.branch && (
         <section className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">

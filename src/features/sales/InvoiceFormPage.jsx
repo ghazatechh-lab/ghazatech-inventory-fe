@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import {
   Link,
   useNavigate,
@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CurrencyText } from "@/components/common/CurrencyText";
+import { SaleModeSelector } from "@/components/common/SaleModeSelector";
 import {
   Popover,
   PopoverContent,
@@ -313,6 +314,7 @@ export default function InvoiceFormPage() {
   const [form, setForm] = React.useState({
     sales_order: salesOrderId || "",
     branch: branchId ? String(branchId) : "",
+    sale_mode: "",
     customer: "",
     salesperson: "",
     invoice_number: "",
@@ -495,6 +497,7 @@ export default function InvoiceFormPage() {
       return {
         ...current,
         branch: nextBranch,
+        sale_mode: "",
         sales_order: "",
         customer: "",
         bank_account: "",
@@ -538,6 +541,8 @@ export default function InvoiceFormPage() {
           : "",
 
       branch: String(source.branch?.id || source.branch || ""),
+
+      sale_mode: source.sale_mode || "",
 
       customer: String(source.customer?.id || source.customer || ""),
 
@@ -703,9 +708,11 @@ export default function InvoiceFormPage() {
   );
 
   const commonVatRate =
-    form.vat_treatment === "STANDARD_VAT"
-      ? number(form.vat_percentage || 5)
-      : 0;
+    form.sale_mode === "NON_VAT"
+      ? 0
+      : form.vat_treatment === "STANDARD_VAT"
+        ? number(form.vat_percentage || 5)
+        : 0;
 
   const vatAmount = (subtotal * commonVatRate) / 100;
 
@@ -808,6 +815,10 @@ export default function InvoiceFormPage() {
 
     if (!form.customer) {
       next.customer = "Customer is required.";
+    }
+
+    if (!form.sale_mode) {
+      next.sale_mode = "Select VAT Sale or Non-VAT Sale.";
     }
 
     if (!form.invoice_date) {
@@ -937,8 +948,14 @@ export default function InvoiceFormPage() {
 
           vat_percentage: commonVatRate,
           tax_rate: commonVatRate,
-          tax_treatment: form.vat_treatment || "STANDARD_VAT",
-          tax_reason: String(form.vat_reason || "").trim(),
+          tax_treatment:
+            form.sale_mode === "NON_VAT"
+              ? "OUT_OF_SCOPE"
+              : form.vat_treatment || "STANDARD_VAT",
+          tax_reason:
+            form.sale_mode === "NON_VAT"
+              ? ""
+              : String(form.vat_reason || "").trim(),
           tax_inclusive: false,
         })),
       };
@@ -1089,6 +1106,32 @@ export default function InvoiceFormPage() {
           </div>
         }
       />
+
+      <SaleModeSelector
+        branchId={form.branch}
+        value={form.sale_mode}
+        onChange={(saleMode) =>
+          setForm((current) => ({
+            ...current,
+            sale_mode: saleMode,
+            vat_treatment:
+              saleMode === "NON_VAT"
+                ? "OUT_OF_SCOPE"
+                : current.vat_treatment === "OUT_OF_SCOPE"
+                  ? "STANDARD_VAT"
+                  : current.vat_treatment,
+            vat_percentage: saleMode === "NON_VAT" ? 0 : current.vat_percentage || 5,
+            vat_reason: saleMode === "NON_VAT" ? "" : current.vat_reason,
+          }))
+        }
+        disabled={isEdit || Boolean(sourceOrder)}
+      />
+
+      {errors.sale_mode && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+          {errors.sale_mode}
+        </div>
+      )}
 
       {historicalMode ? (
         <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
