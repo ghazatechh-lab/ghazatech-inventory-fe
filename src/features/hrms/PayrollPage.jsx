@@ -730,9 +730,17 @@ export default function PayrollPage() {
       return;
     }
 
-    if (advanceForm.period < currentPeriod) {
+    const advanceEmployeeJoiningDate = selectedAdvanceEmployee?.joining_date || "";
+    const advanceEmployeeJoiningPeriod = advanceEmployeeJoiningDate
+      ? advanceEmployeeJoiningDate.slice(0, 7)
+      : "";
+
+    if (
+      advanceEmployeeJoiningPeriod &&
+      advanceForm.period < advanceEmployeeJoiningPeriod
+    ) {
       toast.error(
-        "Previous months cannot be selected as the deduction period.",
+        `Deduction period cannot be before the employee joining month (${advanceEmployeeJoiningPeriod}).`,
       );
       return;
     }
@@ -742,8 +750,18 @@ export default function PayrollPage() {
       return;
     }
 
-    if (advanceForm.advance_date < today) {
-      toast.error("Previous dates cannot be selected for advance salary.");
+    if (advanceForm.advance_date > today) {
+      toast.error("Advance date cannot be in the future.");
+      return;
+    }
+
+    if (
+      selectedAdvanceEmployee?.joining_date &&
+      advanceForm.advance_date < selectedAdvanceEmployee.joining_date
+    ) {
+      toast.error(
+        `Advance date cannot be before the employee joining date (${selectedAdvanceEmployee.joining_date}).`,
+      );
       return;
     }
 
@@ -2758,7 +2776,11 @@ export default function PayrollPage() {
               <div>
                 <Label>Deduction Period *</Label>
                 <MonthYearPicker
-                  min={currentPeriod}
+                  min={
+                    selectedAdvanceEmployee?.joining_date
+                      ? selectedAdvanceEmployee.joining_date.slice(0, 7)
+                      : undefined
+                  }
                   className="mt-2"
                   value={advanceForm.period}
                   onChange={(value) =>
@@ -2774,7 +2796,8 @@ export default function PayrollPage() {
                 <Label>Advance Date *</Label>
                 <Input
                   type="date"
-                  min={today}
+                  min={selectedAdvanceEmployee?.joining_date || undefined}
+                  max={today}
                   className="mt-2"
                   value={advanceForm.advance_date}
                   onChange={(event) =>

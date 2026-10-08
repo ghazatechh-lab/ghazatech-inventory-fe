@@ -33,21 +33,33 @@ const MONTHS = [
 
 const parsePeriod = (value) => {
   const match = /^(\d{4})-(\d{2})$/.exec(String(value || ""));
-  if (!match) return null;
+
+  if (!match) {
+    return null;
+  }
 
   const year = Number(match[1]);
   const month = Number(match[2]);
-  if (!year || month < 1 || month > 12) return null;
 
-  return { year, month };
+  if (!year || month < 1 || month > 12) {
+    return null;
+  }
+
+  return {
+    year,
+    month,
+  };
 };
 
-const toPeriod = (year, month) =>
-  `${year}-${String(month).padStart(2, "0")}`;
+const toPeriod = (year, month) => `${year}-${String(month).padStart(2, "0")}`;
 
 const formatPeriod = (value) => {
   const parsed = parsePeriod(value);
-  if (!parsed) return "Select month";
+
+  if (!parsed) {
+    return "Select month";
+  }
+
   return `${MONTHS[parsed.month - 1]} ${parsed.year}`;
 };
 
@@ -64,6 +76,7 @@ export function MonthYearPicker({
   const selected = parsePeriod(value);
   const minPeriod = parsePeriod(min);
   const maxPeriod = parsePeriod(max);
+
   const currentYear = new Date().getFullYear();
 
   const minYear = minPeriod?.year ?? currentYear - 50;
@@ -79,29 +92,39 @@ export function MonthYearPicker({
 
   React.useEffect(() => {
     if (selected?.year) {
-      setDisplayYear(
-        Math.min(Math.max(selected.year, minYear), maxYear),
-      );
+      setDisplayYear(Math.min(Math.max(selected.year, minYear), maxYear));
     }
-  }, [value, minYear, maxYear]);
+  }, [selected?.year, minYear, maxYear]);
 
   const years = React.useMemo(() => {
     const result = [];
+
     for (let year = maxYear; year >= minYear; year -= 1) {
       result.push(year);
     }
+
     return result;
   }, [minYear, maxYear]);
 
   const isMonthDisabled = (month) => {
     const candidate = toPeriod(displayYear, month);
-    if (min && candidate < min) return true;
-    if (max && candidate > max) return true;
+
+    if (min && candidate < min) {
+      return true;
+    }
+
+    if (max && candidate > max) {
+      return true;
+    }
+
     return false;
   };
 
   const selectMonth = (month) => {
-    if (isMonthDisabled(month)) return;
+    if (isMonthDisabled(month)) {
+      return;
+    }
+
     onChange?.(toPeriod(displayYear, month));
     setOpen(false);
   };
@@ -116,12 +139,14 @@ export function MonthYearPicker({
           disabled={disabled}
           className={cn(
             "h-10 w-full justify-start gap-2 rounded-md border bg-background px-3 text-left text-sm font-normal shadow-sm",
-            "hover:bg-accent/40 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            "hover:bg-accent/40 hover:text-foreground",
+            "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
             !value && "text-muted-foreground",
             className,
           )}
         >
           <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
+
           <span className="truncate">
             {value ? formatPeriod(value) : placeholder}
           </span>
@@ -136,7 +161,9 @@ export function MonthYearPicker({
             size="icon"
             className="h-8 w-8 shrink-0"
             disabled={displayYear <= minYear}
-            onClick={() => setDisplayYear((year) => Math.max(minYear, year - 1))}
+            onClick={() =>
+              setDisplayYear((year) => Math.max(minYear, year - 1))
+            }
             aria-label="Previous year"
           >
             <ChevronLeft className="h-4 w-4" />
@@ -149,6 +176,7 @@ export function MonthYearPicker({
             <SelectTrigger className="h-8 flex-1">
               <SelectValue />
             </SelectTrigger>
+
             <SelectContent className="max-h-72">
               {years.map((year) => (
                 <SelectItem key={year} value={String(year)}>
@@ -164,7 +192,9 @@ export function MonthYearPicker({
             size="icon"
             className="h-8 w-8 shrink-0"
             disabled={displayYear >= maxYear}
-            onClick={() => setDisplayYear((year) => Math.min(maxYear, year + 1))}
+            onClick={() =>
+              setDisplayYear((year) => Math.min(maxYear, year + 1))
+            }
             aria-label="Next year"
           >
             <ChevronRight className="h-4 w-4" />
@@ -175,6 +205,7 @@ export function MonthYearPicker({
           {MONTHS.map((monthName, index) => {
             const month = index + 1;
             const candidate = toPeriod(displayYear, month);
+
             const selectedMonth = candidate === value;
             const blocked = isMonthDisabled(month);
 

@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -124,6 +124,8 @@ export default function ProductFormPage() {
     handleSubmit,
     reset,
     setValue,
+    setError,
+    clearErrors,
     watch,
     formState: { errors, isSubmitting },
   } = useForm({ defaultValues: defaults });
@@ -159,24 +161,55 @@ export default function ProductFormPage() {
     queryFn: async () =>
       list(await api.get("/branches/", { params: { page_size: 500 } })),
   });
-  const activeHeaderBranch = React.useMemo(
-    () => branches.find((branch) => String(branch.id) === String(branchOverride || "")),
-    [branches, branchOverride],
-  );
   const physicalBranches = React.useMemo(
-    () => branches.filter((branch) => ["BR01", "BR02"].includes(String(branch.branch_code || "").toUpperCase())),
+    () =>
+      branches.filter((branch) =>
+        ["BR01", "BR02"].includes(
+          String(branch.branch_code || "").toUpperCase(),
+        ),
+      ),
     [branches],
   );
-  const isCombinedHeaderBranch = String(activeHeaderBranch?.branch_code || "").toUpperCase() === "BR03";
+
+  const activeHeaderBranch = React.useMemo(
+    () =>
+      branches.find(
+        (branch) => String(branch.id) === String(branchOverride || ""),
+      ) || null,
+    [branches, branchOverride],
+  );
+
+  const isCombinedHeader =
+    String(activeHeaderBranch?.branch_code || "").toUpperCase() === "BR03";
+
+  const physicalBranchLabel = React.useCallback(
+    (branchId) => {
+      const branch = branches.find(
+        (item) => String(item.id) === String(branchId || ""),
+      );
+      const code = String(branch?.branch_code || "").toUpperCase();
+      if (code === "BR01") return "Branch 1";
+      if (code === "BR02") return "Branch 2";
+      return branch?.branch_name || "selected branch";
+    },
+    [branches],
+  );
 
   const { data: suppliers = [], isLoading: suppliersLoading } = useQuery({
-    queryKey: ["suppliers", "product-options"],
+    queryKey: ["suppliers", "product-options", selectedBranch],
     queryFn: async () =>
       list(
         await api.get("/suppliers/", {
-          params: { page_size: 500, is_active: true },
+          params: {
+            page_size: 500,
+            is_active: true,
+            branch: selectedBranch,
+          },
         }),
       ),
+    enabled: Boolean(selectedBranch),
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   React.useEffect(() => {
@@ -238,8 +271,17 @@ export default function ProductFormPage() {
     }
 
     if (String(matchingBranch.branch_code || "").toUpperCase() === "BR03") {
-      setValue("branch", "", { shouldDirty: true, shouldTouch: true, shouldValidate: true });
-      setVariants((current) => current.map((variant) => ({ ...variant, racks: [] })));
+      // BR03 is virtual. Product writes must explicitly target BR01 or BR02.
+      setValue("branch", "", {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: true,
+      });
+      setValue("supplier", "", {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      clearErrors("sku");
       previousBranchRef.current = "";
       return;
     }
@@ -265,7 +307,14 @@ export default function ProductFormPage() {
      */
 
     previousBranchRef.current = branchId;
-  }, [isEdit, branchesLoading, branches, branchOverride, setValue]);
+  }, [
+    isEdit,
+    branchesLoading,
+    branches,
+    branchOverride,
+    setValue,
+    clearErrors,
+  ]);
   const {
     data: rackResponse = [],
     isLoading: racksLoading,
@@ -305,10 +354,18 @@ export default function ProductFormPage() {
   });
   const [rackSaving, setRackSaving] = React.useState(false);
 
-  // The backend already applies the selected-branch scope. For BR03 it
-  // intentionally returns the combined BR01 + BR02 rack list, so do not
-  // filter those physical racks out again on the client.
-  const racks = React.useMemo(() => rackResponse, [rackResponse]);
+  const racks = React.useMemo(
+    () =>
+      rackResponse.filter((rack) => {
+        const rackBranchId =
+          rack?.branch_id ?? rack?.branch?.id ?? rack?.branch ?? "";
+
+        return (
+          !selectedBranch || String(rackBranchId) === String(selectedBranch)
+        );
+      }),
+    [rackResponse, selectedBranch],
+  );
 
   const refreshRacks = async () => {
     await queryClient.invalidateQueries({
@@ -452,10 +509,15 @@ export default function ProductFormPage() {
       setVariants((current) =>
         current.map((variant) => ({ ...variant, racks: [] })),
       );
+      setValue("supplier", "", {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      clearErrors("sku");
     }
 
     previousBranchRef.current = String(selectedBranch);
-  }, [selectedBranch, setValue]);
+  }, [selectedBranch, setValue, clearErrors]);
 
   const updateVariant = (index, field, value) =>
     setVariants((current) =>
@@ -589,6 +651,41 @@ export default function ProductFormPage() {
 
   const saveProduct = async (values) => {
     try {
+      const normalizedSku = String(values.sku || "").trim();
+      const branchLabel = physicalBranchLabel(values.branch);
+
+      // Frontend preflight for immediate feedback. Backend performs the same
+      // validation against the physical database, so this is not the security
+      // or consistency boundary.
+      try {
+        const response = await api.get("/products/", {
+          params: {
+            branch: Number(values.branch),
+            search: normalizedSku,
+            page_size: 100,
+          },
+          skipGlobalErrorToast: true,
+        });
+        const duplicate = list(response).find(
+          (item) =>
+            String(item.sku || "")
+              .trim()
+              .toLowerCase() === normalizedSku.toLowerCase() &&
+            (!isEdit || String(item.id) !== String(id)),
+        );
+        if (duplicate) {
+          const message = `${normalizedSku} already exists in ${branchLabel}.`;
+          setError("sku", { type: "validate", message });
+          toast.error(message);
+          return;
+        }
+        clearErrors("sku");
+      } catch (preflightError) {
+        // Do not block saving if the availability lookup itself fails. The
+        // backend still performs authoritative same-database validation.
+        console.warn("[Product Form] SKU preflight failed:", preflightError);
+      }
+
       const normalizedVariants = (
         hasVariants ? variants : [variants[0] || emptyBaseStock]
       ).map((variant, index) => {
@@ -621,7 +718,7 @@ export default function ProductFormPage() {
       const formData = new FormData();
       const payload = {
         product_name: values.product_name.trim(),
-        sku: values.sku.trim(),
+        sku: normalizedSku,
         barcode: values.barcode?.trim() || "",
         brand: Number(values.brand),
         category: Number(values.category),
@@ -673,6 +770,22 @@ export default function ProductFormPage() {
       navigate(!isEdit ? returnTo : "/inventory/products");
     } catch (error) {
       console.error("[Product Form] Save failed:", error);
+      const responseData = error?.response?.data || {};
+      const skuError =
+        responseData?.sku?.[0] ||
+        responseData?.sku ||
+        responseData?.errors?.sku?.[0] ||
+        responseData?.errors?.sku ||
+        responseData?.data?.sku?.[0] ||
+        responseData?.data?.sku;
+
+      if (skuError) {
+        const message = String(skuError);
+        setError("sku", { type: "server", message });
+        toast.error(message);
+        return;
+      }
+
       if (error instanceof Error && !error.response) toast.error(error.message);
       else if (!error?.__apiErrorShown) toast.error("Unable to save product.");
     }
@@ -976,6 +1089,7 @@ export default function ProductFormPage() {
 
                 <select
                   {...register("supplier")}
+                  disabled={!selectedBranch}
                   className="mt-2 h-11 w-full rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 >
                   <option value="">No supplier</option>
@@ -994,29 +1108,51 @@ export default function ProductFormPage() {
                 <h3 className="text-sm font-semibold text-blue-100">Branch</h3>
 
                 <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                  Branch 1 and Branch 2 are physical inventory branches. When using Branch 3, choose the target physical branch before loading racks or stock.
+                  The product branch is selected from the global branch filter.
+                  Rack locations are assigned separately inside each product
+                  variant below.
                 </p>
               </div>
 
-              {isCombinedHeaderBranch ? (
+              {isCombinedHeader ? (
                 <div>
-                  <Label>Target Branch <span className="text-red-500">*</span></Label>
+                  <Label>Target physical branch *</Label>
                   <select
-                    {...register("branch", { required: "Select Branch 1 or Branch 2." })}
-                    className="mt-2 h-11 w-full rounded-md border border-blue-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-blue-500/20 dark:bg-slate-950/70 dark:text-white"
+                    value={selectedBranch || ""}
+                    onChange={(event) =>
+                      setValue("branch", event.target.value, {
+                        shouldDirty: true,
+                        shouldTouch: true,
+                        shouldValidate: true,
+                      })
+                    }
+                    className="mt-2 h-11 w-full rounded-md border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                   >
-                    <option value="">Select target branch</option>
+                    <option value="">Select Branch 1 or Branch 2</option>
                     {physicalBranches.map((branch) => (
                       <option key={branch.id} value={String(branch.id)}>
-                        {branch.branch_code} · {branch.branch_name || branch.name}
+                        {branch.branch_code === "BR01"
+                          ? "Branch 1"
+                          : "Branch 2"}
+                        {branch.branch_name ? ` - ${branch.branch_name}` : ""}
                       </option>
                     ))}
                   </select>
-                  {errors.branch ? <p className="mt-1.5 text-sm text-red-400">{errors.branch.message}</p> : null}
+                  <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+                    Branch 3 is a combined view only. Suppliers and racks are
+                    loaded from the physical branch selected here.
+                  </p>
                 </div>
               ) : (
                 <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
-                  {activeHeaderBranch ? `Branch locked to ${activeHeaderBranch.branch_code} · ${activeHeaderBranch.branch_name || activeHeaderBranch.name}.` : "Select a physical branch from the global branch filter."}
+                  Branch is automatically selected from the global branch
+                  filter.
+                  {!selectedBranch ? (
+                    <p className="mt-2 font-semibold text-amber-700 dark:text-amber-300">
+                      Select Branch 1 or Branch 2 from the top branch filter
+                      before saving this product.
+                    </p>
+                  ) : null}
                 </div>
               )}
             </div>
@@ -1462,92 +1598,79 @@ export default function ProductFormPage() {
                           </Button>
                         </div>
 
-                        <div className="mt-3">
-                          {!selectedBranch ? (
-                            <div className="rounded-xl border border-dashed border-slate-300 bg-white/70 px-3 py-4 text-center dark:border-white/10 dark:bg-slate-950/50">
-                              <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                                Select a branch first to view racks.
-                              </p>
-                            </div>
-                          ) : racksLoading ? (
-                            <div className="grid gap-2 sm:grid-cols-2">
-                              {[0, 1].map((item) => (
-                                <div
-                                  key={item}
-                                  className="h-14 animate-pulse rounded-xl border border-slate-200 bg-slate-100 dark:border-white/10 dark:bg-white/[0.04]"
-                                />
-                              ))}
-                            </div>
-                          ) : racks.length ? (
-                            <div className="grid max-h-44 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
-                              {racks.map((rack) => {
-                                const selected = (variant.racks || [])
+                        <select
+                          className="mt-2 h-11 w-full rounded-lg border border-blue-200 bg-white px-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-500/20 dark:bg-slate-950/70"
+                          value=""
+                          disabled={!selectedBranch || racksLoading}
+                          onChange={(event) => {
+                            const rackId = event.target.value;
+                            if (!rackId) return;
+
+                            const alreadySelected = (variant.racks || [])
+                              .map(String)
+                              .includes(String(rackId));
+
+                            if (!alreadySelected) {
+                              toggleVariantRack(variantIndex, rackId);
+                            }
+                          }}
+                        >
+                          <option value="">
+                            {racksLoading
+                              ? "Loading racks..."
+                              : !selectedBranch
+                                ? "Select branch first"
+                                : racks.length
+                                  ? "Select rack"
+                                  : "No racks available"}
+                          </option>
+
+                          {racks
+                            .filter(
+                              (rack) =>
+                                !(variant.racks || [])
                                   .map(String)
-                                  .includes(String(rack.id));
+                                  .includes(String(rack.id)),
+                            )
+                            .map((rack) => (
+                              <option key={rack.id} value={String(rack.id)}>
+                                {rack.rack_code}
+                                {rack.rack_name ? ` — ${rack.rack_name}` : ""}
+                              </option>
+                            ))}
+                        </select>
 
-                                return (
+                        {(variant.racks || []).length ? (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {(variant.racks || []).map((rackId) => {
+                              const selectedRack = racks.find(
+                                (rack) => String(rack.id) === String(rackId),
+                              );
+
+                              return (
+                                <span
+                                  key={rackId}
+                                  className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-blue-200 bg-white px-2 py-1 text-xs font-medium text-blue-700 dark:border-blue-500/20 dark:bg-slate-950/60 dark:text-blue-300"
+                                >
+                                  <span className="truncate">
+                                    {selectedRack?.rack_code ||
+                                      `Rack #${rackId}`}
+                                  </span>
                                   <button
-                                    key={rack.id}
                                     type="button"
+                                    className="flex h-4 w-4 shrink-0 items-center justify-center rounded text-blue-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
+                                    title="Remove rack"
                                     onClick={() =>
-                                      toggleVariantRack(variantIndex, rack.id)
+                                      toggleVariantRack(variantIndex, rackId)
                                     }
-                                    className={[
-                                      "group flex min-h-[58px] items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-all",
-                                      selected
-                                        ? "border-blue-500 bg-blue-50 shadow-sm ring-2 ring-blue-500/10 dark:bg-blue-500/10"
-                                        : "border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/50 dark:border-white/10 dark:bg-slate-950/60 dark:hover:border-blue-500/40 dark:hover:bg-blue-500/[0.06]",
-                                    ].join(" ")}
                                   >
-                                    <div className="min-w-0">
-                                      <div className="flex items-center gap-2">
-                                        <span className="truncate text-sm font-semibold text-slate-900 dark:text-white">
-                                          {rack.rack_code}
-                                        </span>
-                                        {rack.branch_code ? (
-                                          <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-500 dark:bg-white/[0.06] dark:text-slate-400">
-                                            {rack.branch_code}
-                                          </span>
-                                        ) : null}
-                                      </div>
-                                      <p className="mt-0.5 truncate text-[11px] text-slate-500">
-                                        {rack.rack_name || "Unnamed rack"}
-                                      </p>
-                                    </div>
-
-                                    <span
-                                      className={[
-                                        "ml-3 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition",
-                                        selected
-                                          ? "border-blue-600 bg-blue-600 text-white"
-                                          : "border-slate-300 bg-white text-transparent group-hover:border-blue-400 dark:border-white/20 dark:bg-slate-900",
-                                      ].join(" ")}
-                                    >
-                                      <CheckCircle2 className="h-3.5 w-3.5" />
-                                    </span>
+                                    Ã—
                                   </button>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <div className="rounded-xl border border-dashed border-slate-300 bg-white/70 px-3 py-4 text-center dark:border-white/10 dark:bg-slate-950/50">
-                              <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                                No racks available for this branch.
-                              </p>
-                              <button
-                                type="button"
-                                className="mt-1 text-xs font-semibold text-blue-600 hover:underline dark:text-blue-400"
-                                onClick={() => {
-                                  setRackTargetVariantIndex(variantIndex);
-                                  setRackForm({ rack_code: "", rack_name: "" });
-                                  setShowRackForm(true);
-                                }}
-                              >
-                                Create the first rack
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : null}
 
                         {racksError ? (
                           <p className="mt-2 text-xs text-red-500">
