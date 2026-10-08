@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { BranchSourceFilter, usePhysicalBranchScope } from "@/components/common/PhysicalBranchScope";
 import { PageHeader } from "@/components/common/PageHeader";
+import { MonthYearPicker } from "@/components/common/MonthYearPicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1241,12 +1242,11 @@ export default function PayrollPage() {
         <TabsContent value="previous" className="mt-4">
           <section className="card-surface overflow-hidden">
             <div className="grid gap-3 border-b p-4 md:grid-cols-[200px_minmax(280px,1fr)_200px] md:items-center">
-              <Input
-                type="month"
+              <MonthYearPicker
                 max={nextPayrollPeriod}
                 value={period}
-                onChange={(event) => {
-                  setPeriod(event.target.value);
+                onChange={(value) => {
+                  setPeriod(value);
                   setPage(1);
                 }}
               />
@@ -1308,11 +1308,10 @@ export default function PayrollPage() {
             </div>
 
             <div className="grid gap-3 border-b p-4 md:grid-cols-[220px_1fr]">
-              <Input
-                type="month"
+              <MonthYearPicker
                 value={advancePeriod}
-                onChange={(event) => {
-                  setAdvancePeriod(event.target.value);
+                onChange={(value) => {
+                  setAdvancePeriod(value);
                   setAdvancePage(1);
                 }}
               />
@@ -1773,14 +1772,11 @@ export default function PayrollPage() {
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
                 <div>
                   <Label>Pay Period *</Label>
-                  <Input
-                    type="month"
+                  <MonthYearPicker
                     className="mt-2"
                     value={period}
                     max={nextPayrollPeriod}
-                    onChange={(event) => {
-                      const value = event.target.value;
-
+                    onChange={(value) => {
                       if (value && value > nextPayrollPeriod) {
                         toast.error(
                           `Payroll can only be created up to ${nextPayrollPeriod}.`,
@@ -2540,14 +2536,13 @@ export default function PayrollPage() {
 
               <div>
                 <Label>First Deduction Month *</Label>
-                <Input
-                  type="month"
+                <MonthYearPicker
                   className="mt-2"
                   value={loanForm.start_period}
-                  onChange={(event) =>
+                  onChange={(value) =>
                     setLoanForm((current) => ({
                       ...current,
-                      start_period: event.target.value,
+                      start_period: value,
                     }))
                   }
                 />
@@ -2762,15 +2757,14 @@ export default function PayrollPage() {
 
               <div>
                 <Label>Deduction Period *</Label>
-                <Input
-                  type="month"
+                <MonthYearPicker
                   min={currentPeriod}
                   className="mt-2"
                   value={advanceForm.period}
-                  onChange={(event) =>
+                  onChange={(value) =>
                     setAdvanceForm((current) => ({
                       ...current,
-                      period: event.target.value,
+                      period: value,
                     }))
                   }
                 />
