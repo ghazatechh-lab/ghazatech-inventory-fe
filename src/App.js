@@ -1,4 +1,4 @@
-/** GHAZA COMPUTER ERP â€” Root Application */
+/** GHAZA COMPUTER ERP — Root Application */
 
 import React from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
@@ -872,7 +872,7 @@ export default function App() {
               <Route path="/fleet/returns" element={<VehicleCheckoutPage />} />
               <Route path="/fleet/trips" element={<TripLogPage />} />
 
-              {/* Sales Â· Service & Repair */}
+              {/* Sales · Service & Repair */}
               <Route
                 path="/sales/service"
                 element={

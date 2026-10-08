@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   ArrowDown01,
@@ -30,6 +30,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export const DEFAULT_LIST_PAGE_SIZE = 12;
+
+const PAGINATION_RANGE_SEPARATOR = "\u2013";
+const PAGINATION_META_SEPARATOR = "\u00B7";
 
 const NON_SORTABLE_KEYS = new Set(["actions", "action", "select", "checkbox"]);
 
@@ -544,9 +547,9 @@ export function DataTable({
 
       <div className="flex flex-col gap-3 border-t border-white/5 px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          Showing {firstVisible}â€“{lastVisible} of {effectiveTotal}
+          Showing {firstVisible}{PAGINATION_RANGE_SEPARATOR}{lastVisible} of {effectiveTotal}
           <span className="ml-2 text-slate-600">
-            Â· {pageSize} entries per page
+            {PAGINATION_META_SEPARATOR} {pageSize} entries per page
           </span>
         </div>
 
