@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Download, Search } from "lucide-react";
 
 import api, { unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { BranchSourceFilter, usePhysicalBranchScope } from "@/components/common/PhysicalBranchScope";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -16,7 +16,8 @@ import {
 } from "./fleetShared";
 
 export default function TripLogPage() {
-  const { branchParams } = useActiveBranchFilter();
+  const branchScope = usePhysicalBranchScope();
+  const { listParams: branchParams } = branchScope;
 
   const [q, setQ] = React.useState("");
   const [status, setStatus] = React.useState("");
@@ -45,6 +46,7 @@ export default function TripLogPage() {
 
   return (
     <div className="w-full space-y-5 pb-10">
+      <BranchSourceFilter scope={branchScope} />
       <FleetHero
         eyebrow="Fleet Audit Trail"
         title="Trip Logs"

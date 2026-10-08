@@ -15,7 +15,8 @@ import {
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { usePurchaseBranchScope } from "./usePurchaseBranchScope";
+import { PurchaseBranchField } from "./PurchaseBranchField";
 import { PageHeader } from "./PurchasePageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -110,22 +111,22 @@ export default function SupplierReturnsPage() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const supplierFilter = searchParams.get("supplier") || "";
-  const { branchId } = useActiveBranchFilter();
+  const { formBranchId } = usePurchaseBranchScope();
   const editingId = id || null;
 
-  const [form, setForm] = React.useState(() => createForm(branchId));
+  const [form, setForm] = React.useState(() => createForm(formBranchId));
   const [files, setFiles] = React.useState([]);
   const [errors, setErrors] = React.useState({});
   const [grnSearch, setGrnSearch] = React.useState("");
 
   const optionsQuery = useQuery({
-    queryKey: ["supplier-return-form-options", branchId, supplierFilter],
+    queryKey: ["supplier-return-form-options", form.branch, supplierFilter],
     queryFn: async () => {
       const response = await api.get(
         "/purchases/supplier-returns/form-options/",
         {
           params: {
-            branch: branchId || undefined,
+            branch: form.branch || undefined,
             supplier: supplierFilter || undefined,
           },
           skipGlobalErrorToast: true,
@@ -133,6 +134,7 @@ export default function SupplierReturnsPage() {
       );
       return unwrap(response);
     },
+    enabled: Boolean(form.branch),
     staleTime: 0,
     retry: false,
     refetchOnMount: "always",
@@ -543,7 +545,23 @@ export default function SupplierReturnsPage() {
               Returns must reference the original confirmed goods received note.
             </p>
 
-            <div className="mt-4">
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <PurchaseBranchField
+                value={form.branch}
+                onChange={(value) => {
+                  setForm((current) => ({
+                    ...current,
+                    branch: value,
+                    grn: "",
+                    supplier: "",
+                    items: [],
+                  }));
+                  setGrnSearch("");
+                }}
+                disabled={Boolean(editingId)}
+              />
+
+              <div>
               <Label>GRN reference *</Label>
               <Select
                 value={form.grn}
@@ -627,6 +645,7 @@ export default function SupplierReturnsPage() {
                   </span>
                 </div>
               ) : null}
+              </div>
             </div>
           </section>
 

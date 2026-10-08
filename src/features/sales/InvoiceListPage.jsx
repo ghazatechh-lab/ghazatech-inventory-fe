@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import {
   CheckSquare2,
   Download,
@@ -12,9 +12,10 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import api, { unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { useSalesBranchScope } from "@/features/sales/useSalesBranchScope";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { SalesHeroHeader } from "@/components/sales/SalesHeroHeader";
+import { SourceBranchBadge } from "./SalesPageHeader";
 import { Button } from "@/components/ui/button";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -71,7 +72,7 @@ const formatAmount = (value, currency = "AED") => {
 };
 
 export default function InvoiceListPage() {
-  const { branchParams } = useActiveBranchFilter();
+  const { listBranchParams: branchParams } = useSalesBranchScope();
   const [selectedInvoices, setSelectedInvoices] = React.useState({});
 
   const { query, q, setQ, page, setPage } = useListQuery(
@@ -374,6 +375,12 @@ export default function InvoiceListPage() {
   const columns = React.useMemo(
     () => [
       {
+        key: "source_branch_code",
+        header: "Branch",
+        sortable: false,
+        cell: (row) => <SourceBranchBadge row={row} />,
+      },
+      {
         key: "select",
         header: (
           <div className="flex items-center justify-center">
@@ -417,7 +424,7 @@ export default function InvoiceListPage() {
         cell: (row) => (
           <div>
             <Link
-              to={`/sales/invoices/${row.id}`}
+              to={`/sales/invoices/${row.resource_key || row.id}`}
               className="font-medium text-blue-600 hover:underline dark:text-blue-400"
             >
               {row.invoice_number}
@@ -492,6 +499,7 @@ export default function InvoiceListPage() {
   return (
     <div className="sales-module-page sales-workspace w-full space-y-5">
       <SalesHeroHeader
+        showSourceFilter
         title="Invoices"
         subtitle="Issued invoices and their payment status"
         actions={

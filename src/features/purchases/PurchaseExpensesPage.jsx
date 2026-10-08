@@ -4,7 +4,7 @@ import { Info, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 import api, { unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { usePurchaseBranchScope } from "@/features/purchases/usePurchaseBranchScope";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { PageHeader } from "./PurchasePageHeader";
 import { ListingRowActions } from "@/components/common/ListingRowActions";
@@ -112,7 +112,7 @@ function Metric({ label, value, subtitle }) {
 export default function PurchaseExpensesPage() {
   const navigate = useNavigate();
 
-  const { branchParams } = useActiveBranchFilter();
+  const { listBranchParams: branchParams } = usePurchaseBranchScope();
 
   const [statusFilter, setStatusFilter] = React.useState("ALL");
 
@@ -183,11 +183,11 @@ export default function PurchaseExpensesPage() {
 
         cell: (row) => (
           <Link
-            to={`/purchases/purchase-expenses/${row.id}`}
+            to={`/purchases/purchase-expenses/${row.resource_key || row.id}`}
             className="block text-left"
           >
             <div className="font-medium text-blue-600 hover:underline dark:text-blue-400">
-              {row.expense_number || `Expense ${row.id}`}
+              {row.expense_number || `Expense ${row.resource_key || row.id}`}
             </div>
 
             <div className="max-w-[260px] truncate text-xs text-muted-foreground">
@@ -294,9 +294,9 @@ export default function PurchaseExpensesPage() {
 
         cell: (row) => (
           <ListingRowActions
-            viewTo={`/purchases/purchase-expenses/${row.id}`}
-            editTo={`/purchases/purchase-expenses/${row.id}/edit`}
-            deleteUrl={`/purchases/expenses/${row.id}/`}
+            viewTo={`/purchases/purchase-expenses/${row.resource_key || row.id}`}
+            editTo={`/purchases/purchase-expenses/${row.resource_key || row.id}/edit`}
+            deleteUrl={`/purchases/expenses/${row.resource_key || row.id}/`}
             queryKey="purchase-expenses"
             itemLabel={row.expense_number || "purchase expense"}
           />
@@ -320,6 +320,7 @@ export default function PurchaseExpensesPage() {
   return (
     <div className="purchase-module-page purchase-workspace space-y-5">
       <PageHeader
+        showSourceFilter
         title="Purchase Expenses"
         subtitle="Non-stock operating costs with fixed 5% VAT"
         actions={

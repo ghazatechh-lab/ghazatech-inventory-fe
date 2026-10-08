@@ -3,7 +3,7 @@ import { Download } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 import api, { unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { usePhysicalBranchScope, BranchSourceFilter } from "@/components/common/PhysicalBranchScope";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,7 +60,8 @@ const downloadCsv = (rows) => {
 };
 
 export default function PurchaseReportPage() {
-  const { branchParams } = useActiveBranchFilter();
+  const scope = usePhysicalBranchScope();
+  const branchParams = scope.listParams;
   const [filters, setFilters] = React.useState({
     date_from: "",
     date_to: "",
@@ -110,6 +111,8 @@ export default function PurchaseReportPage() {
           </Button>
         }
       />
+
+      <BranchSourceFilter scope={scope} className="card-surface p-3" />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Purchase Orders" value={summary.orders || 0} />

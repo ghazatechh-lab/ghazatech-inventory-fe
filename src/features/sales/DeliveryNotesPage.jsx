@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Plus, Save, Trash2, Truck, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { SalesHeroHeader } from "@/components/sales/SalesHeroHeader";
+import { SourceBranchBadge } from "./SalesPageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +20,8 @@ import {
 } from "@/components/ui/select";
 import { DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { useSalesBranchScope } from "@/features/sales/useSalesBranchScope";
+import { SalesBranchField } from "./SalesBranchField";
 
 const normalizeList = (value) => {
   if (Array.isArray(value)) return value;
@@ -84,7 +86,7 @@ const createForm = (branchId) => ({
 
 export default function DeliveryNotesPage() {
   const queryClient = useQueryClient();
-  const { branchId, branchParams } = useActiveBranchFilter();
+  const { branchId, branchParams, listBranchParams } = useSalesBranchScope();
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState(() => createForm(branchId));
   const [errors, setErrors] = React.useState({});
@@ -92,7 +94,7 @@ export default function DeliveryNotesPage() {
   const { query, q, setQ, page, setPage } = useListQuery(
     "delivery-notes",
     "/sales/delivery-notes/",
-    branchParams,
+    listBranchParams,
   );
 
   const { data: optionsResponse } = useQuery({
@@ -293,6 +295,12 @@ export default function DeliveryNotesPage() {
   });
 
   const columns = [
+    {
+      key: "source_branch_code",
+      header: "Branch",
+      sortable: false,
+      cell: (row) => <SourceBranchBadge row={row} />,
+    },
     { key: "delivery_note_number", header: "Delivery Note" },
     { key: "sales_order_number", header: "Sales Order" },
     { key: "customer_name", header: "Customer" },
@@ -318,7 +326,7 @@ export default function DeliveryNotesPage() {
               variant="outline"
               onClick={(event) => {
                 event.stopPropagation();
-                statusMutation.mutate({ id: row.id, action: "dispatch" });
+                statusMutation.mutate({ id: row.resource_key || row.id, action: "dispatch" });
               }}
               disabled={statusMutation.isPending}
             >
@@ -332,7 +340,7 @@ export default function DeliveryNotesPage() {
               size="sm"
               onClick={(event) => {
                 event.stopPropagation();
-                statusMutation.mutate({ id: row.id, action: "deliver" });
+                statusMutation.mutate({ id: row.resource_key || row.id, action: "deliver" });
               }}
               disabled={statusMutation.isPending}
             >
@@ -347,7 +355,7 @@ export default function DeliveryNotesPage() {
               const confirmed = window.confirm(
                 `Delete delivery note ${row.delivery_note_number}? This action cannot be undone.`,
               );
-              if (confirmed) deleteMutation.mutate(row.id);
+              if (confirmed) deleteMutation.mutate(row.resource_key || row.id);
             }}
             disabled={deleteMutation.isPending}
             title="Delete delivery note"
@@ -362,6 +370,7 @@ export default function DeliveryNotesPage() {
   return (
     <div className="sales-module-page sales-workspace w-full space-y-5">
       <SalesHeroHeader
+        showSourceFilter
         title="Delivery Notes"
         subtitle="Create and track deliveries against sales orders"
         actions={
@@ -414,6 +423,13 @@ export default function DeliveryNotesPage() {
             </div>
 
             <div className="space-y-6 p-5">
+              <SalesBranchField
+                value={form.branch}
+                onChange={(value) => {
+                  updateForm("branch", value);
+                  updateForm("sales_order", "");
+                }}
+              />
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <div className="space-y-2">
                   <Label>Sales Order *</Label>

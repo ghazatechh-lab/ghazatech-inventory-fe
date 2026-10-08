@@ -1,3 +1,5 @@
+import { formatCurrency } from "@/lib/utils";
+
 export const extractRows = (response) => {
   const value = response?.data ?? response;
 
@@ -51,13 +53,7 @@ export const extractCount = (response) => {
   );
 };
 
-export const money = (value) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "AED",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Number(value || 0));
+export const money = (value) => formatCurrency(value, "AED");
 
 export const number = (
   value,

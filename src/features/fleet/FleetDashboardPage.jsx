@@ -2,7 +2,7 @@ import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CarFront, CheckCircle2, Clock3, Wrench } from "lucide-react";
 import api, { unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { BranchSourceFilter, usePhysicalBranchScope } from "@/components/common/PhysicalBranchScope";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import {
   EmptyState,
@@ -14,7 +14,8 @@ import {
 } from "./fleetShared";
 
 export default function FleetDashboardPage() {
-  const { branchParams } = useActiveBranchFilter();
+  const branchScope = usePhysicalBranchScope();
+  const { listParams: branchParams } = branchScope;
   const { data = {}, isLoading } = useQuery({
     queryKey: ["fleet-dashboard", branchParams],
     queryFn: async () =>
@@ -54,6 +55,7 @@ export default function FleetDashboardPage() {
   ];
   return (
     <div className="w-full space-y-5 pb-10">
+      <BranchSourceFilter scope={branchScope} />
       <FleetHero
         eyebrow="Fleet Operations"
         title="Fleet Overview"

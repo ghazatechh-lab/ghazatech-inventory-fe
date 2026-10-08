@@ -5,7 +5,8 @@ import { Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { usePurchaseBranchScope } from "@/features/purchases/usePurchaseBranchScope";
+import { PurchaseBranchField } from "@/features/purchases/PurchaseBranchField";
 import { PageHeader } from "../purchases/PurchasePageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,14 +83,14 @@ export default function ShipmentFormPage() {
 
   const purchaseOrderParam = searchParams.get("purchase_order") || "";
 
-  const { branchId } = useActiveBranchFilter();
+  const { formBranchId } = usePurchaseBranchScope();
 
   const [form, setForm] = React.useState({
     shipment_number: "",
     shipment_type: "PURCHASE",
     purchase_order: "",
     supplier: "",
-    branch: branchId ? String(branchId) : "",
+    branch: formBranchId || "",
     warehouse: "",
     shipment_date: today(),
     received_date: today(),
@@ -119,13 +120,13 @@ export default function ShipmentFormPage() {
   const [productSearchOpen, setProductSearchOpen] = React.useState({});
 
   React.useEffect(() => {
-    if (!edit && branchId && !purchaseOrderParam) {
+    if (!edit && formBranchId && !purchaseOrderParam) {
       setForm((current) => ({
         ...current,
-        branch: String(branchId),
+        branch: String(formBranchId),
       }));
     }
-  }, [branchId, edit, purchaseOrderParam]);
+  }, [formBranchId, edit, purchaseOrderParam]);
 
   const { data: sourcePurchaseOrder, isLoading: sourcePurchaseOrderLoading } =
     useQuery({
@@ -155,6 +156,7 @@ export default function ShipmentFormPage() {
         }),
       ),
 
+    enabled: Boolean(form.branch),
     staleTime: 60 * 1000,
   });
 
@@ -397,10 +399,10 @@ export default function ShipmentFormPage() {
 
   const branches = React.useMemo(
     () =>
-      branchId
-        ? allBranches.filter((branch) => String(branch.id) === String(branchId))
-        : allBranches,
-    [allBranches, branchId],
+      formBranchId
+        ? allBranches.filter((branch) => String(branch.id) === String(formBranchId))
+        : allBranches.filter((branch) => ["BR01", "BR02"].includes(String(branch.branch_code || "").toUpperCase())),
+    [allBranches, formBranchId],
   );
 
   const { data: existing, isLoading: existingLoading } = useQuery({
@@ -1134,29 +1136,13 @@ export default function ShipmentFormPage() {
               <p className="mt-1 text-xs text-red-500">{errors.supplier}</p>
             )}
           </div>
-
           <div>
-            <Label>Receiving Branch</Label>
-
-            <Select
+            <PurchaseBranchField
+              label="Receiving Branch"
               value={form.branch}
-              onValueChange={(value) => updateForm("branch", value)}
-              disabled={Boolean(branchId) || Boolean(purchaseOrderParam)}
-            >
-              <SelectTrigger className="mt-2">
-                <SelectValue placeholder="Select branch" />
-              </SelectTrigger>
-
-              <SelectContent>
-                {branches.map((branch) => (
-                  <SelectItem key={branch.id} value={String(branch.id)}>
-                    {branch.branch_code}
-                    {branch.branch_name ? ` - ${branch.branch_name}` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
+              onChange={(value) => updateForm("branch", value)}
+              disabled={Boolean(purchaseOrderParam)}
+            />
             {errors.branch && (
               <p className="mt-1 text-xs text-red-500">{errors.branch}</p>
             )}

@@ -1,12 +1,13 @@
-﻿import React from "react";
+import React from "react";
 import { Download, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import api, { unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { useSalesBranchScope } from "@/features/sales/useSalesBranchScope";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { SalesHeroHeader } from "@/components/sales/SalesHeroHeader";
+import { SourceBranchBadge } from "./SalesPageHeader";
 import { Button } from "@/components/ui/button";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -14,7 +15,7 @@ import { SalesDocumentFlow } from "@/components/sales/SalesDocumentFlow";
 import { MetricCard } from "@/components/sales/MetricCard";
 
 export default function SalesOrderListPage() {
-  const { branchParams } = useActiveBranchFilter();
+  const { listBranchParams: branchParams } = useSalesBranchScope();
 
   const { query, q, setQ, page, setPage } = useListQuery(
     "sales-orders",
@@ -59,6 +60,12 @@ export default function SalesOrderListPage() {
   const columns = React.useMemo(
     () => [
       {
+        key: "source_branch_code",
+        header: "Branch",
+        sortable: false,
+        cell: (row) => <SourceBranchBadge row={row} />,
+      },
+      {
         key: "order_number",
         header: "Order #",
         sortKey: "order_number",
@@ -66,7 +73,7 @@ export default function SalesOrderListPage() {
         cell: (row) => (
           <Link
             className="font-medium text-blue-600 hover:underline dark:text-blue-400"
-            to={`/sales/orders/${row.id}`}
+            to={`/sales/orders/${row.resource_key || row.id}`}
           >
             {row.order_number}
           </Link>
@@ -121,6 +128,7 @@ export default function SalesOrderListPage() {
   return (
     <div className="sales-module-page sales-workspace w-full space-y-5">
       <SalesHeroHeader
+        showSourceFilter
         title="Sales Orders"
         subtitle="Confirmed orders moving toward fulfillment and invoicing"
         actions={

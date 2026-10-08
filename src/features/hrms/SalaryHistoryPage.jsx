@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { BranchSourceFilter, usePhysicalBranchScope } from "@/components/common/PhysicalBranchScope";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,7 +48,8 @@ const toNumber = (value) => {
 export default function SalaryHistoryPage() {
   const queryClient = useQueryClient();
 
-  const { branchParams } = useActiveBranchFilter();
+  const branchScope = usePhysicalBranchScope();
+  const { listParams: branchParams } = branchScope;
 
   const [employeeId, setEmployeeId] = React.useState("");
   const [employeeSearch, setEmployeeSearch] = React.useState("");
@@ -340,6 +341,7 @@ export default function SalaryHistoryPage() {
 
   return (
     <div className="hrms-module-page hrms-workspace w-full space-y-5">
+      <BranchSourceFilter scope={branchScope} />
       <PageHeader
         variant="hero"
         title="Salary History"

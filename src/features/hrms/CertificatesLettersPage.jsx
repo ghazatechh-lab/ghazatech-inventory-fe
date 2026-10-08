@@ -18,7 +18,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { BranchSourceFilter, usePhysicalBranchScope } from "@/components/common/PhysicalBranchScope";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -122,7 +122,8 @@ const OTHER_LETTER_TYPES = {
 
 export default function CertificatesLettersPage() {
   const queryClient = useQueryClient();
-  const { branchParams } = useActiveBranchFilter();
+  const branchScope = usePhysicalBranchScope();
+  const { listParams: branchParams } = branchScope;
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [tab, setTab] = useState("ALL");
@@ -475,6 +476,7 @@ export default function CertificatesLettersPage() {
 
   return (
     <div className="w-full space-y-5 pb-10">
+      <BranchSourceFilter scope={branchScope} />
       <PageHeader
         variant="hero"
         title="Certificates & Letters"

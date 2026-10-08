@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { PhysicalBranchField, usePhysicalBranchScope } from "@/components/common/PhysicalBranchScope";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,7 +73,8 @@ export default function EmployeeFormPage() {
   const isEdit = Boolean(id);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { branchId, isAllBranches } = useActiveBranchFilter();
+  const branchScope = usePhysicalBranchScope();
+  const { branchId, isCombined } = branchScope;
   const [form, setForm] = React.useState(initial);
   const [inlineForm, setInlineForm] = React.useState(null);
   const [inlineName, setInlineName] = React.useState("");
@@ -123,13 +124,6 @@ export default function EmployeeFormPage() {
     }));
   }, [branchId, isEdit]);
 
-  const selectedBranch = React.useMemo(
-    () =>
-      normalizeList(options.branches).find(
-        (item) => String(item.id) === String(form.branch),
-      ),
-    [options.branches, form.branch],
-  );
 
   const update = (key, value) =>
     setForm((current) => ({ ...current, [key]: value }));
@@ -613,31 +607,17 @@ export default function EmployeeFormPage() {
             </div>
           ) : null}
 
-          <div>
-            <Label>Branch</Label>
-            <Input
-              className="mt-2"
-              value={
-                selectedBranch?.branch_name ||
-                selectedBranch?.branch_code ||
-                (isAllBranches && !isEdit
-                  ? "Select a branch from the header"
-                  : "Branch selected automatically")
-              }
-              readOnly
-              disabled
-            />
-            {!isEdit && isAllBranches ? (
-              <p className="mt-1.5 text-xs text-amber-600">
-                Select a specific branch from the header before creating an
-                employee.
-              </p>
-            ) : (
-              <p className="mt-1.5 text-xs text-muted-foreground">
-                Branch is selected automatically from the active branch.
-              </p>
-            )}
-          </div>
+          <PhysicalBranchField
+            scope={branchScope}
+            value={form.branch}
+            onChange={(value) => update("branch", value)}
+            label="Branch"
+          />
+          {isCombined ? (
+            <p className="-mt-3 text-xs text-muted-foreground">
+              Branch 3 is a combined view. This employee must belong to Branch 1 or Branch 2.
+            </p>
+          ) : null}
           <div>
             <Label>Department</Label>
             <div className="mt-2 flex gap-2">

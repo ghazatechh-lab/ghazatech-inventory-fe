@@ -514,6 +514,7 @@ export default function QuotationFormPage() {
             page_size: 200,
             is_active: true,
             branch: form.branch,
+            target_branch: form.sale_mode || undefined,
           },
         }),
       ),
@@ -549,6 +550,7 @@ export default function QuotationFormPage() {
         const response = await api.get("/sales/quotations/form-options/", {
           params: {
             branch: form.branch || undefined,
+            target_branch: form.sale_mode || undefined,
           },
         });
 
@@ -572,6 +574,7 @@ export default function QuotationFormPage() {
               page_size: 500,
               is_active: true,
               branch: form.branch || undefined,
+            target_branch: form.sale_mode || undefined,
               ordering: "product_name",
             },
           });
@@ -900,7 +903,7 @@ export default function QuotationFormPage() {
     }
 
     if (!form.sale_mode) {
-      next.sale_mode = "Select VAT Sale or Non-VAT Sale.";
+      next.sale_mode = "Select VAT Branch or Non-VAT Branch.";
     }
 
     if (!form.quote_date) {

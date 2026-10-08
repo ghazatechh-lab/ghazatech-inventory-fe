@@ -17,9 +17,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { useSalesBranchScope } from "@/features/sales/useSalesBranchScope";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { SalesHeroHeader } from "@/components/sales/SalesHeroHeader";
+import { SourceBranchBadge } from "./SalesPageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,7 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CurrencyText } from "@/components/common/CurrencyText";
-import { SaleModeSelector } from "@/components/common/SaleModeSelector";
+import { SalesBranchField } from "./SalesBranchField";
 import InlineCustomerDialog from "./InlineCustomerDialog";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { SalesDocumentFlow } from "@/components/sales/SalesDocumentFlow";
@@ -96,7 +97,7 @@ const createForm = (branchId) => ({
 
 export default function POSPage() {
   const queryClient = useQueryClient();
-  const { branchId, branchParams } = useActiveBranchFilter();
+  const { branchId, branchParams, listBranchParams } = useSalesBranchScope();
 
   const [open, setOpen] = React.useState(false);
 
@@ -111,30 +112,18 @@ export default function POSPage() {
   const { query, q, setQ, page, setPage } = useListQuery(
     "pos-sales",
     "/sales/pos/",
-    branchParams,
+    listBranchParams,
   );
 
   const { data: summaryResponse } = useQuery({
-    queryKey: ["pos-summary", branchParams],
+    queryKey: ["pos-summary", listBranchParams],
     queryFn: async () =>
       unwrap(
         await api.get("/sales/pos/summary/", {
-          params: branchParams,
+          params: listBranchParams,
         }),
       ),
   });
-
-  const { data: branchOptionsResponse } = useQuery({
-    queryKey: ["pos-branch-options"],
-    queryFn: async () => unwrap(await api.get("/branches/selector-options/")),
-    enabled: open,
-    staleTime: 60_000,
-  });
-
-  const branchOptions = React.useMemo(
-    () => normalizeList(branchOptionsResponse),
-    [branchOptionsResponse],
-  );
 
   const { data: optionsResponse } = useQuery({
     queryKey: ["pos-form-options", form.branch],
@@ -143,6 +132,7 @@ export default function POSPage() {
         await api.get("/sales/pos/form-options/", {
           params: {
             branch: form.branch || undefined,
+            target_branch: form.sale_mode || undefined,
           },
         }),
       ),
@@ -405,7 +395,7 @@ export default function POSPage() {
     }
 
     if (!form.sale_mode) {
-      next.sale_mode = "Select VAT Sale or Non-VAT Sale.";
+      next.sale_mode = "Select VAT Branch or Non-VAT Branch.";
     }
 
     if (!form.items.length) {
@@ -446,6 +436,8 @@ export default function POSPage() {
         branch: Number(form.branch),
 
         sale_mode: form.sale_mode,
+
+        target_branch: form.sale_mode,
 
         customer: form.customer ? Number(form.customer) : null,
 
@@ -561,6 +553,12 @@ export default function POSPage() {
   const columns = React.useMemo(
     () => [
       {
+        key: "source_branch_code",
+        header: "Branch",
+        sortable: false,
+        cell: (row) => <SourceBranchBadge row={row} />,
+      },
+      {
         key: "receipt_number",
         header: "Receipt #",
         sortKey: "receipt_number",
@@ -674,6 +672,7 @@ export default function POSPage() {
   return (
     <div className="sales-module-page sales-workspace w-full space-y-5 pb-10">
       <SalesHeroHeader
+        showSourceFilter
         title="Direct Sale / POS"
         subtitle="Fast counter sales with branch stock, common VAT, and instant payment"
         actions={
@@ -791,10 +790,10 @@ export default function POSPage() {
               <div className="min-h-0 flex-1 overflow-y-auto">
                 <div className="grid gap-5 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_350px] lg:p-6">
                   <div className="min-w-0 space-y-5">
-                    <SaleModeSelector
-                      branchId={form.branch}
-                      value={form.sale_mode}
-                      onChange={(saleMode) =>
+                    <SalesBranchField
+                      value={form.branch}
+                      onChange={changeSaleBranch}
+                      onSaleModeChange={(saleMode) =>
                         setForm((current) => ({
                           ...current,
                           sale_mode: saleMode,
@@ -831,50 +830,6 @@ export default function POSPage() {
                       </div>
 
                       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                        <div>
-                          <Label>Branch *</Label>
-
-                          <Select
-                            value={form.branch}
-                            onValueChange={changeSaleBranch}
-                            disabled={Boolean(branchId)}
-                          >
-                            <SelectTrigger className="mt-2 h-11">
-                              <SelectValue placeholder="Select branch" />
-                            </SelectTrigger>
-
-                            <SelectContent className="max-h-72">
-                              {branchOptions.map((branch) => (
-                                <SelectItem
-                                  key={branch.id}
-                                  value={String(branch.id)}
-                                >
-                                  {[branch.branch_code, branch.branch_name]
-                                    .filter(Boolean)
-                                    .join(" · ")}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-
-                          {branchId ? (
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              Using the active branch selected for this page.
-                            </p>
-                          ) : (
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              Select a branch to load its available POS
-                              products.
-                            </p>
-                          )}
-
-                          {errors.branch && (
-                            <p className="mt-1 text-xs text-red-500">
-                              {errors.branch}
-                            </p>
-                          )}
-                        </div>
-
                         <div>
                           <Label>Customer</Label>
 

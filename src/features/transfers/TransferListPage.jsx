@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { DateText } from "@/components/common/CurrencyText";
+import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 
 function MetricCard({
   label,
@@ -171,6 +171,14 @@ export default function TransferListPage() {
           ),
       },
       {
+        key: "transfer_value",
+        header: "Stock Value",
+        sortKey: "transfer_value",
+        sortType: "number",
+        align: "right",
+        cell: (row) => <CurrencyText value={row.transfer_value || 0} />,
+      },
+      {
         key: "created_at",
         header: "Requested",
         sortKey: "created_at",
@@ -178,6 +186,32 @@ export default function TransferListPage() {
 
         cell: (row) =>
           row.created_at ? <DateText value={row.created_at} /> : "—",
+      },
+      {
+        key: "direction",
+        header: "Flow",
+        sortable: false,
+        cell: (row) => {
+          if (!branchId) return "—";
+          const active = String(branchId);
+          const fromId = String(row.from_branch_id ?? row.from_branch?.id ?? "");
+          const toId = String(row.to_branch_id ?? row.to_branch?.id ?? "");
+          if (active === fromId) {
+            return (
+              <span className="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                Outgoing
+              </span>
+            );
+          }
+          if (active === toId) {
+            return (
+              <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                Incoming
+              </span>
+            );
+          }
+          return "Combined";
+        },
       },
       {
         key: "status",
@@ -200,7 +234,7 @@ export default function TransferListPage() {
         ),
       },
     ],
-    [],
+    [branchId],
   );
 
   return (
@@ -238,8 +272,8 @@ export default function TransferListPage() {
                 className="mt-2 max-w-2xl text-sm leading-6"
                 style={{ color: "#f1f5f9" }}
               >
-                Create and track inventory movements between branches. The list
-                follows the global branch filter.
+                Dispatch stock from the source branch and receive it only from the
+                destination branch. The list follows the active branch.
               </p>
 
               <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs text-slate-100">

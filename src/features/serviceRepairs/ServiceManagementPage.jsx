@@ -14,7 +14,8 @@ import {
 import { toast } from "sonner";
 
 import api, { unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { useSalesBranchScope } from "@/features/sales/useSalesBranchScope";
+import { SalesSourceBranchFilter } from "@/features/sales/SalesPageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -60,7 +61,7 @@ const payloadFrom = (form) => ({
 
 export default function ServiceManagementPage() {
   const queryClient = useQueryClient();
-  const { branchId, branchParams, isAllBranches } = useActiveBranchFilter();
+  const { branchId, branchParams, listBranchParams, isCombinedBranch, physicalBranches } = useSalesBranchScope();
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("");
   const [modalMode, setModalMode] = React.useState(null);
@@ -69,13 +70,13 @@ export default function ServiceManagementPage() {
 
   const params = React.useMemo(
     () => ({
-      ...branchParams,
+      ...listBranchParams,
       section: "active",
       page_size: 500,
       ...(search ? { search } : {}),
       ...(statusFilter ? { status: statusFilter } : {}),
     }),
-    [branchParams, search, statusFilter],
+    [listBranchParams, search, statusFilter],
   );
 
   const jobsQuery = useQuery({
@@ -85,30 +86,28 @@ export default function ServiceManagementPage() {
   });
 
   const summaryQuery = useQuery({
-    queryKey: ["service-summary", branchParams],
+    queryKey: ["service-summary", listBranchParams],
     queryFn: async () =>
       unwrap(
         await api.get("/service-repairs/jobs/summary/", {
-          params: branchParams,
+          params: listBranchParams,
         }),
       ),
   });
 
   const employeesQuery = useQuery({
-    queryKey: ["service-technicians", branchParams],
+    queryKey: ["service-technicians", form.branch, branchParams],
     queryFn: async () =>
       unwrap(
         await api.get("/hrms/employees/", {
-          params: { ...branchParams, page_size: 500, status: "ACTIVE" },
+          params: {
+            ...(form.branch ? { branch: form.branch } : branchParams),
+            page_size: 500,
+            status: "ACTIVE",
+          },
         }),
       ),
-  });
-
-  const branchesQuery = useQuery({
-    queryKey: ["service-branches"],
-    queryFn: async () =>
-      unwrap(await api.get("/branches/", { params: { page_size: 500 } })),
-    enabled: isAllBranches,
+    enabled: !isCombinedBranch || Boolean(form.branch && String(form.branch) !== String(branchId)),
   });
 
   const invalidate = async () => {
@@ -125,7 +124,7 @@ export default function ServiceManagementPage() {
       if (!payload.branch) throw new Error("Select a branch.");
       if (modalMode === "edit") {
         return unwrap(
-          await api.patch(`/service-repairs/jobs/${selected.id}/`, payload),
+          await api.patch(`/service-repairs/jobs/${selected.resource_key || selected.id}/`, payload),
         );
       }
       return unwrap(await api.post("/service-repairs/jobs/", payload));
@@ -147,7 +146,7 @@ export default function ServiceManagementPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (job) => api.delete(`/service-repairs/jobs/${job.id}/`),
+    mutationFn: async (job) => api.delete(`/service-repairs/jobs/${job.resource_key || job.id}/`),
     onSuccess: async () => {
       toast.success("Service job deleted");
       await invalidate();
@@ -158,7 +157,7 @@ export default function ServiceManagementPage() {
   const completeMutation = useMutation({
     mutationFn: async (job) =>
       unwrap(
-        await api.post(`/service-repairs/jobs/${job.id}/complete/`, {
+        await api.post(`/service-repairs/jobs/${job.resource_key || job.id}/complete/`, {
           status: "COMPLETED",
           amount_paid: job.amount_paid,
           payment_status: job.payment_status,
@@ -185,7 +184,7 @@ export default function ServiceManagementPage() {
 
   const jobs = rowsFrom(jobsQuery.data);
   const employees = rowsFrom(employeesQuery.data);
-  const branches = isAllBranches ? rowsFrom(branchesQuery.data) : [];
+  const branches = isCombinedBranch ? physicalBranches : [];
   const summary = summaryQuery.data || {};
 
   return (
@@ -203,6 +202,7 @@ export default function ServiceManagementPage() {
           </Button>
         }
       />
+      <SalesSourceBranchFilter />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard

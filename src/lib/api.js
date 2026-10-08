@@ -1,4 +1,4 @@
-﻿import axios from "axios";
+import axios from "axios";
 
 import { toast } from "sonner";
 
@@ -57,10 +57,18 @@ const humanizeFieldName = (fieldName = "") =>
 
     .replace(/\b\w/g, (character) => character.toUpperCase());
 
+const sanitizeUiMessage = (value) =>
+  String(value ?? "")
+    .replace(/<svg[\s\S]*?<\/svg>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/(?:^|\s)svg(?:\s+svg)*(?=\s|$)/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
 const friendlyClientMessage = (field, message) => {
   const label = humanizeFieldName(field || "field");
 
-  const text = String(message || "").trim();
+  const text = sanitizeUiMessage(message);
 
   const lower = text.toLowerCase();
 
@@ -182,7 +190,7 @@ const flattenValidationErrors = (value, path = "", output = []) => {
 
 const statusTitle = (status) => {
   if (status === 400) {
-    return "Please check the form";
+    return "Please check the form.";
   }
 
   if (status === 401) {

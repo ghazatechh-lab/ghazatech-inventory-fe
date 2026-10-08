@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Info, Plus } from "lucide-react";
 
 import api, { unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { usePurchaseBranchScope } from "@/features/purchases/usePurchaseBranchScope";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { PageHeader } from "./PurchasePageHeader";
 import { Button } from "@/components/ui/button";
@@ -44,7 +44,7 @@ function SummaryCard({ label, children, accent = false }) {
 }
 
 export default function POListPage() {
-  const { branchParams } = useActiveBranchFilter();
+  const { listBranchParams: branchParams } = usePurchaseBranchScope();
 
   const { query, q, setQ, page, setPage, getFilter, setFilter } = useListQuery(
     "purchase-orders",
@@ -108,6 +108,13 @@ export default function POListPage() {
 
   const columns = React.useMemo(
     () => [
+      {
+        key: "source_branch_code",
+        header: "Source Branch",
+        sortable: false,
+        cell: (row) =>
+          row.source_branch_code || row.branch_code || row.branch_name || "—",
+      },
       {
         key: "po_number",
         header: "PO No.",
@@ -188,7 +195,7 @@ export default function POListPage() {
         align: "right",
         cell: (row) => (
           <Button asChild size="sm" variant="outline" className="min-w-20">
-            <Link to={`/purchases/orders/${row.id}`}>Open</Link>
+            <Link to={`/purchases/orders/${row.resource_key || row.id}`}>Open</Link>
           </Button>
         ),
       },
@@ -199,6 +206,7 @@ export default function POListPage() {
   return (
     <div className="purchase-module-page purchase-workspace w-full space-y-5">
       <PageHeader
+        showSourceFilter
         title="Purchase Orders"
         subtitle="Orders raised against suppliers, tracked to delivery"
         actions={

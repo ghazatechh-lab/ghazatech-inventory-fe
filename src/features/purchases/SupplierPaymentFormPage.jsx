@@ -33,7 +33,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { usePurchaseBranchScope } from "./usePurchaseBranchScope";
+import { PurchaseBranchField } from "./PurchaseBranchField";
 
 const ENDPOINT = "/purchases/supplier-payments/";
 
@@ -167,7 +168,7 @@ function getApiErrors(error) {
   return errors;
 }
 
-function createInitialForm(branchId) {
+function createInitialForm(formBranchId) {
   return {
     payment_number: "",
     supplier: "",
@@ -220,13 +221,13 @@ export default function SupplierPaymentFormPage() {
 
   const queryClient = useQueryClient();
 
-  const { branchId } = useActiveBranchFilter();
+  const { formBranchId } = usePurchaseBranchScope();
   const requestedBillId = searchParams.get("bill") || "";
   const requestedSupplierId = searchParams.get("supplier") || "";
   const requestedBranchId = searchParams.get("branch") || "";
   const prefillAppliedRef = React.useRef(false);
 
-  const [form, setForm] = React.useState(() => createInitialForm(branchId));
+  const [form, setForm] = React.useState(() => createInitialForm(formBranchId));
 
   const [files, setFiles] = React.useState([]);
 
@@ -461,16 +462,16 @@ export default function SupplierPaymentFormPage() {
   );
 
   React.useEffect(() => {
-    if (isEdit || !branchId) {
+    if (isEdit || !formBranchId) {
       return;
     }
 
     setForm((current) => ({
       ...current,
 
-      branch: current.branch || String(branchId),
+      branch: current.branch || String(formBranchId),
     }));
-  }, [branchId, isEdit]);
+  }, [formBranchId, isEdit]);
 
   React.useEffect(() => {
     const existing = existingQuery.data;
@@ -1082,43 +1083,20 @@ export default function SupplierPaymentFormPage() {
               Generated automatically by the backend.
             </p>
           </div>
-
           <div>
-            <Label htmlFor="branch">Branch *</Label>
-
-            <select
-              id="branch"
-              className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"
+            <PurchaseBranchField
               value={form.branch}
-              onChange={(event) => {
-                const value = event.target.value;
-
+              onChange={(value) => {
                 setForm((current) => ({
                   ...current,
-
                   branch: value,
-
                   supplier: "",
-
                   bank_account: "",
-
                   cash_register: "",
-
                   allocations: [],
                 }));
               }}
-            >
-              <option value="">Select branch</option>
-
-              {branches.map((branch) => (
-                <option key={branch.id} value={String(branch.id)}>
-                  {branch.branch_code ? `${branch.branch_code} — ` : ""}
-
-                  {branch.branch_name || branch.name}
-                </option>
-              ))}
-            </select>
-
+            />
             <FieldError message={errors.branch} />
           </div>
 

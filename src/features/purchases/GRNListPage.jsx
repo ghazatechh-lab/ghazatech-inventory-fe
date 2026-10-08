@@ -11,6 +11,7 @@ import { ListingRowActions } from "@/components/common/ListingRowActions";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { normalizeApiResponse, rowsFromPayload } from "./purchaseUi";
+import { usePurchaseBranchScope } from "./usePurchaseBranchScope";
 
 const PAGE_SIZE = 12;
 
@@ -18,6 +19,7 @@ export default function GRNListPage() {
   const [search, setSearch] = React.useState("");
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
+  const { listBranchParams } = usePurchaseBranchScope();
 
   React.useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -31,9 +33,10 @@ export default function GRNListPage() {
     () => ({
       page,
       page_size: PAGE_SIZE,
+      ...listBranchParams,
       ...(debouncedSearch ? { search: debouncedSearch } : {}),
     }),
-    [page, debouncedSearch],
+    [page, debouncedSearch, listBranchParams],
   );
 
   const query = useQuery({
@@ -63,9 +66,9 @@ export default function GRNListPage() {
       cell: (row) => (
         <Link
           className="font-medium text-blue-600 hover:underline"
-          to={`/purchases/grn/${row.id}`}
+          to={`/purchases/grn/${row.resource_key || row.id}`}
         >
-          {row.grn_number || `GRN ${row.id}`}
+          {row.grn_number || `GRN ${row.resource_key || row.id}`}
         </Link>
       ),
     },
@@ -111,9 +114,9 @@ export default function GRNListPage() {
       align: "right",
       cell: (row) => (
         <ListingRowActions
-          viewTo={`/purchases/grn/${row.id}`}
-          editTo={`/purchases/grn/${row.id}/edit`}
-          deleteUrl={`/purchases/grn/${row.id}/`}
+          viewTo={`/purchases/grn/${row.resource_key || row.id}`}
+          editTo={`/purchases/grn/${row.resource_key || row.id}/edit`}
+          deleteUrl={`/purchases/grn/${row.resource_key || row.id}/`}
           queryKey="purchases-grn"
           itemLabel={row.grn_number || "GRN"}
         />
@@ -124,6 +127,7 @@ export default function GRNListPage() {
   return (
     <div className="purchase-module-page purchase-workspace space-y-6">
       <PageHeader
+        showSourceFilter
         title="Goods Received Notes"
         subtitle="Manage purchase receipts, QC, accepted quantities, and uploaded documents."
         actions={

@@ -27,7 +27,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { useSalesBranchScope } from "@/features/sales/useSalesBranchScope";
+import { SalesBranchField } from "@/features/sales/SalesBranchField";
 import { PageHeader } from "@/components/common/PageHeader";
 
 const defaults = {
@@ -49,6 +50,7 @@ const defaults = {
   category: "RETAIL",
   notes: "",
   is_active: true,
+  branch: "",
 };
 
 function Section({ title, description, icon: Icon, children }) {
@@ -93,7 +95,7 @@ export default function CustomerFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { branchId, branchParams } = useActiveBranchFilter();
+  const { branchId, branchParams, isPhysicalBranch, isCombinedBranch, formBranchId, physicalBranches } = useSalesBranchScope();
   const isEdit = Boolean(id);
   const backTarget = isEdit ? `/customers/${id}` : "/customers";
 
@@ -102,9 +104,25 @@ export default function CustomerFormPage() {
     handleSubmit,
     reset,
     setError,
+    setValue,
+    watch,
     control,
     formState: { errors },
   } = useForm({ defaultValues: defaults });
+
+  const selectedBranch = watch("branch");
+
+  React.useEffect(() => {
+    if (isEdit) return;
+    if (isPhysicalBranch && formBranchId) {
+      setValue("branch", formBranchId, { shouldValidate: true });
+      return;
+    }
+    if (isCombinedBranch) {
+      const valid = physicalBranches.some((branch) => String(branch.id) === String(selectedBranch || ""));
+      if (!valid) setValue("branch", "", { shouldValidate: true });
+    }
+  }, [formBranchId, isCombinedBranch, isEdit, isPhysicalBranch, physicalBranches, selectedBranch, setValue]);
 
   const customerQuery = useQuery({
     queryKey: ["customer", id, branchId],
@@ -121,6 +139,7 @@ export default function CustomerFormPage() {
     reset({
       ...defaults,
       ...customerQuery.data,
+      branch: String(customerQuery.data.branch_id ?? customerQuery.data.branch?.id ?? customerQuery.data.branch ?? ""),
       customer_type: customerQuery.data.customer_type || defaults.customer_type,
       category: customerQuery.data.category || defaults.category,
     });
@@ -128,13 +147,13 @@ export default function CustomerFormPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (values) => {
-      if (!branchId) {
-        throw new Error("Select a branch before saving a customer.");
+      if (!values.branch) {
+        throw new Error("Select Branch 1 or Branch 2 before saving a customer.");
       }
 
       const payload = {
         ...values,
-        branch: Number(branchId),
+        branch: Number(values.branch),
         credit_limit: Number(values.credit_limit || 0),
         payment_terms_days: Number(values.payment_terms_days || 0),
       };
@@ -144,7 +163,10 @@ export default function CustomerFormPage() {
             params: branchParams,
             skipGlobalErrorToast: true,
           })
-        : api.post("/customers/", payload, {
+        : api.post("/customers/", {
+            ...payload,
+            target_branch: physicalBranches.find((branch) => String(branch.id) === String(values.branch))?.branch_code,
+          }, {
             skipGlobalErrorToast: true,
           });
     },
@@ -163,7 +185,19 @@ export default function CustomerFormPage() {
 
       toast.success(isEdit ? "Customer updated." : "Customer created.");
 
-      navigate(customerId ? `/customers/${customerId}` : "/customers");
+      const ownerBranch = physicalBranches.find(
+        (branch) => String(branch.id) === String(selectedBranch || saved?.branch_id || saved?.branch || ""),
+      );
+      const source = ownerBranch?.branch_code === "BR01"
+        ? "VAT"
+        : ownerBranch?.branch_code === "BR02"
+          ? "NON_VAT"
+          : "";
+      const customerKey =
+        saved?.resource_key ||
+        (isCombinedBranch && source && customerId ? `${source}:${customerId}` : customerId);
+
+      navigate(customerKey ? `/customers/${customerKey}` : "/customers");
     },
 
     onError: (error) => {
@@ -228,6 +262,13 @@ export default function CustomerFormPage() {
         className="space-y-5"
         noValidate
       >
+        <section className="card-surface p-5 sm:p-6">
+          <SalesBranchField
+            value={selectedBranch}
+            onChange={(value) => setValue("branch", value, { shouldDirty: true, shouldValidate: true })}
+          />
+        </section>
+
         <Section
           title="Customer identity"
           description="Primary identity and classification used in sales documents."

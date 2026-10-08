@@ -1,13 +1,14 @@
-﻿import React from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import { Download, Plus, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { useSalesBranchScope } from "@/features/sales/useSalesBranchScope";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { SalesHeroHeader } from "@/components/sales/SalesHeroHeader";
+import { SourceBranchBadge } from "./SalesPageHeader";
 import { Button } from "@/components/ui/button";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -16,7 +17,7 @@ import { MetricCard } from "@/components/sales/MetricCard";
 
 export default function QuotationListPage() {
   const queryClient = useQueryClient();
-  const { branchParams } = useActiveBranchFilter();
+  const { listBranchParams: branchParams } = useSalesBranchScope();
   const [quotationToDelete, setQuotationToDelete] = React.useState(null);
 
   const { query, q, setQ, page, setPage } = useListQuery(
@@ -45,7 +46,7 @@ export default function QuotationListPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (quotation) =>
-      api.delete(`/sales/quotations/${quotation.id}/`, {
+      api.delete(`/sales/quotations/${quotation.resource_key || quotation.id}/`, {
         skipGlobalErrorToast: true,
       }),
 
@@ -101,6 +102,12 @@ export default function QuotationListPage() {
   const columns = React.useMemo(
     () => [
       {
+        key: "source_branch_code",
+        header: "Branch",
+        sortable: false,
+        cell: (row) => <SourceBranchBadge row={row} />,
+      },
+      {
         key: "quote_number",
         header: "Quote #",
         sortKey: "quote_number",
@@ -108,7 +115,7 @@ export default function QuotationListPage() {
         cell: (row) => (
           <Link
             className="font-medium text-blue-600 hover:underline dark:text-blue-400"
-            to={`/sales/quotations/${row.id}`}
+            to={`/sales/quotations/${row.resource_key || row.id}`}
           >
             {row.quote_number}
           </Link>
@@ -187,6 +194,7 @@ export default function QuotationListPage() {
   return (
     <div className="sales-module-page sales-workspace w-full space-y-5">
       <SalesHeroHeader
+        showSourceFilter
         title="Quotations"
         subtitle="Create, send, and convert customer quotations"
         actions={

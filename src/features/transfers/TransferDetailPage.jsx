@@ -15,6 +15,7 @@ import { toast } from "sonner";
 
 import api, { getApiErrorMessage, unwrap } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { LoadingState, EmptyState } from "@/components/common/States";
 import { Button } from "@/components/ui/button";
 import {
@@ -133,6 +134,7 @@ export default function TransferDetailPage() {
   const queryClient = useQueryClient();
 
   const { hasRole, user } = useAuth();
+  const { branchId: activeBranchId } = useActiveBranchFilter();
 
   const [actionName, setActionName] = React.useState("");
 
@@ -175,6 +177,14 @@ export default function TransferDetailPage() {
 
   const status = normalizeStatus(transfer.status);
 
+  const destinationBranchId =
+    transfer.to_branch_id ?? transfer.to_branch?.id ?? transfer.to_branch ?? null;
+
+  const canReceiveInActiveBranch =
+    Boolean(activeBranchId) &&
+    Boolean(destinationBranchId) &&
+    String(activeBranchId) === String(destinationBranchId);
+
   const deleteTransfer = async () => {
     try {
       setActionName("delete");
@@ -204,7 +214,12 @@ export default function TransferDetailPage() {
     try {
       setActionName(path);
 
-      await api.post(`/transfers/${id}/${path}/`, {});
+      const actionConfig =
+        path === "receive" && activeBranchId
+          ? { params: { branch: activeBranchId } }
+          : undefined;
+
+      await api.post(`/transfers/${id}/${path}/`, {}, actionConfig);
 
       await Promise.all([
         refetch(),
@@ -339,7 +354,7 @@ export default function TransferDetailPage() {
               </Button>
             ) : null}
 
-            {["DISPATCHED", "IN_TRANSIT"].includes(status) ? (
+            {["DISPATCHED", "IN_TRANSIT"].includes(status) && canReceiveInActiveBranch ? (
               <Button
                 className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
                 disabled={Boolean(actionName)}

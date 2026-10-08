@@ -14,7 +14,7 @@ import {
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { BranchSourceFilter, usePhysicalBranchScope } from "@/components/common/PhysicalBranchScope";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,7 +90,8 @@ const initials = (name) =>
 
 export default function DocumentExpiryPage() {
   const queryClient = useQueryClient();
-  const { branchParams } = useActiveBranchFilter();
+  const branchScope = usePhysicalBranchScope();
+  const { listParams: branchParams } = branchScope;
 
   const [search, setSearch] = useState("");
   const [documentType, setDocumentType] = useState("");
@@ -322,6 +323,7 @@ export default function DocumentExpiryPage() {
 
   return (
     <div className="w-full space-y-5 pb-10">
+      <BranchSourceFilter scope={branchScope} />
       <PageHeader
         variant="hero"
         title="Document Expiry"

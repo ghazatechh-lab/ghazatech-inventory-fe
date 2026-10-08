@@ -112,6 +112,15 @@ export default function SupplierPaymentDetailPage() {
       <DetailSection title="Payment Information">
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <DetailField label="Payment Number" value={record.payment_number} />
+          <DetailField
+            label="Source Branch"
+            value={
+              record.source_branch_code ||
+              record.branch_code ||
+              record.branch_name ||
+              "—"
+            }
+          />
           <DetailField label="Supplier" value={record.supplier_name} />
           <DetailField
             label="Payment Date"

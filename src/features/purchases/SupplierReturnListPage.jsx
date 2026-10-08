@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { usePurchaseBranchScope } from "@/features/purchases/usePurchaseBranchScope";
 import { useSupplierUrlFilter } from "@/hooks/useSupplierUrlFilter";
 import { normalizeApiResponse, rowsFromPayload } from "./purchaseUi";
 
@@ -63,7 +63,7 @@ const normalizeList = (value) => {
 };
 
 export default function SupplierReturnListPage() {
-  const { branchParams } = useActiveBranchFilter();
+  const { listBranchParams: branchParams } = usePurchaseBranchScope();
 
   const { supplierId, supplierParams, setSupplierId, clearSupplierFilter } =
     useSupplierUrlFilter();
@@ -170,7 +170,7 @@ export default function SupplierReturnListPage() {
         "Status",
       ],
       rows.map((row) => [
-        row.return_number || `Return ${row.id}`,
+        row.return_number || `Return ${row.resource_key || row.id}`,
         row.grn_number || "",
         row.supplier_name || "",
         row.return_date || "",
@@ -194,6 +194,7 @@ export default function SupplierReturnListPage() {
   return (
     <div className="purchase-module-page purchase-workspace w-full max-w-none space-y-6 pb-10">
       <PageHeader
+        showSourceFilter
         title="Supplier Returns"
         subtitle="Create returns from confirmed GRNs, approve stock deductions, and complete vendor credit settlement."
         actions={
@@ -314,6 +315,7 @@ export default function SupplierReturnListPage() {
               <tr>
                 {[
                   "Return #",
+                  "Source Branch",
                   "GRN",
                   "Supplier",
                   "Date",
@@ -344,10 +346,14 @@ export default function SupplierReturnListPage() {
                   <td className="px-4 py-4">
                     <Link
                       className="font-semibold text-blue-600 hover:underline"
-                      to={`/purchases/supplier-returns/${row.id}`}
+                      to={`/purchases/supplier-returns/${row.resource_key || row.id}`}
                     >
-                      {row.return_number || `Return ${row.id}`}
+                      {row.return_number || `Return ${row.resource_key || row.id}`}
                     </Link>
+                  </td>
+
+                  <td className="px-4 py-4">
+                    {row.source_branch_code || row.branch_code || row.branch_name || "—"}
                   </td>
 
                   <td className="px-4 py-4">{row.grn_number || "â€”"}</td>
@@ -397,7 +403,7 @@ export default function SupplierReturnListPage() {
 
                   <td className="px-4 py-4">
                     <Button asChild variant="outline" size="sm">
-                      <Link to={`/purchases/supplier-returns/${row.id}`}>
+                      <Link to={`/purchases/supplier-returns/${row.resource_key || row.id}`}>
                         <Eye className="mr-2 h-4 w-4" />
                         Open
                       </Link>

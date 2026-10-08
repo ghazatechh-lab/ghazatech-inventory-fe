@@ -5,7 +5,8 @@ import { CheckCircle2, Circle, Plus, Save, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { usePurchaseBranchScope } from "./usePurchaseBranchScope";
+import { PurchaseBranchField } from "./PurchaseBranchField";
 import { PageHeader } from "./PurchasePageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -134,8 +135,8 @@ export default function POFormPage() {
   const edit = Boolean(id);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { branchId } = useActiveBranchFilter();
-  const activeBranchId = normalizeBranchId(branchId);
+  const { formBranchId } = usePurchaseBranchScope();
+  const activeBranchId = normalizeBranchId(formBranchId);
 
   const [form, setForm] = React.useState({
     po_number: "",
@@ -193,19 +194,6 @@ export default function POFormPage() {
     retry: false,
   });
 
-  const { data: branchResponse } = useQuery({
-    queryKey: ["branch-options", "purchase-order-form"],
-    queryFn: async () =>
-      normalizePayload(
-        await api.get("/branches/", {
-          params: {
-            page_size: 500,
-            is_active: true,
-            ordering: "branch_code",
-          },
-        }),
-      ),
-  });
 
   const { data: productResponse } = useQuery({
     queryKey: ["product-options", "purchase-order-form", form.branch],
@@ -220,6 +208,7 @@ export default function POFormPage() {
           },
         }),
       ),
+    enabled: Boolean(form.branch),
   });
 
   const { data: existing, isLoading: existingLoading } = useQuery({
@@ -303,21 +292,6 @@ export default function POFormPage() {
         .some((value) => String(value).toLowerCase().includes(search)),
     );
   }, [suppliers, supplierSearch]);
-
-  const allBranches = React.useMemo(
-    () => normalizeList(branchResponse),
-    [branchResponse],
-  );
-
-  const branches = React.useMemo(
-    () =>
-      activeBranchId
-        ? allBranches.filter(
-            (branch) => String(branch.id) === String(activeBranchId),
-          )
-        : allBranches,
-    [allBranches, activeBranchId],
-  );
 
   const products = React.useMemo(
     () => normalizeList(productResponse),
@@ -816,49 +790,24 @@ export default function POFormPage() {
             </div>
 
             <div className="mt-4 grid gap-4 md:grid-cols-3">
-              <div>
-                <Label>Branch</Label>
-                <Select
-                  value={form.branch}
-                  onValueChange={(value) => {
-                    setSupplierSearch("");
-                    setSupplierSearchOpen(false);
-                    setProductSearches({});
-                    setProductSearchOpen({});
-
-                    setForm((current) => ({
-                      ...current,
-                      branch: value,
-                      supplier: "",
-                      items: current.items.map((item) => ({
-                        ...item,
-                        product: "",
-                        variant: "",
-                        unit_price: 0,
-                      })),
-                    }));
-
-                    setErrors((current) => ({
-                      ...current,
-                      branch: "",
-                      supplier: "",
-                      items: "",
-                    }));
-                  }}
-                  disabled={Boolean(activeBranchId)}
-                >
-                  <SelectTrigger className="mt-2">
-                    <SelectValue placeholder="Select branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {branches.map((branch) => (
-                      <SelectItem key={branch.id} value={String(branch.id)}>
-                        {branch.branch_code || branch.branch_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <PurchaseBranchField
+                value={form.branch}
+                onChange={(value) => {
+                  setSupplierSearch("");
+                  setSupplierSearchOpen(false);
+                  setProductSearches({});
+                  setProductSearchOpen({});
+                  setForm((current) => ({
+                    ...current,
+                    branch: value,
+                    supplier: "",
+                    items: current.items.map((item) => ({
+                      ...item, product: "", variant: "", unit_price: 0,
+                    })),
+                  }));
+                  setErrors((current) => ({ ...current, branch: "", supplier: "", items: "" }));
+                }}
+              />
 
               <div>
                 <Label>Currency</Label>

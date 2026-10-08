@@ -13,7 +13,7 @@ import {
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { BranchSourceFilter, PhysicalBranchField, usePhysicalBranchScope } from "@/components/common/PhysicalBranchScope";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -108,22 +108,22 @@ function errorText(error) {
   return String(error || "");
 }
 
-function VehicleFormModal({ open, vehicle, branchId, onClose, onSaved }) {
+function VehicleFormModal({ open, vehicle, branchId, branchScope, onClose, onSaved }) {
   const [form, setForm] = React.useState(() =>
-    normalizeVehicleForm(vehicle, branchId),
+    normalizeVehicleForm(vehicle, branchScope?.isCombined ? null : branchId),
   );
   const [errors, setErrors] = React.useState({});
 
   React.useEffect(() => {
     if (open) {
-      setForm(normalizeVehicleForm(vehicle, branchId));
+      setForm(normalizeVehicleForm(vehicle, branchScope?.isCombined ? null : branchId));
       setErrors({});
     }
-  }, [open, vehicle, branchId]);
+  }, [open, vehicle, branchId, branchScope?.isCombined]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const payload = buildPayload(form, branchId);
+      const payload = buildPayload(form, branchScope?.isCombined ? null : branchId);
 
       if (!payload.branch) {
         throw new Error(
@@ -227,6 +227,13 @@ function VehicleFormModal({ open, vehicle, branchId, onClose, onSaved }) {
           className="p-5 sm:p-7"
         >
           <div className="grid gap-5 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <PhysicalBranchField
+                scope={branchScope}
+                value={form.branch}
+                onChange={(value) => update("branch", value)}
+              />
+            </div>
             <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
               Vehicle Code <span className="text-red-500">*</span>
               <Input
@@ -482,7 +489,8 @@ function DeleteVehicleDialog({ vehicle, onClose, onDeleted }) {
 
 export default function VehicleListPage() {
   const queryClient = useQueryClient();
-  const { branchParams, branchId } = useActiveBranchFilter();
+  const branchScope = usePhysicalBranchScope();
+  const { listParams: branchParams, branchId } = branchScope;
   const [query, setQuery] = React.useState("");
   const [formState, setFormState] = React.useState({
     open: false,
@@ -539,6 +547,8 @@ export default function VehicleListPage() {
           </Button>
         }
       />
+
+      <BranchSourceFilter scope={branchScope} />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <MetricCard
@@ -672,6 +682,7 @@ export default function VehicleListPage() {
         open={formState.open}
         vehicle={formState.vehicle}
         branchId={branchId}
+        branchScope={branchScope}
         onClose={() => setFormState({ open: false, vehicle: null })}
         onSaved={refreshVehicles}
       />

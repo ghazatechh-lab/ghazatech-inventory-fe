@@ -12,7 +12,7 @@ import {
 } from "recharts";
 
 import api, { unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { usePhysicalBranchScope, BranchSourceFilter } from "@/components/common/PhysicalBranchScope";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/common/DataTable";
@@ -66,7 +66,8 @@ const downloadCsv = (rows) => {
 };
 
 export default function InventoryReportPage() {
-  const { branchParams } = useActiveBranchFilter();
+  const scope = usePhysicalBranchScope();
+  const branchParams = scope.listParams;
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["inventory-report", branchParams],
@@ -102,6 +103,8 @@ export default function InventoryReportPage() {
           </Button>
         }
       />
+
+      <BranchSourceFilter scope={scope} className="card-surface p-3" />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Stock Lines" value={summary.stock_lines || 0} />

@@ -3,11 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import api, { unwrap } from "@/lib/api";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { PageHeader } from "@/components/common/PageHeader";
-const m = (v) =>
-  `AED ${Number(v || 0).toLocaleString("en-AE", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+import { formatCurrency } from "@/lib/utils";
+const m = (v) => formatCurrency(v, "AED");
 export default function AccountingDashboardPage() {
   const { branchParams } = useActiveBranchFilter();
   const q = useQuery({

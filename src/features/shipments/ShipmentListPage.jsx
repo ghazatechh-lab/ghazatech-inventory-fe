@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { ListingRowActions } from "@/components/common/ListingRowActions";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { usePurchaseBranchScope } from "@/features/purchases/usePurchaseBranchScope";
 import { PageHeader } from "@/features/purchases/PurchasePageHeader";
 
 const PAGE_SIZE = 12;
@@ -126,7 +126,7 @@ function ShipmentSummaryCard({
 }
 
 export default function ShipmentListPage() {
-  const { branchId, branchParams } = useActiveBranchFilter();
+  const { branchId, listBranchParams: branchParams } = usePurchaseBranchScope();
 
   const [search, setSearch] = React.useState("");
 
@@ -265,10 +265,10 @@ export default function ShipmentListPage() {
       header: "Shipment #",
       cell: (row) => (
         <Link
-          to={`/shipments/${row.id}`}
+          to={`/shipments/${row.resource_key || row.id}`}
           className="font-medium text-blue-600 hover:underline dark:text-blue-400"
         >
-          {row.shipment_number || `Shipment ${row.id}`}
+          {row.shipment_number || `Shipment ${row.resource_key || row.id}`}
         </Link>
       ),
     },
@@ -362,9 +362,9 @@ export default function ShipmentListPage() {
       align: "right",
       cell: (row) => (
         <ListingRowActions
-          viewTo={`/shipments/${row.id}`}
-          editTo={`/shipments/${row.id}/edit`}
-          deleteUrl={`/shipments/${row.id}/`}
+          viewTo={`/shipments/${row.resource_key || row.id}`}
+          editTo={`/shipments/${row.resource_key || row.id}/edit`}
+          deleteUrl={`/shipments/${row.resource_key || row.id}/`}
           queryKey="shipments"
           itemLabel={row.shipment_number || "shipment"}
         />
@@ -375,6 +375,7 @@ export default function ShipmentListPage() {
   return (
     <div className="purchase-module-page purchase-workspace w-full space-y-5 pb-10">
       <PageHeader
+        showSourceFilter
         title="Purchase Shipments"
         subtitle={`Track inbound supplier shipments, purchase-order receipts, received quantities, quality checks, rack placement and GRN readiness.${
           branchId && String(branchId) !== "all"

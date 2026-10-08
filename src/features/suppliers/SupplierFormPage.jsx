@@ -17,7 +17,8 @@ import {
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { usePurchaseBranchScope } from "@/features/purchases/usePurchaseBranchScope";
+import { PurchaseBranchField } from "@/features/purchases/PurchaseBranchField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -153,7 +154,7 @@ export default function SupplierFormPage() {
   const navigate = useNavigate();
   const backTarget = edit ? `/suppliers/${id}` : "/suppliers";
   const queryClient = useQueryClient();
-  const { branchId } = useActiveBranchFilter();
+  const { formBranchId } = usePurchaseBranchScope();
 
   const [selectedFiles, setSelectedFiles] = React.useState([]);
 
@@ -167,11 +168,12 @@ export default function SupplierFormPage() {
     setError,
     clearErrors,
     control,
+    watch,
     formState: { errors },
   } = useForm({
     defaultValues: {
       ...defaults,
-      branch: branchId ? String(branchId) : "",
+      branch: formBranchId || "",
     },
   });
 
@@ -185,12 +187,12 @@ export default function SupplierFormPage() {
   });
 
   React.useEffect(() => {
-    if (!edit && branchId) {
-      setValue("branch", String(branchId), {
+    if (!edit && formBranchId) {
+      setValue("branch", String(formBranchId), {
         shouldDirty: false,
       });
     }
-  }, [branchId, edit, setValue]);
+  }, [formBranchId, edit, setValue]);
 
   React.useEffect(() => {
     if (!data) {
@@ -200,10 +202,10 @@ export default function SupplierFormPage() {
     reset({
       ...defaults,
       ...data,
-      branch: String(data.branch?.id || data.branch || branchId || ""),
+      branch: String(data.branch?.id || data.branch || formBranchId || ""),
       payment_terms_days: Number(data.payment_terms_days ?? 0),
     });
-  }, [data, reset, branchId]);
+  }, [data, reset, formBranchId]);
 
   const save = useMutation({
     mutationFn: async (values) => {
@@ -390,18 +392,30 @@ export default function SupplierFormPage() {
                   readOnly
                   disabled
                 />
+              </Field>
+
+              <div>
                 <input
                   type="hidden"
                   {...register("branch", {
                     required: "Select a branch before creating a supplier.",
                   })}
                 />
+                <PurchaseBranchField
+                  value={String(watch("branch") || "")}
+                  onChange={(value) =>
+                    setValue("branch", value, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }
+                />
                 {errors.branch && (
                   <p className="mt-1 text-sm text-red-500">
                     {errors.branch.message}
                   </p>
                 )}
-              </Field>
+              </div>
 
               <Field label="Legal name" required error={errors.supplier_name}>
                 <Input

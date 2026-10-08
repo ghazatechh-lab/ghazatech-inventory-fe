@@ -13,7 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { BranchSourceFilter, usePhysicalBranchScope } from "@/components/common/PhysicalBranchScope";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -101,7 +101,8 @@ const emptyLoan = {
 
 export default function PayrollPage() {
   const queryClient = useQueryClient();
-  const { branchId, branchParams } = useActiveBranchFilter();
+  const branchScope = usePhysicalBranchScope();
+  const { branchId, listParams: branchParams, isCombined, physicalBranches } = branchScope;
 
   const [activeTab, setActiveTab] = React.useState("previous");
   const [period, setPeriod] = React.useState(currentPeriod);
@@ -137,7 +138,7 @@ export default function PayrollPage() {
   const [payrollStatus, setPayrollStatus] = React.useState("PENDING");
   const [paidBy, setPaidBy] = React.useState("");
   const [selectedBranch, setSelectedBranch] = React.useState(
-    branchId ? String(branchId) : "",
+    isCombined ? "" : branchId ? String(branchId) : "",
   );
   const [selectedEmployees, setSelectedEmployees] = React.useState([]);
   const [payableDays, setPayableDays] = React.useState({});
@@ -262,7 +263,11 @@ export default function PayrollPage() {
     count: 0,
   };
 
-  const branches = normalizeList(employeeOptions.branches);
+  const branches = physicalBranches.length
+    ? physicalBranches
+    : normalizeList(employeeOptions.branches).filter((item) =>
+        ["BR01", "BR02"].includes(String(item.branch_code || "").toUpperCase()),
+      );
   const eligible = normalizeList(eligibleResponse);
   const advanceEmployees = normalizeList(advanceOptions.employees);
   const loanEmployees = normalizeList(loanOptions.employees);
@@ -381,7 +386,7 @@ export default function PayrollPage() {
     setPayrollStatus("PENDING");
     setPaidBy("");
     setPayrollEmployeeSearch("");
-    setSelectedBranch(branchId ? String(branchId) : "");
+    setSelectedBranch(isCombined ? "" : branchId ? String(branchId) : "");
     setSelectedEmployees([]);
     setPayableDays({});
     setPayrollOpen(true);
@@ -393,7 +398,7 @@ export default function PayrollPage() {
       ...emptyAdvance,
       period,
     });
-    setSelectedBranch(branchId ? String(branchId) : "");
+    setSelectedBranch(isCombined ? "" : branchId ? String(branchId) : "");
     setAdvanceOpen(true);
   };
 
@@ -404,7 +409,7 @@ export default function PayrollPage() {
       loan_date: today,
       start_period: currentPeriod,
     });
-    setSelectedBranch(branchId ? String(branchId) : "");
+    setSelectedBranch(isCombined ? "" : branchId ? String(branchId) : "");
     setLoanOpen(true);
   };
 
@@ -1120,6 +1125,7 @@ export default function PayrollPage() {
 
   return (
     <div className="hrms-module-page hrms-workspace mx-auto w-full max-w-[1800px] space-y-5 pb-8">
+      <BranchSourceFilter scope={branchScope} />
       <PageHeader
         variant="hero"
         title="Payroll"
@@ -1806,24 +1812,29 @@ export default function PayrollPage() {
                 <div>
                   <Label>Branch</Label>
                   <Select
-                    value={selectedBranch || "__all__"}
+                    value={selectedBranch || undefined}
+                    disabled={!isCombined}
                     onValueChange={(value) => {
-                      setSelectedBranch(value === "__all__" ? "" : value);
+                      setSelectedBranch(value);
                       setSelectedEmployees([]);
                     }}
                   >
                     <SelectTrigger className="mt-2">
-                      <SelectValue />
+                      <SelectValue placeholder={isCombined ? "Select Branch 1 or Branch 2" : "Current branch"} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__all__">All branches</SelectItem>
                       {branches.map((branch) => (
                         <SelectItem key={branch.id} value={String(branch.id)}>
-                          {branch.branch_name}
+                          {String(branch.branch_code).toUpperCase() === "BR01" ? "Branch 1" : "Branch 2"} — {branch.branch_name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {isCombined
+                      ? "Branch 3 cannot own payroll. Select the physical payroll branch."
+                      : "Payroll uses the current physical branch automatically."}
+                  </p>
                 </div>
 
                 <div>

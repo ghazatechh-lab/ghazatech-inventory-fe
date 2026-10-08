@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { CurrencyText } from "@/components/common/CurrencyText";
-import { SaleModeSelector } from "@/components/common/SaleModeSelector";
+import { SalesBranchField } from "./SalesBranchField";
 import {
   Popover,
   PopoverContent,
@@ -428,13 +428,13 @@ export default function SalesOrderFormPage() {
         await api.get("/sales/orders/form-options/", {
           params: {
             branch: form.branch || undefined,
+            target_branch: form.sale_mode || undefined,
           },
         }),
       ),
   });
 
   const options = optionsResponse || {};
-  const branches = normalizeList(options.branches);
   const customers = normalizeList(options.customers);
   const salespeople = normalizeList(options.salespeople);
   const products = normalizeList(options.products);
@@ -618,7 +618,7 @@ export default function SalesOrderFormPage() {
 
     if (!form.branch) next.branch = "Branch is required.";
     if (!form.customer) next.customer = "Customer is required.";
-    if (!form.sale_mode) next.sale_mode = "Select VAT Sale or Non-VAT Sale.";
+    if (!form.sale_mode) next.sale_mode = "Select VAT Branch or Non-VAT Branch.";
     if (!form.order_date) next.order_date = "Order date is required.";
     if (!form.delivery_date) next.delivery_date = "Delivery date is required.";
 
@@ -756,31 +756,6 @@ export default function SalesOrderFormPage() {
         }
       />
 
-      <SaleModeSelector
-        branchId={form.branch}
-        value={form.sale_mode}
-        onChange={(saleMode) =>
-          setForm((current) => ({
-            ...current,
-            sale_mode: saleMode,
-            items: current.items.map((item) => ({
-              ...item,
-              vat_percentage:
-                saleMode === "NON_VAT"
-                  ? 0
-                  : number(item.vat_percentage || 5),
-            })),
-          }))
-        }
-        disabled={isEdit || Boolean(sourceQuotation)}
-      />
-
-      {errors.sale_mode && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
-          {errors.sale_mode}
-        </div>
-      )}
-
       <section className="card-surface p-5">
         <h2 className="font-semibold">Source</h2>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -852,36 +827,30 @@ export default function SalesOrderFormPage() {
       <section className="card-surface p-5">
         <h2 className="font-semibold">Branch</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Sets the order number series, fulfilling warehouse, and stock
-          availability.
+          Sets the order number series, fulfilling warehouse, stock availability, and VAT mode.
         </p>
-
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          {branches.map((branch) => {
-            const selected = String(form.branch) === String(branch.id);
-
-            return (
-              <button
-                key={branch.id}
-                type="button"
-                onClick={() => updateForm("branch", String(branch.id))}
-                className={
-                  selected
-                    ? "rounded-xl border border-blue-500 bg-blue-50 p-4 text-left ring-1 ring-blue-500 dark:bg-blue-500/10"
-                    : "rounded-xl border border-slate-200 p-4 text-left transition hover:border-blue-300 dark:border-white/10"
-                }
-              >
-                <p className="font-medium">{branch.branch_name}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {branch.location || branch.address || "Branch order series"}
-                </p>
-              </button>
-            );
-          })}
-        </div>
-
+        <SalesBranchField
+          className="mt-4"
+          value={form.branch}
+          disabled={isEdit || Boolean(sourceQuotation)}
+          onChange={(value) => updateForm("branch", value)}
+          onSaleModeChange={(saleMode) =>
+            setForm((current) => ({
+              ...current,
+              sale_mode: saleMode,
+              items: current.items.map((item) => ({
+                ...item,
+                vat_percentage:
+                  saleMode === "NON_VAT" ? 0 : number(item.vat_percentage || 5),
+              })),
+            }))
+          }
+        />
         {errors.branch && (
           <p className="mt-2 text-xs text-red-500">{errors.branch}</p>
+        )}
+        {errors.sale_mode && (
+          <p className="mt-2 text-xs text-red-500">{errors.sale_mode}</p>
         )}
       </section>
 

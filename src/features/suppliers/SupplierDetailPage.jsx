@@ -538,6 +538,13 @@ export default function SupplierDetailPage() {
                 </div>
               </div>
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                <InfoItem icon={Building2} label="Source branch">
+                  {value(
+                    s.source_branch_code,
+                    s.branch_code,
+                    s.branch_name,
+                  )}
+                </InfoItem>
                 <InfoItem icon={UserRound} label="Contact person">
                   {value(s.contact_person)}
                 </InfoItem>

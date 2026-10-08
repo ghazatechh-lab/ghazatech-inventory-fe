@@ -3,7 +3,7 @@ import { Download } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 import api, { unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { usePhysicalBranchScope, BranchSourceFilter } from "@/components/common/PhysicalBranchScope";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +34,8 @@ const reportTypes = [
 ];
 
 export default function HRMSReportPage() {
-  const { branchParams } = useActiveBranchFilter();
+  const scope = usePhysicalBranchScope();
+  const branchParams = scope.listParams;
   const [startDate, setStartDate] = React.useState("");
   const [endDate, setEndDate] = React.useState("");
 
@@ -69,6 +70,8 @@ export default function HRMSReportPage() {
         title="HRMS Reports"
         subtitle="Employee, attendance, leave, and payroll reports"
       />
+
+      <BranchSourceFilter scope={scope} className="card-surface p-3" />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Employees" value={summary.employees || 0} />

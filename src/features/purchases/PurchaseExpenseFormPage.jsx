@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CurrencyText } from "@/components/common/CurrencyText";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { usePurchaseBranchScope } from "./usePurchaseBranchScope";
+import { PurchaseBranchField } from "./PurchaseBranchField";
 import { normalizeApiResponse } from "./purchaseUi";
 
 const ENDPOINT = "/purchases/expenses/";
@@ -70,7 +71,7 @@ function normalizeList(value) {
   return [];
 }
 
-function createInitialForm(branchId) {
+function createInitialForm(formBranchId) {
   return {
     expense_number: "",
     branch: branchId ? String(branchId) : "",
@@ -164,9 +165,9 @@ export default function PurchaseExpenseFormPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { branchId } = useActiveBranchFilter();
+  const { formBranchId } = usePurchaseBranchScope();
 
-  const [form, setForm] = React.useState(() => createInitialForm(branchId));
+  const [form, setForm] = React.useState(() => createInitialForm(formBranchId));
 
   const [errors, setErrors] = React.useState({});
 
@@ -186,6 +187,7 @@ export default function PurchaseExpenseFormPage() {
       return normalizeApiResponse(response);
     },
 
+    enabled: Boolean(form.branch),
     staleTime: 0,
     retry: false,
   });
@@ -226,15 +228,15 @@ export default function PurchaseExpenseFormPage() {
     : DEFAULT_PAYMENT_METHOD_OPTIONS;
 
   React.useEffect(() => {
-    if (isEdit || !branchId) {
+    if (isEdit || !formBranchId) {
       return;
     }
 
     setForm((current) => ({
       ...current,
-      branch: current.branch || String(branchId),
+      branch: current.branch || String(formBranchId),
     }));
-  }, [branchId, isEdit]);
+  }, [formBranchId, isEdit]);
 
   React.useEffect(() => {
     const existing = existingQuery.data;
@@ -588,25 +590,11 @@ export default function PurchaseExpenseFormPage() {
               disabled
             />
           </div>
-
           <div>
-            <Label>Branch *</Label>
-
-            <select
-              className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"
+            <PurchaseBranchField
               value={form.branch}
-              onChange={(event) => updateField("branch", event.target.value)}
-            >
-              <option value="">Select branch</option>
-
-              {branches.map((branch) => (
-                <option key={branch.id} value={String(branch.id)}>
-                  {branch.branch_code ? `${branch.branch_code} — ` : ""}
-                  {branch.branch_name || branch.name}
-                </option>
-              ))}
-            </select>
-
+              onChange={(value) => updateField("branch", value)}
+            />
             <FieldError message={errors.branch} />
           </div>
 

@@ -13,7 +13,7 @@ import {
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { BranchSourceFilter, usePhysicalBranchScope } from "@/components/common/PhysicalBranchScope";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -109,7 +109,8 @@ const DetailItem = ({ label, value }) => (
 
 export default function VehicleCheckoutPage() {
   const queryClient = useQueryClient();
-  const { branchParams } = useActiveBranchFilter();
+  const branchScope = usePhysicalBranchScope();
+  const { listParams: branchParams } = branchScope;
 
   const [checkoutModalOpen, setCheckoutModalOpen] = React.useState(false);
   const [returnModalOpen, setReturnModalOpen] = React.useState(false);
@@ -342,6 +343,7 @@ export default function VehicleCheckoutPage() {
 
   return (
     <div className="w-full space-y-5 pb-10">
+      <BranchSourceFilter scope={branchScope} />
       <FleetHero
         eyebrow="Vehicle Movement"
         title="Vehicle Checkout & Return"

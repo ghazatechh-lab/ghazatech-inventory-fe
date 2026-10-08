@@ -7,7 +7,7 @@ export function cn(...inputs) {
 
 export function formatAED(v) {
   const n = Number(v ?? 0);
-  return `AED ${n.toLocaleString("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `${currencySymbol("AED")} ${n.toLocaleString("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export function currencySymbol(currency = "AED") {
@@ -21,7 +21,7 @@ export function formatCurrency(v, currency = "AED") {
   const code = String(currency || "AED").toUpperCase();
 
   if (code === "AED") {
-    return `AED ${n.toLocaleString("en-AE", {
+    return `${currencySymbol("AED")} ${n.toLocaleString("en-AE", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;

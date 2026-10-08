@@ -1,13 +1,14 @@
-﻿import React from "react";
+import React from "react";
 import DirhamSymbol from "@/components/common/DirhamSymbol";
 import { Download, Plus, Save, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { useSalesBranchScope } from "@/features/sales/useSalesBranchScope";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { SalesHeroHeader } from "@/components/sales/SalesHeroHeader";
+import { SourceBranchBadge } from "./SalesPageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +24,7 @@ import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { SalesDocumentFlow } from "@/components/sales/SalesDocumentFlow";
 import { MetricCard } from "@/components/sales/MetricCard";
+import { SalesBranchField } from "./SalesBranchField";
 
 const normalizeList = (value) => {
   if (Array.isArray(value)) return value;
@@ -64,7 +66,7 @@ const createForm = (branchId) => ({
 
 export default function SalesPaymentsPage() {
   const queryClient = useQueryClient();
-  const { branchId, branchParams } = useActiveBranchFilter();
+  const { branchId, branchParams, listBranchParams } = useSalesBranchScope();
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState(() => createForm(branchId));
   const [errors, setErrors] = React.useState({});
@@ -72,14 +74,14 @@ export default function SalesPaymentsPage() {
   const { query, q, setQ, page, setPage } = useListQuery(
     "sales-payments",
     "/sales/payments/",
-    branchParams,
+    listBranchParams,
   );
 
   const { data: summaryResponse } = useQuery({
-    queryKey: ["sales-payments-summary", branchParams],
+    queryKey: ["sales-payments-summary", listBranchParams],
     queryFn: async () =>
       unwrap(
-        await api.get("/sales/payments/summary/", { params: branchParams }),
+        await api.get("/sales/payments/summary/", { params: listBranchParams }),
       ),
   });
 
@@ -229,6 +231,12 @@ export default function SalesPaymentsPage() {
   };
 
   const columns = [
+    {
+      key: "source_branch_code",
+      header: "Branch",
+      sortable: false,
+      cell: (row) => <SourceBranchBadge row={row} />,
+    },
     { key: "payment_number", header: "Payment #" },
     { key: "customer_name", header: "Customer" },
     { key: "invoice_number", header: "Invoice" },
@@ -251,6 +259,7 @@ export default function SalesPaymentsPage() {
   return (
     <div className="sales-module-page sales-workspace w-full space-y-5">
       <SalesHeroHeader
+        showSourceFilter
         title="Sales Payments"
         subtitle="Payments received against invoices and direct sales"
         actions={
@@ -337,6 +346,13 @@ export default function SalesPaymentsPage() {
             </div>
 
             <div className="flex-1 space-y-5 overflow-y-auto p-5">
+              <SalesBranchField
+                value={form.branch}
+                onChange={(value) => {
+                  updateForm("branch", value);
+                  updateForm("invoice", "");
+                }}
+              />
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <Label>Invoice *</Label>

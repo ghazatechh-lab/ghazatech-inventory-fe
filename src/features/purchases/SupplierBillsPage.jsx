@@ -4,7 +4,7 @@ import { Download, FilterX, Info, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 import api, { unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { usePurchaseBranchScope } from "@/features/purchases/usePurchaseBranchScope";
 import { useSupplierUrlFilter } from "@/hooks/useSupplierUrlFilter";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { PageHeader } from "./PurchasePageHeader";
@@ -80,7 +80,7 @@ export default function SupplierBillsPage() {
     clearSupplierFilter,
   } = useSupplierUrlFilter();
 
-  const { branchParams } = useActiveBranchFilter();
+  const { listBranchParams: branchParams } = usePurchaseBranchScope();
 
   const { data: suppliersResponse } = useQuery({
     queryKey: ["supplier-bill-filter-suppliers"],
@@ -192,6 +192,13 @@ export default function SupplierBillsPage() {
   const columns = React.useMemo(
     () => [
       {
+        key: "source_branch_code",
+        header: "Source Branch",
+        sortable: false,
+        cell: (row) =>
+          row.source_branch_code || row.branch_code || row.branch_name || "—",
+      },
+      {
         key: "bill_number",
         header: "Bill No.",
         sortKey: "bill_number",
@@ -199,7 +206,7 @@ export default function SupplierBillsPage() {
 
         cell: (row) => (
           <Link
-            to={`/purchases/supplier-bills/${row.id}`}
+            to={`/purchases/supplier-bills/${row.resource_key || row.id}`}
             className="font-medium text-blue-600 hover:underline dark:text-blue-400"
           >
             {row.bill_number || "—"}
@@ -282,11 +289,11 @@ export default function SupplierBillsPage() {
         cell: (row) => (
           <div className="flex justify-end gap-2">
             <Button asChild type="button" size="sm" variant="outline">
-              <Link to={`/purchases/supplier-bills/${row.id}`}>View</Link>
+              <Link to={`/purchases/supplier-bills/${row.resource_key || row.id}`}>View</Link>
             </Button>
 
             <Button asChild type="button" size="sm" variant="outline">
-              <Link to={`/purchases/supplier-bills/${row.id}/edit`}>Edit</Link>
+              <Link to={`/purchases/supplier-bills/${row.resource_key || row.id}/edit`}>Edit</Link>
             </Button>
           </div>
         ),
@@ -298,6 +305,7 @@ export default function SupplierBillsPage() {
   return (
     <div className="purchase-module-page purchase-workspace w-full space-y-5 pb-10">
       <PageHeader
+        showSourceFilter
         title="Supplier Bills"
         subtitle="Invoices received from suppliers, matched to GRNs"
         actions={

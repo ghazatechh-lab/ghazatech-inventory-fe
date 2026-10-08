@@ -90,15 +90,6 @@ export default function RackFormPage() {
     },
   });
 
-  React.useEffect(() => {
-    if (!isEdit && branchId) {
-      reset((current) => ({
-        ...current,
-        branch: String(branchId),
-      }));
-    }
-  }, [branchId, isEdit, reset]);
-
   const watchedCode = watch("rack_code");
   const watchedName = watch("rack_name");
   const watchedActive = watch("is_active");
@@ -121,6 +112,25 @@ export default function RackFormPage() {
     () => normalizeList(branchResponse),
     [branchResponse],
   );
+
+  const activeBranch = React.useMemo(
+    () => branches.find((branch) => String(branch.id) === String(branchId || "")),
+    [branches, branchId],
+  );
+  const physicalBranches = React.useMemo(
+    () => branches.filter((branch) => ["BR01", "BR02"].includes(String(branch.branch_code || "").toUpperCase())),
+    [branches],
+  );
+  const isCombinedBranch = String(activeBranch?.branch_code || "").toUpperCase() === "BR03";
+
+  React.useEffect(() => {
+    if (isEdit || !activeBranch) return;
+    const code = String(activeBranch.branch_code || "").toUpperCase();
+    reset((current) => ({
+      ...current,
+      branch: ["BR01", "BR02"].includes(code) ? String(activeBranch.id) : "",
+    }));
+  }, [activeBranch, isEdit, reset]);
 
   const {
     data: rack,
@@ -346,10 +356,36 @@ export default function RackFormPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
-              <MapPin className="mr-2 inline h-4 w-4" />
-              Branch is automatically selected from the global branch filter.
-            </div>
+            {isCombinedBranch ? (
+              <div>
+                <Label className="text-sm font-bold text-slate-800 dark:text-slate-200">Branch <span className="text-red-500">*</span></Label>
+                <Controller
+                  name="branch"
+                  control={control}
+                  rules={{ required: "Select Branch 1 or Branch 2." }}
+                  render={({ field }) => (
+                    <Select value={String(field.value || "")} onValueChange={field.onChange}>
+                      <SelectTrigger className="mt-2 h-12 rounded-xl">
+                        <SelectValue placeholder="Select physical branch" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {physicalBranches.map((branch) => (
+                          <SelectItem key={branch.id} value={String(branch.id)}>
+                            {branch.branch_code} · {branch.branch_name || branch.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                <FieldMessage error={errors.branch}>Branch 3 cannot own racks.</FieldMessage>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
+                <MapPin className="mr-2 inline h-4 w-4" />
+                {activeBranch ? `Branch locked to ${activeBranch.branch_code} · ${activeBranch.branch_name || activeBranch.name}.` : "Select a physical branch from the global branch filter."}
+              </div>
+            )}
 
             <Controller
               name="is_active"

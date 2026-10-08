@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { BranchSourceFilter, usePhysicalBranchScope } from "@/components/common/PhysicalBranchScope";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +23,8 @@ import { normalizeList, today } from "./hrmsUtils";
 
 export default function LeavesPage() {
   const queryClient = useQueryClient();
-  const { branchParams } = useActiveBranchFilter();
+  const branchScope = usePhysicalBranchScope();
+  const { listParams: branchParams } = branchScope;
   const [tab, setTab] = React.useState("");
   const [open, setOpen] = React.useState(false);
   const [showLeaveTypeForm, setShowLeaveTypeForm] = React.useState(false);
@@ -48,8 +49,8 @@ export default function LeavesPage() {
     params,
   );
   const { data: options = {} } = useQuery({
-    queryKey: ["leave-options"],
-    queryFn: async () => unwrap(await api.get("/hrms/leaves/form-options/")),
+    queryKey: ["leave-options", branchParams],
+    queryFn: async () => unwrap(await api.get("/hrms/leaves/form-options/", { params: branchParams })),
   });
   const data = query.data || { results: [], count: 0 };
 
@@ -181,6 +182,8 @@ export default function LeavesPage() {
         }
       />
 
+      <BranchSourceFilter scope={branchScope} />
+
       <section className="rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_12px_35px_rgba(22,42,73,0.06)] dark:border-white/10 dark:bg-slate-950/70">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -223,6 +226,7 @@ export default function LeavesPage() {
       <DataTable
         columns={[
           { key: "employee_name", header: "Employee" },
+          { key: "branch_name", header: "Branch" },
           { key: "leave_type_name", header: "Type" },
           { key: "from_date", header: "From" },
           { key: "to_date", header: "To" },

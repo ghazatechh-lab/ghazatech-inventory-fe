@@ -5,7 +5,8 @@ import { FileText, Save, Send, UploadCloud, X } from "lucide-react";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { usePurchaseBranchScope } from "./usePurchaseBranchScope";
+import { PurchaseBranchField } from "./PurchaseBranchField";
 import { PageHeader } from "./PurchasePageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -91,7 +92,7 @@ export default function GRNFormPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const { branchId } = useActiveBranchFilter();
+  const { formBranchId } = usePurchaseBranchScope();
   const requestedPurchaseOrderId = searchParams.get("purchase_order") || "";
   const requestedBranchId = searchParams.get("branch") || "";
   const prefillAppliedRef = React.useRef(false);
@@ -105,7 +106,7 @@ export default function GRNFormPage() {
     grn_number: "",
     purchase_order: "",
     supplier: "",
-    branch: requestedBranchId || (branchId ? String(branchId) : ""),
+    branch: requestedBranchId || formBranchId || "",
     received_date: today(),
     received_by: "",
     warehouse_location: "",
@@ -119,10 +120,10 @@ export default function GRNFormPage() {
       setForm((current) => ({ ...current, branch: String(requestedBranchId) }));
       return;
     }
-    if (!edit && branchId) {
-      setForm((current) => ({ ...current, branch: String(branchId) }));
+    if (!edit && formBranchId && !requestedBranchId) {
+      setForm((current) => ({ ...current, branch: String(formBranchId) }));
     }
-  }, [branchId, edit, requestedBranchId]);
+  }, [edit, formBranchId, requestedBranchId]);
 
   const { data: optionsResponse } = useQuery({
     queryKey: ["grn-form-options", form.branch],
@@ -134,6 +135,7 @@ export default function GRNFormPage() {
           },
         }),
       ),
+    enabled: Boolean(form.branch),
   });
 
   const options = optionsResponse || {};
@@ -848,26 +850,12 @@ export default function GRNFormPage() {
                   className="mt-2"
                 />
               </div>
-
-              <div>
-                <Label>Receiving branch *</Label>
-                <Select
-                  value={form.branch}
-                  onValueChange={(value) => updateForm("branch", value)}
-                  disabled={Boolean(branchId)}
-                >
-                  <SelectTrigger className="mt-2">
-                    <SelectValue placeholder="Select branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {branches.map((branch) => (
-                      <SelectItem key={branch.id} value={String(branch.id)}>
-                        {branch.branch_code} - {branch.branch_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <PurchaseBranchField
+                label="Receiving branch *"
+                value={form.branch}
+                onChange={(value) => updateForm("branch", value)}
+                disabled={Boolean(requestedBranchId)}
+              />
 
               <div>
                 <Label>Warehouse location</Label>

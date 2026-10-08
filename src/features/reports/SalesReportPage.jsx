@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { usePhysicalBranchScope, BranchSourceFilter } from "@/components/common/PhysicalBranchScope";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -81,7 +81,9 @@ const createForm = (branchId) => ({
 export default function SalesReportsPage() {
   const queryClient = useQueryClient();
 
-  const { branchId, branchParams } = useActiveBranchFilter();
+  const scope = usePhysicalBranchScope();
+  const { branchId } = scope;
+  const branchParams = scope.listParams;
 
   const [open, setOpen] = React.useState(false);
 
@@ -416,6 +418,8 @@ export default function SalesReportsPage() {
           </div>
         }
       />
+
+      <BranchSourceFilter scope={scope} className="card-surface p-3" />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard

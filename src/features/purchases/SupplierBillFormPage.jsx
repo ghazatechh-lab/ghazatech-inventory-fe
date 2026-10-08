@@ -19,7 +19,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CurrencyText } from "@/components/common/CurrencyText";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { usePurchaseBranchScope } from "./usePurchaseBranchScope";
+import { PurchaseBranchField } from "./PurchaseBranchField";
 
 const SUPPLIER_BILL_ENDPOINT = "/purchases/supplier-bills/";
 
@@ -221,7 +222,7 @@ function calculateItem(item) {
   };
 }
 
-function createInitialForm(branchId) {
+function createInitialForm(formBranchId) {
   return {
     bill_number: "",
 
@@ -363,9 +364,9 @@ export default function SupplierBillFormPage() {
 
   const queryClient = useQueryClient();
 
-  const { branchId } = useActiveBranchFilter();
+  const { formBranchId } = usePurchaseBranchScope();
 
-  const [form, setForm] = React.useState(() => createInitialForm(branchId));
+  const [form, setForm] = React.useState(() => createInitialForm(formBranchId));
 
   const [files, setFiles] = React.useState([]);
 
@@ -384,7 +385,7 @@ export default function SupplierBillFormPage() {
     queryFn: async () => {
       const response = await api.get(`${SUPPLIER_BILL_ENDPOINT}form-options/`, {
         params: {
-          branch: form.branch || branchId || undefined,
+          branch: form.branch || formBranchId || undefined,
           bill_id: isEdit ? id : undefined,
         },
         skipGlobalErrorToast: true,
@@ -395,6 +396,7 @@ export default function SupplierBillFormPage() {
       return normalized;
     },
 
+    enabled: Boolean(form.branch),
     staleTime: 0,
     retry: false,
   });
@@ -474,7 +476,7 @@ export default function SupplierBillFormPage() {
       normalizePayload(
         await api.get("/suppliers/", {
           params: {
-            branch: form.branch || branchId || undefined,
+            branch: form.branch || formBranchId || undefined,
             page_size: 500,
             is_active: true,
             ordering: "supplier_name",
@@ -482,6 +484,7 @@ export default function SupplierBillFormPage() {
           skipGlobalErrorToast: true,
         }),
       ),
+    enabled: Boolean(form.branch),
     staleTime: 30000,
     retry: false,
   });
@@ -599,10 +602,10 @@ export default function SupplierBillFormPage() {
       return;
     }
 
-    setForm(createInitialForm(branchId));
+    setForm(createInitialForm(formBranchId));
 
     setInitialized(true);
-  }, [branchId, initialized, isEdit]);
+  }, [formBranchId, initialized, isEdit]);
 
   React.useEffect(() => {
     const existing = existingQuery.data;
@@ -1543,18 +1546,11 @@ export default function SupplierBillFormPage() {
       >
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
           <div>
-            <Label htmlFor="branch">Branch *</Label>
-
-            <select
-              id="branch"
-              className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"
+            <PurchaseBranchField
               value={form.branch}
-              onChange={(event) => {
-                const value = event.target.value;
-
+              onChange={(value) => {
                 setPurchaseOrderSearch("");
                 setPurchaseOrderSearchOpen(false);
-
                 setForm((current) => ({
                   ...current,
                   branch: value,
@@ -1564,17 +1560,7 @@ export default function SupplierBillFormPage() {
                   items: [createEmptyItem()],
                 }));
               }}
-            >
-              <option value="">Select branch</option>
-
-              {branches.map((branch) => (
-                <option key={branch.id} value={String(branch.id)}>
-                  {branch.branch_code ? `${branch.branch_code} — ` : ""}
-                  {branch.branch_name || branch.name}
-                </option>
-              ))}
-            </select>
-
+            />
             <FieldError message={errors.branch} />
           </div>
 

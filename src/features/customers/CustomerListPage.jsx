@@ -8,13 +8,13 @@ import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { Button } from "@/components/ui/button";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { PageHeader } from "@/components/common/PageHeader";
+import { PageHeader, SourceBranchBadge } from "@/features/sales/SalesPageHeader";
 import { SalesDocumentFlow } from "@/components/sales/SalesDocumentFlow";
 import { MetricCard } from "@/components/sales/MetricCard";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { useSalesBranchScope } from "@/features/sales/useSalesBranchScope";
 
 export default function CustomerListPage() {
-  const { branchId, branchParams } = useActiveBranchFilter();
+  const { branchId, listBranchParams: branchParams } = useSalesBranchScope();
 
   const { query, q, setQ, page, setPage } = useListQuery(
     "customers",
@@ -53,7 +53,7 @@ export default function CustomerListPage() {
         header: "Customer",
         cell: (row) => (
           <Link
-            to={`/customers/${row.id}`}
+            to={`/customers/${row.resource_key || row.id}`}
             className="font-semibold text-blue-600 hover:underline dark:text-blue-400"
           >
             {row.customer_name || `Customer ${row.id}`}
@@ -95,6 +95,11 @@ export default function CustomerListPage() {
           row.last_order_date ? <DateText value={row.last_order_date} /> : "",
       },
       {
+        key: "source_branch_code",
+        header: "Branch",
+        cell: (row) => <SourceBranchBadge row={row} />,
+      },
+      {
         key: "status",
         header: "Status",
         cell: (row) => (
@@ -111,7 +116,7 @@ export default function CustomerListPage() {
         cell: (row) => (
           <div className="flex justify-end gap-2">
             <Button asChild size="sm" variant="outline">
-              <Link to={`/customers/${row.id}`}>
+              <Link to={`/customers/${row.resource_key || row.id}`}>
                 <Eye className="mr-2 h-4 w-4" />
                 View
               </Link>
@@ -133,6 +138,7 @@ export default function CustomerListPage() {
   return (
     <div className="customer-module-page customer-workspace w-full space-y-5 pb-10">
       <PageHeader
+        showSourceFilter
         variant="hero"
         eyebrow="Sales & Customer Management"
         icon={Users}

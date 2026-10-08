@@ -15,9 +15,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { useSalesBranchScope } from "@/features/sales/useSalesBranchScope";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { SalesHeroHeader } from "@/components/sales/SalesHeroHeader";
+import { SourceBranchBadge } from "./SalesPageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -77,7 +78,7 @@ const isEditableReturnStatus = (status) =>
 
 export default function SalesReturnsPage() {
   const queryClient = useQueryClient();
-  const { branchId, branchParams } = useActiveBranchFilter();
+  const { branchId, branchParams, listBranchParams } = useSalesBranchScope();
 
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState(() => createForm(branchId));
@@ -95,15 +96,15 @@ export default function SalesReturnsPage() {
   const { query, q, setQ, page, setPage } = useListQuery(
     "sales-returns",
     "/sales/returns/",
-    branchParams,
+    listBranchParams,
   );
 
   const { data: summaryResponse } = useQuery({
-    queryKey: ["sales-returns-summary", branchParams],
+    queryKey: ["sales-returns-summary", listBranchParams],
     queryFn: async () =>
       unwrap(
         await api.get("/sales/returns/summary/", {
-          params: branchParams,
+          params: listBranchParams,
         }),
       ),
   });
@@ -115,6 +116,7 @@ export default function SalesReturnsPage() {
         await api.get("/sales/returns/form-options/", {
           params: {
             branch: form.branch || undefined,
+            target_branch: form.sale_mode || undefined,
           },
         }),
       ),
@@ -245,7 +247,7 @@ export default function SalesReturnsPage() {
     }
 
     if (!form.sale_mode) {
-      next.sale_mode = "Sale mode must be inherited from the source order.";
+      next.sale_mode = "Source branch must be inherited from the source order.";
     }
 
     if (!form.return_date) {
@@ -277,6 +279,7 @@ export default function SalesReturnsPage() {
         {
           branch: form.branch ? Number(form.branch) : null,
           sale_mode: form.sale_mode,
+          target_branch: form.sale_mode,
           sales_order: Number(form.sales_order),
           invoice: form.invoice ? Number(form.invoice) : null,
           customer: form.customer ? Number(form.customer) : null,
@@ -386,7 +389,7 @@ export default function SalesReturnsPage() {
 
   const openExisting = async (row, requestedMode) => {
     try {
-      const detail = unwrap(await api.get(`/sales/returns/${row.id}/`));
+      const detail = unwrap(await api.get(`/sales/returns/${row.resource_key || row.id}/`));
       const nextMode =
         requestedMode === "edit" && !isEditableReturnStatus(detail.status)
           ? "view"
@@ -554,6 +557,12 @@ export default function SalesReturnsPage() {
 
   const columns = [
     {
+      key: "source_branch_code",
+      header: "Branch",
+      sortable: false,
+      cell: (row) => <SourceBranchBadge row={row} />,
+    },
+    {
       key: "return_number",
       header: "Return #",
     },
@@ -674,6 +683,7 @@ export default function SalesReturnsPage() {
   return (
     <div className="sales-module-page sales-workspace w-full space-y-5 overflow-x-hidden pb-10">
       <SalesHeroHeader
+        showSourceFilter
         title="Sales Returns"
         subtitle="Goods returned by customers pending inspection or refund"
         actions={

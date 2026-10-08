@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Eye, History, Search, WalletCards } from "lucide-react";
 
 import api, { unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { useSalesBranchScope } from "@/features/sales/useSalesBranchScope";
+import { SalesSourceBranchFilter } from "@/features/sales/SalesPageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,7 +18,7 @@ import {
 } from "./serviceShared";
 
 export default function ServiceHistoryPage() {
-  const { branchParams } = useActiveBranchFilter();
+  const { listBranchParams: branchParams } = useSalesBranchScope();
   const [search, setSearch] = React.useState("");
   const [status, setStatus] = React.useState("");
   const [selected, setSelected] = React.useState(null);
@@ -58,6 +59,7 @@ export default function ServiceHistoryPage() {
         title="Service History"
         description="Review completed, delivered, and cancelled service jobs with their diagnosis, technician work, parts, charges, payments, and completion timeline."
       />
+      <SalesSourceBranchFilter />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <MetricCard

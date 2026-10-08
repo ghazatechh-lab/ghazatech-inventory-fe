@@ -1,13 +1,14 @@
-﻿import React from "react";
+import React from "react";
 import DirhamSymbol from "@/components/common/DirhamSymbol";
 import { Download, Plus, Save, Trash2, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { useSalesBranchScope } from "@/features/sales/useSalesBranchScope";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { SalesHeroHeader } from "@/components/sales/SalesHeroHeader";
+import { SourceBranchBadge } from "./SalesPageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { SalesBranchField } from "./SalesBranchField";
 
 const normalizeList = (value) => {
   if (Array.isArray(value)) return value;
@@ -81,7 +83,7 @@ const Toggle = ({ checked, onChange }) => (
 
 export default function PriceListsPage() {
   const queryClient = useQueryClient();
-  const { branchId, branchParams } = useActiveBranchFilter();
+  const { branchId, branchParams, listBranchParams } = useSalesBranchScope();
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState(() => createForm(branchId));
   const [errors, setErrors] = React.useState({});
@@ -91,7 +93,7 @@ export default function PriceListsPage() {
   const { query, q, setQ, page, setPage } = useListQuery(
     "price-lists",
     "/sales/price-lists/",
-    branchParams,
+    listBranchParams,
   );
 
   const { data: optionsResponse } = useQuery({
@@ -254,6 +256,12 @@ export default function PriceListsPage() {
   };
 
   const columns = [
+    {
+      key: "source_branch_code",
+      header: "Branch",
+      sortable: false,
+      cell: (row) => <SourceBranchBadge row={row} />,
+    },
     { key: "name", header: "List Name" },
     { key: "type_display", header: "Type" },
     {
@@ -285,7 +293,7 @@ export default function PriceListsPage() {
           variant="ghost"
           onClick={() => {
             if (window.confirm(`Delete price list ${row.name}?`)) {
-              deleteMutation.mutate(row.id);
+              deleteMutation.mutate(row.resource_key || row.id);
             }
           }}
         >
@@ -298,6 +306,7 @@ export default function PriceListsPage() {
   return (
     <div className="sales-module-page sales-workspace w-full space-y-5">
       <SalesHeroHeader
+        showSourceFilter
         title="Price Lists & Discounts"
         subtitle="Branch-specific or customer-tier pricing, bulk discount rules, and promotional periods."
         actions={
@@ -388,6 +397,11 @@ export default function PriceListsPage() {
             <div className="space-y-5 p-6">
               <section className="card-surface p-5">
                 <h3 className="font-semibold">1 · Price List Details</h3>
+                <SalesBranchField
+                  className="mt-4"
+                  value={form.branch}
+                  onChange={(value) => updateForm("branch", value)}
+                />
                 <div className="mt-4 grid gap-4 md:grid-cols-3">
                   <div className="md:col-span-2">
                     <Label>Price List Name *</Label>
@@ -499,7 +513,7 @@ export default function PriceListsPage() {
                           <SelectValue placeholder="Select branch" />
                         </SelectTrigger>
                         <SelectContent>
-                          {branches.map((branch) => (
+                          {branches.filter((branch) => ["BR01", "BR02"].includes(String(branch.branch_code || "").toUpperCase())).map((branch) => (
                             <SelectItem
                               key={branch.id}
                               value={String(branch.id)}

@@ -10,9 +10,10 @@ import {
   canManageSalesVat,
   canUseNonVatSale,
 } from "@/lib/taxAccess";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { useSalesBranchScope } from "@/features/sales/useSalesBranchScope";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { SalesHeroHeader } from "@/components/sales/SalesHeroHeader";
+import { SourceBranchBadge } from "./SalesPageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -91,7 +92,7 @@ export default function CreditNotesPage() {
 
   const canUseNonVat = canUseNonVatSale(user);
 
-  const { branchId, branchParams } = useActiveBranchFilter();
+  const { branchId, branchParams, listBranchParams } = useSalesBranchScope();
 
   const [open, setOpen] = React.useState(false);
 
@@ -104,15 +105,15 @@ export default function CreditNotesPage() {
   const { query, q, setQ, page, setPage } = useListQuery(
     "sales-credit-notes",
     "/sales/credit-notes/",
-    branchParams,
+    listBranchParams,
   );
 
   const { data: summaryResponse } = useQuery({
-    queryKey: ["sales-credit-notes-summary", branchParams],
+    queryKey: ["sales-credit-notes-summary", listBranchParams],
     queryFn: async () =>
       unwrap(
         await api.get("/sales/credit-notes/summary/", {
-          params: branchParams,
+          params: listBranchParams,
         }),
       ),
   });
@@ -124,6 +125,7 @@ export default function CreditNotesPage() {
         await api.get("/sales/credit-notes/form-options/", {
           params: {
             branch: form.branch || undefined,
+            target_branch: form.sale_mode || undefined,
           },
         }),
       ),
@@ -292,7 +294,7 @@ export default function CreditNotesPage() {
   };
 
   const openExisting = (row) => {
-    setEditingId(row.id);
+    setEditingId(row.resource_key || row.id);
     setErrors({});
     setOpen(true);
   };
@@ -312,7 +314,7 @@ export default function CreditNotesPage() {
     }
 
     if (!form.sale_mode) {
-      next.sale_mode = "Sale mode must be inherited from the source invoice.";
+      next.sale_mode = "Source branch must be inherited from the source invoice.";
     }
 
     if (!form.credit_date) {
@@ -344,6 +346,7 @@ export default function CreditNotesPage() {
       const payload = {
         branch: form.branch ? Number(form.branch) : null,
         sale_mode: form.sale_mode,
+        target_branch: form.sale_mode,
         invoice: Number(form.invoice),
         customer: form.customer ? Number(form.customer) : null,
         credit_note_number: form.credit_note_number || undefined,
@@ -459,6 +462,12 @@ export default function CreditNotesPage() {
   const columns = React.useMemo(
     () => [
       {
+        key: "source_branch_code",
+        header: "Branch",
+        sortable: false,
+        cell: (row) => <SourceBranchBadge row={row} />,
+      },
+      {
         key: "credit_note_number",
         header: "Credit Note #",
         sortKey: "credit_note_number",
@@ -520,6 +529,7 @@ export default function CreditNotesPage() {
   return (
     <div className="sales-module-page sales-workspace w-full space-y-5">
       <SalesHeroHeader
+        showSourceFilter
         title="Credit Notes"
         subtitle="Adjustments and refunds issued against invoices"
         actions={

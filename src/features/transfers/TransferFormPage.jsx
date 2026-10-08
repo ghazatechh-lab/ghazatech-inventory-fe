@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CurrencyText } from "@/components/common/CurrencyText";
 import {
   Select,
   SelectContent,
@@ -191,8 +192,7 @@ export default function TransferFormPage() {
 
   const { branchId: activeBranchId } = useActiveBranchFilter();
 
-  const from = activeBranchId ? String(activeBranchId) : "";
-
+  const [from, setFrom] = React.useState("");
   const [to, setTo] = React.useState("");
   const [items, setItems] = React.useState([createEmptyItem()]);
   const [transferDate, setTransferDate] = React.useState(today());
@@ -213,11 +213,32 @@ export default function TransferFormPage() {
       ),
   });
 
-  const branches = list(branchData);
+  const branches = React.useMemo(() => list(branchData), [branchData]);
+  const physicalBranches = React.useMemo(
+    () => branches.filter((branch) => ["BR01", "BR02"].includes(String(branch.branch_code || "").toUpperCase())),
+    [branches],
+  );
+  const activeBranch = React.useMemo(
+    () => branches.find((branch) => String(branch.id) === String(activeBranchId || "")),
+    [branches, activeBranchId],
+  );
+  const isCombinedBranch = String(activeBranch?.branch_code || "").toUpperCase() === "BR03";
+
+  React.useEffect(() => {
+    if (!activeBranch) return;
+    const code = String(activeBranch.branch_code || "").toUpperCase();
+    if (["BR01", "BR02"].includes(code)) {
+      setFrom(String(activeBranch.id));
+    } else if (code === "BR03") {
+      setFrom((current) => physicalBranches.some((branch) => String(branch.id) === String(current)) ? current : "");
+    }
+    setTo("");
+    setItems([createEmptyItem()]);
+  }, [activeBranch, physicalBranches]);
 
   const sourceBranch = React.useMemo(
-    () => branches.find((branch) => String(branch.id) === String(from)),
-    [branches, from],
+    () => physicalBranches.find((branch) => String(branch.id) === String(from)),
+    [physicalBranches, from],
   );
 
   const { data: stockData, isFetching } = useQuery({
@@ -335,7 +356,7 @@ export default function TransferFormPage() {
     event.preventDefault();
 
     if (!from) {
-      toast.error("Select an active branch from the global branch filter.");
+      toast.error(isCombinedBranch ? "Select Branch 1 or Branch 2 as the source branch." : "Select a physical source branch.");
       return;
     }
 
@@ -435,8 +456,7 @@ export default function TransferFormPage() {
               className="mt-2 max-w-2xl text-sm leading-6"
               style={{ color: "#f1f5f9" }}
             >
-              Move available inventory from the globally selected source branch
-              to another branch.
+              Move inventory between physical branches. Branch 3 can initiate a transfer only after selecting Branch 1 or Branch 2 as the source.
             </p>
           </div>
 
@@ -452,32 +472,42 @@ export default function TransferFormPage() {
         </div>
       </section>
 
-      {!from ? (
+      {!from && isCombinedBranch ? (
         <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
-          Select a branch from the global branch filter before creating a
-          transfer.
+          Branch 3 is a combined interface. Select Branch 1 or Branch 2 as the source before adding transfer items.
         </section>
       ) : null}
 
       <form onSubmit={submit} className="space-y-5">
         <FormSection
           title="Transfer route"
-          description="The source branch comes from the global branch filter."
+          description={isCombinedBranch ? "Select the physical source branch for this transfer." : "The source branch is locked to the active physical branch."}
           icon={Warehouse}
         >
           <div className="grid gap-4 md:grid-cols-3">
             <div>
-              <Label>Source Branch</Label>
+              <Label>Source Branch *</Label>
 
-              <div className="mt-2 flex h-10 items-center rounded-md border bg-muted/30 px-3 text-sm font-medium">
-                {sourceBranch
-                  ? `${sourceBranch.branch_code || ""}${
-                      sourceBranch.branch_code ? " · " : ""
-                    }${sourceBranch.branch_name || sourceBranch.name || ""}`
-                  : from
-                    ? `Branch ${from}`
-                    : "No global branch selected"}
-              </div>
+              {isCombinedBranch ? (
+                <Select value={from} onValueChange={(value) => { setFrom(value); setTo(""); setItems([createEmptyItem()]); }}>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Select source branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {physicalBranches.map((branch) => (
+                      <SelectItem key={branch.id} value={String(branch.id)}>
+                        {branch.branch_code} · {branch.branch_name || branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="mt-2 flex h-10 items-center rounded-md border bg-muted/30 px-3 text-sm font-medium">
+                  {sourceBranch
+                    ? `${sourceBranch.branch_code || ""}${sourceBranch.branch_code ? " · " : ""}${sourceBranch.branch_name || sourceBranch.name || ""}`
+                    : "No physical branch selected"}
+                </div>
+              )}
             </div>
 
             <div>
@@ -489,7 +519,7 @@ export default function TransferFormPage() {
                 </SelectTrigger>
 
                 <SelectContent>
-                  {branches
+                  {physicalBranches
                     .filter((branch) => String(branch.id) !== String(from))
                     .map((branch) => (
                       <SelectItem key={branch.id} value={String(branch.id)}>
@@ -646,12 +676,11 @@ export default function TransferFormPage() {
                         Unit cost excluding VAT
                       </p>
 
-                      <p className="mt-1 font-semibold">
-                        AED{" "}
-                        {Number(
-                          selectedProduct?.average_unit_cost_excluding_vat || 0,
-                        ).toFixed(4)}
-                      </p>
+                      <div className="mt-1 font-semibold">
+                        <CurrencyText
+                          value={selectedProduct?.average_unit_cost_excluding_vat || 0}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

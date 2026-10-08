@@ -19,9 +19,10 @@ import {
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { usePurchaseBranchScope } from "@/features/purchases/usePurchaseBranchScope";
+import { PurchaseBranchField } from "./PurchaseBranchField";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
-import { PageHeader } from "./PurchasePageHeader";
+import { PageHeader, PurchaseSourceBranchFilter } from "./PurchasePageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -235,7 +236,7 @@ export default function VendorCreditsPage() {
   const isNewRoute = location.pathname.endsWith("/new");
   const isEditRoute = location.pathname.endsWith("/edit") && Boolean(routeId);
 
-  const { branchId, branchParams } = useActiveBranchFilter();
+  const { branchId, formBranchId, listBranchParams: branchParams } = usePurchaseBranchScope();
 
   const [mode, setMode] = React.useState(() =>
     isNewRoute || isEditRoute ? "form" : "list",
@@ -245,7 +246,7 @@ export default function VendorCreditsPage() {
     isEditRoute ? routeId : null,
   );
 
-  const [form, setForm] = React.useState(() => createForm(branchId));
+  const [form, setForm] = React.useState(() => createForm(formBranchId));
 
   const [files, setFiles] = React.useState([]);
 
@@ -262,7 +263,7 @@ export default function VendorCreditsPage() {
 
     if (isNewRoute) {
       setEditingId(null);
-      setForm(createForm(branchId));
+      setForm(createForm(formBranchId));
       setFiles([]);
       setErrors({});
       setMode("form");
@@ -273,7 +274,7 @@ export default function VendorCreditsPage() {
     setFiles([]);
     setErrors({});
     setMode("list");
-  }, [isEditRoute, isNewRoute, routeId, branchId]);
+  }, [isEditRoute, isNewRoute, routeId, formBranchId]);
 
   const { query, q, setQ, page, setPage } = useListQuery(
     "vendor-credits",
@@ -315,7 +316,7 @@ export default function VendorCreditsPage() {
         }),
       ),
 
-    enabled: mode === "form",
+    enabled: mode === "form" && Boolean(form.branch),
   });
 
   const { data: existing, isLoading: existingLoading } = useQuery({
@@ -676,14 +677,14 @@ export default function VendorCreditsPage() {
 
   const openExisting = React.useCallback(
     (row) => {
-      navigate(`/purchases/vendor-credits/${row.id}`);
+      navigate(`/purchases/vendor-credits/${row.resource_key || row.id}`);
     },
     [navigate],
   );
 
   const openEdit = React.useCallback(
     (row) => {
-      navigate(`/purchases/vendor-credits/${row.id}/edit`);
+      navigate(`/purchases/vendor-credits/${row.resource_key || row.id}/edit`);
     },
     [navigate],
   );
@@ -1048,6 +1049,12 @@ export default function VendorCreditsPage() {
 
   const columns = [
     {
+      key: "source_branch_code",
+      header: "Source Branch",
+      sortable: false,
+      cell: (row) => row.source_branch_code || row.branch_code || row.branch_name || "—",
+    },
+    {
       key: "credit_number",
       header: "Credit #",
       sortKey: "credit_number",
@@ -1264,6 +1271,8 @@ export default function VendorCreditsPage() {
           </div>
         </section>
 
+        <PurchaseSourceBranchFilter />
+
         <section className="vendor-credit-guidance">
           <span className="vendor-credit-guidance__icon">
             <Info className="h-4 w-4" />
@@ -1432,6 +1441,23 @@ export default function VendorCreditsPage() {
         <h2 className="font-semibold">Credit Details</h2>
 
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <PurchaseBranchField
+            value={form.branch}
+            onChange={(value) =>
+              setForm((current) => ({
+                ...current,
+                branch: value,
+                supplier: "",
+                supplier_return: "",
+                purchase_order: "",
+                supplier_bill: "",
+                items: [],
+                applications: [],
+              }))
+            }
+            disabled={Boolean(editingId) || !canEditDocument}
+          />
+
           <div>
             <Label>Vendor *</Label>
 

@@ -3,7 +3,7 @@ import { Download, FileSpreadsheet } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 import api, { unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { BranchSourceFilter, usePhysicalBranchScope } from "@/components/common/PhysicalBranchScope";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,8 @@ import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { MetricCard } from "@/components/sales/MetricCard";
 
 export default function AttendancePage() {
-  const { branchParams } = useActiveBranchFilter();
+  const branchScope = usePhysicalBranchScope();
+  const { listParams: branchParams } = branchScope;
 
   const [startDate, setStartDate] = React.useState("");
   const [endDate, setEndDate] = React.useState("");
@@ -85,6 +86,8 @@ export default function AttendancePage() {
           </div>
         }
       />
+
+      <BranchSourceFilter scope={branchScope} />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <MetricCard

@@ -398,6 +398,7 @@ export default function InvoiceFormPage() {
         await api.get("/sales/invoices/form-options/", {
           params: {
             branch: form.branch || undefined,
+            target_branch: form.sale_mode || undefined,
           },
         }),
       ),
@@ -818,7 +819,7 @@ export default function InvoiceFormPage() {
     }
 
     if (!form.sale_mode) {
-      next.sale_mode = "Select VAT Sale or Non-VAT Sale.";
+      next.sale_mode = "Select VAT Branch or Non-VAT Branch.";
     }
 
     if (!form.invoice_date) {

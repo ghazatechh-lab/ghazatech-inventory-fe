@@ -5,7 +5,7 @@ import { FileBadge2, Plus, Users } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useListQuery, DataTable, SearchInput } from "@/hooks/useListQuery";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { BranchSourceFilter, usePhysicalBranchScope } from "@/components/common/PhysicalBranchScope";
 import { CurrencyText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { ListingRowActions } from "@/components/common/ListingRowActions";
@@ -54,7 +54,8 @@ const normalizePayload = (value) => {
 };
 
 export default function EmployeeListPage() {
-  const { branchId, branchParams, isAllBranches } = useActiveBranchFilter();
+  const branchScope = usePhysicalBranchScope();
+  const { branchId, listParams: branchParams, isCombined } = branchScope;
 
   const { query, q, setQ, page, setPage } = useListQuery(
     "employees",
@@ -207,8 +208,8 @@ export default function EmployeeListPage() {
         variant="hero"
         title="Employees"
         subtitle={
-          isAllBranches
-            ? "Full employee directory across all branches"
+          isCombined
+            ? "Combined employee directory for Branch 1 and Branch 2"
             : "Employees assigned to the selected branch"
         }
         actions={
@@ -233,11 +234,13 @@ export default function EmployeeListPage() {
         }
       />
 
-      {!isAllBranches && (
+      {!isCombined && (
         <div className="rounded-xl border border-blue-400/20 bg-blue-500/10 px-4 py-3 text-sm text-blue-700 dark:text-blue-200">
           Showing employees for the selected branch only.
         </div>
       )}
+
+      <BranchSourceFilter scope={branchScope} />
 
       <SearchInput
         value={q}
@@ -253,13 +256,13 @@ export default function EmployeeListPage() {
         total={data.count}
         onPageChange={handlePageChange}
         emptyTitle={
-          isAllBranches
+          isCombined
             ? "No employees found"
             : "No employees found in this branch"
         }
         emptyDescription={
-          isAllBranches
-            ? "Add employees to build the HR directory."
+          isCombined
+            ? "No employees match the selected source branch."
             : "Switch branches or add an employee to this branch."
         }
       />

@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { useAuth } from "@/lib/auth";
 import { hasPermission, isAdmin } from "@/lib/permissions";
+import { usePhysicalBranchScope, BranchSourceFilter } from "@/components/common/PhysicalBranchScope";
+import SourceBranchBadge from "@/components/common/SourceBranchBadge";
 
 const primaryButton =
   "bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950";
@@ -97,6 +99,8 @@ function Toggle({ checked, onChange, disabled }) {
 export default function RecoveryCentrePage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const scope = usePhysicalBranchScope();
+  const branchParams = scope.listParams;
 
   const [tab, setTab] = React.useState("deleted");
   const [q, setQ] = React.useState("");
@@ -114,7 +118,7 @@ export default function RecoveryCentrePage() {
   const canExport = isAdmin(user) || hasPermission(user, "settings.recovery.export");
 
   const recordsQuery = useQuery({
-    queryKey: ["recovery-records", q, moduleFilter, ordering],
+    queryKey: ["recovery-records", q, moduleFilter, ordering, branchParams],
     queryFn: async () =>
       unwrap(
         await api.get("/recovery/records/", {
@@ -123,19 +127,20 @@ export default function RecoveryCentrePage() {
             module: moduleFilter || undefined,
             ordering,
             page_size: 500,
+            ...branchParams,
           },
         }),
       ),
   });
 
   const summaryQuery = useQuery({
-    queryKey: ["recovery-summary"],
-    queryFn: async () => unwrap(await api.get("/recovery/records/summary/")),
+    queryKey: ["recovery-summary", branchParams],
+    queryFn: async () => unwrap(await api.get("/recovery/records/summary/", { params: branchParams })),
   });
 
   const activityQuery = useQuery({
-    queryKey: ["recovery-activity"],
-    queryFn: async () => unwrap(await api.get("/recovery/records/activity/")),
+    queryKey: ["recovery-activity", branchParams],
+    queryFn: async () => unwrap(await api.get("/recovery/records/activity/", { params: branchParams })),
     enabled: tab === "activity",
   });
 
@@ -250,6 +255,7 @@ export default function RecoveryCentrePage() {
           q: q || undefined,
           module: moduleFilter || undefined,
           ordering,
+          ...branchParams,
         },
         responseType: "blob",
       });
@@ -280,6 +286,8 @@ export default function RecoveryCentrePage() {
           ) : null
         }
       />
+
+      <BranchSourceFilter scope={scope} className="card-surface p-3" />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <KpiCard label="Total Deleted Records" value={summary.total_deleted} description="Currently recoverable" />
@@ -356,6 +364,7 @@ export default function RecoveryCentrePage() {
                   <th className="px-5 py-3.5">Record</th>
                   <th className="px-5 py-3.5">Module</th>
                   <th className="px-5 py-3.5">Reference</th>
+                  <th className="px-5 py-3.5">Source Branch</th>
                   <th className="px-5 py-3.5">Deleted By</th>
                   <th className="px-5 py-3.5">Deleted Date</th>
                   <th className="px-5 py-3.5">Reason</th>
@@ -365,7 +374,7 @@ export default function RecoveryCentrePage() {
               </thead>
               <tbody>
                 {recordsQuery.isLoading ? (
-                  <tr><td colSpan={9} className="px-5 py-12 text-center text-muted-foreground">Loading deleted records...</td></tr>
+                  <tr><td colSpan={10} className="px-5 py-12 text-center text-muted-foreground">Loading deleted records...</td></tr>
                 ) : records.length ? (
                   records.map((record) => (
                     <tr key={record.id} className="border-b border-slate-100 transition hover:bg-slate-50/80 dark:border-white/10 dark:hover:bg-white/[0.03]">
@@ -373,6 +382,7 @@ export default function RecoveryCentrePage() {
                       <td className="px-5 py-4"><div className="font-semibold text-slate-950 dark:text-white">{record.record_name || record.model_name}</div><div className="mt-1 text-xs text-muted-foreground">{record.model_name}</div></td>
                       <td className="px-5 py-4"><StatusBadge status="info" label={moduleLabel(record.module)} /></td>
                       <td className="px-5 py-4 font-semibold">{record.reference || `#${record.object_id}`}</td>
+                      <td className="px-5 py-4"><SourceBranchBadge source={record.branch_code || record.source_branch} /></td>
                       <td className="px-5 py-4">{record.deleted_by_name || "System"}</td>
                       <td className="whitespace-nowrap px-5 py-4">{record.deleted_at ? new Date(record.deleted_at).toLocaleString() : "—"}</td>
                       <td className="px-5 py-4">{record.deletion_reason || "—"}</td>
@@ -385,7 +395,7 @@ export default function RecoveryCentrePage() {
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan={9} className="px-5 py-14 text-center text-muted-foreground">No recoverable records found.</td></tr>
+                  <tr><td colSpan={10} className="px-5 py-14 text-center text-muted-foreground">No recoverable records found.</td></tr>
                 )}
               </tbody>
             </table>

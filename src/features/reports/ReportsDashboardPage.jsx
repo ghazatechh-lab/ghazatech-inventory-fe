@@ -12,7 +12,7 @@ import {
 } from "recharts";
 
 import api, { unwrap } from "@/lib/api";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { usePhysicalBranchScope, BranchSourceFilter } from "@/components/common/PhysicalBranchScope";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/common/States";
@@ -33,7 +33,8 @@ const downloadCsv = (filename, rows) => {
 };
 
 export default function ReportsDashboardPage() {
-  const { branchParams } = useActiveBranchFilter();
+  const scope = usePhysicalBranchScope();
+  const branchParams = scope.listParams;
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["report-dashboard", branchParams],
@@ -94,6 +95,8 @@ export default function ReportsDashboardPage() {
         }
       />
 
+      <BranchSourceFilter scope={scope} className="card-surface p-3" />
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <MetricCard
           label="Sales This Month"
@@ -132,7 +135,7 @@ export default function ReportsDashboardPage() {
               <XAxis dataKey="month" fontSize={11} />
               <YAxis fontSize={11} />
               <Tooltip
-                formatter={(value) => [`AED ${Number(value || 0).toFixed(2)}`]}
+                formatter={(value) => [new Intl.NumberFormat("en-AE", { style: "currency", currency: "AED" }).format(Number(value || 0))]}
               />
               <Bar dataKey="sales" name="Sales" radius={[5, 5, 0, 0]} />
               <Bar dataKey="purchases" name="Purchases" radius={[5, 5, 0, 0]} />

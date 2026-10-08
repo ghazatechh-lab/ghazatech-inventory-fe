@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { CurrencyText } from "@/components/common/CurrencyText";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { usePurchaseBranchScope } from "@/features/purchases/usePurchaseBranchScope";
 import { PageHeader } from "@/features/purchases/PurchasePageHeader";
 
 const PAGE_SIZE = 12;
@@ -186,7 +186,7 @@ function CreditUsage({ used, limit }) {
 }
 
 export default function SupplierListPage() {
-  const { branchId, branchParams } = useActiveBranchFilter();
+  const { branchId, listBranchParams: branchParams } = usePurchaseBranchScope();
 
   const normalizedBranchId =
     branchId && String(branchId).trim().toLowerCase() !== "all"
@@ -263,6 +263,7 @@ export default function SupplierListPage() {
   return (
     <div className="purchase-module-page purchase-workspace w-full space-y-5 pb-10">
       <PageHeader
+        showSourceFilter
         title="Suppliers"
         subtitle={`Manage vendor identities, tax records, commercial terms, credit exposure and payment readiness.${
           normalizedBranchId
@@ -332,6 +333,7 @@ export default function SupplierListPage() {
           <table className="min-w-[1280px] w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:border-white/10 dark:bg-white/[0.025] dark:text-slate-400">
+                <th className="px-4 py-3">Source Branch</th>
                 <th className="px-4 py-3">Supplier</th>
                 <th className="px-4 py-3">Contact</th>
                 <th className="px-4 py-3">Email</th>
@@ -350,7 +352,7 @@ export default function SupplierListPage() {
               {query.isLoading ? (
                 <tr>
                   <td
-                    colSpan={11}
+                    colSpan={12}
                     className="px-4 py-14 text-center text-slate-500"
                   >
                     Loading suppliers...
@@ -371,12 +373,16 @@ export default function SupplierListPage() {
 
                   return (
                     <tr
-                      key={supplier.id}
+                      key={supplier.resource_key || supplier.id}
                       className="border-b border-slate-100 transition last:border-0 hover:bg-slate-50/80 dark:border-white/5 dark:hover:bg-white/[0.025]"
                     >
+                      <td className="px-4 py-4 font-semibold text-slate-700 dark:text-slate-200">
+                        {supplier.source_branch_code || supplier.branch_code || supplier.branch_name || "—"}
+                      </td>
+
                       <td className="px-4 py-4">
                         <Link
-                          to={`/suppliers/${supplier.id}`}
+                          to={`/suppliers/${supplier.resource_key || supplier.id}`}
                           className="font-bold text-slate-950 transition hover:text-blue-600 dark:text-white dark:hover:text-blue-300"
                         >
                           {textValue(
@@ -455,7 +461,7 @@ export default function SupplierListPage() {
                           variant="outline"
                           className="h-8 px-4"
                         >
-                          <Link to={`/suppliers/${supplier.id}`}>View</Link>
+                          <Link to={`/suppliers/${supplier.resource_key || supplier.id}`}>View</Link>
                         </Button>
                       </td>
                     </tr>
@@ -463,7 +469,7 @@ export default function SupplierListPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={11} className="px-4 py-14 text-center">
+                  <td colSpan={12} className="px-4 py-14 text-center">
                     <AlertCircle className="mx-auto h-7 w-7 text-slate-400" />
                     <p className="mt-3 font-medium">No suppliers found</p>
                     <p className="mt-1 text-sm text-slate-500">

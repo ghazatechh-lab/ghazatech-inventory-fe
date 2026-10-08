@@ -17,7 +17,7 @@ import {
 import { ListingRowActions } from "@/components/common/ListingRowActions";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
+import { usePurchaseBranchScope } from "@/features/purchases/usePurchaseBranchScope";
 import { useSupplierUrlFilter } from "@/hooks/useSupplierUrlFilter";
 import { normalizeApiResponse, rowsFromPayload } from "./purchaseUi";
 
@@ -57,7 +57,7 @@ const normalizeList = (value) => {
 };
 
 export default function SupplierPaymentListPage() {
-  const { branchParams } = useActiveBranchFilter();
+  const { listBranchParams: branchParams } = usePurchaseBranchScope();
 
   const { supplierId, supplierParams, setSupplierId, clearSupplierFilter } =
     useSupplierUrlFilter();
@@ -167,7 +167,7 @@ export default function SupplierPaymentListPage() {
         "Status",
       ],
       rows.map((row) => [
-        row.payment_number || `Payment ${row.id}`,
+        row.payment_number || `Payment ${row.resource_key || row.id}`,
         row.supplier_name || "",
         row.payment_date || "",
         row.payment_method_display || row.payment_method || "",
@@ -182,15 +182,22 @@ export default function SupplierPaymentListPage() {
   const columns = React.useMemo(
     () => [
       {
+        key: "source_branch_code",
+        header: "Source Branch",
+        sortable: false,
+        cell: (row) =>
+          row.source_branch_code || row.branch_code || row.branch_name || "—",
+      },
+      {
         key: "payment_number",
         header: "Payment #",
 
         cell: (row) => (
           <Link
             className="font-medium text-blue-600 hover:underline"
-            to={`/purchases/supplier-payments/${row.id}`}
+            to={`/purchases/supplier-payments/${row.resource_key || row.id}`}
           >
-            {row.payment_number || `Payment ${row.id}`}
+            {row.payment_number || `Payment ${row.resource_key || row.id}`}
           </Link>
         ),
       },
@@ -242,9 +249,9 @@ export default function SupplierPaymentListPage() {
 
         cell: (row) => (
           <ListingRowActions
-            viewTo={`/purchases/supplier-payments/${row.id}`}
-            editTo={`/purchases/supplier-payments/${row.id}/edit`}
-            deleteUrl={`/purchases/supplier-payments/${row.id}/`}
+            viewTo={`/purchases/supplier-payments/${row.resource_key || row.id}`}
+            editTo={`/purchases/supplier-payments/${row.resource_key || row.id}/edit`}
+            deleteUrl={`/purchases/supplier-payments/${row.resource_key || row.id}/`}
             queryKey="supplier-payments"
             itemLabel={row.payment_number || "payment"}
           />
@@ -257,6 +264,7 @@ export default function SupplierPaymentListPage() {
   return (
     <div className="purchase-module-page purchase-workspace space-y-6">
       <PageHeader
+        showSourceFilter
         title="Supplier Payments"
         subtitle="Track supplier payments, allocations, payment methods, and supporting files."
         actions={
