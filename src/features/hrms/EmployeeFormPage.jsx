@@ -30,6 +30,21 @@ import {
 } from "@/components/ui/select";
 import { normalizeList } from "./hrmsUtils";
 
+const DOB_MIN_DATE = "1950-01-01";
+
+const toLocalIsoDate = (value) => {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getDobMaxDate = () => {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  return toLocalIsoDate(yesterday);
+};
+
 const initial = {
   employee_code: "",
   branch: "",
@@ -457,6 +472,24 @@ export default function EmployeeFormPage() {
     </div>
   );
 
+  const dobField = (
+    <div>
+      <Label>Date of Birth</Label>
+      <Input
+        type="date"
+        className="mt-2"
+        min={DOB_MIN_DATE}
+        max={getDobMaxDate()}
+        value={form.date_of_birth || ""}
+        onChange={(event) => update("date_of_birth", event.target.value)}
+      />
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        Select a date between 1950 and today. Existing saved dates remain
+        available when editing.
+      </p>
+    </div>
+  );
+
   const section = (title, children) => (
     <section className="card-surface p-5">
       <h2 className="font-semibold">{title}</h2>
@@ -578,7 +611,7 @@ export default function EmployeeFormPage() {
           {field("Email", "email", "email")}
           {field("Phone", "phone")}
           {field("Nationality", "nationality")}
-          {field("Date of Birth (Optional)", "date_of_birth", "date")}
+          {dobField}
           {field("Joining Date", "joining_date", "date")}
 
           {isEdit ? (
