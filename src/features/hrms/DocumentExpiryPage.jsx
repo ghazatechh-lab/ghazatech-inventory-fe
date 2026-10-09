@@ -322,7 +322,7 @@ export default function DocumentExpiryPage() {
   };
 
   return (
-    <div className="w-full space-y-5 pb-10">
+    <div className="hrms-module-page hrms-workspace w-full space-y-5 pb-10">
       <BranchSourceFilter scope={branchScope} />
       <PageHeader
         variant="hero"
@@ -394,55 +394,79 @@ export default function DocumentExpiryPage() {
             />
           </div>
 
-          <select
-            value={documentType}
-            onChange={(event) => setDocumentType(event.target.value)}
-            className="h-10 rounded-lg border bg-background px-3 text-sm"
+          <Select
+            value={documentType || "__ALL__"}
+            onValueChange={(value) =>
+              setDocumentType(value === "__ALL__" ? "" : value)
+            }
           >
-            <option value="">All Document Types</option>
-            {DOCUMENT_TYPES.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger>
+              <SelectValue placeholder="All Document Types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__ALL__">All Document Types</SelectItem>
+              {DOCUMENT_TYPES.map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          <select
-            value={department}
-            onChange={(event) => setDepartment(event.target.value)}
-            className="h-10 rounded-lg border bg-background px-3 text-sm"
+          <Select
+            value={department || "__ALL__"}
+            onValueChange={(value) =>
+              setDepartment(value === "__ALL__" ? "" : value)
+            }
           >
-            <option value="">All Departments</option>
-            {departments.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger>
+              <SelectValue placeholder="All Departments" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__ALL__">All Departments</SelectItem>
+              {departments.map((item) => (
+                <SelectItem key={item.id} value={String(item.id)}>
+                  {item.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          <select
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
-            className="h-10 rounded-lg border bg-background px-3 text-sm"
+          <Select
+            value={status || "__ALL__"}
+            onValueChange={(value) =>
+              setStatus(value === "__ALL__" ? "" : value)
+            }
           >
-            <option value="">All Status</option>
-            <option value="EXPIRED">Expired</option>
-            <option value="URGENT">Expiring in 7 Days</option>
-            <option value="EXPIRING">Expiring in 30 Days</option>
-            <option value="VALID">Valid</option>
-          </select>
+            <SelectTrigger>
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__ALL__">All Status</SelectItem>
+              <SelectItem value="EXPIRED">Expired</SelectItem>
+              <SelectItem value="URGENT">Expiring in 7 Days</SelectItem>
+              <SelectItem value="EXPIRING">Expiring in 30 Days</SelectItem>
+              <SelectItem value="VALID">Valid</SelectItem>
+            </SelectContent>
+          </Select>
 
-          <select
-            value={expiryWindow}
-            onChange={(event) => setExpiryWindow(event.target.value)}
-            className="h-10 rounded-lg border bg-background px-3 text-sm"
+          <Select
+            value={expiryWindow || "__ALL__"}
+            onValueChange={(value) =>
+              setExpiryWindow(value === "__ALL__" ? "" : value)
+            }
           >
-            <option value="">Expiry: Any Date</option>
-            <option value="7">Next 7 days</option>
-            <option value="30">Next 30 days</option>
-            <option value="60">Next 60 days</option>
-            <option value="90">Next 90 days</option>
-          </select>
+            <SelectTrigger>
+              <SelectValue placeholder="Expiry: Any Date" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__ALL__">Expiry: Any Date</SelectItem>
+              <SelectItem value="7">Next 7 days</SelectItem>
+              <SelectItem value="30">Next 30 days</SelectItem>
+              <SelectItem value="60">Next 60 days</SelectItem>
+              <SelectItem value="90">Next 90 days</SelectItem>
+            </SelectContent>
+          </Select>
 
           <Button type="button" variant="outline" onClick={resetFilters}>
             Reset
@@ -793,8 +817,8 @@ function AddDocumentModal({
   }, [employees, employeeSearch]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm">
-      <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border bg-background shadow-2xl">
+    <div className="hrms-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm">
+      <div className="hrms-modal-panel max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border bg-background shadow-2xl hrms-modal-panel">
         <div className="flex items-center justify-between border-b px-5 py-4">
           <div>
             <h2 className="text-lg font-semibold">Add New Document</h2>
@@ -873,23 +897,26 @@ function AddDocumentModal({
           </Field>
 
           <Field label="Document Type">
-            <select
+            <Select
               value={form.document_type}
-              onChange={(event) =>
+              onValueChange={(value) =>
                 setForm((current) => ({
                   ...current,
-                  document_type: event.target.value,
+                  document_type: value,
                 }))
               }
-              className="h-10 w-full rounded-lg border bg-background px-3 text-sm"
             >
-              <option value="">Select document type</option>
-              {DOCUMENT_TYPES.map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger>
+                <SelectValue placeholder="Select document type" />
+              </SelectTrigger>
+              <SelectContent>
+                {DOCUMENT_TYPES.map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
 
           <Field label="Document Title">

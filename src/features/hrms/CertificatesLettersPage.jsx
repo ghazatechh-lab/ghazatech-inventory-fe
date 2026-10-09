@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Award,
@@ -21,9 +21,22 @@ import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { BranchSourceFilter, usePhysicalBranchScope } from "@/components/common/PhysicalBranchScope";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { generateSalaryCertificatePdf } from "./salaryCertificatePdf";
 import { generateEmployeeLetterPdf } from "./employeeLetterPdf";
@@ -282,7 +295,7 @@ export default function CertificatesLettersPage() {
     setMoreOpen(false);
   };
 
-  const handleSalaryEmployee = async (employeeId) => {
+  const handleSalaryEmployee = useCallback(async (employeeId) => {
     const employee = employees.find(
       (item) => String(item.id) === String(employeeId),
     );
@@ -323,7 +336,7 @@ export default function CertificatesLettersPage() {
         transport_other_allowance: String(employee.allowances || 0),
       }));
     }
-  };
+  }, [employees]);
 
   useEffect(() => {
     const employeeId = searchParams.get("employee");
@@ -361,8 +374,7 @@ export default function CertificatesLettersPage() {
     next.delete("type");
     setSearchParams(next, { replace: true });
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [employees.length]);
+  }, [employees, handleSalaryEmployee, searchParams, setSearchParams]);
 
   const salaryMutation = useMutation({
     mutationFn: async () => {
@@ -475,7 +487,7 @@ export default function CertificatesLettersPage() {
   const previewRow = preview || visibleRows[0] || null;
 
   return (
-    <div className="w-full space-y-5 pb-10">
+    <div className="hrms-module-page hrms-workspace w-full space-y-5 pb-10">
       <BranchSourceFilter scope={branchScope} />
       <PageHeader
         variant="hero"
@@ -491,22 +503,27 @@ export default function CertificatesLettersPage() {
               Create Salary Certificate
             </Button>
 
-            <div className="relative">
-              <Button
+            <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen} modal={false}>
+              <DropdownMenuTrigger asChild>
+                <Button
                 type="button"
                 variant="outline"
-                onClick={() => setMoreOpen((current) => !current)}
               >
                 <FileText className="mr-2 h-4 w-4" />
                 More Letters
                 <ChevronDown className="ml-2 h-4 w-4" />
-              </Button>
+                </Button>
+              </DropdownMenuTrigger>
 
-              {moreOpen && (
-                <div className="absolute right-0 top-12 z-40 w-64 overflow-hidden rounded-xl border bg-popover p-1.5 shadow-xl">
-                  <button
-                    type="button"
-                    onClick={openWarning}
+              <DropdownMenuContent
+                align="end"
+                side="bottom"
+                sideOffset={8}
+                collisionPadding={12}
+                className="z-50 w-64 max-w-[calc(100vw-1.5rem)] rounded-xl p-1.5 shadow-xl"
+              >
+                  <DropdownMenuItem
+                    onSelect={openWarning}
                     className="flex w-full items-start gap-3 rounded-lg px-3 py-3 text-left hover:bg-muted"
                   >
                     <TriangleAlert className="mt-0.5 h-4 w-4 text-amber-500" />
@@ -518,11 +535,10 @@ export default function CertificatesLettersPage() {
                         Record a formal employee warning.
                       </span>
                     </span>
-                  </button>
+                  </DropdownMenuItem>
 
-                  <button
-                    type="button"
-                    onClick={openExperience}
+                  <DropdownMenuItem
+                    onSelect={openExperience}
                     className="flex w-full items-start gap-3 rounded-lg px-3 py-3 text-left hover:bg-muted"
                   >
                     <Award className="mt-0.5 h-4 w-4 text-blue-500" />
@@ -534,7 +550,7 @@ export default function CertificatesLettersPage() {
                         Issue service and employment experience details.
                       </span>
                     </span>
-                  </button>
+                  </DropdownMenuItem>
 
                   {[
                     ["EMPLOYMENT", "Employment Certificate"],
@@ -544,10 +560,9 @@ export default function CertificatesLettersPage() {
                     ["TERMINATION", "Termination Letter"],
                     ["CUSTOM", "Custom Letter"],
                   ].map(([type, label]) => (
-                    <button
+                    <DropdownMenuItem
                       key={type}
-                      type="button"
-                      onClick={() => openOtherLetter(type)}
+                      onSelect={() => openOtherLetter(type)}
                       className="flex w-full items-start gap-3 rounded-lg px-3 py-3 text-left hover:bg-muted"
                     >
                       <FileText className="mt-0.5 h-4 w-4 text-slate-500" />
@@ -559,11 +574,10 @@ export default function CertificatesLettersPage() {
                           Create and issue this employee document.
                         </span>
                       </span>
-                    </button>
+                    </DropdownMenuItem>
                   ))}
-                </div>
-              )}
-            </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         }
       />
@@ -1372,23 +1386,26 @@ function OtherLetterModal({
     <ModalShell title={`Create ${meta.label}`} onClose={onClose}>
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="Employee">
-          <select
+          <Select
             value={form.employee}
-            onChange={(event) =>
+            onValueChange={(value) =>
               setForm((current) => ({
                 ...current,
-                employee: event.target.value,
+                employee: value,
               }))
             }
-            className="h-10 w-full rounded-lg border bg-background px-3 text-sm"
           >
-            <option value="">Select employee</option>
-            {employees.map((employee) => (
-              <option key={employee.id} value={employee.id}>
-                {employee.employee_code} - {employee.full_name}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger>
+              <SelectValue placeholder="Select employee" />
+            </SelectTrigger>
+            <SelectContent className="max-h-72">
+              {employees.map((employee) => (
+                <SelectItem key={employee.id} value={String(employee.id)}>
+                  {employee.employee_code} - {employee.full_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
 
         <Field label="Letter Date">
@@ -1758,7 +1775,7 @@ function Preview({ item, onClose, onDownload }) {
   const type = item.document_type || item.letter_type;
 
   return (
-    <div className="fixed inset-0 z-[90] overflow-y-auto bg-black/70 p-4">
+    <div className="hrms-modal-backdrop fixed inset-0 z-[90] overflow-y-auto bg-black/70 p-4">
       <div className="mx-auto my-4 w-full max-w-[900px]">
         <div className="mb-3 flex justify-end gap-2">
           <Button onClick={onDownload}>
@@ -1951,26 +1968,25 @@ function ExperiencePreviewBody({ letter }) {
 
 function EmployeeSelect({ employees, value, onChange }) {
   return (
-    <select
-      className="h-10 w-full rounded-md border bg-background px-3"
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-    >
-      <option value="">Select employee</option>
-
-      {employees.map((employee) => (
-        <option key={employee.id} value={employee.id}>
-          {employee.full_name} — {employee.employee_code}
-        </option>
-      ))}
-    </select>
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger>
+        <SelectValue placeholder="Select employee" />
+      </SelectTrigger>
+      <SelectContent className="max-h-72">
+        {employees.map((employee) => (
+          <SelectItem key={employee.id} value={String(employee.id)}>
+            {employee.full_name} — {employee.employee_code}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
 function ModalShell({ title, description, onClose, children, footer }) {
   return (
-    <div className="fixed inset-0 z-[80] overflow-y-auto bg-black/60 p-4">
-      <div className="mx-auto my-6 w-full max-w-4xl overflow-hidden rounded-2xl bg-background shadow-2xl">
+    <div className="hrms-modal-backdrop fixed inset-0 z-[80] overflow-y-auto bg-black/60 p-4">
+      <div className="mx-auto my-6 w-full max-w-4xl overflow-hidden rounded-2xl bg-background shadow-2xl hrms-modal-panel">
         <div className="flex items-start justify-between border-b p-5">
           <div>
             <h2 className="text-xl font-bold">{title}</h2>

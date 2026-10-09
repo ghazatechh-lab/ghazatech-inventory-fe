@@ -28,22 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { normalizeList } from "./hrmsUtils";
-
-const DOB_MIN_DATE = "1950-01-01";
-
-const toLocalIsoDate = (value) => {
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, "0");
-  const day = String(value.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-
-const getDobMaxDate = () => {
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  return toLocalIsoDate(yesterday);
-};
+import { normalizeList, today } from "./hrmsUtils";
 
 const initial = {
   employee_code: "",
@@ -460,33 +445,16 @@ export default function EmployeeFormPage() {
     },
   });
 
-  const field = (label, key, type = "text") => (
-    <div>
+  const field = (label, key, type = "text", inputProps = {}) => (
+    <div className="hrms-field">
       <Label>{label}</Label>
       <Input
         type={type}
         className="mt-2"
         value={form[key] || ""}
         onChange={(event) => update(key, event.target.value)}
+        {...inputProps}
       />
-    </div>
-  );
-
-  const dobField = (
-    <div>
-      <Label>Date of Birth</Label>
-      <Input
-        type="date"
-        className="mt-2"
-        min={DOB_MIN_DATE}
-        max={getDobMaxDate()}
-        value={form.date_of_birth || ""}
-        onChange={(event) => update("date_of_birth", event.target.value)}
-      />
-      <p className="mt-1.5 text-xs text-muted-foreground">
-        Select a date between 1950 and today. Existing saved dates remain
-        available when editing.
-      </p>
     </div>
   );
 
@@ -500,7 +468,7 @@ export default function EmployeeFormPage() {
   );
 
   return (
-    <div className="hrms-module-page hrms-workspace w-full space-y-5">
+    <div className="hrms-module-page hrms-workspace w-full space-y-5 pb-10">
       <PageHeader
         variant="hero"
         title={isEdit ? "Edit Employee" : "New Employee"}
@@ -611,7 +579,13 @@ export default function EmployeeFormPage() {
           {field("Email", "email", "email")}
           {field("Phone", "phone")}
           {field("Nationality", "nationality")}
-          {dobField}
+          {field("Date of Birth (Optional)", "date_of_birth", "date", {
+            min:
+              form.date_of_birth && form.date_of_birth < "1950-01-01"
+                ? form.date_of_birth
+                : "1950-01-01",
+            max: today(),
+          })}
           {field("Joining Date", "joining_date", "date")}
 
           {isEdit ? (

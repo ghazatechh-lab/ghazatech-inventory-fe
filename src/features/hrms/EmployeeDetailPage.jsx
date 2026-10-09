@@ -132,7 +132,7 @@ export default function EmployeeDetailPage() {
   );
 
   return (
-    <div className="hrms-module-page hrms-workspace w-full space-y-5">
+    <div className="hrms-module-page hrms-workspace w-full space-y-5 pb-10">
       <PageHeader
         variant="hero"
         title={employee.full_name}
@@ -627,16 +627,11 @@ export default function EmployeeDetailPage() {
                   Employee
                 </p>
 
-                <select
-                  className="h-11 w-full rounded-md border bg-background px-3 text-sm"
-                  value={employee.id}
-                  disabled
-                >
-                  <option value={employee.id}>
-                    {employee.full_name} —{" "}
-                    {employee.designation_name || "Employee"}
-                  </option>
-                </select>
+                <Input
+                  className="h-11"
+                  value={`${employee.full_name} — ${employee.designation_name || "Employee"}`}
+                  readOnly
+                />
               </div>
 
               <SalaryMetric
@@ -961,8 +956,8 @@ export default function EmployeeDetailPage() {
       )}
 
       {revisionOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-[2px]">
-          <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-background shadow-2xl">
+        <div className="hrms-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-[2px]">
+          <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-background shadow-2xl hrms-modal-panel">
             <div className="flex items-start justify-between border-b px-6 py-5">
               <div>
                 <h2 className="text-xl font-semibold">Add Salary Revision</h2>

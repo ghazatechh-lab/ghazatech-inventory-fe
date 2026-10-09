@@ -340,7 +340,7 @@ export default function SalaryHistoryPage() {
   const isLoading = employeesLoading || employeeLoading || historyLoading;
 
   return (
-    <div className="hrms-module-page hrms-workspace w-full space-y-5">
+    <div className="hrms-module-page hrms-workspace w-full space-y-5 pb-10">
       <BranchSourceFilter scope={branchScope} />
       <PageHeader
         variant="hero"
@@ -664,8 +664,8 @@ export default function SalaryHistoryPage() {
       )}
 
       {revisionOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-[2px]">
-          <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-background shadow-2xl">
+        <div className="hrms-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-[2px]">
+          <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-background shadow-2xl hrms-modal-panel">
             <div className="flex items-start justify-between border-b px-6 py-5">
               <div>
                 <h2 className="text-xl font-semibold">

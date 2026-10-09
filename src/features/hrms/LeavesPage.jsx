@@ -276,8 +276,8 @@ export default function LeavesPage() {
       />
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-xl overflow-hidden rounded-[22px] border border-slate-200 bg-background shadow-2xl dark:border-white/10">
+        <div className="hrms-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="hrms-modal-panel w-full max-w-xl overflow-hidden rounded-[22px] border border-slate-200 bg-background shadow-2xl dark:border-white/10">
             <div className="border-b border-slate-200 px-5 py-4 dark:border-white/10">
               <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-sky-600 dark:text-sky-300">
                 Leave Management

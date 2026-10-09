@@ -56,3 +56,15 @@ aside[data-app-sidebar="true"] nav {
   max-width: none !important;
   min-width: 0;
 }
+
+/* Routed pages share the workspace width. Allow flex/grid panels to shrink
+ * so wide tables scroll inside their panel instead of expanding the page. */
+.app-page-frame > * {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+.app-page-frame > * > * {
+  min-width: 0;
+}

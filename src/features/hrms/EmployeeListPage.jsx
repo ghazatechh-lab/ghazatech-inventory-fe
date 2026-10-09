@@ -71,7 +71,7 @@ export default function EmployeeListPage() {
       previousBranchId.current = branchId;
       setPage(1);
     }
-  }, [branchId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [branchId, setPage]);
 
   const columns = React.useMemo(
     () => [
@@ -203,7 +203,7 @@ export default function EmployeeListPage() {
   );
 
   return (
-    <div className="space-y-5">
+    <div className="hrms-module-page hrms-workspace w-full space-y-5 pb-10">
       <PageHeader
         variant="hero"
         title="Employees"

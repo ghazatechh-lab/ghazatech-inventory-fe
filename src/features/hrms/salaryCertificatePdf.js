@@ -75,7 +75,7 @@ export function generateSalaryCertificatePdf(certificate, options = {}) {
 
   let y = doc.lastAutoTable.finalY + 8;
   doc.text(
-    "The employeeâ€™s current monthly salary is structured as follows:",
+    "The employee's current monthly salary is structured as follows:",
     margin,
     y,
   );
@@ -114,7 +114,7 @@ export function generateSalaryCertificatePdf(certificate, options = {}) {
 
   y = doc.lastAutoTable.finalY + 8;
   const note =
-    "This certificate is issued at the employeeâ€™s request for official purposes. The company assumes no responsibility beyond confirming the employment and salary information stated above.";
+    "This certificate is issued at the employee's request for official purposes. The company assumes no responsibility beyond confirming the employment and salary information stated above.";
   doc.setTextColor(35, 35, 38);
   doc.text(doc.splitTextToSize(note, width - margin * 2), margin, y);
 

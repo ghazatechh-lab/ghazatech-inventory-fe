@@ -8,6 +8,13 @@ import api, { getApiErrorDetails, unwrap } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CurrencyText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
 
@@ -129,7 +136,7 @@ export default function PayrollDetailModal({ payroll, onClose, onUpdated }) {
 
   return createPortal(
     <div
-      className="fixed inset-0 flex items-center justify-center bg-black/60 p-4 backdrop-blur-[1px]"
+      className="hrms-modal-backdrop fixed inset-0 flex items-center justify-center bg-black/60 p-4 backdrop-blur-[1px]"
       style={{ zIndex: 2147483647 }}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
@@ -138,7 +145,7 @@ export default function PayrollDetailModal({ payroll, onClose, onUpdated }) {
       }}
     >
       <div
-        className="flex w-full max-w-4xl flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl"
+        className="flex w-full max-w-4xl flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl hrms-modal-panel"
         style={{
           maxHeight: "calc(100dvh - 32px)",
         }}
@@ -262,17 +269,18 @@ export default function PayrollDetailModal({ payroll, onClose, onUpdated }) {
                 <div>
                   <Label>Status</Label>
 
-                  <select
-                    className="mt-2 h-10 w-full rounded-md border bg-background px-3"
-                    value={status}
-                    onChange={(event) => setStatus(event.target.value)}
-                  >
-                    {STATUS_OPTIONS.map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
+                  <Select value={status} onValueChange={setStatus}>
+                    <SelectTrigger className="mt-2">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUS_OPTIONS.map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {status === "PAID" && (

@@ -730,18 +730,12 @@ export default function PayrollPage() {
       return;
     }
 
-    const advanceEmployeeJoiningDate = selectedAdvanceEmployee?.joining_date || "";
-    const advanceEmployeeJoiningPeriod = advanceEmployeeJoiningDate
-      ? advanceEmployeeJoiningDate.slice(0, 7)
+    const joiningPeriod = selectedAdvanceEmployee?.joining_date
+      ? selectedAdvanceEmployee.joining_date.slice(0, 7)
       : "";
 
-    if (
-      advanceEmployeeJoiningPeriod &&
-      advanceForm.period < advanceEmployeeJoiningPeriod
-    ) {
-      toast.error(
-        `Deduction period cannot be before the employee joining month (${advanceEmployeeJoiningPeriod}).`,
-      );
+    if (joiningPeriod && advanceForm.period < joiningPeriod) {
+      toast.error("Deduction period cannot be before the employee joining month.");
       return;
     }
 
@@ -759,9 +753,7 @@ export default function PayrollPage() {
       selectedAdvanceEmployee?.joining_date &&
       advanceForm.advance_date < selectedAdvanceEmployee.joining_date
     ) {
-      toast.error(
-        `Advance date cannot be before the employee joining date (${selectedAdvanceEmployee.joining_date}).`,
-      );
+      toast.error("Advance date cannot be before the employee joining date.");
       return;
     }
 
@@ -1143,7 +1135,7 @@ export default function PayrollPage() {
   );
 
   return (
-    <div className="hrms-module-page hrms-workspace mx-auto w-full max-w-[1800px] space-y-5 pb-8">
+    <div className="hrms-module-page hrms-workspace w-full space-y-5 pb-8">
       <BranchSourceFilter scope={branchScope} />
       <PageHeader
         variant="hero"
@@ -1277,19 +1269,23 @@ export default function PayrollPage() {
                 />
               </div>
 
-              <select
-                value={statusFilter}
-                onChange={(event) => {
-                  setStatusFilter(event.target.value);
+              <Select
+                value={statusFilter || "__ALL__"}
+                onValueChange={(value) => {
+                  setStatusFilter(value === "__ALL__" ? "" : value);
                   setPage(1);
                 }}
-                className="h-10 rounded-md border bg-background px-3 text-sm"
               >
-                <option value="">All statuses</option>
-                <option value="PENDING">Pending</option>
-                <option value="PAID">Paid</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
+                <SelectTrigger>
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__ALL__">All statuses</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="PAID">Paid</SelectItem>
+                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <DataTable
@@ -1411,8 +1407,8 @@ export default function PayrollPage() {
       </Tabs>
 
       {payingPayroll && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/65 p-4">
-          <div className="w-full max-w-lg overflow-hidden rounded-2xl border bg-background shadow-2xl">
+        <div className="hrms-modal-backdrop fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/65 p-4">
+          <div className="w-full max-w-lg overflow-hidden rounded-2xl border bg-background shadow-2xl hrms-modal-panel">
             <div className="flex items-start justify-between border-b px-6 py-5">
               <div>
                 <h2 className="text-xl font-semibold">Mark Payroll as Paid</h2>
@@ -1550,8 +1546,8 @@ export default function PayrollPage() {
       )}
 
       {editingPayroll && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-4">
-          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-background shadow-2xl">
+        <div className="hrms-modal-backdrop fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-background shadow-2xl hrms-modal-panel">
             <div className="flex items-start justify-between border-b px-6 py-5">
               <div>
                 <h2 className="text-xl font-semibold">Edit Payroll Salary</h2>
@@ -1767,8 +1763,8 @@ export default function PayrollPage() {
       )}
 
       {payrollOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-3 sm:p-5">
-          <div className="flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl">
+        <div className="hrms-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-3 sm:p-5">
+          <div className="flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl hrms-modal-panel">
             <div className="flex items-start justify-between border-b px-6 py-5">
               <div>
                 <h2 className="text-xl font-semibold">Generate Payroll</h2>
@@ -2141,8 +2137,8 @@ export default function PayrollPage() {
       )}
 
       {advanceDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-          <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-background shadow-2xl">
+        <div className="hrms-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="hrms-modal-panel max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-background shadow-2xl hrms-modal-panel">
             <div className="flex items-start justify-between border-b px-6 py-5">
               <div>
                 <h2 className="text-xl font-semibold">
@@ -2263,8 +2259,8 @@ export default function PayrollPage() {
       )}
 
       {loanDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-          <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-background shadow-2xl">
+        <div className="hrms-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="hrms-modal-panel max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-background shadow-2xl hrms-modal-panel">
             <div className="flex items-start justify-between border-b px-6 py-5">
               <div>
                 <h2 className="text-xl font-semibold">Employee Loan Details</h2>
@@ -2410,8 +2406,8 @@ export default function PayrollPage() {
       )}
 
       {loanOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-          <div className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-background shadow-2xl">
+        <div className="hrms-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-background shadow-2xl hrms-modal-panel">
             <div className="flex items-start justify-between border-b px-6 py-5">
               <div>
                 <h2 className="text-xl font-semibold">New Employee Loan</h2>
@@ -2671,8 +2667,8 @@ export default function PayrollPage() {
       )}
 
       {advanceOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-background shadow-2xl">
+        <div className="hrms-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-background shadow-2xl hrms-modal-panel">
             <div className="flex items-start justify-between border-b px-6 py-5">
               <div>
                 <h2 className="text-xl font-semibold">Add Advance Salary</h2>

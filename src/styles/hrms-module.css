@@ -1,21 +1,13 @@
 /* =========================================================
    GHAZATECH — HRMS MODULE STANDARD DESIGN
-   File: src/styles/hrms-module.css
-   Import this file LAST in src/index.css.
+   Scoped to .hrms-module-page so other modules are unaffected.
    ========================================================= */
 
 .hrms-module-page {
-  --hrms-navy-950: #07162f;
-  --hrms-navy-900: #0a274d;
-  --hrms-navy-800: #104579;
-  --hrms-blue: #2563eb;
-  --hrms-cyan: #38bdf8;
-  --hrms-gold: #fbbf24;
-  --hrms-green: #10b981;
   --hrms-border: #dbe3ef;
   --hrms-surface: #ffffff;
   --hrms-muted: #64748b;
-  width: 100%;
+  --hrms-soft: #f8fafc;
   padding-bottom: 2.5rem;
 }
 
@@ -23,8 +15,263 @@
   --hrms-border: rgba(255, 255, 255, 0.09);
   --hrms-surface: #0f172a;
   --hrms-muted: #94a3b8;
+  --hrms-soft: rgba(255, 255, 255, 0.025);
 }
 
-/* ---------------------------------------------------------
-   PREMIUM HRMS HERO
-   --------------------------------------------------------- */
+.hrms-module-page.hrms-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.hrms-module-page > .space-y-5,
+.hrms-module-page .hrms-section-stack {
+  row-gap: 1.25rem;
+}
+
+/* Shared card/panel language */
+.hrms-module-page .card-surface,
+.hrms-module-page .hrms-panel {
+  border: 1px solid var(--hrms-border);
+  border-radius: 1rem;
+  background: var(--hrms-surface);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035);
+}
+
+.dark .hrms-module-page .card-surface,
+.dark .hrms-module-page .hrms-panel {
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.14);
+}
+
+.hrms-module-page .hrms-filter-bar {
+  display: grid;
+  gap: 0.75rem;
+  align-items: center;
+  border: 1px solid var(--hrms-border);
+  border-radius: 1rem;
+  background: var(--hrms-surface);
+  padding: 1rem;
+}
+
+.hrms-module-page .hrms-form-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.hrms-module-page .hrms-field {
+  min-width: 0;
+}
+
+.hrms-module-page .hrms-field > label,
+.hrms-module-page label {
+  display: inline-block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+}
+
+.hrms-module-page input:not([type="checkbox"]):not([type="radio"]),
+.hrms-module-page textarea,
+.hrms-module-page button[role="combobox"] {
+  width: 100%;
+}
+
+.hrms-module-page input:not([type="checkbox"]):not([type="radio"]),
+.hrms-module-page button[role="combobox"] {
+  min-height: 2.5rem;
+}
+
+.hrms-module-page textarea {
+  min-height: 5.5rem;
+  resize: vertical;
+}
+
+/* Headers/actions stay aligned and wrap cleanly */
+.hrms-module-page .page-header-actions,
+.hrms-module-page .module-hero-actions {
+  align-items: center;
+}
+
+.hrms-module-page .page-header-actions > *,
+.hrms-module-page .module-hero-actions > * {
+  max-width: 100%;
+}
+
+/* Shared HRMS tables */
+.hrms-module-page [data-testid="data-table"] {
+  border-color: var(--hrms-border);
+  border-radius: 1rem;
+}
+
+.hrms-module-page [data-testid="data-table"] table {
+  min-width: 100%;
+}
+
+.hrms-module-page [data-testid="data-table"] thead tr {
+  height: 3rem;
+  background: var(--hrms-soft);
+}
+
+.hrms-module-page [data-testid="data-table"] thead th {
+  height: 3rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  vertical-align: middle;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+}
+
+.hrms-module-page [data-testid="data-table"] tbody tr {
+  min-height: 3.25rem;
+}
+
+.hrms-module-page [data-testid="data-table"] tbody td {
+  min-height: 3.25rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  vertical-align: middle;
+  color: hsl(var(--foreground));
+}
+
+.hrms-module-page [data-testid="data-table"] tbody td:last-child,
+.hrms-module-page [data-testid="data-table"] thead th:last-child {
+  padding-right: 1rem;
+}
+
+.hrms-module-page [data-testid="data-table"] tbody td:first-child,
+.hrms-module-page [data-testid="data-table"] thead th:first-child {
+  padding-left: 1rem;
+}
+
+.hrms-module-page [data-testid="data-table"] .table-row-hover:hover {
+  background: var(--hrms-soft);
+}
+
+/* Generic manually-rendered HRMS tables */
+.hrms-module-page table thead tr {
+  min-height: 3rem;
+}
+
+.hrms-module-page table th,
+.hrms-module-page table td {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  vertical-align: middle;
+}
+
+.hrms-module-page table th {
+  white-space: nowrap;
+}
+
+.hrms-module-page .font-numeric,
+.hrms-module-page .tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Modal language */
+.hrms-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 1rem;
+  background: rgba(2, 6, 23, 0.68);
+  backdrop-filter: blur(2px);
+}
+
+.hrms-modal-panel {
+  width: 100%;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  border: 1px solid var(--hrms-border);
+  border-radius: 1rem;
+  background: hsl(var(--background));
+  box-shadow: 0 24px 70px rgba(2, 6, 23, 0.3);
+}
+
+.hrms-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--hrms-border);
+  padding: 1.25rem 1.5rem;
+}
+
+.hrms-modal-body {
+  padding: 1.5rem;
+}
+
+.hrms-modal-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  border-top: 1px solid var(--hrms-border);
+  padding: 1rem 1.5rem;
+}
+
+/* Long content should not break layouts */
+.hrms-module-page .min-w-0,
+.hrms-module-page td,
+.hrms-module-page p,
+.hrms-module-page span {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 767px) {
+  .hrms-module-page {
+    padding-bottom: 1.5rem;
+  }
+
+  .hrms-module-page.hrms-workspace {
+    gap: 1rem;
+  }
+
+  .hrms-module-page .page-header-actions,
+  .hrms-module-page .module-hero-actions {
+    width: 100%;
+  }
+
+  .hrms-module-page .page-header-actions > button,
+  .hrms-module-page .page-header-actions > a,
+  .hrms-module-page .module-hero-actions > button,
+  .hrms-module-page .module-hero-actions > a {
+    flex: 1 1 auto;
+  }
+
+  .hrms-modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .hrms-modal-panel {
+    max-height: 94vh;
+    border-radius: 1rem 1rem 0 0;
+  }
+
+  .hrms-modal-header,
+  .hrms-modal-body,
+  .hrms-modal-footer {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .hrms-modal-footer > button {
+    flex: 1 1 0;
+  }
+}
+
+/* Prevent double borders when a shared DataTable sits inside an HRMS panel. */
+.hrms-module-page .card-surface > [data-testid="data-table"],
+.hrms-module-page section.card-surface [data-testid="data-table"] {
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
