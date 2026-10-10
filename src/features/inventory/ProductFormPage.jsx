@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -10,12 +10,20 @@ import {
   Plus,
   Save,
   Trash2,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import api, { unwrap } from "@/lib/api";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -1598,47 +1606,46 @@ export default function ProductFormPage() {
                           </Button>
                         </div>
 
-                        <select
-                          className="mt-2 h-11 w-full rounded-lg border border-blue-200 bg-white px-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-500/20 dark:bg-slate-950/70"
+                        <Select
                           value=""
-                          disabled={!selectedBranch || racksLoading}
-                          onChange={(event) => {
-                            const rackId = event.target.value;
-                            if (!rackId) return;
-
-                            const alreadySelected = (variant.racks || [])
-                              .map(String)
-                              .includes(String(rackId));
-
-                            if (!alreadySelected) {
+                          disabled={!selectedBranch || racksLoading || Boolean(racksError)}
+                          onValueChange={(rackId) => {
+                            if (!(variant.racks || []).map(String).includes(rackId)) {
                               toggleVariantRack(variantIndex, rackId);
                             }
                           }}
                         >
-                          <option value="">
-                            {racksLoading
-                              ? "Loading racks..."
-                              : !selectedBranch
-                                ? "Select branch first"
-                                : racks.length
-                                  ? "Select rack"
-                                  : "No racks available"}
-                          </option>
-
-                          {racks
-                            .filter(
-                              (rack) =>
-                                !(variant.racks || [])
-                                  .map(String)
-                                  .includes(String(rack.id)),
-                            )
-                            .map((rack) => (
-                              <option key={rack.id} value={String(rack.id)}>
+                          <SelectTrigger
+                            aria-label={`Add rack to ${hasVariants ? `variant ${variantIndex + 1}` : "product"}`}
+                            className="mt-2 h-11 border-blue-200 bg-white text-left dark:border-blue-500/20 dark:bg-slate-950/70"
+                          >
+                            <SelectValue
+                              placeholder={
+                                racksLoading
+                                  ? "Loading racks..."
+                                  : !selectedBranch
+                                    ? "Select branch first"
+                                    : racksError
+                                      ? "Unable to load racks"
+                                      : racks.length
+                                        ? "Select rack"
+                                        : "No racks available"
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {racks.map((rack) => (
+                              <SelectItem
+                                key={rack.id}
+                                value={String(rack.id)}
+                                disabled={(variant.racks || []).map(String).includes(String(rack.id))}
+                              >
                                 {rack.rack_code}
                                 {rack.rack_name ? ` — ${rack.rack_name}` : ""}
-                              </option>
+                              </SelectItem>
                             ))}
-                        </select>
+                          </SelectContent>
+                        </Select>
 
                         {(variant.racks || []).length ? (
                           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -1652,19 +1659,20 @@ export default function ProductFormPage() {
                                   key={rackId}
                                   className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-blue-200 bg-white px-2 py-1 text-xs font-medium text-blue-700 dark:border-blue-500/20 dark:bg-slate-950/60 dark:text-blue-300"
                                 >
-                                  <span className="truncate">
+                                  <span className="min-w-0 break-all">
                                     {selectedRack?.rack_code ||
                                       `Rack #${rackId}`}
                                   </span>
                                   <button
                                     type="button"
-                                    className="flex h-4 w-4 shrink-0 items-center justify-center rounded text-blue-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
+                                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-blue-600 hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-blue-300 dark:hover:bg-red-500/10"
                                     title="Remove rack"
+                                    aria-label={`Remove rack ${selectedRack?.rack_code || rackId}`}
                                     onClick={() =>
                                       toggleVariantRack(variantIndex, rackId)
                                     }
                                   >
-                                    Ã—
+                                    <X className="h-3.5 w-3.5" aria-hidden="true" />
                                   </button>
                                 </span>
                               );
