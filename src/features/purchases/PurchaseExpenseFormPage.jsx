@@ -74,7 +74,7 @@ function normalizeList(value) {
 function createInitialForm(formBranchId) {
   return {
     expense_number: "",
-    branch: branchId ? String(branchId) : "",
+    branch: formBranchId ? String(formBranchId) : "",
     category: "",
     description: "",
     vendor_name: "",

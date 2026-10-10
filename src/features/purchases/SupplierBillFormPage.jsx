@@ -232,7 +232,7 @@ function createInitialForm(formBranchId) {
     grn: "",
     supplier: "",
 
-    branch: branchId ? String(branchId) : "",
+    branch: formBranchId ? String(formBranchId) : "",
 
     bill_date: today(),
     due_date: "",

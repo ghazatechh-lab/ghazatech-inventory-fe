@@ -172,7 +172,7 @@ function createInitialForm(formBranchId) {
   return {
     payment_number: "",
     supplier: "",
-    branch: branchId ? String(branchId) : "",
+    branch: formBranchId ? String(formBranchId) : "",
     payment_date: today(),
     payment_method: "BANK_TRANSFER",
     bank_account: "",
