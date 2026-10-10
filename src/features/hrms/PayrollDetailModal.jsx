@@ -81,6 +81,8 @@ export default function PayrollDetailModal({ payroll, onClose, onUpdated }) {
 
     onSuccess: async (updated) => {
       await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["employee-profile"] }),
+        queryClient.invalidateQueries({ queryKey: ["employee-payroll-history"] }),
         queryClient.invalidateQueries({
           queryKey: ["payroll-entries"],
         }),

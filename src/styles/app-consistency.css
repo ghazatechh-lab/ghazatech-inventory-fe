@@ -160,3 +160,21 @@ html.dark header.sticky.top-0 {
     max-width: none !important;
   }
 }
+
+/* Standard screen-only table column labels across shared and manual tables.
+ * Keep cell values, alignment, and print document formatting unchanged. */
+@media screen {
+  .app-page-frame table thead th {
+    text-transform: uppercase !important;
+    font-size: 0.6875rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.04em !important;
+  }
+
+  .app-page-frame table thead th button {
+    text-transform: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    letter-spacing: inherit;
+  }
+}

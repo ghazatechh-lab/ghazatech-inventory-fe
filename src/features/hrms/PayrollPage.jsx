@@ -364,6 +364,8 @@ export default function PayrollPage() {
 
   const refreshAll = async () => {
     await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["employee-profile"] }),
+      queryClient.invalidateQueries({ queryKey: ["employee-payroll-history"] }),
       queryClient.invalidateQueries({
         queryKey: ["payroll-entries"],
       }),
@@ -572,6 +574,8 @@ export default function PayrollPage() {
 
     onSuccess: async () => {
       await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["employee-profile"] }),
+        queryClient.invalidateQueries({ queryKey: ["employee-payroll-history"] }),
         queryClient.invalidateQueries({
           queryKey: ["payroll-entries"],
         }),

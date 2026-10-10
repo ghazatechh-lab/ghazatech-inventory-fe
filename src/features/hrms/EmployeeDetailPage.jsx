@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Label } from "@/components/ui/label";
+import { fetchEmployeePayrollHistory } from "./employeePayrollHistory";
 import { Input } from "@/components/ui/input";
 
 import {
@@ -55,6 +56,16 @@ export default function EmployeeDetailPage() {
   });
 
   const employee = profile?.employee;
+  const payrollBranchId = employee?.branch?.id ?? employee?.branch;
+
+  const payrollHistoryQuery = useQuery({
+    queryKey: ["employee-payroll-history", id, payrollBranchId],
+    queryFn: ({ signal }) =>
+      fetchEmployeePayrollHistory(api, id, payrollBranchId, signal),
+    enabled: activeTab === "payroll" && Boolean(employee),
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
 
   const { data: legacyHistory = [] } = useQuery({
     queryKey: ["salary-history", id],
@@ -950,8 +961,11 @@ export default function EmployeeDetailPage() {
 
       {activeTab === "payroll" && (
         <EmployeePayrollHistory
-          entries={profile?.payroll || []}
+          entries={payrollHistoryQuery.data || []}
           employeeId={id}
+          loading={payrollHistoryQuery.isPending}
+          error={payrollHistoryQuery.isError}
+          onRetry={() => payrollHistoryQuery.refetch()}
         />
       )}
 
@@ -1126,7 +1140,7 @@ function StructureRow({ label, value, strong = false }) {
   );
 }
 
-function EmployeePayrollHistory({ entries, employeeId }) {
+function EmployeePayrollHistory({ entries, employeeId, loading, error, onRetry }) {
   const payrollEntries = Array.isArray(entries) ? entries : [];
 
   const paidEntries = payrollEntries.filter(
@@ -1244,7 +1258,7 @@ function EmployeePayrollHistory({ entries, employeeId }) {
             </thead>
 
             <tbody>
-              {payrollEntries.slice(0, 24).map((entry) => {
+              {payrollEntries.map((entry) => {
                 const payableDays = Number(entry.payable_days || 0);
 
                 const totalPeriodDays = Number(
@@ -1335,7 +1349,26 @@ function EmployeePayrollHistory({ entries, employeeId }) {
                 );
               })}
 
-              {!payrollEntries.length && (
+              {loading && (
+                <tr>
+                  <td colSpan="8" className="px-4 py-10 text-center text-muted-foreground" role="status">
+                    Loading monthly payroll records...
+                  </td>
+                </tr>
+              )}
+              {error && (
+                <tr>
+                  <td colSpan="8" className="px-4 py-10 text-center">
+                    <p className="text-sm text-red-600" role="alert">
+                      Unable to load monthly payroll records.
+                    </p>
+                    <Button type="button" variant="outline" size="sm" className="mt-3" onClick={onRetry}>
+                      Retry
+                    </Button>
+                  </td>
+                </tr>
+              )}
+              {!loading && !error && !payrollEntries.length && (
                 <tr>
                   <td colSpan="8" className="px-4 py-14 text-center">
                     <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-muted">
