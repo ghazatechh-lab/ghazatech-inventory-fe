@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import {
   AlertCircle,
@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { CurrencyText } from "@/components/common/CurrencyText";
+import { StatusBadge } from "@/components/common/StatusBadge";
 import { usePurchaseBranchScope } from "@/features/purchases/usePurchaseBranchScope";
 import { PageHeader } from "@/features/purchases/PurchasePageHeader";
 
@@ -130,28 +131,6 @@ function MetricCard({
   );
 }
 
-function StatusBadge({ status }) {
-  const isActive = status === "Active";
-
-  return (
-    <span
-      className={[
-        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold",
-        isActive
-          ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
-          : "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300",
-      ].join(" ")}
-    >
-      <span
-        className={[
-          "h-1.5 w-1.5 rounded-full",
-          isActive ? "bg-emerald-500" : "bg-red-500",
-        ].join(" ")}
-      />
-      {status}
-    </span>
-  );
-}
 
 function CreditUsage({ used, limit }) {
   const safeUsed = Math.max(0, numberValue(used));

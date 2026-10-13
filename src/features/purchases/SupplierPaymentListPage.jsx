@@ -205,27 +205,27 @@ export default function SupplierPaymentListPage() {
         key: "supplier_name",
         header: "Supplier",
 
-        cell: (row) => row.supplier_name || "â€”",
+        cell: (row) => row.supplier_name || "—",
       },
       {
         key: "payment_date",
         header: "Date",
 
         cell: (row) =>
-          row.payment_date ? <DateText value={row.payment_date} /> : "â€”",
+          row.payment_date ? <DateText value={row.payment_date} /> : "—",
       },
       {
         key: "payment_method",
         header: "Method",
 
         cell: (row) =>
-          row.payment_method_display || row.payment_method || "â€”",
+          row.payment_method_display || row.payment_method || "—",
       },
       {
         key: "reference_number",
         header: "Reference",
 
-        cell: (row) => row.reference_number || "â€”",
+        cell: (row) => row.reference_number || "—",
       },
       {
         key: "amount",
@@ -403,7 +403,7 @@ export default function SupplierPaymentListPage() {
                     >
                       {column.cell
                         ? column.cell(row)
-                        : (row[column.key] ?? "â€”")}
+                        : (row[column.key] ?? "—")}
                     </td>
                   ))}
                 </tr>

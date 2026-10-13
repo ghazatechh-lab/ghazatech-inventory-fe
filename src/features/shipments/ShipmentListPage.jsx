@@ -279,7 +279,7 @@ export default function ShipmentListPage() {
         row.po_number ||
         row.purchase_order?.po_number ||
         row.purchase_order_number ||
-        "â€”",
+        "—",
     },
     {
       key: "supplier",
@@ -288,7 +288,7 @@ export default function ShipmentListPage() {
         row.supplier_name ||
         row.supplier?.supplier_name ||
         row.supplier?.name ||
-        "â€”",
+        "—",
     },
     {
       key: "branch",
@@ -298,30 +298,30 @@ export default function ShipmentListPage() {
 
         const name = row.branch_name || row.branch?.branch_name;
 
-        return code ? `${code}${name ? ` â€” ${name}` : ""}` : name || "â€”";
+        return code ? `${code}${name ? ` — ${name}` : ""}` : name || "—";
       },
     },
     {
       key: "courier",
       header: "Courier",
-      cell: (row) => row.courier || row.shipment_method || "â€”",
+      cell: (row) => row.courier || row.shipment_method || "—",
     },
     {
       key: "tracking_number",
       header: "Tracking #",
-      cell: (row) => row.tracking_number || "â€”",
+      cell: (row) => row.tracking_number || "—",
     },
     {
       key: "shipment_date",
       header: "Shipment Date",
       cell: (row) =>
-        row.shipment_date ? <DateText value={row.shipment_date} /> : "â€”",
+        row.shipment_date ? <DateText value={row.shipment_date} /> : "—",
     },
     {
       key: "expected_date",
       header: "Expected",
       cell: (row) =>
-        row.expected_date ? <DateText value={row.expected_date} /> : "â€”",
+        row.expected_date ? <DateText value={row.expected_date} /> : "—",
     },
     {
       key: "items",
@@ -520,7 +520,7 @@ export default function ShipmentListPage() {
                     >
                       {column.cell
                         ? column.cell(row)
-                        : (row[column.key] ?? "â€”")}
+                        : (row[column.key] ?? "—")}
                     </td>
                   ))}
                 </tr>

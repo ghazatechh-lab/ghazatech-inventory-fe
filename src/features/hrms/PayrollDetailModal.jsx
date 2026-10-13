@@ -56,13 +56,18 @@ export default function PayrollDetailModal({ payroll, onClose, onUpdated }) {
 
   React.useEffect(() => {
     const previousOverflow = document.body.style.overflow;
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") onClose?.();
+    };
 
     document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
 
     return () => {
       document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
     };
-  }, []);
+  }, [onClose]);
 
   const mutation = useMutation({
     mutationFn: async () =>
@@ -180,7 +185,9 @@ export default function PayrollDetailModal({ payroll, onClose, onUpdated }) {
                 label="Employee Code"
                 value={payroll.employee_code || "—"}
               />
+              <Info label="Designation" value={payroll.designation_name || "—"} />
               <Info label="Branch" value={payroll.branch_name || "—"} />
+              <Info label="Joining Date" value={formatDate(payroll.joining_date)} />
               <Info label="Period" value={payroll.period || "—"} />
 
               <Info
@@ -207,6 +214,7 @@ export default function PayrollDetailModal({ payroll, onClose, onUpdated }) {
               />
 
               <Info label="Paid By" value={payroll.paid_by || "—"} />
+              <Info label="Paid Date" value={formatDate(payroll.paid_at)} />
             </div>
           </section>
 
@@ -217,18 +225,13 @@ export default function PayrollDetailModal({ payroll, onClose, onUpdated }) {
               <MoneyCard label="Basic Salary" value={payroll.basic_salary} />
               <MoneyCard label="Allowances" value={payroll.allowances} />
               <MoneyCard label="Gross Salary" value={payroll.gross_salary} />
-              <MoneyCard label="Other Deductions" value={payroll.deductions} />
-
+              <MoneyCard label="Attendance / Other Deductions" value={payroll.deductions} />
+              <MoneyCard label="Salary Advance" value={payroll.advance_deduction} />
+              <MoneyCard label="Employee Loan EMI" value={payroll.loan_deduction} />
               <MoneyCard
-                label="Advance Amount"
-                value={payroll.advance_amount}
+                label="Total Deductions"
+                value={payroll.total_deductions ?? (Number(payroll.deductions || 0) + Number(payroll.advance_deduction || 0) + Number(payroll.loan_deduction || 0))}
               />
-
-              <MoneyCard
-                label="Advance Deduction"
-                value={payroll.advance_deduction}
-              />
-
               <MoneyCard label="Net Salary" value={payroll.net_salary} />
 
               <MoneyCard
@@ -238,6 +241,28 @@ export default function PayrollDetailModal({ payroll, onClose, onUpdated }) {
               />
             </div>
           </section>
+
+          {(payroll.advance_records?.length || payroll.loan_repayments?.length) ? (
+            <section>
+              <Title>Deduction References</Title>
+              <div className="grid gap-3 md:grid-cols-2">
+                {(payroll.advance_records || []).map((item) => (
+                  <Info
+                    key={`advance-${item.id}`}
+                    label="Salary Advance"
+                    value={`${item.reference_number || `Advance #${item.id}`} · ${item.period}`}
+                  />
+                ))}
+                {(payroll.loan_repayments || []).map((item) => (
+                  <Info
+                    key={`loan-${item.id}`}
+                    label="Loan EMI"
+                    value={`${item.reference_number || `Loan #${item.loan_id}`} · ${item.period}`}
+                  />
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           <section>
             <Title>Payable Days</Title>

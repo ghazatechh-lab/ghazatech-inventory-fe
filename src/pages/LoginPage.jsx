@@ -874,7 +874,7 @@ export default function LoginPage() {
         <footer className="ghaza-footer">
           <span>Â© 2026 GHAZA COMPUTER TR LLC</span>
 
-          <span>Privacy Â· Security Â· Support</span>
+          <span>Privacy · Security · Support</span>
         </footer>
       </main>
     </div>

@@ -654,7 +654,7 @@ export default function VendorCreditsPage() {
         return {
           source_return_item: item.id,
           description: `${item.product_name}${
-            item.quantity ? ` â€” ${item.quantity} unit(s)` : ""
+            item.quantity ? ` — ${item.quantity} unit(s)` : ""
           }`,
           gl_account: defaultInventoryAccountId
             ? String(defaultInventoryAccountId)
@@ -1066,7 +1066,7 @@ export default function VendorCreditsPage() {
           onClick={() => openExisting(row)}
           className="font-medium text-blue-600 hover:underline dark:text-blue-400"
         >
-          {row.credit_number || "â€”"}
+          {row.credit_number || "—"}
         </button>
       ),
     },
@@ -1083,7 +1083,7 @@ export default function VendorCreditsPage() {
       sortType: "date",
 
       cell: (row) =>
-        row.credit_date ? <DateText value={row.credit_date} /> : "â€”",
+        row.credit_date ? <DateText value={row.credit_date} /> : "—",
     },
     {
       key: "reason_display",
@@ -1529,7 +1529,7 @@ export default function VendorCreditsPage() {
                     value={String(supplierReturn.id)}
                   >
                     {supplierReturn.return_number}
-                    {" Â· "}
+                    {" · "}
                     {supplierReturn.supplier_name}
                   </SelectItem>
                 ))}
@@ -1756,7 +1756,7 @@ export default function VendorCreditsPage() {
                   </p>
 
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Due {application.due_date || "â€”"}
+                    Due {application.due_date || "—"}
                   </p>
                 </div>
 
@@ -1831,7 +1831,7 @@ export default function VendorCreditsPage() {
         <div className="mt-4 rounded-xl border border-dashed bg-slate-50 p-4 font-mono text-sm dark:border-white/10 dark:bg-white/[0.025]">
           <div className="flex justify-between gap-4">
             <span>
-              Dr Accounts Payable â€”{" "}
+              Dr Accounts Payable —{" "}
               {selectedSupplier?.supplier_name || "Selected Vendor"}
             </span>
 
@@ -1839,7 +1839,7 @@ export default function VendorCreditsPage() {
           </div>
 
           <div className="mt-2 flex justify-between gap-4 pl-5 text-muted-foreground">
-            <span>Cr Inventory / Expense â€” per line account</span>
+            <span>Cr Inventory / Expense — per line account</span>
 
             <CurrencyText value={totalCredit} currency={form.currency} />
           </div>

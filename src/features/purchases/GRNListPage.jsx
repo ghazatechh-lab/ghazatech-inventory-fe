@@ -75,23 +75,23 @@ export default function GRNListPage() {
     {
       key: "po_number",
       header: "Purchase Order",
-      cell: (row) => row.po_number || "â€”",
+      cell: (row) => row.po_number || "—",
     },
     {
       key: "supplier_name",
       header: "Supplier",
-      cell: (row) => row.supplier_name || "â€”",
+      cell: (row) => row.supplier_name || "—",
     },
     {
       key: "branch_name",
       header: "Branch",
-      cell: (row) => row.branch_name || "â€”",
+      cell: (row) => row.branch_name || "—",
     },
     {
       key: "received_date",
       header: "Received Date",
       cell: (row) =>
-        row.received_date ? <DateText value={row.received_date} /> : "â€”",
+        row.received_date ? <DateText value={row.received_date} /> : "—",
     },
     {
       key: "item_count",
@@ -202,7 +202,7 @@ export default function GRNListPage() {
                     >
                       {column.cell
                         ? column.cell(row)
-                        : (row[column.key] ?? "â€”")}
+                        : (row[column.key] ?? "—")}
                     </td>
                   ))}
                 </tr>

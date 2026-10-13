@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/common/PageHeader";
+import { StatusBadge as CommonStatusBadge } from "@/components/common/StatusBadge";
 
 export const ACTIVE_STATUSES = [
   ["RECEIVED", "Received"],
@@ -177,13 +178,7 @@ export function MetricCard({
 }
 
 export function StatusBadge({ status, label }) {
-  return (
-    <span
-      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${statusClass(status)}`}
-    >
-      {label || status?.replaceAll("_", " ")}
-    </span>
-  );
+  return <CommonStatusBadge status={status} label={label} />;
 }
 
 export function Modal({

@@ -416,7 +416,7 @@ export default function DashboardPage() {
                     {inv.invoice_number}
                   </div>
                   <div className="text-xs text-slate-500 truncate">
-                    {inv.customer.name} Â· <DateText value={inv.date} />
+                    {inv.customer.name} · <DateText value={inv.date} />
                   </div>
                 </div>
                 <div className="text-right">
@@ -461,7 +461,7 @@ export default function DashboardPage() {
                       {s.product.name}
                     </div>
                     <div className="text-[10px] text-slate-500">
-                      {s.branch.name} Â· SKU {s.product.sku}
+                      {s.branch.name} · SKU {s.product.sku}
                     </div>
                   </div>
                 </div>

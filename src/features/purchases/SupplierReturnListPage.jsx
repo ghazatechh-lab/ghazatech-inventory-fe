@@ -356,20 +356,20 @@ export default function SupplierReturnListPage() {
                     {row.source_branch_code || row.branch_code || row.branch_name || "—"}
                   </td>
 
-                  <td className="px-4 py-4">{row.grn_number || "â€”"}</td>
+                  <td className="px-4 py-4">{row.grn_number || "—"}</td>
 
-                  <td className="px-4 py-4">{row.supplier_name || "â€”"}</td>
+                  <td className="px-4 py-4">{row.supplier_name || "—"}</td>
 
                   <td className="px-4 py-4">
                     {row.return_date ? (
                       <DateText value={row.return_date} />
                     ) : (
-                      "â€”"
+                      "—"
                     )}
                   </td>
 
                   <td className="px-4 py-4">
-                    {row.reason_display || row.reason || "â€”"}
+                    {row.reason_display || row.reason || "—"}
                   </td>
 
                   <td className="px-4 py-4">

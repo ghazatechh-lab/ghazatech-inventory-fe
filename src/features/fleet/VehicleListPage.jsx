@@ -3,6 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CarFront,
   Edit3,
+  Eye,
+  FileText,
+  ImageIcon,
   Plus,
   Save,
   Search,
@@ -113,11 +116,15 @@ function VehicleFormModal({ open, vehicle, branchId, branchScope, onClose, onSav
     normalizeVehicleForm(vehicle, branchScope?.isCombined ? null : branchId),
   );
   const [errors, setErrors] = React.useState({});
+  const [imageFile, setImageFile] = React.useState(null);
+  const [imagePreview, setImagePreview] = React.useState(vehicle?.vehicle_image_url || vehicle?.vehicle_image || "");
 
   React.useEffect(() => {
     if (open) {
       setForm(normalizeVehicleForm(vehicle, branchScope?.isCombined ? null : branchId));
       setErrors({});
+      setImageFile(null);
+      setImagePreview(vehicle?.vehicle_image_url || vehicle?.vehicle_image || "");
     }
   }, [open, vehicle, branchId, branchScope?.isCombined]);
 
@@ -134,12 +141,17 @@ function VehicleFormModal({ open, vehicle, branchId, branchScope, onClose, onSav
       if (!payload.model) throw new Error("Model is required.");
       if (!payload.vehicle_type) throw new Error("Vehicle type is required.");
 
+      const body = new FormData();
+      Object.entries(payload).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) body.append(key, value);
+      });
+      if (imageFile) body.append("vehicle_image", imageFile);
+
+      const config = { headers: { "Content-Type": "multipart/form-data" } };
       if (vehicle?.id) {
-        return unwrap(
-          await api.patch(`/fleet/vehicles/${vehicle.id}/`, payload),
-        );
+        return unwrap(await api.patch(`/fleet/vehicles/${vehicle.id}/`, body, config));
       }
-      return unwrap(await api.post("/fleet/vehicles/", payload));
+      return unwrap(await api.post("/fleet/vehicles/", body, config));
     },
     onSuccess: () => {
       toast.success(
@@ -392,6 +404,31 @@ function VehicleFormModal({ open, vehicle, branchId, branchScope, onClose, onSav
               "INACTIVE",
             ])}
 
+            <div className="md:col-span-2">
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Vehicle Image</p>
+              <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="flex h-28 w-40 items-center justify-center overflow-hidden rounded-xl border bg-muted">
+                  {imagePreview ? (
+                    <img src={imagePreview} alt="Vehicle preview" className="h-full w-full object-cover" />
+                  ) : (
+                    <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0] || null;
+                      setImageFile(file);
+                      setImagePreview(file ? URL.createObjectURL(file) : (vehicle?.vehicle_image_url || vehicle?.vehicle_image || ""));
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground">JPG, PNG or WebP, up to 5 MB.</p>
+                </div>
+              </div>
+            </div>
+
             <label className="text-sm font-semibold text-slate-700 dark:text-slate-200 md:col-span-2">
               Notes
               <textarea
@@ -434,6 +471,84 @@ function VehicleFormModal({ open, vehicle, branchId, branchScope, onClose, onSav
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+function VehicleDetailModal({ vehicle, onClose, onChanged }) {
+  const queryClient = useQueryClient();
+  const [documentOpen, setDocumentOpen] = React.useState(false);
+  const [documentForm, setDocumentForm] = React.useState({
+    document_type: "RC", title: "", document_number: "", issue_date: "", expiry_date: "", notes: "", file: null,
+  });
+
+  const { data: tripData } = useQuery({
+    queryKey: ["fleet-vehicle-trips", vehicle.id],
+    queryFn: async () => unwrap(await api.get("/fleet/trips/", { params: { vehicle: vehicle.id, page_size: 5, ordering: "-checkout_at" } })),
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: async () => {
+      const body = new FormData();
+      body.append("vehicle", vehicle.id);
+      Object.entries(documentForm).forEach(([key, value]) => {
+        if (key !== "file" && value) body.append(key, value);
+      });
+      if (documentForm.file) body.append("file", documentForm.file);
+      return unwrap(await api.post("/fleet/vehicle-documents/", body, { headers: { "Content-Type": "multipart/form-data" } }));
+    },
+    onSuccess: async () => {
+      toast.success("Vehicle document uploaded");
+      await queryClient.invalidateQueries({ queryKey: ["fleet-vehicles"] });
+      setDocumentOpen(false);
+      onChanged();
+    },
+    onError: (error) => {
+      const details = getApiErrorDetails?.(error) || {};
+      toast.error(details.message || "Unable to upload vehicle document");
+    },
+  });
+
+  const deleteDocument = async (doc) => {
+    try {
+      await api.delete(`/fleet/vehicle-documents/${doc.id}/`);
+      toast.success("Vehicle document deleted");
+      await queryClient.invalidateQueries({ queryKey: ["fleet-vehicles"] });
+      onChanged();
+    } catch (error) {
+      toast.error(getApiErrorDetails?.(error)?.message || "Unable to delete document");
+    }
+  };
+
+  const trips = rowsFrom(tripData).slice(0, 5);
+  const docs = Array.isArray(vehicle.documents) ? vehicle.documents : [];
+
+  return (
+    <div className="fixed inset-0 z-[105] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-sm sm:p-8" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="w-full max-w-5xl rounded-2xl border bg-background shadow-2xl">
+        <div className="flex items-start justify-between border-b p-5">
+          <div className="flex gap-4">
+            <div className="flex h-24 w-32 items-center justify-center overflow-hidden rounded-xl border bg-muted">
+              {vehicle.vehicle_image_url || vehicle.vehicle_image ? <img src={vehicle.vehicle_image_url || vehicle.vehicle_image} alt={vehicle.display_name} className="h-full w-full object-cover" /> : <ImageIcon className="h-8 w-8 text-muted-foreground" />}
+            </div>
+            <div><h2 className="text-xl font-bold">{vehicle.display_name}</h2><p className="mt-1 text-sm text-muted-foreground">{vehicle.vehicle_code} · {vehicle.registration_number}</p><div className="mt-2"><StatusBadge status={vehicle.status} /></div></div>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose}><X className="h-5 w-5" /></Button>
+        </div>
+        <div className="space-y-6 p-5">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[ ["Branch", vehicle.branch_name], ["Type", vehicle.vehicle_type], ["Year", vehicle.year], ["Fuel Type", vehicle.fuel_type], ["Odometer", `${Number(vehicle.odometer_km || 0).toLocaleString()} km`], ["Service Due", vehicle.service_due_km ? `${Number(vehicle.service_due_km).toLocaleString()} km` : "—"], ["Make", vehicle.make], ["Model", vehicle.model] ].map(([label,value]) => <div key={label} className="rounded-xl border p-3"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 font-semibold">{value || "—"}</p></div>)}
+          </div>
+          {vehicle.service_due_soon ? <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">Service is due within the next 500 km.</div> : null}
+          <section>
+            <div className="mb-3 flex items-center justify-between"><div><h3 className="font-bold">Vehicle Documents</h3><p className="text-xs text-muted-foreground">Registration, insurance, permits and other fleet documents.</p></div><Button size="sm" onClick={() => setDocumentOpen(true)}><Plus className="mr-2 h-4 w-4" />Add Document</Button></div>
+            <div className="space-y-2">{docs.length ? docs.map((doc) => <div key={doc.id} className="flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">{doc.title}</p><p className="text-xs text-muted-foreground">{String(doc.document_type || "OTHER").replaceAll("_", " ")} · {doc.document_number || "No number"} · Expiry {doc.expiry_date || "—"}</p></div><div className="flex items-center gap-2"><StatusBadge status={doc.status} />{doc.file_url || doc.file ? <Button size="sm" variant="outline" asChild><a href={doc.file_url || doc.file} target="_blank" rel="noreferrer"><FileText className="mr-2 h-4 w-4" />View</a></Button> : null}<Button size="sm" variant="ghost" className="text-red-600" onClick={() => deleteDocument(doc)}><Trash2 className="h-4 w-4" /></Button></div></div>) : <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">No vehicle documents uploaded.</div>}</div>
+          </section>
+          <section><h3 className="mb-3 font-bold">Recent Trips</h3>{trips.length ? <div className="space-y-2">{trips.map((trip) => <div key={trip.id} className="flex items-center justify-between rounded-xl border p-3"><div><p className="font-medium">{trip.destination || trip.purpose || "Trip"}</p><p className="text-xs text-muted-foreground">{String(trip.checkout_at || "").slice(0,10)} · {trip.driver_name || "—"}</p></div><StatusBadge status={trip.status} /></div>)}</div> : <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">No recent trips.</div>}</section>
+          {vehicle.notes ? <section><h3 className="mb-2 font-bold">Notes</h3><p className="rounded-xl border p-3 text-sm">{vehicle.notes}</p></section> : null}
+        </div>
+      </div>
+      {documentOpen ? <div className="fixed inset-0 z-[115] grid place-items-center bg-slate-950/60 p-4"><form className="w-full max-w-xl rounded-2xl border bg-background p-5 shadow-2xl" onSubmit={(e) => { e.preventDefault(); uploadMutation.mutate(); }}><div className="flex items-center justify-between"><h3 className="text-lg font-bold">Add Vehicle Document</h3><Button type="button" variant="ghost" size="icon" onClick={() => setDocumentOpen(false)}><X className="h-4 w-4" /></Button></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-sm font-medium">Type<select className={inputClass} value={documentForm.document_type} onChange={(e)=>setDocumentForm(f=>({...f,document_type:e.target.value}))}>{["RC","INSURANCE","POLLUTION","FITNESS","PERMIT","TAX","SERVICE","WARRANTY","LEASE","OTHER"].map(v=><option key={v} value={v}>{v.replaceAll("_"," ")}</option>)}</select></label><label className="text-sm font-medium">Title<Input className="mt-1.5" required value={documentForm.title} onChange={(e)=>setDocumentForm(f=>({...f,title:e.target.value}))}/></label><label className="text-sm font-medium">Document Number<Input className="mt-1.5" value={documentForm.document_number} onChange={(e)=>setDocumentForm(f=>({...f,document_number:e.target.value}))}/></label><label className="text-sm font-medium">Issue Date<Input className="mt-1.5" type="date" value={documentForm.issue_date} onChange={(e)=>setDocumentForm(f=>({...f,issue_date:e.target.value}))}/></label><label className="text-sm font-medium">Expiry Date<Input className="mt-1.5" type="date" value={documentForm.expiry_date} onChange={(e)=>setDocumentForm(f=>({...f,expiry_date:e.target.value}))}/></label><label className="text-sm font-medium">File<Input className="mt-1.5" type="file" required accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onChange={(e)=>setDocumentForm(f=>({...f,file:e.target.files?.[0] || null}))}/></label></div><label className="mt-3 block text-sm font-medium">Notes<textarea className={inputClass} rows="3" value={documentForm.notes} onChange={(e)=>setDocumentForm(f=>({...f,notes:e.target.value}))}/></label><div className="mt-5 flex justify-end gap-2"><Button type="button" variant="outline" onClick={()=>setDocumentOpen(false)}>Cancel</Button><Button type="submit" disabled={uploadMutation.isPending}>{uploadMutation.isPending ? "Uploading..." : "Upload Document"}</Button></div></form></div> : null}
     </div>
   );
 }
@@ -497,6 +612,7 @@ export default function VehicleListPage() {
     vehicle: null,
   });
   const [deleteVehicle, setDeleteVehicle] = React.useState(null);
+  const [selectedVehicle, setSelectedVehicle] = React.useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["fleet-vehicles", branchParams],
@@ -607,6 +723,7 @@ export default function VehicleListPage() {
               <thead className="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground dark:bg-white/[0.03]">
                 <tr>
                   {[
+                    "Image",
                     "Vehicle",
                     "Code",
                     "Branch",
@@ -629,6 +746,15 @@ export default function VehicleListPage() {
                     key={vehicle.id}
                   >
                     <td className="px-4 py-3">
+                      <div className="flex h-12 w-16 items-center justify-center overflow-hidden rounded-lg border bg-muted">
+                        {vehicle.vehicle_image_url || vehicle.vehicle_image ? (
+                          <img src={vehicle.vehicle_image_url || vehicle.vehicle_image} alt={vehicle.display_name} className="h-full w-full object-cover" />
+                        ) : (
+                          <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
                       <VehicleIdentity row={vehicle} />
                     </td>
                     <td className="px-4 py-3 font-medium">
@@ -649,6 +775,15 @@ export default function VehicleListPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          title="View vehicle"
+                          onClick={() => setSelectedVehicle(vehicle)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         <Button
                           type="button"
                           variant="ghost"
@@ -677,6 +812,17 @@ export default function VehicleListPage() {
           </div>
         )}
       </section>
+
+      {selectedVehicle ? (
+        <VehicleDetailModal
+          vehicle={selectedVehicle}
+          onClose={() => setSelectedVehicle(null)}
+          onChanged={() => {
+            refreshVehicles();
+            setSelectedVehicle(null);
+          }}
+        />
+      ) : null}
 
       <VehicleFormModal
         open={formState.open}

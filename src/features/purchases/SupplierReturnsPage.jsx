@@ -601,7 +601,7 @@ export default function SupplierReturnsPage() {
                                 grn.received_date,
                               ]
                                 .filter(Boolean)
-                                .join(" Â· ")}
+                                .join(" · ")}
                             </div>
                           </div>
                         </SelectItem>
@@ -637,11 +637,11 @@ export default function SupplierReturnsPage() {
               {selectedGRN ? (
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/35 px-4 py-3 text-xs">
                   <span className="font-medium">
-                    {selectedGRN.grn_number} Â· {selectedGRN.supplier_name} Â·{" "}
+                    {selectedGRN.grn_number} · {selectedGRN.supplier_name} ·{" "}
                     {selectedGRN.branch_name}
                   </span>
                   <span className="text-blue-600">
-                    Linked PO: {selectedGRN.po_number || "â€”"}
+                    Linked PO: {selectedGRN.po_number || "—"}
                   </span>
                 </div>
               ) : null}
@@ -1006,7 +1006,7 @@ export default function SupplierReturnsPage() {
                 <span className="text-right font-medium">
                   {selectedGRN?.supplier_name ||
                     existingQuery.data?.supplier_name ||
-                    "â€”"}
+                    "—"}
                 </span>
               </div>
               <div className="flex justify-between gap-3">
@@ -1014,7 +1014,7 @@ export default function SupplierReturnsPage() {
                 <span className="font-medium">
                   {selectedGRN?.grn_number ||
                     existingQuery.data?.grn_number ||
-                    "â€”"}
+                    "—"}
                 </span>
               </div>
               <div className="flex justify-between gap-3">

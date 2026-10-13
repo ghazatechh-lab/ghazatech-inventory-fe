@@ -33,6 +33,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { MetricCard } from "@/components/sales/MetricCard";
 import { normalizeList } from "./hrmsUtils";
+import PayrollDetailModal from "./PayrollDetailModal";
 
 const PAGE_SIZE = 12;
 
@@ -107,6 +108,8 @@ export default function PayrollPage() {
 
   const [activeTab, setActiveTab] = React.useState("previous");
   const [period, setPeriod] = React.useState(currentPeriod);
+  const [historyPeriod, setHistoryPeriod] = React.useState("");
+  const [selectedPayrollDetail, setSelectedPayrollDetail] = React.useState(null);
   const [advancePeriod, setAdvancePeriod] = React.useState(currentPeriod);
   const [advanceSearch, setAdvanceSearch] = React.useState("");
   const [advancePage, setAdvancePage] = React.useState(1);
@@ -116,6 +119,8 @@ export default function PayrollPage() {
   const [loanPage, setLoanPage] = React.useState(1);
   const [loanEmployeeSearch, setLoanEmployeeSearch] = React.useState("");
   const [loanOpen, setLoanOpen] = React.useState(false);
+  const [financeCreateOpen, setFinanceCreateOpen] = React.useState(false);
+  const [financeType, setFinanceType] = React.useState("ADVANCE");
   const [loanDetail, setLoanDetail] = React.useState(null);
   const [loanForm, setLoanForm] = React.useState(emptyLoan);
   const [statusFilter, setStatusFilter] = React.useState("");
@@ -151,7 +156,7 @@ export default function PayrollPage() {
 
   const params = {
     ...branchParams,
-    period,
+    ...(historyPeriod ? { period: historyPeriod } : {}),
     ...(statusFilter ? { status: statusFilter } : {}),
   };
 
@@ -535,7 +540,7 @@ export default function PayrollPage() {
       await refreshAll();
       toast.success("Advance salary recorded successfully.");
       setAdvanceOpen(false);
-      setActiveTab("advances");
+      setActiveTab("finance");
       setAdvancePage(1);
     },
 
@@ -661,7 +666,7 @@ export default function PayrollPage() {
 
       toast.success("Employee loan created successfully.");
       setLoanOpen(false);
-      setActiveTab("loans");
+      setActiveTab("finance");
       setLoanPage(1);
     },
 
@@ -869,7 +874,7 @@ export default function PayrollPage() {
     const url = URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `payroll-${period}.csv`;
+    link.download = `payroll-${historyPeriod || "all"}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -958,6 +963,16 @@ export default function PayrollPage() {
               Mark Paid
             </Button>
           ) : null}
+
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setSelectedPayrollDetail(row)}
+          >
+            <Eye className="mr-2 h-4 w-4" />
+            View Details
+          </Button>
 
           <Button
             type="button"
@@ -1144,7 +1159,7 @@ export default function PayrollPage() {
       <PageHeader
         variant="hero"
         title="Payroll"
-        subtitle="Review salary history, manage advance salary and employee loans, and generate payroll"
+        subtitle="Browse all payrolls, manage employee advances & loans, and generate monthly payroll"
         actions={
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Button variant="outline" onClick={exportPayroll}>
@@ -1152,14 +1167,15 @@ export default function PayrollPage() {
               Export
             </Button>
 
-            <Button variant="outline" onClick={openAdvanceModal}>
-              <Banknote className="mr-2 h-4 w-4" />
-              Add Advance Salary
-            </Button>
-
-            <Button variant="outline" onClick={openLoanModal}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setFinanceType("ADVANCE");
+                setFinanceCreateOpen(true);
+              }}
+            >
               <Landmark className="mr-2 h-4 w-4" />
-              Add Employee Loan
+              Add Employee Finance
             </Button>
 
             <Button
@@ -1199,7 +1215,7 @@ export default function PayrollPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList
           className="
-            grid h-12 w-full grid-cols-3 gap-1 rounded-xl border
+            grid h-12 w-full grid-cols-2 gap-1 rounded-xl border
             bg-muted/35 p-1 shadow-none
             lg:max-w-2xl
           "
@@ -1221,7 +1237,7 @@ export default function PayrollPage() {
           </TabsTrigger>
 
           <TabsTrigger
-            value="advances"
+            value="finance"
             className="
               flex h-10 items-center justify-center gap-2 rounded-lg
               px-3 text-sm font-medium text-muted-foreground
@@ -1233,37 +1249,34 @@ export default function PayrollPage() {
             "
           >
             <Banknote className="h-4 w-4 shrink-0" />
-            <span className="truncate">Advance Salary</span>
+            <span className="truncate">Employee Finance</span>
           </TabsTrigger>
 
-          <TabsTrigger
-            value="loans"
-            className="
-              flex h-10 items-center justify-center gap-2 rounded-lg
-              px-3 text-sm font-medium text-muted-foreground
-              transition-all
-              hover:bg-background/70 hover:text-foreground
-              data-[state=active]:bg-blue-600
-              data-[state=active]:text-white
-              data-[state=active]:shadow-sm
-            "
-          >
-            <Landmark className="h-4 w-4 shrink-0" />
-            <span className="truncate">Employee Loans</span>
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="previous" className="mt-4">
           <section className="card-surface overflow-hidden">
             <div className="grid gap-3 border-b p-4 md:grid-cols-[200px_minmax(280px,1fr)_200px] md:items-center">
-              <MonthYearPicker
-                max={nextPayrollPeriod}
-                value={period}
-                onChange={(value) => {
-                  setPeriod(value);
-                  setPage(1);
-                }}
-              />
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant={!historyPeriod ? "default" : "outline"}
+                  onClick={() => {
+                    setHistoryPeriod("");
+                    setPage(1);
+                  }}
+                >
+                  All Payrolls
+                </Button>
+                <MonthYearPicker
+                  max={nextPayrollPeriod}
+                  value={historyPeriod || currentPeriod}
+                  onChange={(value) => {
+                    setHistoryPeriod(value);
+                    setPage(1);
+                  }}
+                />
+              </div>
 
               <div>
                 <SearchInput
@@ -1309,7 +1322,7 @@ export default function PayrollPage() {
           </section>
         </TabsContent>
 
-        <TabsContent value="advances" className="mt-4">
+        <TabsContent value="finance" className="mt-4">
           <section className="card-surface overflow-hidden">
             <div className="flex flex-col gap-4 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -1361,7 +1374,7 @@ export default function PayrollPage() {
           </section>
         </TabsContent>
 
-        <TabsContent value="loans" className="mt-4">
+        <TabsContent value="finance" className="mt-4">
           <section className="card-surface overflow-hidden">
             <div className="flex flex-col gap-4 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -1409,6 +1422,48 @@ export default function PayrollPage() {
           </section>
         </TabsContent>
       </Tabs>
+
+      {financeCreateOpen && (
+        <div className="hrms-modal-backdrop fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/65 p-4">
+          <div className="w-full max-w-md rounded-2xl border bg-background p-5 shadow-2xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">New Employee Finance</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Choose whether to create a salary advance or employee loan.</p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setFinanceCreateOpen(false)}><X className="h-4 w-4" /></Button>
+            </div>
+            <div className="mt-5">
+              <Label>Finance Type</Label>
+              <Select value={financeType} onValueChange={setFinanceType}>
+                <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ADVANCE">Salary Advance</SelectItem>
+                  <SelectItem value="LOAN">Employee Loan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setFinanceCreateOpen(false)}>Cancel</Button>
+              <Button onClick={() => {
+                setFinanceCreateOpen(false);
+                if (financeType === "LOAN") openLoanModal(); else openAdvanceModal();
+              }}>Continue</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedPayrollDetail && (
+        <PayrollDetailModal
+          payroll={selectedPayrollDetail}
+          onClose={() => setSelectedPayrollDetail(null)}
+          onUpdated={(updated) => {
+            setSelectedPayrollDetail(updated);
+            refreshAll();
+          }}
+        />
+      )}
 
       {payingPayroll && (
         <div className="hrms-modal-backdrop fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/65 p-4">

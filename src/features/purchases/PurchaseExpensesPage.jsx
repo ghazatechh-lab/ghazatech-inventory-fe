@@ -203,7 +203,7 @@ export default function PurchaseExpensesPage() {
         sortKey: "category",
         sortType: "text",
 
-        cell: (row) => row.category_display || row.category || "â€”",
+        cell: (row) => row.category_display || row.category || "—",
       },
 
       {
@@ -213,7 +213,7 @@ export default function PurchaseExpensesPage() {
         sortType: "text",
 
         cell: (row) =>
-          row.branch_name || row.branch?.branch_name || row.branch?.name || "â€”",
+          row.branch_name || row.branch?.branch_name || row.branch?.name || "—",
       },
 
       {
@@ -223,7 +223,7 @@ export default function PurchaseExpensesPage() {
         sortType: "date",
 
         cell: (row) =>
-          row.expense_date ? <DateText value={row.expense_date} /> : "â€”",
+          row.expense_date ? <DateText value={row.expense_date} /> : "—",
       },
 
       {
@@ -232,7 +232,7 @@ export default function PurchaseExpensesPage() {
         sortKey: "vendor_name",
         sortType: "text",
 
-        cell: (row) => row.vendor_name || row.supplier_name || "â€”",
+        cell: (row) => row.vendor_name || row.supplier_name || "—",
       },
 
       {
@@ -241,7 +241,7 @@ export default function PurchaseExpensesPage() {
         sortKey: "payment_method",
         sortType: "text",
 
-        cell: (row) => row.payment_method_display || row.payment_method || "â€”",
+        cell: (row) => row.payment_method_display || row.payment_method || "—",
       },
 
       {
@@ -364,7 +364,7 @@ export default function PurchaseExpensesPage() {
 
         <Metric
           label="Top Category"
-          value={summary.top_category || "â€”"}
+          value={summary.top_category || "—"}
           subtitle={
             summary.top_category ? (
               <CurrencyText value={summary.top_category_total || 0} />

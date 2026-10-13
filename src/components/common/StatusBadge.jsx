@@ -1,70 +1,36 @@
-﻿import React from "react";
+import React from "react";
 import { cn } from "@/lib/utils";
 
-const styles = {
-  ok: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  success: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  paid: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  active: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  received: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  approved: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  delivered: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  converted: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  confirmed: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-
-  warning: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  low: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  pending: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  draft: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  partial: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  requested: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  in_transit: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  dispatched: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  sent: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  picked: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  out_for_delivery: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-  late: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-
-  danger: "text-red-400 bg-red-500/10 border-red-500/20",
-  out: "text-red-400 bg-red-500/10 border-red-500/20",
-  overdue: "text-red-400 bg-red-500/10 border-red-500/20",
-  unpaid: "text-red-400 bg-red-500/10 border-red-500/20",
-  rejected: "text-red-400 bg-red-500/10 border-red-500/20",
-  cancelled: "text-red-400 bg-red-500/10 border-red-500/20",
-  expired: "text-red-400 bg-red-500/10 border-red-500/20",
-  absent: "text-red-400 bg-red-500/10 border-red-500/20",
-  critical: "text-red-400 bg-red-500/10 border-red-500/20",
-
-  info: "text-blue-400 bg-blue-500/10 border-blue-500/20",
-  present: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-  leave: "text-violet-400 bg-violet-500/10 border-violet-500/20",
-  hrms: "text-violet-400 bg-violet-500/10 border-violet-500/20",
-  closed: "text-slate-400 bg-slate-500/10 border-slate-500/20",
+const TONES = {
+  positive: "text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-500/10 dark:border-emerald-500/30",
+  warning: "text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-500/10 dark:border-amber-500/30",
+  danger: "text-red-700 bg-red-50 border-red-200 dark:text-red-300 dark:bg-red-500/10 dark:border-red-500/30",
+  info: "text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-300 dark:bg-blue-500/10 dark:border-blue-500/30",
+  neutral: "text-slate-700 bg-slate-50 border-slate-200 dark:text-slate-300 dark:bg-slate-500/10 dark:border-slate-500/30",
+  violet: "text-violet-700 bg-violet-50 border-violet-200 dark:text-violet-300 dark:bg-violet-500/10 dark:border-violet-500/30",
 };
 
-const dotColor = {
-  emerald: "bg-emerald-400", amber: "bg-amber-400", red: "bg-red-400", blue: "bg-blue-400", violet: "bg-violet-400", slate: "bg-slate-400",
+const STATUS_TONE = {
+  OK: "positive", SUCCESS: "positive", PAID: "positive", COMPLETED: "positive", APPROVED: "positive", ACTIVE: "positive", AVAILABLE: "positive", RECEIVED: "positive", DELIVERED: "positive", POSTED: "positive", VALID: "positive", IN_STOCK: "positive", RETURNED: "positive", CONFIRMED: "positive", CONVERTED: "positive", PRESENT: "positive", DEDUCTED: "positive",
+  PENDING: "warning", DRAFT: "warning", PARTIAL: "warning", PARTIALLY_RECEIVED: "warning", PROCESSING: "warning", IN_PROGRESS: "warning", AWAITING: "warning", EXPIRING_SOON: "warning", LOW_STOCK: "warning", ON_HOLD: "warning", OUT: "warning", REQUESTED: "warning", IN_TRANSIT: "warning", DISPATCHED: "warning", SENT: "warning", PICKED: "warning", OUT_FOR_DELIVERY: "warning", LATE: "warning", SERVICE: "warning", PROBATION: "warning",
+  CANCELLED: "danger", CANCELED: "danger", REJECTED: "danger", FAILED: "danger", OVERDUE: "danger", EXPIRED: "danger", UNPAID: "danger", INACTIVE: "danger", VOID: "danger", OUT_OF_STOCK: "danger", ABSENT: "danger", CRITICAL: "danger", TERMINATED: "danger", RESIGNED: "danger",
+  LEAVE: "violet", ON_LEAVE: "violet", HRMS: "violet",
+  INFO: "info", CLOSED: "neutral",
 };
 
-function pickDot(cls) {
-  if (cls.includes("emerald")) return dotColor.emerald;
-  if (cls.includes("amber")) return dotColor.amber;
-  if (cls.includes("red")) return dotColor.red;
-  if (cls.includes("violet")) return dotColor.violet;
-  if (cls.includes("blue")) return dotColor.blue;
-  return dotColor.slate;
+const DOTS = { positive: "bg-emerald-500", warning: "bg-amber-500", danger: "bg-red-500", info: "bg-blue-500", violet: "bg-violet-500", neutral: "bg-slate-500" };
+
+export function formatStatusLabel(value) {
+  return String(value || "").replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 export function StatusBadge({ status, label, className }) {
-  const key = (status || "").toString().toLowerCase();
-  const c = styles[key] || "text-slate-400 bg-slate-500/10 border-slate-500/20";
-  const dot = pickDot(c);
-  const text = (label || status || "").toString().replace(/_/g, " ");
+  const key = String(status || "").trim().toUpperCase();
+  const tone = STATUS_TONE[key] || "neutral";
   return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium border capitalize", c, className)}>
-      <span className={cn("w-1.5 h-1.5 rounded-full", dot)} />
-      {text}
+    <span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold", TONES[tone], className)}>
+      <span className={cn("h-1.5 w-1.5 rounded-full", DOTS[tone])} />
+      {label || formatStatusLabel(status) || "Unknown"}
     </span>
   );
 }
-

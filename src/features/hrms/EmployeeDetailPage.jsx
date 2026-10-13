@@ -28,6 +28,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { Label } from "@/components/ui/label";
 import { fetchEmployeePayrollHistory } from "./employeePayrollHistory";
 import { Input } from "@/components/ui/input";
+import PayrollDetailModal from "./PayrollDetailModal";
 
 import {
   Select,
@@ -40,6 +41,7 @@ export default function EmployeeDetailPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
   const [revisionOpen, setRevisionOpen] = React.useState(false);
+  const [selectedPayroll, setSelectedPayroll] = React.useState(null);
   const [activeTab, setActiveTab] = React.useState("overview");
   const [revision, setRevision] = React.useState({
     reason: "ANNUAL_INCREMENT",
@@ -966,6 +968,18 @@ export default function EmployeeDetailPage() {
           loading={payrollHistoryQuery.isPending}
           error={payrollHistoryQuery.isError}
           onRetry={() => payrollHistoryQuery.refetch()}
+          onViewPayroll={setSelectedPayroll}
+        />
+      )}
+
+      {selectedPayroll && (
+        <PayrollDetailModal
+          payroll={selectedPayroll}
+          onClose={() => setSelectedPayroll(null)}
+          onUpdated={(updated) => {
+            setSelectedPayroll(updated);
+            payrollHistoryQuery.refetch();
+          }}
         />
       )}
 
@@ -1140,7 +1154,14 @@ function StructureRow({ label, value, strong = false }) {
   );
 }
 
-function EmployeePayrollHistory({ entries, employeeId, loading, error, onRetry }) {
+function EmployeePayrollHistory({
+  entries,
+  employeeId,
+  loading,
+  error,
+  onRetry,
+  onViewPayroll,
+}) {
   const payrollEntries = Array.isArray(entries) ? entries : [];
 
   const paidEntries = payrollEntries.filter(
@@ -1335,14 +1356,13 @@ function EmployeePayrollHistory({ entries, employeeId, loading, error, onRetry }
 
                     <td className="px-4 py-4 text-right">
                       <Button
-                        asChild
+                        type="button"
                         size="sm"
                         variant="outline"
                         className="h-8 rounded-lg px-3 text-xs"
+                        onClick={() => onViewPayroll(entry)}
                       >
-                        <Link to={`/hrms/payroll?employee=${employeeId}`}>
-                          View Payroll
-                        </Link>
+                        View Payroll Details
                       </Button>
                     </td>
                   </tr>
@@ -1351,7 +1371,11 @@ function EmployeePayrollHistory({ entries, employeeId, loading, error, onRetry }
 
               {loading && (
                 <tr>
-                  <td colSpan="8" className="px-4 py-10 text-center text-muted-foreground" role="status">
+                  <td
+                    colSpan="8"
+                    className="px-4 py-10 text-center text-muted-foreground"
+                    role="status"
+                  >
                     Loading monthly payroll records...
                   </td>
                 </tr>
@@ -1362,7 +1386,13 @@ function EmployeePayrollHistory({ entries, employeeId, loading, error, onRetry }
                     <p className="text-sm text-red-600" role="alert">
                       Unable to load monthly payroll records.
                     </p>
-                    <Button type="button" variant="outline" size="sm" className="mt-3" onClick={onRetry}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-3"
+                      onClick={onRetry}
+                    >
                       Retry
                     </Button>
                   </td>
@@ -1450,4 +1480,3 @@ function PayrollTh({ children, right = false }) {
     </th>
   );
 }
-
