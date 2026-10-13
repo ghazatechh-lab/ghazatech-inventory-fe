@@ -2,6 +2,10 @@ import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CarFront,
+  CheckCircle2,
+  Fuel,
+  Gauge,
+  AlertCircle,
   Edit3,
   Eye,
   FileText,
@@ -607,6 +611,8 @@ export default function VehicleListPage() {
   const branchScope = usePhysicalBranchScope();
   const { listParams: branchParams, branchId } = branchScope;
   const [query, setQuery] = React.useState("");
+  const [vehicleTypeFilter, setVehicleTypeFilter] = React.useState("ALL");
+  const [statusFilter, setStatusFilter] = React.useState("ALL");
   const [formState, setFormState] = React.useState({
     open: false,
     vehicle: null,
@@ -627,6 +633,8 @@ export default function VehicleListPage() {
   const vehicles = rowsFrom(data);
   const normalizedQuery = query.trim().toLowerCase();
   const filtered = vehicles.filter((vehicle) =>
+    (vehicleTypeFilter === "ALL" || vehicle.vehicle_type === vehicleTypeFilter) &&
+    (statusFilter === "ALL" || vehicle.status === statusFilter) &&
     [
       vehicle.vehicle_code,
       vehicle.make,
@@ -664,48 +672,30 @@ export default function VehicleListPage() {
         }
       />
 
-      <BranchSourceFilter scope={branchScope} />
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <MetricCard
-          label="Registered"
-          value={vehicles.length}
-          description="Vehicles in selected branch"
-          icon={CarFront}
-        />
-        <MetricCard
-          label="Available"
-          value={vehicles.filter((item) => item.status === "AVAILABLE").length}
-          description="Ready for checkout"
-          icon={CarFront}
-          tone="green"
-        />
-        <MetricCard
-          label="Service Due"
-          value={vehicles.filter((item) => item.service_due_soon).length}
-          description="Within next 500 km"
-          icon={Wrench}
-          tone="red"
-        />
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <MetricCard label="Total Vehicles" value={vehicles.length} description="All registered vehicles" icon={CarFront} />
+        <MetricCard label="Available" value={vehicles.filter((v) => v.status === "AVAILABLE").length} description="Ready for use" icon={CheckCircle2} tone="green" />
+        <MetricCard label="In Service" value={vehicles.filter((v) => v.status === "IN_SERVICE").length} description="Under maintenance" icon={Wrench} tone="amber" />
+        <MetricCard label="Out of Service" value={vehicles.filter((v) => v.status === "OUT_OF_SERVICE").length} description="Not available" icon={AlertCircle} tone="red" />
+        <MetricCard label="Total Mileage" value={`${vehicles.reduce((sum,v)=>sum+Number(v.odometer_km||0),0).toLocaleString()} km`} description="Current combined odometers" icon={Gauge} />
       </div>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/70">
-        <div className="flex flex-col gap-3 border-b border-slate-200/80 p-5 sm:flex-row sm:items-center sm:justify-between dark:border-white/10">
-          <div>
-            <h2 className="font-bold">Registered Vehicles</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Search, add, edit, or delete without leaving this page
-            </p>
-          </div>
-          <div className="relative w-full sm:w-80">
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/70">
+        <div className="grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(220px,2fr)_minmax(160px,1fr)_minmax(160px,1fr)_minmax(160px,1fr)]">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              className="pl-9"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search vehicles..."
-            />
+            <Input aria-label="Search vehicles" className="h-10 pl-9" placeholder="Search vehicle name, code, plate number..." value={query} onChange={(e)=>setQuery(e.target.value)} />
           </div>
+          <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Vehicle Type</label><select aria-label="Vehicle type" className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" value={vehicleTypeFilter} onChange={(e)=>setVehicleTypeFilter(e.target.value)}><option value="ALL">All Types</option>{[...new Set(vehicles.map((v)=>v.vehicle_type).filter(Boolean))].sort().map((v)=><option key={v} value={v}>{v}</option>)}</select></div>
+          <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Status</label><select aria-label="Vehicle status" className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" value={statusFilter} onChange={(e)=>setStatusFilter(e.target.value)}><option value="ALL">All Statuses</option>{[...new Set(vehicles.map((v)=>v.status).filter(Boolean))].sort().map((v)=><option key={v} value={v}>{v.replace(/_/g," ")}</option>)}</select></div>
+          <div className="flex items-end gap-2"><div className="min-w-0 flex-1"><BranchSourceFilter scope={branchScope} /></div><Button variant="outline" type="button" onClick={()=>{setQuery("");setVehicleTypeFilter("ALL");setStatusFilter("ALL")}}>Reset</Button></div>
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/70">
+        <div className="flex items-center justify-between gap-3 border-b border-slate-200/80 p-5 dark:border-white/10">
+          <div><h2 className="text-lg font-bold">Vehicle List</h2><p className="mt-1 text-xs text-muted-foreground">View and manage all company vehicles.</p></div>
+          <Button className="bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300" onClick={()=>setFormState({open:true,vehicle:null})}><Plus className="mr-2 h-4 w-4"/>Add Vehicle</Button>
         </div>
 
         {isLoading ? (
@@ -719,24 +709,19 @@ export default function VehicleListPage() {
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground dark:bg-white/[0.03]">
+            <table className="w-full min-w-[1050px] text-sm">
+              <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-muted-foreground dark:bg-white/[0.03]">
                 <tr>
-                  {[
-                    "Image",
-                    "Vehicle",
-                    "Code",
-                    "Branch",
-                    "Type",
-                    "Odometer",
-                    "Service Due",
-                    "Status",
-                    "Actions",
-                  ].map((heading) => (
-                    <th className="px-4 py-3" key={heading}>
-                      {heading}
-                    </th>
-                  ))}
+                  <th className="px-4 py-3 text-center align-middle">Image</th>
+                  <th className="px-4 py-3 text-left align-middle">Vehicle</th>
+                  <th className="px-4 py-3 text-center align-middle">Code</th>
+                  <th className="px-4 py-3 text-center align-middle">Branch</th>
+                  <th className="px-4 py-3 text-center align-middle">Type</th>
+                  <th className="px-4 py-3 text-center align-middle">Mileage</th>
+                  <th className="px-4 py-3 text-center align-middle">Fuel Type</th>
+                  <th className="px-4 py-3 text-center align-middle">Service Due</th>
+                  <th className="px-4 py-3 text-center align-middle">Status</th>
+                  <th className="px-4 py-3 text-center align-middle">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -745,8 +730,8 @@ export default function VehicleListPage() {
                     className="border-t border-slate-100 dark:border-white/10"
                     key={vehicle.id}
                   >
-                    <td className="px-4 py-3">
-                      <div className="flex h-12 w-16 items-center justify-center overflow-hidden rounded-lg border bg-muted">
+                    <td className="px-4 py-3 align-middle">
+                      <div className="mx-auto flex h-12 w-16 items-center justify-center overflow-hidden rounded-lg border bg-muted">
                         {vehicle.vehicle_image_url || vehicle.vehicle_image ? (
                           <img src={vehicle.vehicle_image_url || vehicle.vehicle_image} alt={vehicle.display_name} className="h-full w-full object-cover" />
                         ) : (
@@ -754,27 +739,28 @@ export default function VehicleListPage() {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 text-left align-middle">
                       <VehicleIdentity row={vehicle} />
                     </td>
-                    <td className="px-4 py-3 font-medium">
+                    <td className="px-4 py-3 text-center align-middle font-medium">
                       {vehicle.vehicle_code}
                     </td>
-                    <td className="px-4 py-3">{vehicle.branch_name || "—"}</td>
-                    <td className="px-4 py-3">{vehicle.vehicle_type || "—"}</td>
-                    <td className="whitespace-nowrap px-4 py-3">
+                    <td className="px-4 py-3 text-center align-middle">{vehicle.branch_name || "—"}</td>
+                    <td className="px-4 py-3 text-center align-middle">{vehicle.vehicle_type || "—"}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-center align-middle">
                       {Number(vehicle.odometer_km || 0).toLocaleString()} km
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3">
+                    <td className="px-4 py-3 text-center align-middle"><span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">{vehicle.fuel_type || "—"}</span></td>
+                    <td className="whitespace-nowrap px-4 py-3 text-center align-middle">
                       {vehicle.service_due_km
                         ? `${Number(vehicle.service_due_km).toLocaleString()} km`
                         : "—"}
                     </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={vehicle.status} />
+                    <td className="px-4 py-3 text-center align-middle">
+                      <div className="flex justify-center"><StatusBadge status={vehicle.status} /></div>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
+                    <td className="px-4 py-3 text-center align-middle">
+                      <div className="flex items-center justify-center gap-1">
                         <Button
                           type="button"
                           variant="ghost"

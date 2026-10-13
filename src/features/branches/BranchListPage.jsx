@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -90,7 +90,7 @@ export default function BranchListPage() {
               header: "Status",
               cell: (r) => (
                 <StatusBadge
-                  status={r.is_active ? "active" : "closed"}
+                  status={r.is_active ? "ACTIVE" : "INACTIVE"}
                   label={r.is_active ? "Active" : "Inactive"}
                 />
               ),

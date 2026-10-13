@@ -1,3 +1,4 @@
+import { StatusBadge } from "@/components/common/StatusBadge";
 import React from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -172,20 +173,7 @@ export default function RackListPage() {
         sortKey: "is_active",
         sortType: "active",
         cell: (row) => (
-          <span
-            className={
-              row.is_active
-                ? "inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/20"
-                : "inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 ring-1 ring-inset ring-slate-200 dark:bg-slate-500/10 dark:text-slate-300 dark:ring-slate-500/20"
-            }
-          >
-            {row.is_active ? (
-              <CheckCircle2 className="h-3.5 w-3.5" />
-            ) : (
-              <XCircle className="h-3.5 w-3.5" />
-            )}
-            {row.is_active ? "Active" : "Inactive"}
-          </span>
+          <StatusBadge status={row.is_active ? "ACTIVE" : "INACTIVE"} />
         ),
       },
       {

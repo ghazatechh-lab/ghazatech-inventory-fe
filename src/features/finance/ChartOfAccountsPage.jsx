@@ -1,3 +1,4 @@
+import { StatusBadge } from "@/components/common/StatusBadge";
 import React from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -735,11 +736,7 @@ export default function ChartOfAccountsPage() {
                             {money(account.current_balance)}
                           </td>
                           <td className="px-4 py-3">
-                            <span
-                              className={`rounded-full px-2.5 py-1 text-xs font-semibold ${account.is_active ? "bg-emerald-500/10 text-emerald-600" : "bg-slate-500/10 text-slate-500"}`}
-                            >
-                              {account.is_active ? "Active" : "Inactive"}
-                            </span>
+                            <StatusBadge status={account.is_active ? "ACTIVE" : "INACTIVE"} />
                             {account.lock_from_posting && (
                               <span className="ml-2 rounded-full bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-600">
                                 Locked

@@ -1256,8 +1256,8 @@ export default function PayrollPage() {
 
         <TabsContent value="previous" className="mt-4">
           <section className="card-surface overflow-hidden">
-            <div className="grid gap-3 border-b p-4 md:grid-cols-[200px_minmax(280px,1fr)_200px] md:items-center">
-              <div className="flex items-center gap-2">
+            <div className="grid grid-cols-1 gap-3 border-b p-4 lg:grid-cols-[minmax(310px,auto)_minmax(260px,1fr)_190px] lg:items-end">
+              <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
                 <Button
                   type="button"
                   variant={!historyPeriod ? "default" : "outline"}
@@ -1278,7 +1278,7 @@ export default function PayrollPage() {
                 />
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <SearchInput
                   value={q}
                   onChange={setQ}
@@ -1293,7 +1293,7 @@ export default function PayrollPage() {
                   setPage(1);
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
                 <SelectContent>

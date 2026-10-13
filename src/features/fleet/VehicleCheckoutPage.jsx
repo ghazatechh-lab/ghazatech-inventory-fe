@@ -2,6 +2,10 @@ import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Edit3,
+  ArrowRight,
+  ArrowLeft,
+  Clock3,
+  CarFront,
   Eye,
   Plus,
   RotateCcw,
@@ -19,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import {
   EmptyState,
+  MetricCard,
   FleetHero,
   VehicleIdentity,
   formatDateTime,
@@ -343,7 +348,6 @@ export default function VehicleCheckoutPage() {
 
   return (
     <div className="w-full space-y-5 pb-10">
-      <BranchSourceFilter scope={branchScope} />
       <FleetHero
         eyebrow="Vehicle Movement"
         title="Vehicle Checkout & Return"
@@ -360,67 +364,22 @@ export default function VehicleCheckoutPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/70">
-          <p className="text-sm text-muted-foreground">Total Movements</p>
-          <p className="mt-2 text-3xl font-bold">{trips.length}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/70">
-          <p className="text-sm text-muted-foreground">Currently Out</p>
-          <p className="mt-2 text-3xl font-bold text-amber-600">
-            {activeCount}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/70">
-          <p className="text-sm text-muted-foreground">Returned</p>
-          <p className="mt-2 text-3xl font-bold text-emerald-600">
-            {returnedCount}
-          </p>
-        </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Total Movements" value={trips.length} description="All checkout / return records" icon={CarFront} />
+        <MetricCard label="Currently Out" value={activeCount} description="Vehicles on the road" icon={ArrowRight} tone="green" />
+        <MetricCard label="Returned" value={returnedCount} description="Completed movements" icon={ArrowLeft} />
+        <MetricCard label="Overdue Returns" value={trips.filter((t)=>t.status === "ACTIVE" && t.expected_return_at && new Date(t.expected_return_at).getTime()<Date.now()).length} description="Past expected return time" icon={Clock3} tone="red" />
       </div>
-
-      <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/70">
-        <div className="border-b border-slate-200 p-5 dark:border-white/10">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h2 className="text-lg font-bold">Vehicle Movement List</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {filteredTrips.length} record
-                {filteredTrips.length === 1 ? "" : "s"}
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <Button
-                type="button"
-                onClick={openAddCheckout}
-                className="bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
-              >
-                <Plus className="mr-2 h-4 w-4 text-slate-950" />
-                Add Checkout
-              </Button>
-              <div className="relative min-w-64">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  className="pl-9"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search vehicle, driver, purpose..."
-                />
-              </div>
-              <select
-                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                value={status}
-                onChange={(event) => setStatus(event.target.value)}
-              >
-                <option value="ALL">All Statuses</option>
-                <option value="ACTIVE">Active</option>
-                <option value="RETURNED">Returned</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
-            </div>
-          </div>
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/70">
+        <div className="grid items-end gap-3 md:grid-cols-2 xl:grid-cols-[minmax(240px,2fr)_minmax(160px,1fr)_minmax(160px,1fr)_auto]">
+          <div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/><Input aria-label="Search vehicle movements" className="h-10 pl-9" placeholder="Search vehicle, driver, purpose or reference..." value={search} onChange={(event)=>setSearch(event.target.value)}/></div>
+          <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Status</label><select aria-label="Movement status" className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" value={status} onChange={(e)=>setStatus(e.target.value)}><option value="ALL">All Statuses</option><option value="ACTIVE">Currently Out</option><option value="RETURNED">Returned</option><option value="CANCELLED">Cancelled</option></select></div>
+          <BranchSourceFilter scope={branchScope}/>
+          <Button variant="outline" onClick={()=>{setSearch("");setStatus("ALL")}}>Reset</Button>
         </div>
+      </section>
+      <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/70">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 p-5 dark:border-white/10"><div><h2 className="text-lg font-bold">Vehicle Movement List</h2><p className="mt-1 text-xs text-muted-foreground">View and manage all vehicle checkout and return records.</p></div><Button onClick={openAddCheckout} className="bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300"><Plus className="mr-2 h-4 w-4"/>Add Checkout</Button></div>
 
         {tripsQuery.isLoading ? (
           <div className="p-8 text-center text-sm text-muted-foreground">
@@ -434,18 +393,16 @@ export default function VehicleCheckoutPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1150px] text-sm">
-              <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-muted-foreground dark:bg-white/5">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-muted-foreground dark:bg-white/5">
                 <tr>
-                  <th className="px-5 py-3 font-semibold">Vehicle</th>
-                  <th className="px-5 py-3 font-semibold">Driver</th>
-                  <th className="px-5 py-3 font-semibold">Purpose / Route</th>
-                  <th className="px-5 py-3 font-semibold">Checkout</th>
-                  <th className="px-5 py-3 font-semibold">Return</th>
-                  <th className="px-5 py-3 font-semibold">Odometer</th>
-                  <th className="px-5 py-3 font-semibold">Status</th>
-                  <th className="px-5 py-3 text-right font-semibold">
-                    Actions
-                  </th>
+                  <th className="px-5 py-3 text-left align-middle font-semibold">Vehicle</th>
+                  <th className="px-5 py-3 text-left align-middle font-semibold">Driver</th>
+                  <th className="px-5 py-3 text-left align-middle font-semibold">Purpose / Route</th>
+                  <th className="px-5 py-3 text-center align-middle font-semibold">Checkout</th>
+                  <th className="px-5 py-3 text-center align-middle font-semibold">Return</th>
+                  <th className="px-5 py-3 text-center align-middle font-semibold">Odometer</th>
+                  <th className="px-5 py-3 text-center align-middle font-semibold">Status</th>
+                  <th className="px-5 py-3 text-center align-middle font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-white/10">
@@ -480,15 +437,15 @@ export default function VehicleCheckoutPage() {
                           {trip.destination || "No destination"}
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-5 py-4 text-muted-foreground">
+                      <td className="whitespace-nowrap px-5 py-4 text-center align-middle text-muted-foreground">
                         {formatDateTime(trip.checkout_at)}
                       </td>
-                      <td className="whitespace-nowrap px-5 py-4 text-muted-foreground">
+                      <td className="whitespace-nowrap px-5 py-4 text-center align-middle text-muted-foreground">
                         {isReturned
                           ? formatDateTime(trip.actual_return_at)
                           : formatDateTime(trip.expected_return_at)}
                       </td>
-                      <td className="whitespace-nowrap px-5 py-4">
+                      <td className="whitespace-nowrap px-5 py-4 text-center align-middle">
                         <div>
                           {Number(
                             trip.starting_odometer_km || 0,
@@ -503,11 +460,11 @@ export default function VehicleCheckoutPage() {
                           </div>
                         ) : null}
                       </td>
-                      <td className="px-5 py-4">
-                        <StatusBadge status={trip.status} />
+                      <td className="px-5 py-4 text-center align-middle">
+                        <div className="flex justify-center"><StatusBadge status={trip.status} /></div>
                       </td>
-                      <td className="px-5 py-4">
-                        <div className="flex justify-end gap-2">
+                      <td className="px-5 py-4 text-center align-middle">
+                        <div className="flex justify-center gap-2">
                           {isReturned ? (
                             <Button
                               type="button"

@@ -1,3 +1,4 @@
+import { StatusBadge } from "@/components/common/StatusBadge";
 import React from "react";
 import { useLocation } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -192,18 +193,9 @@ export default function ReferenceDataPage({
         header: "Status",
         sortKey: "is_active",
         sortType: "active",
-        cell: (row) =>
-          row.is_active ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-500/10 dark:text-emerald-300">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Active
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-              <XCircle className="h-3.5 w-3.5" />
-              Inactive
-            </span>
-          ),
+        cell: (row) => (
+          <StatusBadge status={row.is_active ? "ACTIVE" : "INACTIVE"} />
+        ),
       },
       {
         key: "created_at",

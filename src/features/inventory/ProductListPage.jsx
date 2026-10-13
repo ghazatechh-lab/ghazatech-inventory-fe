@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -543,7 +543,7 @@ export default function ProductListPage() {
       header: "Status",
       cell: (product) => (
         <StatusBadge
-          status={product.is_active ? "active" : "closed"}
+          status={product.is_active ? "ACTIVE" : "INACTIVE"}
           label={product.is_active ? "Active" : "Inactive"}
         />
       ),

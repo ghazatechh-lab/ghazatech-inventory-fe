@@ -437,3 +437,12 @@ html.light .sidebar-always-blue .hover\:text-white:hover {
 @import "./styles/settings-module.css";
 
 @import "./styles/app-consistency.css";
+
+/* Keep data-table headings on a single horizontal line across all modules. */
+table thead th {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+table tbody td {
+  vertical-align: middle;
+}

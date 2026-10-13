@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import api, { unwrap } from "@/lib/api";
@@ -60,7 +60,7 @@ export default function BranchDetailPage() {
             Status
           </div>
           <StatusBadge
-            status={b.is_active ? "active" : "closed"}
+            status={b.is_active ? "ACTIVE" : "INACTIVE"}
             label={b.is_active ? "Active" : "Inactive"}
           />
         </div>

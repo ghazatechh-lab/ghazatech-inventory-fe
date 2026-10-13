@@ -16,21 +16,28 @@ const STATUS_TONE = {
   CANCELLED: "danger", CANCELED: "danger", REJECTED: "danger", FAILED: "danger", OVERDUE: "danger", EXPIRED: "danger", UNPAID: "danger", INACTIVE: "danger", VOID: "danger", OUT_OF_STOCK: "danger", ABSENT: "danger", CRITICAL: "danger", TERMINATED: "danger", RESIGNED: "danger",
   LEAVE: "violet", ON_LEAVE: "violet", HRMS: "violet",
   INFO: "info", CLOSED: "neutral",
+  RESTORED: "positive", RECONCILED: "positive", SETTLED: "positive",
+  PARTIALLY_PAID: "warning", PARTIALLY_DELIVERED: "warning",
+  AWAITING_APPROVAL: "warning", DIAGNOSING: "warning", REPAIRING: "warning",
+  CHECKED_OUT: "warning", READY: "positive",
+  SUSPENDED: "danger", DISABLED: "danger", BLOCKED: "danger",
+  NOT_AVAILABLE: "danger", DELETED: "danger", EXPIRED_DOCUMENT: "danger",
+  HIGH: "warning", URGENT: "danger", LOW: "neutral",
 };
 
 const DOTS = { positive: "bg-emerald-500", warning: "bg-amber-500", danger: "bg-red-500", info: "bg-blue-500", violet: "bg-violet-500", neutral: "bg-slate-500" };
 
 export function formatStatusLabel(value) {
-  return String(value || "").replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return String(value ?? "").trim().replace(/[_-]+/g, " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 export function StatusBadge({ status, label, className }) {
-  const key = String(status || "").trim().toUpperCase();
+  const key = String(status ?? "").trim().replace(/[\s-]+/g, "_").toUpperCase();
   const tone = STATUS_TONE[key] || "neutral";
   return (
     <span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold", TONES[tone], className)}>
       <span className={cn("h-1.5 w-1.5 rounded-full", DOTS[tone])} />
-      {label || formatStatusLabel(status) || "Unknown"}
+      {label ?? (formatStatusLabel(status) || "Unknown")}
     </span>
   );
 }

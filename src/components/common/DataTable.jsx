@@ -426,8 +426,8 @@ export function DataTable({
 
   return (
     <div className="card-surface overflow-hidden" data-testid={testId}>
-      <div className="overflow-x-auto">
-        <Table>
+      <div className="w-full overflow-x-auto">
+        <Table className="min-w-max">
           <TableHeader>
             <TableRow className="border-white/5 hover:bg-transparent">
               {columns.map((column) => {
@@ -461,7 +461,7 @@ export function DataTable({
                           : "none"
                     }
                     className={cn(
-                      "py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500",
+                      "whitespace-nowrap py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500",
                       column.align === "right" && "text-right",
                       column.headerClassName,
                       column.className,
@@ -472,7 +472,7 @@ export function DataTable({
                         type="button"
                         onClick={() => handleSort(column)}
                         className={cn(
-                          "inline-flex items-center gap-1.5 rounded px-1 py-1 transition hover:bg-white/5 hover:text-slate-200",
+                          "inline-flex flex-nowrap items-center gap-1.5 whitespace-nowrap rounded px-1 py-1 transition hover:bg-white/5 hover:text-slate-200",
                           column.align === "right" && "ml-auto",
                         )}
                         title={`${column.header}: ${nextLabel}`}
@@ -516,7 +516,8 @@ export function DataTable({
                     <TableCell
                       key={column.key}
                       className={cn(
-                        "py-2.5 text-sm text-slate-200",
+                        "py-2.5 align-middle text-sm text-slate-200",
+                        NON_SORTABLE_KEYS.has(column.key) && "whitespace-nowrap",
                         column.align === "right" && "text-right",
                         column.className,
                       )}
