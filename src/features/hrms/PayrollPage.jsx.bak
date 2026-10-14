@@ -6,6 +6,7 @@ import {
   History,
   Landmark,
   Pencil,
+  Trash2,
   Plus,
   X,
 } from "lucide-react";
@@ -34,6 +35,7 @@ import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { MetricCard } from "@/components/sales/MetricCard";
 import { normalizeList } from "./hrmsUtils";
 import PayrollDetailModal from "./PayrollDetailModal";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 
 const PAGE_SIZE = 12;
 
@@ -110,6 +112,7 @@ export default function PayrollPage() {
   const [period, setPeriod] = React.useState(currentPeriod);
   const [historyPeriod, setHistoryPeriod] = React.useState("");
   const [selectedPayrollDetail, setSelectedPayrollDetail] = React.useState(null);
+  const [payrollToDelete, setPayrollToDelete] = React.useState(null);
   const [advancePeriod, setAdvancePeriod] = React.useState(currentPeriod);
   const [advanceSearch, setAdvanceSearch] = React.useState("");
   const [advancePage, setAdvancePage] = React.useState(1);
@@ -879,6 +882,23 @@ export default function PayrollPage() {
     URL.revokeObjectURL(url);
   };
 
+  const deletePayrollMutation = useMutation({
+    mutationFn: async (record) => api.delete(`/hrms/payroll/${record.id}/`),
+    onSuccess: async () => {
+      setPayrollToDelete(null);
+      setSelectedPayrollDetail(null);
+      toast.success("Payroll entry deleted");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["payroll-entries"] }),
+        queryClient.invalidateQueries({ queryKey: ["payroll-summary"] }),
+        queryClient.invalidateQueries({ queryKey: ["payroll-runs"] }),
+        queryClient.invalidateQueries({ queryKey: ["employee-payroll-history"] }),
+        queryClient.invalidateQueries({ queryKey: ["employee-profile"] }),
+      ]);
+    },
+    onError: (error) => toast.error(getApiErrorDetails(error).title || "Unable to delete payroll"),
+  });
+
   const previousSalaryColumns = [
     {
       key: "employee",
@@ -973,6 +993,19 @@ export default function PayrollPage() {
             <Eye className="mr-2 h-4 w-4" />
             View Details
           </Button>
+
+          {!["PAID"].includes(String(row.status || "").toUpperCase()) && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="text-red-600 hover:text-red-700"
+              onClick={() => setPayrollToDelete(row)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </Button>
+          )}
 
           <Button
             type="button"
@@ -1256,8 +1289,8 @@ export default function PayrollPage() {
 
         <TabsContent value="previous" className="mt-4">
           <section className="card-surface overflow-hidden">
-            <div className="grid grid-cols-1 gap-3 border-b p-4 lg:grid-cols-[minmax(310px,auto)_minmax(260px,1fr)_190px] lg:items-end">
-              <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
+            <div className="grid gap-3 border-b p-4 md:grid-cols-[200px_minmax(280px,1fr)_200px] md:items-center">
+              <div className="flex items-center gap-2">
                 <Button
                   type="button"
                   variant={!historyPeriod ? "default" : "outline"}
@@ -1278,7 +1311,7 @@ export default function PayrollPage() {
                 />
               </div>
 
-              <div className="min-w-0">
+              <div>
                 <SearchInput
                   value={q}
                   onChange={setQ}
@@ -1293,7 +1326,7 @@ export default function PayrollPage() {
                   setPage(1);
                 }}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger>
                   <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1453,6 +1486,18 @@ export default function PayrollPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(payrollToDelete)}
+        onOpenChange={(open) => { if (!open && !deletePayrollMutation.isPending) setPayrollToDelete(null); }}
+        title="Delete payroll entry?"
+        description={`Delete the unpaid payroll for ${payrollToDelete?.employee_name || "this employee"} (${payrollToDelete?.period || "unknown period"})? Paid payrolls or entries with financial recoveries cannot be deleted.`}
+        confirmLabel={deletePayrollMutation.isPending ? "Deleting..." : "Delete Payroll"}
+        destructive
+        onConfirm={() => {
+          if (payrollToDelete && !deletePayrollMutation.isPending) deletePayrollMutation.mutate(payrollToDelete);
+        }}
+      />
 
       {selectedPayrollDetail && (
         <PayrollDetailModal

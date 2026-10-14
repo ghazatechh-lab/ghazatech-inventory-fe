@@ -994,18 +994,20 @@ export default function PayrollPage() {
             View Details
           </Button>
 
-          {!["PAID"].includes(String(row.status || "").toUpperCase()) && (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="text-red-600 hover:text-red-700"
-              onClick={() => setPayrollToDelete(row)}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </Button>
-          )}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={String(row.status || "").toUpperCase() === "PAID"}
+            title={String(row.status || "").toUpperCase() === "PAID"
+              ? "Paid payroll cannot be deleted to protect salary and recovery history"
+              : "Delete unpaid payroll (subject to financial recovery checks)"}
+            className="text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => setPayrollToDelete(row)}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete
+          </Button>
 
           <Button
             type="button"
@@ -1289,11 +1291,13 @@ export default function PayrollPage() {
 
         <TabsContent value="previous" className="mt-4">
           <section className="card-surface overflow-hidden">
-            <div className="grid gap-3 border-b p-4 md:grid-cols-[200px_minmax(280px,1fr)_200px] md:items-center">
-              <div className="flex items-center gap-2">
+            <div className="grid gap-3 border-b p-4 sm:grid-cols-2 xl:grid-cols-[auto_220px_minmax(220px,1fr)_190px] xl:items-end">
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">Payroll history</Label>
                 <Button
                   type="button"
                   variant={!historyPeriod ? "default" : "outline"}
+                  className="h-10 shrink-0 whitespace-nowrap"
                   onClick={() => {
                     setHistoryPeriod("");
                     setPage(1);
@@ -1301,7 +1305,11 @@ export default function PayrollPage() {
                 >
                   All Payrolls
                 </Button>
+              </div>
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">Payroll month</Label>
                 <MonthYearPicker
+                  className="w-full"
                   max={nextPayrollPeriod}
                   value={historyPeriod || currentPeriod}
                   onChange={(value) => {
@@ -1310,32 +1318,34 @@ export default function PayrollPage() {
                   }}
                 />
               </div>
-
-              <div>
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">Search payroll records</Label>
                 <SearchInput
                   value={q}
                   onChange={setQ}
                   placeholder="Search employee, code, period or payer"
                 />
               </div>
-
-              <Select
-                value={statusFilter || "__ALL__"}
-                onValueChange={(value) => {
-                  setStatusFilter(value === "__ALL__" ? "" : value);
-                  setPage(1);
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__ALL__">All statuses</SelectItem>
-                  <SelectItem value="PENDING">Pending</SelectItem>
-                  <SelectItem value="PAID">Paid</SelectItem>
-                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">Status</Label>
+                <Select
+                  value={statusFilter || "__ALL__"}
+                  onValueChange={(value) => {
+                    setStatusFilter(value === "__ALL__" ? "" : value);
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger className="h-10 w-full">
+                    <SelectValue placeholder="All statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__ALL__">All statuses</SelectItem>
+                    <SelectItem value="PENDING">Pending</SelectItem>
+                    <SelectItem value="PAID">Paid</SelectItem>
+                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <DataTable
