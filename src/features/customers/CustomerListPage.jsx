@@ -1,9 +1,11 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Download, Eye, Pencil, Plus, Users } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Download, Eye, Pencil, Plus, Trash2, Users } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
-import api, { unwrap } from "@/lib/api";
+import api, { unwrap, getApiErrorDetails } from "@/lib/api";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { Button } from "@/components/ui/button";
 import { CurrencyText, DateText } from "@/components/common/CurrencyText";
@@ -14,6 +16,21 @@ import { MetricCard } from "@/components/sales/MetricCard";
 import { useSalesBranchScope } from "@/features/sales/useSalesBranchScope";
 
 export default function CustomerListPage() {
+  const queryClient = useQueryClient();
+  const [customerToDelete, setCustomerToDelete] = React.useState(null);
+  const deleteCustomerMutation = useMutation({
+    mutationFn: async (record) => api.delete(`/customers/${record.resource_key || record.id}/`),
+    onSuccess: async () => {
+      setCustomerToDelete(null);
+      toast.success("Customer moved to recovery");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["customers"] }),
+        queryClient.invalidateQueries({ queryKey: ["customers-summary"] }),
+      ]);
+    },
+    onError: (error) => toast.error(getApiErrorDetails(error).title || "Unable to delete customer"),
+  });
+
   const { branchId, listBranchParams: branchParams } = useSalesBranchScope();
 
   const { query, q, setQ, page, setPage } = useListQuery(
@@ -128,6 +145,11 @@ export default function CustomerListPage() {
                 Edit
               </Link>
             </Button>
+            <Button type="button" size="sm" variant="outline"
+              className="text-red-600 hover:text-red-700"
+              onClick={() => setCustomerToDelete(row)}>
+              <Trash2 className="mr-2 h-4 w-4" />Delete
+            </Button>
           </div>
         ),
       },
@@ -137,6 +159,18 @@ export default function CustomerListPage() {
 
   return (
     <div className="customer-module-page customer-workspace w-full space-y-5 pb-10">
+      <ConfirmDialog
+        open={Boolean(customerToDelete)}
+        onOpenChange={(open) => { if (!open && !deleteCustomerMutation.isPending) setCustomerToDelete(null); }}
+        title="Delete customer?"
+        description={`Move ${customerToDelete?.customer_name || "this customer"} to recovery? Linked transactions are preserved. You can cancel this action.`}
+        confirmLabel={deleteCustomerMutation.isPending ? "Deleting..." : "Delete Customer"}
+        destructive
+        onConfirm={() => {
+          if (customerToDelete && !deleteCustomerMutation.isPending) deleteCustomerMutation.mutate(customerToDelete);
+        }}
+      />
+
       <PageHeader
         showSourceFilter
         variant="hero"
