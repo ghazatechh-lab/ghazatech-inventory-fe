@@ -968,7 +968,6 @@ export default function EmployeeDetailPage() {
           loading={payrollHistoryQuery.isPending}
           error={payrollHistoryQuery.isError}
           onRetry={() => payrollHistoryQuery.refetch()}
-          onViewPayroll={setSelectedPayroll}
         />
       )}
 
@@ -1033,6 +1032,7 @@ export default function EmployeeDetailPage() {
                 <Label>Effective From</Label>
                 <Input
                   type="date"
+                  min="2015-01-01"
                   className="mt-2"
                   value={revision.effective_from}
                   onChange={(event) =>
@@ -1154,14 +1154,7 @@ function StructureRow({ label, value, strong = false }) {
   );
 }
 
-function EmployeePayrollHistory({
-  entries,
-  employeeId,
-  loading,
-  error,
-  onRetry,
-  onViewPayroll,
-}) {
+function EmployeePayrollHistory({ entries, employeeId, loading, error, onRetry }) {
   const payrollEntries = Array.isArray(entries) ? entries : [];
 
   const paidEntries = payrollEntries.filter(
@@ -1360,7 +1353,7 @@ function EmployeePayrollHistory({
                         size="sm"
                         variant="outline"
                         className="h-8 rounded-lg px-3 text-xs"
-                        onClick={() => onViewPayroll(entry)}
+                        onClick={() => setSelectedPayroll(entry)}
                       >
                         View Payroll Details
                       </Button>
@@ -1371,11 +1364,7 @@ function EmployeePayrollHistory({
 
               {loading && (
                 <tr>
-                  <td
-                    colSpan="8"
-                    className="px-4 py-10 text-center text-muted-foreground"
-                    role="status"
-                  >
+                  <td colSpan="8" className="px-4 py-10 text-center text-muted-foreground" role="status">
                     Loading monthly payroll records...
                   </td>
                 </tr>
@@ -1386,13 +1375,7 @@ function EmployeePayrollHistory({
                     <p className="text-sm text-red-600" role="alert">
                       Unable to load monthly payroll records.
                     </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="mt-3"
-                      onClick={onRetry}
-                    >
+                    <Button type="button" variant="outline" size="sm" className="mt-3" onClick={onRetry}>
                       Retry
                     </Button>
                   </td>
@@ -1480,3 +1463,4 @@ function PayrollTh({ children, right = false }) {
     </th>
   );
 }
+

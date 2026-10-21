@@ -215,6 +215,10 @@ export default function SalaryHistoryPage() {
           : "Effective date is required.";
     }
 
+    if (revision.effective_from && revision.effective_from < "2015-01-01") {
+      next.effective_from = "Select a date from 2015 onward.";
+    }
+
     if (revisionMode === "PREVIOUS" && !revision.effective_to) {
       next.effective_to = "To date is required.";
     }
@@ -731,7 +735,7 @@ export default function SalaryHistoryPage() {
                   <Input
                     type="date"
                     className="mt-2"
-                    min={employee?.joining_date || undefined}
+                    min="2015-01-01"
                     max={new Date().toISOString().slice(0, 10)}
                     value={revision.effective_from}
                     onChange={(event) =>
@@ -753,8 +757,7 @@ export default function SalaryHistoryPage() {
                       className="mt-2"
                       min={
                         revision.effective_from ||
-                        employee?.joining_date ||
-                        undefined
+                        "2015-01-01"
                       }
                       max={new Date().toISOString().slice(0, 10)}
                       value={revision.effective_to}

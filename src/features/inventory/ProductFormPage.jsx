@@ -1029,9 +1029,10 @@ export default function ProductFormPage() {
 
                 <Input
                   {...register("barcode")}
-                  placeholder="Scan or enter barcode"
+                  placeholder="Automatically generated as GHZ... if left empty"
                   className="mt-2 h-11 border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80"
                 />
+                <p className="mt-1 text-xs text-slate-500">Leave blank to assign a unique GHZ barcode when saving. Download the scannable label from Product Details.</p>
               </div>
             </div>
 

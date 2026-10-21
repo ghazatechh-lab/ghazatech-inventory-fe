@@ -1,4 +1,3 @@
-import { StatusBadge } from "@/components/common/StatusBadge";
 import React from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -18,6 +17,7 @@ import {
 } from "lucide-react";
 
 import api, { unwrap } from "@/lib/api";
+import ProductBarcode from "@/components/common/ProductBarcode";
 import { Button } from "@/components/ui/button";
 
 const money = (value) =>
@@ -107,7 +107,11 @@ export default function ProductDetailPage() {
                 <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
                   Product profile
                 </span>
-                <StatusBadge status={product.is_active !== false ? "ACTIVE" : "INACTIVE"} />
+                <span
+                  className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em] ${product.is_active !== false ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300" : "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-400"}`}
+                >
+                  {product.is_active !== false ? "Active" : "Inactive"}
+                </span>
               </div>
               <h1
                 className="mt-2 truncate text-2xl font-extrabold tracking-tight !text-white sm:text-3xl"
@@ -230,6 +234,11 @@ export default function ProductDetailPage() {
               label="Barcode"
               value={product.barcode}
             />
+            {product.barcode && (
+              <div className="md:col-span-2 lg:col-span-3">
+                <ProductBarcode value={product.barcode} />
+              </div>
+            )}
             <DetailItem icon={Layers3} label="Unit" value={product.unit} />
             <DetailItem
               icon={CircleDollarSign}
