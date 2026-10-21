@@ -6,7 +6,6 @@ import {
   History,
   Landmark,
   Pencil,
-  Trash2,
   Plus,
   X,
 } from "lucide-react";
@@ -34,8 +33,6 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { DataTable, SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { MetricCard } from "@/components/sales/MetricCard";
 import { normalizeList } from "./hrmsUtils";
-import PayrollDetailModal from "./PayrollDetailModal";
-import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 
 const PAGE_SIZE = 12;
 
@@ -110,9 +107,6 @@ export default function PayrollPage() {
 
   const [activeTab, setActiveTab] = React.useState("previous");
   const [period, setPeriod] = React.useState(currentPeriod);
-  const [historyPeriod, setHistoryPeriod] = React.useState("");
-  const [selectedPayrollDetail, setSelectedPayrollDetail] = React.useState(null);
-  const [payrollToDelete, setPayrollToDelete] = React.useState(null);
   const [advancePeriod, setAdvancePeriod] = React.useState(currentPeriod);
   const [advanceSearch, setAdvanceSearch] = React.useState("");
   const [advancePage, setAdvancePage] = React.useState(1);
@@ -122,8 +116,6 @@ export default function PayrollPage() {
   const [loanPage, setLoanPage] = React.useState(1);
   const [loanEmployeeSearch, setLoanEmployeeSearch] = React.useState("");
   const [loanOpen, setLoanOpen] = React.useState(false);
-  const [financeCreateOpen, setFinanceCreateOpen] = React.useState(false);
-  const [financeType, setFinanceType] = React.useState("ADVANCE");
   const [loanDetail, setLoanDetail] = React.useState(null);
   const [loanForm, setLoanForm] = React.useState(emptyLoan);
   const [statusFilter, setStatusFilter] = React.useState("");
@@ -159,7 +151,7 @@ export default function PayrollPage() {
 
   const params = {
     ...branchParams,
-    ...(historyPeriod ? { period: historyPeriod } : {}),
+    period,
     ...(statusFilter ? { status: statusFilter } : {}),
   };
 
@@ -372,8 +364,6 @@ export default function PayrollPage() {
 
   const refreshAll = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["employee-profile"] }),
-      queryClient.invalidateQueries({ queryKey: ["employee-payroll-history"] }),
       queryClient.invalidateQueries({
         queryKey: ["payroll-entries"],
       }),
@@ -543,7 +533,7 @@ export default function PayrollPage() {
       await refreshAll();
       toast.success("Advance salary recorded successfully.");
       setAdvanceOpen(false);
-      setActiveTab("finance");
+      setActiveTab("advances");
       setAdvancePage(1);
     },
 
@@ -582,8 +572,6 @@ export default function PayrollPage() {
 
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["employee-profile"] }),
-        queryClient.invalidateQueries({ queryKey: ["employee-payroll-history"] }),
         queryClient.invalidateQueries({
           queryKey: ["payroll-entries"],
         }),
@@ -669,7 +657,7 @@ export default function PayrollPage() {
 
       toast.success("Employee loan created successfully.");
       setLoanOpen(false);
-      setActiveTab("finance");
+      setActiveTab("loans");
       setLoanPage(1);
     },
 
@@ -877,27 +865,10 @@ export default function PayrollPage() {
     const url = URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `payroll-${historyPeriod || "all"}.csv`;
+    link.download = `payroll-${period}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
-
-  const deletePayrollMutation = useMutation({
-    mutationFn: async (record) => api.delete(`/hrms/payroll/${record.id}/`),
-    onSuccess: async () => {
-      setPayrollToDelete(null);
-      setSelectedPayrollDetail(null);
-      toast.success("Payroll entry deleted");
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["payroll-entries"] }),
-        queryClient.invalidateQueries({ queryKey: ["payroll-summary"] }),
-        queryClient.invalidateQueries({ queryKey: ["payroll-runs"] }),
-        queryClient.invalidateQueries({ queryKey: ["employee-payroll-history"] }),
-        queryClient.invalidateQueries({ queryKey: ["employee-profile"] }),
-      ]);
-    },
-    onError: (error) => toast.error(getApiErrorDetails(error).title || "Unable to delete payroll"),
-  });
 
   const previousSalaryColumns = [
     {
@@ -983,31 +954,6 @@ export default function PayrollPage() {
               Mark Paid
             </Button>
           ) : null}
-
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => setSelectedPayrollDetail(row)}
-          >
-            <Eye className="mr-2 h-4 w-4" />
-            View Details
-          </Button>
-
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={String(row.status || "").toUpperCase() === "PAID"}
-            title={String(row.status || "").toUpperCase() === "PAID"
-              ? "Paid payroll cannot be deleted to protect salary and recovery history"
-              : "Delete unpaid payroll (subject to financial recovery checks)"}
-            className="text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-            onClick={() => setPayrollToDelete(row)}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete
-          </Button>
 
           <Button
             type="button"
@@ -1194,7 +1140,7 @@ export default function PayrollPage() {
       <PageHeader
         variant="hero"
         title="Payroll"
-        subtitle="Browse all payrolls, manage employee advances & loans, and generate monthly payroll"
+        subtitle="Review salary history, manage advance salary and employee loans, and generate payroll"
         actions={
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Button variant="outline" onClick={exportPayroll}>
@@ -1202,15 +1148,14 @@ export default function PayrollPage() {
               Export
             </Button>
 
-            <Button
-              variant="outline"
-              onClick={() => {
-                setFinanceType("ADVANCE");
-                setFinanceCreateOpen(true);
-              }}
-            >
+            <Button variant="outline" onClick={openAdvanceModal}>
+              <Banknote className="mr-2 h-4 w-4" />
+              Add Advance Salary
+            </Button>
+
+            <Button variant="outline" onClick={openLoanModal}>
               <Landmark className="mr-2 h-4 w-4" />
-              Add Employee Finance
+              Add Employee Loan
             </Button>
 
             <Button
@@ -1250,7 +1195,7 @@ export default function PayrollPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList
           className="
-            grid h-12 w-full grid-cols-2 gap-1 rounded-xl border
+            grid h-12 w-full grid-cols-3 gap-1 rounded-xl border
             bg-muted/35 p-1 shadow-none
             lg:max-w-2xl
           "
@@ -1272,7 +1217,7 @@ export default function PayrollPage() {
           </TabsTrigger>
 
           <TabsTrigger
-            value="finance"
+            value="advances"
             className="
               flex h-10 items-center justify-center gap-2 rounded-lg
               px-3 text-sm font-medium text-muted-foreground
@@ -1284,68 +1229,63 @@ export default function PayrollPage() {
             "
           >
             <Banknote className="h-4 w-4 shrink-0" />
-            <span className="truncate">Employee Finance</span>
+            <span className="truncate">Advance Salary</span>
           </TabsTrigger>
 
+          <TabsTrigger
+            value="loans"
+            className="
+              flex h-10 items-center justify-center gap-2 rounded-lg
+              px-3 text-sm font-medium text-muted-foreground
+              transition-all
+              hover:bg-background/70 hover:text-foreground
+              data-[state=active]:bg-blue-600
+              data-[state=active]:text-white
+              data-[state=active]:shadow-sm
+            "
+          >
+            <Landmark className="h-4 w-4 shrink-0" />
+            <span className="truncate">Employee Loans</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="previous" className="mt-4">
           <section className="card-surface overflow-hidden">
-            <div className="grid gap-3 border-b p-4 sm:grid-cols-2 xl:grid-cols-[auto_220px_minmax(220px,1fr)_190px] xl:items-end">
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs text-muted-foreground">Payroll history</Label>
-                <Button
-                  type="button"
-                  variant={!historyPeriod ? "default" : "outline"}
-                  className="h-10 shrink-0 whitespace-nowrap"
-                  onClick={() => {
-                    setHistoryPeriod("");
-                    setPage(1);
-                  }}
-                >
-                  All Payrolls
-                </Button>
-              </div>
-              <div className="flex min-w-0 flex-col gap-1.5">
-                <Label className="text-xs text-muted-foreground">Payroll month</Label>
-                <MonthYearPicker
-                  className="w-full"
-                  max={nextPayrollPeriod}
-                  value={historyPeriod || currentPeriod}
-                  onChange={(value) => {
-                    setHistoryPeriod(value);
-                    setPage(1);
-                  }}
-                />
-              </div>
-              <div className="flex min-w-0 flex-col gap-1.5">
-                <Label className="text-xs text-muted-foreground">Search payroll records</Label>
+            <div className="grid gap-3 border-b p-4 md:grid-cols-[200px_minmax(280px,1fr)_200px] md:items-center">
+              <MonthYearPicker
+                max={nextPayrollPeriod}
+                value={period}
+                onChange={(value) => {
+                  setPeriod(value);
+                  setPage(1);
+                }}
+              />
+
+              <div>
                 <SearchInput
                   value={q}
                   onChange={setQ}
                   placeholder="Search employee, code, period or payer"
                 />
               </div>
-              <div className="flex min-w-0 flex-col gap-1.5">
-                <Label className="text-xs text-muted-foreground">Status</Label>
-                <Select
-                  value={statusFilter || "__ALL__"}
-                  onValueChange={(value) => {
-                    setStatusFilter(value === "__ALL__" ? "" : value);
-                    setPage(1);
-                  }}
-                >
-                  <SelectTrigger className="h-10 w-full">
-                    <SelectValue placeholder="All statuses" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__ALL__">All statuses</SelectItem>
-                    <SelectItem value="PENDING">Pending</SelectItem>
-                    <SelectItem value="PAID">Paid</SelectItem>
-                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+
+              <Select
+                value={statusFilter || "__ALL__"}
+                onValueChange={(value) => {
+                  setStatusFilter(value === "__ALL__" ? "" : value);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__ALL__">All statuses</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="PAID">Paid</SelectItem>
+                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <DataTable
@@ -1365,7 +1305,7 @@ export default function PayrollPage() {
           </section>
         </TabsContent>
 
-        <TabsContent value="finance" className="mt-4">
+        <TabsContent value="advances" className="mt-4">
           <section className="card-surface overflow-hidden">
             <div className="flex flex-col gap-4 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -1417,7 +1357,7 @@ export default function PayrollPage() {
           </section>
         </TabsContent>
 
-        <TabsContent value="finance" className="mt-4">
+        <TabsContent value="loans" className="mt-4">
           <section className="card-surface overflow-hidden">
             <div className="flex flex-col gap-4 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -1465,60 +1405,6 @@ export default function PayrollPage() {
           </section>
         </TabsContent>
       </Tabs>
-
-      {financeCreateOpen && (
-        <div className="hrms-modal-backdrop fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/65 p-4">
-          <div className="w-full max-w-md rounded-2xl border bg-background p-5 shadow-2xl">
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-xl font-semibold">New Employee Finance</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Choose whether to create a salary advance or employee loan.</p>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => setFinanceCreateOpen(false)}><X className="h-4 w-4" /></Button>
-            </div>
-            <div className="mt-5">
-              <Label>Finance Type</Label>
-              <Select value={financeType} onValueChange={setFinanceType}>
-                <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ADVANCE">Salary Advance</SelectItem>
-                  <SelectItem value="LOAN">Employee Loan</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setFinanceCreateOpen(false)}>Cancel</Button>
-              <Button onClick={() => {
-                setFinanceCreateOpen(false);
-                if (financeType === "LOAN") openLoanModal(); else openAdvanceModal();
-              }}>Continue</Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <ConfirmDialog
-        open={Boolean(payrollToDelete)}
-        onOpenChange={(open) => { if (!open && !deletePayrollMutation.isPending) setPayrollToDelete(null); }}
-        title="Delete payroll entry?"
-        description={`Delete the unpaid payroll for ${payrollToDelete?.employee_name || "this employee"} (${payrollToDelete?.period || "unknown period"})? Paid payrolls or entries with financial recoveries cannot be deleted.`}
-        confirmLabel={deletePayrollMutation.isPending ? "Deleting..." : "Delete Payroll"}
-        destructive
-        onConfirm={() => {
-          if (payrollToDelete && !deletePayrollMutation.isPending) deletePayrollMutation.mutate(payrollToDelete);
-        }}
-      />
-
-      {selectedPayrollDetail && (
-        <PayrollDetailModal
-          payroll={selectedPayrollDetail}
-          onClose={() => setSelectedPayrollDetail(null)}
-          onUpdated={(updated) => {
-            setSelectedPayrollDetail(updated);
-            refreshAll();
-          }}
-        />
-      )}
 
       {payingPayroll && (
         <div className="hrms-modal-backdrop fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/65 p-4">
@@ -1832,7 +1718,7 @@ export default function PayrollPage() {
 
                 {numberValue(editingPayroll.advance_deduction) > 0 ? (
                   <p className="mt-2 text-xs text-amber-600">
-                    Existing advance deduction: AED{" "}
+                    Existing advance deduction: INR{" "}
                     {numberValue(editingPayroll.advance_deduction).toFixed(2)}.
                     Advance deduction remains linked to this payroll entry.
                   </p>
@@ -1840,7 +1726,7 @@ export default function PayrollPage() {
 
                 {numberValue(editingPayroll.loan_deduction) > 0 ? (
                   <p className="mt-1 text-xs text-orange-600">
-                    Existing loan deduction: AED{" "}
+                    Existing loan deduction: INR{" "}
                     {numberValue(editingPayroll.loan_deduction).toFixed(2)}.
                     Loan deduction remains linked to this payroll entry.
                   </p>

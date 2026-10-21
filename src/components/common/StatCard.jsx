@@ -1,0 +1,6 @@
+import React from 'react';
+export function StatCard({label,value,detail,icon:Icon,onClick,tone}){
+ const Tag=onClick?'button':'div';return <Tag className="erp-panel erp-stat hover:border-[var(--primary)] transition-colors" onClick={onClick}><span className="stat-label">{label}</span>{Icon&&<span className="stat-icon"><Icon size={18}/></span>}<p className={`stat-value ${tone==='warning'?'!text-amber-700':tone==='danger'?'!text-rose-700':''}`}>{value}</p><p className="stat-detail">{detail}</p></Tag>;
+}
+export function LoadingSkeleton({label='Loading records…'}){return <div role="status" aria-label={label} className="space-y-5"><span className="sr-only">{label}</span><div className="h-7 w-64 bg-gray-200 rounded animate-pulse"/><div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">{[1,2,3,4].map(n=><div key={n} className="erp-panel h-32 animate-pulse bg-gray-100"/>)}</div><div className="erp-panel h-64 animate-pulse bg-gray-100"/></div>}
+export function ErrorState({message='Unable to load records. Check your connection and permissions.',onRetry}){return <div role="alert" className="erp-panel p-8 text-center"><h2>We couldn’t load this page</h2><p className="text-sm text-gray-500 mt-2">{message}</p>{onRetry&&<button className="erp-primary mt-5" onClick={onRetry}>Try again</button>}</div>}

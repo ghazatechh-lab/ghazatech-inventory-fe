@@ -1,0 +1,38 @@
+.offers-page { width: 100%; max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; color: #14233c; box-sizing: border-box; }
+.offers-page * { box-sizing: border-box; }
+.offers-header { margin-bottom: 24px; }
+.offers-header h1 { font-size: clamp(25px, 2.5vw, 32px); line-height: 1.2; font-weight: 750; letter-spacing: -.025em; margin: 0 0 8px; }
+.offers-header p, .offers-panel-heading p { color: #64748b; font-size: 14px; margin: 0; }
+.offers-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 28px; box-shadow: 0 8px 25px rgba(15,23,42,.035); }
+.offers-panel-heading { padding-bottom: 20px; margin-bottom: 24px; border-bottom: 1px solid #e9edf4; }
+.offers-panel-heading h2, .offers-existing h2 { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+.offers-form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px 18px; align-items: start; }
+.offer-field { display: flex; flex-direction: column; align-items: stretch; gap: 8px; min-width: 0; font-size: 14px; font-weight: 500; }
+.offer-label { display: block; color: #334155; font-size: 13px; font-weight: 650; }
+.offer-control { display: block; width: 100%; min-width: 0; height: 44px; padding: 10px 12px; background: #fff; border: 1px solid #cbd5e1; border-radius: 9px; color: #172b4d; font: inherit; font-size: 14px; line-height: 1.4; outline: none; }
+.offer-control:focus { border-color: #285b99; box-shadow: 0 0 0 3px rgba(40,91,153,.12); }
+.offer-control::placeholder { color: #94a3b8; }
+select.offer-control { cursor: pointer; padding-right: 32px; }
+.offers-span-full { grid-column: 1 / -1; }
+textarea.offer-control.offer-description { height: auto; min-height: 72px; resize: vertical; }
+.offers-product-section { margin-top: 26px; padding-top: 22px; border-top: 1px solid #e9edf4; }
+.offers-product-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+.offers-product-heading h3 { margin: 0 0 4px; font-size: 15px; font-weight: 700; }
+.offers-product-heading p, .offers-help { margin: 0; font-size: 12px; color: #64748b; }
+.offers-selection-count { flex-shrink: 0; padding: 5px 10px; border-radius: 20px; background: #f1f5f9; font-size: 12px; color: #475569; }
+select.offers-product-select { width: 100%; max-width: 100%; min-height: 130px; height: 130px; padding: 6px; overflow-y: auto; }
+.offers-product-select option { padding: 7px 10px; border-radius: 5px; }
+.offers-help { margin-top: 9px; }
+.offers-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding-top: 24px; margin-top: 24px; border-top: 1px solid #e9edf4; }
+.offers-button { border: 1px solid transparent; border-radius: 9px; padding: 11px 18px; min-height: 42px; font-size: 14px; font-weight: 650; cursor: pointer; }
+.offers-button:disabled { opacity: .6; cursor: not-allowed; }
+.offers-button-primary { background: #172b4d; color: white; }
+.offers-button-primary:hover:not(:disabled) { background: #233f6b; }
+.offers-button-secondary { background: #fff; color: #334155; border-color: #cbd5e1; }
+.offers-alert { margin: 0 0 18px; padding: 12px 15px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 10px; color: #be123c; font-size: 14px; overflow-wrap: anywhere; }
+.offers-existing { margin-top: 28px; }
+.offers-list { display: grid; gap: 12px; margin-top: 14px; }
+.offers-list-item { display: flex; justify-content: space-between; align-items: center; gap: 16px; background: #fff; padding: 18px 20px; border: 1px solid #e2e8f0; border-radius: 12px; }
+.offers-list-item p { margin: 6px 0 0; color: #64748b; font-size: 13px; }
+@media (max-width: 900px) { .offers-form-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+@media (max-width: 600px) { .offers-page { padding: 18px 12px 40px; } .offers-panel { padding: 18px 14px; border-radius: 12px; } .offers-form-grid { grid-template-columns: minmax(0,1fr); gap: 16px; } .offers-product-heading { align-items: flex-start; } .offers-actions { flex-wrap: wrap; } .offers-actions .offers-button { flex: 1; } .offers-list-item { align-items: flex-start; } }

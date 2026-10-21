@@ -1292,7 +1292,7 @@ function SalaryModal({
           />
         </Field>
 
-        <Field label="Basic Salary (AED)">
+        <Field label="Basic Salary (INR)">
           <Input
             type="number"
             min="0"
@@ -1307,7 +1307,7 @@ function SalaryModal({
           />
         </Field>
 
-        <Field label="Housing Allowance (AED)">
+        <Field label="Housing Allowance (INR)">
           <Input
             type="number"
             min="0"
@@ -1322,7 +1322,7 @@ function SalaryModal({
           />
         </Field>
 
-        <Field label="Transport / Other Allowance (AED)">
+        <Field label="Transport / Other Allowance (INR)">
           <Input
             type="number"
             min="0"

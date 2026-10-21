@@ -1,0 +1,25 @@
+import { apiClient } from './client';
+
+export const financeApi = {
+  createTransaction: (data) => apiClient.post('/finance/transactions/',data),
+  createIncome: (data) => apiClient.post('/finance/manual-income/', {...data,type:'Inflow'}),
+  reverseIncome: (id) => apiClient.post(`/finance/transactions/${id}/reverse/`),
+  getReports: (params) => apiClient.get('/reports/summary/', { params }),
+  updateExpense: (id, data) => apiClient.patch(`/finance/expenses/${id}/`, data),
+  deleteExpense: (id) => apiClient.delete(`/finance/expenses/${id}/`),
+  updateIncome: (id, data) => apiClient.patch(`/finance/transactions/${id}/`, data),
+  deleteIncome: (id) => apiClient.delete(`/finance/transactions/${id}/`),
+  updateTransaction: (id, data) => apiClient.patch(`/finance/transactions/${id}/`, data),
+  deleteTransaction: (id) => apiClient.delete(`/finance/transactions/${id}/`),
+  updateReceivable: (id, data) => apiClient.patch(`/finance/receivables/${id}/`, data),
+  deleteReceivable: (id) => apiClient.delete(`/finance/receivables/${id}/`),
+  updatePayable: (id, data) => apiClient.patch(`/finance/payables/${id}/`, data),
+  deletePayable: (id) => apiClient.delete(`/finance/payables/${id}/`),
+  getSummary: () => apiClient.get('/finance/dashboard/'),
+  getIncome: (params = {}) => apiClient.get('/finance/income/', { params }),
+  getExpenses: (params = {}) => apiClient.get('/finance/expenses/', { params }),
+  createExpense: (data) => apiClient.post('/finance/expenses/', data),
+  getReceivables: () => apiClient.get('/finance/receivables/'),
+  getPayables: () => apiClient.get('/finance/payables/'),
+  getCashBank: () => apiClient.get('/finance/cash-bank/'),
+};
