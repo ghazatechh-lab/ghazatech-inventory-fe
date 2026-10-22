@@ -33,6 +33,29 @@ export const DEFAULT_LIST_PAGE_SIZE = 12;
 
 const NON_SORTABLE_KEYS = new Set(["actions", "action", "select", "checkbox"]);
 
+// Apply the same alignment to the header, sort control and row values.
+// A column can override the default using align or meta.align.
+const LEFT_ALIGNED_KEYS = /(^|_)(name|product|description|details|employee|customer|supplier|vehicle|driver|purpose|route|notes|address|title)(_|$)/i;
+
+const getColumnAlignment = (column) => {
+  const explicit = column.align ?? column.meta?.align;
+  if (["left", "center", "right"].includes(explicit)) return explicit;
+
+  const key = String(column.key ?? "");
+  if (LEFT_ALIGNED_KEYS.test(key)) return "left";
+  if (["currency", "amount", "quantity", "number"].includes(column.sortType)) {
+    return "right";
+  }
+  // IDs, short codes, dates, categories, status, rack and actions are centered.
+  return "center";
+};
+
+const alignmentStyles = {
+  left: { text: "text-left", flex: "justify-start" },
+  center: { text: "text-center", flex: "justify-center" },
+  right: { text: "text-right", flex: "justify-end" },
+};
+
 const DEFAULT_STATUS_ORDER = [
   "DRAFT",
   "PENDING",
@@ -432,6 +455,7 @@ export function DataTable({
             <TableRow className="border-white/5 hover:bg-transparent">
               {columns.map((column) => {
                 const sortKey = column.sortKey || column.key;
+                const alignment = alignmentStyles[getColumnAlignment(column)];
 
                 const sortable =
                   column.sortable !== false &&
@@ -462,7 +486,7 @@ export function DataTable({
                     }
                     className={cn(
                       "whitespace-nowrap py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500",
-                      column.align === "right" && "text-right",
+                      alignment.text,
                       column.headerClassName,
                       column.className,
                     )}
@@ -473,7 +497,8 @@ export function DataTable({
                         onClick={() => handleSort(column)}
                         className={cn(
                           "inline-flex flex-nowrap items-center gap-1.5 whitespace-nowrap rounded px-1 py-1 transition hover:bg-white/5 hover:text-slate-200",
-                          column.align === "right" && "ml-auto",
+                          "w-full",
+                          alignment.flex,
                         )}
                         title={`${column.header}: ${nextLabel}`}
                       >
@@ -486,7 +511,9 @@ export function DataTable({
                         />
                       </button>
                     ) : (
-                      column.header
+                      <div className={cn("flex w-full items-center", alignment.flex)}>
+                        {column.header}
+                      </div>
                     )}
                   </TableHead>
                 );
@@ -512,21 +539,26 @@ export function DataTable({
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                   data-testid={`row-${row[rowKey] ?? index}`}
                 >
-                  {columns.map((column) => (
-                    <TableCell
-                      key={column.key}
-                      className={cn(
-                        "py-2.5 align-middle text-sm text-slate-200",
-                        NON_SORTABLE_KEYS.has(column.key) && "whitespace-nowrap",
-                        column.align === "right" && "text-right",
-                        column.className,
-                      )}
-                    >
-                      {column.cell
-                        ? column.cell(row)
-                        : getNestedValue(row, column.key)}
-                    </TableCell>
-                  ))}
+                  {columns.map((column) => {
+                    const alignment = alignmentStyles[getColumnAlignment(column)];
+                    return (
+                      <TableCell
+                        key={column.key}
+                        className={cn(
+                          "py-2.5 align-middle text-sm text-slate-200",
+                          NON_SORTABLE_KEYS.has(column.key) && "whitespace-nowrap",
+                          alignment.text,
+                          column.className,
+                        )}
+                      >
+                        <div className={cn("flex w-full items-center", alignment.flex)}>
+                          {column.cell
+                            ? column.cell(row)
+                            : getNestedValue(row, column.key)}
+                        </div>
+                      </TableCell>
+                    );
+                  })}
                 </TableRow>
               ))
             ) : (
@@ -545,7 +577,9 @@ export function DataTable({
 
       <div className="flex flex-col gap-3 border-t border-white/5 px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          Showing {firstVisible}{"\u2013"}{lastVisible} of {effectiveTotal}
+          Showing {firstVisible}
+          {"\u2013"}
+          {lastVisible} of {effectiveTotal}
           <span className="ml-2 text-slate-600">
             {"\u00B7"} {pageSize} entries per page
           </span>
@@ -615,4 +649,3 @@ export function DataTable({
     </div>
   );
 }
-
