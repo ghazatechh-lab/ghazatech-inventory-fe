@@ -11,9 +11,14 @@ import {
   WalletCards,
   CreditCard,
   ArrowUpRight,
+  Trash2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import api, { getApiErrorDetails } from "@/lib/api";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { SearchInput, useListQuery } from "@/hooks/useListQuery";
 import { CurrencyText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -165,6 +170,24 @@ function CreditUsage({ used, limit }) {
 }
 
 export default function SupplierListPage() {
+  const queryClient = useQueryClient();
+  const [supplierToDelete, setSupplierToDelete] = React.useState(null);
+  const deleteSupplier = useMutation({
+    mutationFn: async (supplier) => {
+      const supplierId = supplier.resource_key || supplier.id;
+      if (!supplierId) throw new Error("Missing supplier identifier");
+      return api.delete(`/suppliers/${encodeURIComponent(supplierId)}/`);
+    },
+    onSuccess: async () => {
+      setSupplierToDelete(null);
+      toast.success("Supplier moved to recovery");
+      await queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      await queryClient.invalidateQueries({ queryKey: ["suppliers-summary"] });
+    },
+    onError: (error) => {
+      toast.error(getApiErrorDetails(error)?.title || error.message || "Unable to delete supplier");
+    },
+  });
   const { branchId, listBranchParams: branchParams } = usePurchaseBranchScope();
 
   const normalizedBranchId =
@@ -434,14 +457,28 @@ export default function SupplierListPage() {
                       </td>
 
                       <td className="px-4 py-4 text-right">
-                        <Button
-                          asChild
-                          size="sm"
-                          variant="outline"
-                          className="h-8 px-4"
-                        >
-                          <Link to={`/suppliers/${supplier.resource_key || supplier.id}`}>View</Link>
-                        </Button>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            asChild
+                            size="sm"
+                            variant="outline"
+                            className="h-8 px-4"
+                          >
+                            <Link to={`/suppliers/${supplier.resource_key || supplier.id}`}>View</Link>
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-8 gap-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900/60 dark:hover:bg-red-950/30"
+                            onClick={() => setSupplierToDelete(supplier)}
+                            disabled={deleteSupplier.isPending}
+                            aria-label={`Delete ${textValue(supplier.supplier_name, supplier.name, "supplier")}`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -496,6 +533,21 @@ export default function SupplierListPage() {
           </div>
         </div>
       </section>
+      <ConfirmDialog
+        open={Boolean(supplierToDelete)}
+        onOpenChange={(open) => {
+          if (!open && !deleteSupplier.isPending) setSupplierToDelete(null);
+        }}
+        title="Delete Supplier?"
+        description={supplierToDelete
+          ? `Move "${textValue(supplierToDelete.supplier_name, supplierToDelete.legal_name, supplierToDelete.name, "this supplier")}" to recovery? This will remove the supplier from active lists. Existing linked purchase and payment records are not deleted.`
+          : ""}
+        confirmLabel={deleteSupplier.isPending ? "Deleting..." : "Delete Supplier"}
+        destructive
+        onConfirm={() => {
+          if (supplierToDelete && !deleteSupplier.isPending) deleteSupplier.mutate(supplierToDelete);
+        }}
+      />
     </div>
   );
 }
