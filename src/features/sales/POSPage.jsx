@@ -38,6 +38,7 @@ import InlineCustomerDialog from "./InlineCustomerDialog";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { SalesDocumentFlow } from "@/components/sales/SalesDocumentFlow";
 import { MetricCard } from "@/components/sales/MetricCard";
+import CameraBarcodeScanner from "@/components/common/CameraBarcodeScanner";
 
 const normalizeList = (value) => {
   if (Array.isArray(value)) return value;
@@ -951,6 +952,21 @@ export default function POSPage() {
                                 <div className="relative">
                                   <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 
+                                  <div className="mb-2 flex justify-end">
+                                    <CameraBarcodeScanner onScan={(code) => {
+                                      const match = products.find((product) =>
+                                        String(product.barcode || "").trim().toLowerCase() === code.toLowerCase() ||
+                                        String(product.sku || "").trim().toLowerCase() === code.toLowerCase()
+                                      );
+                                      if (match) {
+                                        selectProduct(index, `${match.product_id || match.id}:${match.variant_id || ""}`);
+                                        toast.success("Barcode matched");
+                                      } else {
+                                        searchProduct(index, code);
+                                        toast.error(`No product found for barcode: ${code}`);
+                                      }
+                                    }} />
+                                  </div>
                                   <Input
                                     ref={(node) => {
                                       productInputRefs.current[index] = node;
