@@ -450,7 +450,7 @@ export function DataTable({
   return (
     <div className="card-surface overflow-hidden" data-testid={testId}>
       <div className="w-full overflow-x-auto">
-        <Table className="min-w-max">
+        <Table className="w-full min-w-max table-auto">
           <TableHeader>
             <TableRow className="border-white/5 hover:bg-transparent">
               {columns.map((column) => {
@@ -551,7 +551,7 @@ export function DataTable({
                           column.className,
                         )}
                       >
-                        <div className={cn("flex w-full items-center", alignment.flex)}>
+                        <div className={cn("flex w-full min-w-0 items-center", alignment.flex)}>
                           {column.cell
                             ? column.cell(row)
                             : getNestedValue(row, column.key)}

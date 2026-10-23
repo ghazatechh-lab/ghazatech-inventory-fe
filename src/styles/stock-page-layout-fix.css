@@ -1,0 +1,52 @@
+/* Stock Overview and Movements: full workspace width and readable tables. */
+.app-page-frame:has(> [data-stock-module="stock-overview"]),
+.app-page-frame:has(> [data-stock-module="stock-movements"]) {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+.stock-module-page[data-stock-module="stock-overview"],
+.stock-module-page[data-stock-module="stock-movements"] {
+  width: 100%;
+  max-width: none !important;
+  margin-inline: 0;
+  min-width: 0;
+}
+.stock-module-page[data-stock-module="stock-overview"] > section,
+.stock-module-page[data-stock-module="stock-movements"] > section {
+  min-width: 0;
+  width: 100%;
+}
+/* Keep the table wide enough to prevent long values being crushed.
+   The existing overflow-x-auto wrapper scrolls the table only, not the page. */
+.stock-overview-readable-table,
+.stock-movements-readable-table {
+  table-layout: auto !important;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.stock-overview-readable-table th,
+.stock-movements-readable-table th {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.stock-overview-readable-table td,
+.stock-movements-readable-table td {
+  vertical-align: middle;
+}
+.stock-overview-readable-table th:first-child,
+.stock-overview-readable-table td:first-child { min-width: 270px; max-width: 400px; }
+.stock-overview-readable-table th:nth-child(6),
+.stock-overview-readable-table td:nth-child(6) { min-width: 350px; }
+.stock-movements-readable-table th:nth-child(3),
+.stock-movements-readable-table td:nth-child(3) { min-width: 260px; max-width: 380px; }
+.stock-movements-readable-table th:nth-child(9),
+.stock-movements-readable-table td:nth-child(9) { min-width: 155px; }
+.stock-movements-readable-table th:nth-child(12),
+.stock-movements-readable-table td:nth-child(12) { min-width: 155px; }
+.stock-overview-readable-table td p,
+.stock-movements-readable-table td p { overflow-wrap: anywhere; line-height: 1.45; }
+@media (max-width: 768px) {
+  .stock-module-page[data-stock-module="stock-overview"],
+  .stock-module-page[data-stock-module="stock-movements"] { padding-inline: 0; }
+}

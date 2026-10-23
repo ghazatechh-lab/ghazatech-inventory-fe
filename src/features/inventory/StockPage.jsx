@@ -1,4 +1,5 @@
 import React from "react";
+import "@/styles/stock-page-layout-fix.css";
 import { useQuery } from "@tanstack/react-query";
 import {
   Boxes,
@@ -694,7 +695,7 @@ export default function StockPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1180px]">
+          <table className="stock-overview-readable-table w-full min-w-[1400px]">
             <thead className="border-b bg-muted/40">
               <tr>
                 <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">

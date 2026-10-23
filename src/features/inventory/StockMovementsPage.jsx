@@ -1,4 +1,5 @@
 import React from "react";
+import "@/styles/stock-page-layout-fix.css";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowDown,
@@ -337,7 +338,7 @@ export default function StockMovementsPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-[1100px] w-full">
+          <table className="stock-movements-readable-table w-full min-w-[1840px]">
             <thead className="border-b bg-muted/40">
               <tr>
                 {[

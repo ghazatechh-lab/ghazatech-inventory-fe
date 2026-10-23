@@ -452,34 +452,35 @@ export default function ProductListPage() {
     {
       key: "product",
       header: "Product",
+      minWidth: "340px",
       cell: (product) => {
         const image = getProductImage(product);
 
         return (
           <Link
             to={`/inventory/products/${product.id}`}
-            className="group flex items-center gap-3"
+            className="group flex w-full min-w-0 items-center gap-3"
           >
             {image ? (
               <img
                 src={image}
                 alt={product.product_name || "Product"}
-                className="h-12 w-12 rounded-xl object-cover ring-1 ring-slate-200 transition group-hover:scale-[1.03] dark:ring-white/10"
+                className="h-12 w-12 shrink-0 rounded-xl object-cover ring-1 ring-slate-200 transition group-hover:scale-[1.03] dark:ring-white/10"
               />
             ) : (
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 ring-1 ring-slate-200 dark:bg-white/[0.04] dark:ring-white/10">
                 <Package className="h-4 w-4 text-slate-500" />
               </div>
             )}
 
-            <div className="min-w-0">
-              <div className="truncate font-bold text-slate-900 group-hover:text-blue-600 dark:text-white dark:group-hover:text-blue-400">
+            <div className="min-w-0 flex-1">
+              <div title={product.product_name || ""} className="block max-w-[300px] truncate font-bold text-slate-900 group-hover:text-blue-600 dark:text-white dark:group-hover:text-blue-400">
                 {product.product_name}
               </div>
 
-              <div className="mt-0.5 flex items-center gap-2 text-[10px] text-slate-500">
+              <div className="mt-0.5 flex min-w-0 items-center gap-2 text-[10px] text-slate-500">
                 <BarcodeIcon className="h-3 w-3" />
-                {product.barcode || "No barcode"}
+                <span className="block min-w-0 truncate" title={product.barcode || "No barcode"}>{product.barcode || "No barcode"}</span>
               </div>
             </div>
           </Link>
@@ -489,8 +490,9 @@ export default function ProductListPage() {
     {
       key: "sku",
       header: "SKU",
+      minWidth: "165px",
       cell: (product) => (
-        <span className="font-numeric text-slate-300">
+        <span className="block max-w-[190px] truncate font-numeric text-slate-300" title={product.sku || ""}>
           {product.sku || "—"}
         </span>
       ),
