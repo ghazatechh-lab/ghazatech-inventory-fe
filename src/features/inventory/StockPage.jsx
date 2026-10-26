@@ -1,5 +1,4 @@
 import React from "react";
-import "@/styles/stock-page-layout-fix.css";
 import { useQuery } from "@tanstack/react-query";
 import {
   Boxes,
@@ -12,6 +11,7 @@ import {
 } from "lucide-react";
 
 import api, { unwrap } from "@/lib/api";
+import RackAllocationDialog from "./RackAllocationDialog";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -226,6 +226,8 @@ export default function StockPage() {
     retry: false,
     refetchOnMount: "always",
   });
+
+  const [allocationTarget, setAllocationTarget] = React.useState(null);
 
   const sourceRows = React.useMemo(
     () => normalizeList(stockResponse),
@@ -695,7 +697,7 @@ export default function StockPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="stock-overview-readable-table w-full min-w-[1400px]">
+          <table className="w-full min-w-[1180px]">
             <thead className="border-b bg-muted/40">
               <tr>
                 <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -848,6 +850,20 @@ export default function StockPage() {
                                 <span className="rounded-md bg-blue-50 px-2 py-0.5 text-sm font-bold text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
                                   {getAvailableStock(stock)} Qty
                                 </span>
+                                {stock.stock_id && ["BR01", "BR02"].includes(stock.branch_code) && (
+                                  <button
+                                    type="button"
+                                    className="rounded-md border px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-500/10"
+                                    onClick={() => setAllocationTarget({
+                                      stockId: stock.stock_id,
+                                      branchCode: stock.branch_code,
+                                      sku: row.sku || row.product_sku,
+                                      title: `${row.product_name} — ${getBranchLabel(stock)}`,
+                                    })}
+                                  >
+                                    Rack quantities
+                                  </button>
+                                )}
                               </div>
                             ))
                           ) : (
@@ -879,6 +895,11 @@ export default function StockPage() {
           </table>
         </div>
       </section>
+
+      <RackAllocationDialog
+        target={allocationTarget}
+        onClose={() => setAllocationTarget(null)}
+      />
 
       <section className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200">
         <Warehouse className="mr-2 inline h-4 w-4" />

@@ -108,7 +108,7 @@ export default function DocumentExpiryPage() {
         await api.get("/hrms/document-expiry/", {
           params: {
             ...branchParams,
-            days: 36500,
+            days: 30,
             document_type: documentType || undefined,
             department: department || undefined,
             page_size: 2000,
@@ -156,6 +156,8 @@ export default function DocumentExpiryPage() {
         };
       })
       .filter((row) => {
+        // Only records expiring within 30 days or already expired belong here.
+        if (row.days_left === null || row.days_left > 30) return false;
         if (needle) {
           const haystack = [
             row.employee_name,

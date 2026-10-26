@@ -92,8 +92,12 @@ export function EmptyState({
 export function VehicleIdentity({ row }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-50 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-300">
-        <CarFront className="h-5 w-5" />
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-cyan-50 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-300">
+        {row.vehicle_image_url || row.vehicle_image ? (
+          <img src={row.vehicle_image_url || row.vehicle_image} alt="" className="h-full w-full object-cover" loading="lazy" />
+        ) : (
+          <CarFront className="h-5 w-5" />
+        )}
       </div>
       <div>
         <div className="font-semibold">

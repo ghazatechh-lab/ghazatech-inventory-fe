@@ -420,6 +420,7 @@ export default function VehicleCheckoutPage() {
                           row={{
                             display_name: trip.vehicle_name,
                             registration_number: trip.registration_number,
+                            vehicle_image_url: vehicles.find((item) => String(item.id) === String(trip.vehicle))?.vehicle_image_url || vehicles.find((item) => String(item.id) === String(trip.vehicle))?.vehicle_image || trip.vehicle_image_url,
                           }}
                         />
                       </td>
@@ -898,6 +899,7 @@ export default function VehicleCheckoutPage() {
               row={{
                 display_name: selectedTrip.vehicle_name,
                 registration_number: selectedTrip.registration_number,
+                vehicle_image_url: vehicles.find((item) => String(item.id) === String(selectedTrip.vehicle))?.vehicle_image_url || vehicles.find((item) => String(item.id) === String(selectedTrip.vehicle))?.vehicle_image || selectedTrip.vehicle_image_url,
               }}
             />
 

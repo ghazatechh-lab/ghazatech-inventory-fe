@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --color-page: #f8f9fd;
+  --color-surface: #ffffff;
+  --color-sidebar-dark: #ffffff;
+  --color-primary-text: #191635;
+  --color-gold-accent: #5118f5;
+  --color-soft-gold: #ede8ff;
+  --color-muted-text: #667085;
+  --color-success: #287457;
+  --color-warning: #9b6421;
+  --color-danger: #b33c4d;
+}
+@layer base {
+  :root {--primary:#5118f5;--primary-hover:#3d0fce;--primary-soft:#f0ebff;--page:#f8f9fd;--surface:#fff;--sidebar:#ffffff;--ink:#191635;--muted:#667085;--border:#e8e9f2;--radius:18px;--shadow:0 2px 6px #29203206;}
+  body {margin:0;background:var(--page);color:var(--ink);font-family:var(--font-sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+  button,a,input,select,textarea { -webkit-tap-highlight-color:transparent; }
+  button:not(:disabled),summary {cursor:pointer;}
+  :focus-visible {outline:3px solid #a28bf7;outline-offset:3px;}
+  button:disabled {cursor:not-allowed;opacity:.5;}
+  input,select,textarea {min-width:0;}
+  input:read-only {background:#f7f6f9;}
+  input:disabled,select:disabled {color:#667085;background:#f3f2f6;}
+  input[type=number] {font-variant-numeric:tabular-nums;}
+  h1,h2,h3 {letter-spacing:-.02em;}
+  ::selection {background:var(--primary-soft);color:var(--primary-hover);}
+}
+::-webkit-scrollbar {width:7px;height:7px;}
+::-webkit-scrollbar-track {background:transparent;}
+::-webkit-scrollbar-thumb {background:#ccc5d5;border-radius:6px;}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important;}}
+@media print {
+  body {background:#fff!important;color:#111!important;}
+  .no-print,.erp-sidebar,.erp-topbar,header,button:not(.print-keep) {display:none!important;}
+  .erp-main {margin:0!important;}
+  .erp-page {padding:0!important;max-width:none!important;}
+  .print-only {display:block!important;}
+  .print-container {width:100%!important;margin:0!important;padding:0!important;box-shadow:none!important;border:none!important;}
+  @page {margin:1.5cm;size:A4;}
+}
+
+/* Consistent dark-mode readability and responsive content widths. */
+@media screen {
+  .dark .erp-page :is(h1,h2,h3,h4,h5,h6) { color: #f1f5f9; }
+  .dark .erp-page :is(label,legend) { color: #cbd5e1; }
+  .dark .erp-page :is(.text-slate-500,.text-gray-500) { color: #aebfd1; }
+  .erp-page { min-width: 0; max-width: 100%; }
+  .erp-page :is(.overflow-x-auto,.table-responsive) { max-width: 100%; }
+  .erp-page table { width: 100%; }
+  .erp-page :is(th,td) { vertical-align: middle; }
+}

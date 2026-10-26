@@ -1,0 +1,7 @@
+/* Shared, opt-in readable subtitles and responsive ERP tables. */
+.dark .ghaza-page-subtitle { color: #cbd5e1 !important; }
+.dark .ghaza-section-subtitle { color: #94a3b8 !important; }
+.ghaza-responsive-table { max-width: 100%; overflow-x: auto; }
+.ghaza-responsive-table table { width: max-content; min-width: 100%; table-layout: auto; }
+.ghaza-responsive-table th, .ghaza-responsive-table td { vertical-align: middle; }
+.ghaza-responsive-table th { white-space: nowrap; }

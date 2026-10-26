@@ -108,8 +108,8 @@ const OTHER_LETTER_TYPES = {
     detailsLabel: "Additional Details",
   },
   SALARY_TRANSFER: {
-    label: "Salary Transfer Letter",
-    subject: "Salary Transfer Letter",
+    label: "Salary Certificate",
+    subject: "Salary Certificate",
     reasonLabel: "Bank / Purpose",
     detailsLabel: "Salary Transfer Details",
   },
@@ -553,12 +553,10 @@ export default function CertificatesLettersPage() {
                   </DropdownMenuItem>
 
                   {[
-                    ["EMPLOYMENT", "Employment Certificate"],
-                    ["NOC", "NOC Letter"],
-                    ["SALARY_TRANSFER", "Salary Transfer Letter"],
+                                  ["NOC", "NOC Letter"],
+                    ["SALARY_TRANSFER", "Salary Certificate"],
                     ["PROMOTION", "Promotion Letter"],
                     ["TERMINATION", "Termination Letter"],
-                    ["CUSTOM", "Custom Letter"],
                   ].map(([type, label]) => (
                     <DropdownMenuItem
                       key={type}
@@ -650,7 +648,7 @@ export default function CertificatesLettersPage() {
             ["EXPERIENCE", "Experience Letters"],
             ["EMPLOYMENT", "Employment"],
             ["NOC", "NOC"],
-            ["SALARY_TRANSFER", "Salary Transfer"],
+            ["SALARY_TRANSFER", "Salary Certificate"],
             ["PROMOTION", "Promotion"],
             ["TERMINATION", "Termination"],
             ["CUSTOM", "Custom"],
@@ -1292,7 +1290,7 @@ function SalaryModal({
           />
         </Field>
 
-        <Field label="Basic Salary (AED)">
+        <Field label="Basic Salary (INR)">
           <Input
             type="number"
             min="0"
@@ -1307,7 +1305,7 @@ function SalaryModal({
           />
         </Field>
 
-        <Field label="Housing Allowance (AED)">
+        <Field label="Housing Allowance (INR)">
           <Input
             type="number"
             min="0"
@@ -1322,7 +1320,7 @@ function SalaryModal({
           />
         </Field>
 
-        <Field label="Transport / Other Allowance (AED)">
+        <Field label="Transport / Other Allowance (INR)">
           <Input
             type="number"
             min="0"
@@ -2042,7 +2040,7 @@ function TypeBadge({ type }) {
     EXPERIENCE: "Experience Letter",
     EMPLOYMENT: "Employment Certificate",
     NOC: "NOC Letter",
-    SALARY_TRANSFER: "Salary Transfer Letter",
+    SALARY_TRANSFER: "Salary Certificate",
     PROMOTION: "Promotion Letter",
     TERMINATION: "Termination Letter",
     CUSTOM: "Custom Letter",

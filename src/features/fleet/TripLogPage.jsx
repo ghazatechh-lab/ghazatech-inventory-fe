@@ -37,6 +37,15 @@ export default function TripLogPage() {
       ),
   });
 
+  const { data: vehicleData } = useQuery({
+    queryKey: ["fleet-trip-vehicle-images", branchParams],
+    queryFn: async () => unwrap(await api.get("/fleet/vehicles/", { params: { ...branchParams, page_size: 500 } })),
+  });
+  const vehicleImages = rowsFrom(vehicleData);
+  const imageForTrip = (trip) => {
+    const vehicle = vehicleImages.find((item) => String(item.id) === String(trip.vehicle));
+    return vehicle?.vehicle_image_url || vehicle?.vehicle_image || trip.vehicle_image_url || trip.vehicle_image || "";
+  };
   const rows = rowsFrom(data);
 
   const filtered = rows.filter((trip) =>
@@ -124,6 +133,7 @@ export default function TripLogPage() {
                         row={{
                           display_name: trip.vehicle_name,
                           registration_number: trip.registration_number,
+                          vehicle_image_url: imageForTrip(trip),
                         }}
                       />
                     </td>

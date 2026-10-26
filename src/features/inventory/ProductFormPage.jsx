@@ -64,7 +64,7 @@ const defaults = {
   vat_inclusive: true,
   description: "",
   warranty_period_days: 0,
-  reorder_level: 0,
+  reorder_level: 5,
   is_active: true,
 };
 

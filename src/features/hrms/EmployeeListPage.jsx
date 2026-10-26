@@ -214,13 +214,6 @@ export default function EmployeeListPage() {
         }
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline">
-              <Link to="/hrms/salary-certificates">
-                <FileBadge2 className="mr-2 h-4 w-4" />
-                Salary Certificates
-              </Link>
-            </Button>
-
             <Button
               asChild
               className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
