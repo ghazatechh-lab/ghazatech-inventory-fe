@@ -1,0 +1,88 @@
+/* Ghazatech inventory: scoped layout correction for transfers, low stock, and adjustments.
+   Does not modify Tailwind directives or global tables. */
+.app-page-frame:has(> [data-stock-module="stock-transfers"]),
+.app-page-frame:has(> [data-stock-module="low-stock"]),
+.app-page-frame:has(> [data-stock-module="stock-adjustments"]) {
+  width: 100%;
+  max-width: none !important;
+  min-width: 0;
+  margin-inline: 0 !important;
+}
+
+.app-page-frame [data-stock-module="stock-transfers"],
+.app-page-frame [data-stock-module="low-stock"],
+.app-page-frame [data-stock-module="stock-adjustments"] {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0;
+  margin-inline: 0 !important;
+}
+
+/* Cards and rows should be allowed to expand and shrink without pushing the page. */
+.app-page-frame [data-stock-module="stock-transfers"] > *,
+.app-page-frame [data-stock-module="low-stock"] > *,
+.app-page-frame [data-stock-module="stock-adjustments"] > * {
+  min-width: 0;
+}
+
+/* DataTable: keep headers lined up with their data while allowing internal scrolling. */
+.app-page-frame [data-stock-module="stock-transfers"] [data-testid="data-table"],
+.app-page-frame [data-stock-module="low-stock"] [data-testid="data-table"],
+.app-page-frame [data-stock-module="stock-adjustments"] [data-testid="data-table"] {
+  max-width: 100%;
+  min-width: 0;
+}
+.app-page-frame [data-stock-module="stock-transfers"] [data-testid="data-table"] > div:first-child,
+.app-page-frame [data-stock-module="low-stock"] [data-testid="data-table"] > div:first-child,
+.app-page-frame [data-stock-module="stock-adjustments"] [data-testid="data-table"] > div:first-child {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.app-page-frame [data-stock-module="stock-transfers"] table,
+.app-page-frame [data-stock-module="low-stock"] table,
+.app-page-frame [data-stock-module="stock-adjustments"] table {
+  width: 100%;
+  min-width: 880px;
+  table-layout: auto !important;
+}
+.app-page-frame [data-stock-module="stock-transfers"] th,
+.app-page-frame [data-stock-module="low-stock"] th,
+.app-page-frame [data-stock-module="stock-adjustments"] th {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.app-page-frame [data-stock-module="stock-transfers"] td,
+.app-page-frame [data-stock-module="low-stock"] td,
+.app-page-frame [data-stock-module="stock-adjustments"] td {
+  vertical-align: middle;
+}
+
+/* Give long product names enough room without overlapping adjacent columns. */
+.app-page-frame [data-stock-module="low-stock"] th:first-child,
+.app-page-frame [data-stock-module="low-stock"] td:first-child {
+  min-width: 265px;
+  max-width: 440px;
+  overflow-wrap: anywhere;
+}
+
+/* More balanced adjustment form / history split on desktop. */
+@media (min-width: 1280px) {
+  .app-page-frame [data-stock-module="stock-adjustments"] > .grid {
+    grid-template-columns: minmax(320px, 370px) minmax(0, 1fr) !important;
+    align-items: start;
+  }
+}
+@media (max-width: 1279px) {
+  .app-page-frame [data-stock-module="stock-adjustments"] > .grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .app-page-frame [data-stock-module="stock-transfers"] > section,
+  .app-page-frame [data-stock-module="low-stock"] > section,
+  .app-page-frame [data-stock-module="stock-adjustments"] > section {
+    max-width: 100%;
+  }
+}

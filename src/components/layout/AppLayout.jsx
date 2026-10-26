@@ -1,3 +1,4 @@
+import "@/styles/inventory-alignment-fix.css";
 import React from "react";
 import { Outlet } from "react-router-dom";
 
