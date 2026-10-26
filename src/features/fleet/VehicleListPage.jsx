@@ -28,7 +28,6 @@ import {
   EmptyState,
   FleetHero,
   MetricCard,
-  VehicleIdentity,
   inputClass,
   rowsFrom,
 } from "./fleetShared";
@@ -712,7 +711,6 @@ export default function VehicleListPage() {
             <table className="w-full min-w-[1050px] text-sm">
               <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-muted-foreground dark:bg-white/[0.03]">
                 <tr>
-                  <th className="px-4 py-3 text-center align-middle">Image</th>
                   <th className="px-4 py-3 text-left align-middle">Vehicle</th>
                   <th className="px-4 py-3 text-center align-middle">Code</th>
                   <th className="px-4 py-3 text-center align-middle">Branch</th>
@@ -730,17 +728,28 @@ export default function VehicleListPage() {
                     className="border-t border-slate-100 dark:border-white/10"
                     key={vehicle.id}
                   >
-                    <td className="px-4 py-3 align-middle">
-                      <div className="mx-auto flex h-12 w-16 items-center justify-center overflow-hidden rounded-lg border bg-muted">
-                        {vehicle.vehicle_image_url || vehicle.vehicle_image ? (
-                          <img src={vehicle.vehicle_image_url || vehicle.vehicle_image} alt={vehicle.display_name} className="h-full w-full object-cover" />
-                        ) : (
-                          <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                        )}
+                    <td className="min-w-[240px] px-4 py-3 text-left align-middle">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted">
+                          {vehicle.vehicle_image_url || vehicle.vehicle_image ? (
+                            <img
+                              src={vehicle.vehicle_image_url || vehicle.vehicle_image}
+                              alt={vehicle.display_name || `${vehicle.make || ""} ${vehicle.model || ""}`.trim()}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate font-semibold" title={vehicle.display_name || `${vehicle.make || ""} ${vehicle.model || ""}`.trim()}>
+                            {vehicle.display_name || `${vehicle.make || ""} ${vehicle.model || ""}`.trim()}
+                          </div>
+                          <div className="truncate text-xs text-muted-foreground" title={vehicle.registration_number || ""}>
+                            {vehicle.registration_number || "—"}
+                          </div>
+                        </div>
                       </div>
-                    </td>
-                    <td className="px-4 py-3 text-left align-middle">
-                      <VehicleIdentity row={vehicle} />
                     </td>
                     <td className="px-4 py-3 text-center align-middle font-medium">
                       {vehicle.vehicle_code}
