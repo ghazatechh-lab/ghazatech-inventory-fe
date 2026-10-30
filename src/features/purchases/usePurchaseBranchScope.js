@@ -23,7 +23,7 @@ export function usePurchaseBranchScope() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { data, isLoading: branchesLoading } = useQuery({
     queryKey: ["purchase-physical-branches"],
-    queryFn: async () => unwrap(await api.get("/branches/selector-options/")),
+    queryFn: async () => unwrap(await api.get("/branches/", { params: { page_size: 1000, is_active: true } })),
     staleTime: 60_000,
   });
   const branches = React.useMemo(() => normalizeList(data), [data]);
