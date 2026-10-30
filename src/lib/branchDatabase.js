@@ -39,6 +39,10 @@ export function getStoredBranchId() {
 }
 
 export function attachBranchHeader(config = {}) {
+  // An explicit request-scoped branch must take precedence over localStorage.
+  // This is especially important for tenant CRUD and consolidated catalog reads.
+  const explicit = config.headers?.get?.("X-Branch-ID") ?? config.headers?.["X-Branch-ID"] ?? config.headers?.["x-branch-id"];
+  if (explicit !== undefined && explicit !== null && String(explicit).trim() !== "") return config;
   const branchId = getStoredBranchId();
   if (!branchId) return config;
   return {

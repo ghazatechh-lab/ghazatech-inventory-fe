@@ -87,7 +87,15 @@ export default function ReferenceDataPage({
   const [targetBranch, setTargetBranch] = React.useState("");
   const [branchError, setBranchError] = React.useState("");
 
-  const { query, page, setPage, q, setQ } = useListQuery(queryKey, endpoint);
+  // The catalog API prioritizes ?branch= over X-Branch-ID. Always send the
+  // actual selection, including the master branch for aggregated read-only lists.
+  const masterBranchId = availableBranches.find((b) => b.branch_code === "CONSOLIDATED")?.id;
+  const catalogBranchId = selectedHeaderBranch ?? masterBranchId;
+  const catalogParams = React.useMemo(
+    () => ({ branch: catalogBranchId ?? undefined }),
+    [catalogBranchId],
+  );
+  const { query, page, setPage, q, setQ } = useListQuery(queryKey, endpoint, catalogParams);
 
   const data = query.data || {
     results: [],
