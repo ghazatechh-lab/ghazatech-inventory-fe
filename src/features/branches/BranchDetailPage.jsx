@@ -36,6 +36,7 @@ export default function BranchDetailPage() {
           <div className="grid grid-cols-2 gap-4 text-sm">
             {[
               ["Type", b.branch_type],
+              ["VAT Type", b.tax_mode === "NON_VAT" ? "Non-VAT" : b.tax_mode || "Consolidated"],
               ["Address", b.address],
               ["City", b.city],
               ["Emirate", b.emirate],

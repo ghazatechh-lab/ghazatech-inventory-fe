@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
@@ -61,6 +61,7 @@ export default function BranchFormPage() {
       branch_code: "",
       branch_name: "",
       branch_type: "retail",
+      tax_mode: "",
       manager: null,
       address: "",
       city: "",
@@ -89,6 +90,7 @@ export default function BranchFormPage() {
       branch_name: branchData.branch_name || "",
 
       branch_type: branchData.branch_type || "retail",
+      tax_mode: branchData.tax_mode || "",
 
       manager:
         existingManagerId === null ||
@@ -116,6 +118,11 @@ export default function BranchFormPage() {
   const submit = async (values) => {
     clearErrors();
 
+    if (!isEdit && !["VAT", "NON_VAT"].includes(values.tax_mode)) {
+      setError("tax_mode", { type: "required", message: "Select VAT or Non-VAT to provision the branch database." });
+      return;
+    }
+
     const normalizedManager =
       values.manager === null ||
       values.manager === undefined ||
@@ -132,6 +139,7 @@ export default function BranchFormPage() {
       branch_name: values.branch_name?.trim(),
 
       branch_type: values.branch_type,
+      tax_mode: values.tax_mode,
 
       manager: normalizedManager,
 
@@ -201,7 +209,7 @@ export default function BranchFormPage() {
         }),
       ]);
 
-      toast.success(`Branch ${isEdit ? "updated" : "created"} successfully`);
+      toast.success(isEdit ? "Branch updated successfully" : "Branch created and provisioning requested successfully");
 
       navigate("/branches");
     } catch (error) {
@@ -240,7 +248,7 @@ export default function BranchFormPage() {
         subtitle={
           isEdit
             ? "Update branch identity, location, manager, contact details, and status."
-            : "Create a new branch for retail, warehouse, or office operations."
+            : "Create a VAT or Non-VAT physical branch with its own database schema."
         }
       />
 
@@ -308,6 +316,32 @@ export default function BranchFormPage() {
                 <SelectItem value="office">Office</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="branch-tax-mode">Tax classification <span className="text-red-600">*</span></Label>
+            <Select
+              value={watch("tax_mode") || undefined}
+              onValueChange={(value) => {
+                setValue("tax_mode", value, { shouldDirty: true, shouldValidate: true });
+                clearErrors("tax_mode");
+              }}
+              disabled={isEdit || saving}
+            >
+              <SelectTrigger id="branch-tax-mode" className="mt-1.5" data-testid="branch-tax-mode-select" aria-invalid={Boolean(errors.tax_mode)}>
+                <SelectValue placeholder="Select VAT or Non-VAT" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="VAT">VAT — VAT database</SelectItem>
+                <SelectItem value="NON_VAT">Non-VAT — Non-VAT database</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+              {isEdit
+                ? "Tax classification is locked after provisioning."
+                : "The system automatically creates an isolated branch schema in the selected database."}
+            </p>
+            {errors.tax_mode && <p className="mt-1 text-sm text-red-600">{errors.tax_mode.message}</p>}
           </div>
 
           <div>

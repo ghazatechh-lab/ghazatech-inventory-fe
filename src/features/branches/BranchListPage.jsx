@@ -74,6 +74,11 @@ export default function BranchListPage() {
                 </Link>
               ),
             },
+            {
+              key: "tax_mode",
+              header: "VAT Type",
+              cell: (r) => r.tax_mode === "VAT" ? "VAT" : r.tax_mode === "NON_VAT" ? "Non-VAT" : "Consolidated",
+            },
             { key: "city", header: "City" },
             { key: "manager", header: "Manager" },
             {
