@@ -471,8 +471,8 @@ export default function ProductListPage() {
     <div className="w-full space-y-6 pb-10">
       <section className="relative overflow-hidden rounded-3xl border border-slate-200/20 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] text-white shadow-xl">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.12),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(14,165,233,0.08),transparent_30%)]" />
-        <div className="relative flex flex-col gap-5 px-6 py-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <div className="flex items-start gap-4">
+        <div className="relative flex flex-col gap-6 px-6 py-6 xl:flex-row xl:items-center xl:justify-between xl:px-8">
+          <div className="flex min-w-0 flex-1 items-start gap-4">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-300/35 bg-amber-300/10 text-amber-300 shadow-inner backdrop-blur">
               <Package className="h-6 w-6" />
             </div>
@@ -497,7 +497,7 @@ export default function ProductListPage() {
               </p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap xl:shrink-0 xl:flex-nowrap xl:justify-end">
             <input
               ref={importInputRef}
               type="file"
@@ -513,7 +513,7 @@ export default function ProductListPage() {
               variant="outline"
               disabled={importing || !branchId}
               onClick={() => importInputRef.current?.click()}
-              className="h-11 rounded-xl border-white/20 bg-white/10 px-5 font-bold text-white hover:bg-white/20 hover:text-white"
+              className="h-11 min-w-0 justify-center rounded-xl border-white/20 bg-white/10 px-4 font-bold text-white hover:bg-white/20 hover:text-white"
               title={
                 branchId
                   ? "Import products using the Excel template"
@@ -528,7 +528,7 @@ export default function ProductListPage() {
               type="button"
               variant="outline"
               onClick={exportProducts}
-              className="h-11 rounded-xl border-white/20 bg-white/10 px-5 font-bold text-white hover:bg-white/20 hover:text-white"
+              className="h-11 min-w-0 justify-center rounded-xl border-white/20 bg-white/10 px-4 font-bold text-white hover:bg-white/20 hover:text-white"
             >
               <Download className="mr-2 h-4 w-4" />
               Export
@@ -536,7 +536,7 @@ export default function ProductListPage() {
 
             <Button
               asChild
-              className="h-11 rounded-xl bg-amber-400 px-5 font-bold text-slate-950 shadow-lg hover:bg-amber-300"
+              className="col-span-2 h-11 min-w-0 justify-center rounded-xl bg-amber-400 px-4 font-bold text-slate-950 shadow-lg hover:bg-amber-300 sm:col-span-1"
               data-testid="new-product-btn"
             >
               <Link to="/inventory/products/new">

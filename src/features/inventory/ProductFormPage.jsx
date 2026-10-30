@@ -225,9 +225,10 @@ export default function ProductFormPage() {
             is_active: true,
             branch: selectedBranch,
           },
+          headers: { "X-Branch-ID": String(selectedBranch) },
         }),
       ),
-    enabled: Boolean(selectedBranch),
+    enabled: Boolean(selectedBranch) && physicalBranches.some((b) => String(b.id) === String(selectedBranch)),
     staleTime: 0,
     refetchOnMount: "always",
   });
@@ -523,12 +524,11 @@ export default function ProductFormPage() {
       return;
     }
 
-    if (!hydratedRef.current) {
+    const previousBranch = previousBranchRef.current;
+    if (isEdit && !hydratedRef.current) {
       previousBranchRef.current = String(selectedBranch);
       return;
     }
-
-    const previousBranch = previousBranchRef.current;
 
     if (previousBranch && String(previousBranch) !== String(selectedBranch)) {
       console.log(
@@ -550,7 +550,7 @@ export default function ProductFormPage() {
     }
 
     previousBranchRef.current = String(selectedBranch);
-  }, [selectedBranch, setValue, clearErrors]);
+  }, [selectedBranch, setValue, clearErrors, isEdit]);
 
   const updateVariant = (index, field, value) =>
     setVariants((current) =>
@@ -991,14 +991,76 @@ export default function ProductFormPage() {
         })}
         className="space-y-6"
       >
+        <section aria-label="Product branch selection" className="space-y-3">
+          <div className="flex items-center gap-3 px-1">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0d4678] text-sm font-bold text-white">1</span>
+            <div><h2 className="font-semibold text-slate-900 dark:text-slate-100">Choose product branch</h2><p className="text-xs text-slate-500 dark:text-slate-400">All subsequent options belong to this branch.</p></div>
+          </div>
+            <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-5 shadow-sm dark:border-sky-500/20 dark:bg-sky-500/[0.07] sm:p-6">
+              <div className="mb-4">
+                <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Branch</h3>
+
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                  Choose the physical branch first. Brand, category, supplier and rack options use its tenant schema.
+                </p>
+              </div>
+
+              {isEdit ? (
+                <div className="rounded-xl border border-sky-200 bg-white/90 p-4 text-sm font-medium text-slate-800 dark:border-sky-500/20 dark:bg-slate-900 dark:text-slate-100">
+                  {physicalBranches.find((b) => String(b.id) === String(selectedBranch))?.branch_code || "Branch"} — {physicalBranchLabel(selectedBranch)}
+                  <p className="mt-1 text-xs font-normal text-slate-500 dark:text-slate-400">Branch ownership is fixed after product creation.</p>
+                </div>
+              ) : isCombinedHeader ? (
+                <div>
+                  <Label>Target physical branch *</Label>
+                  <select
+                    value={selectedBranch || ""}
+                    onChange={(event) =>
+                      setValue("branch", event.target.value, {
+                        shouldDirty: true,
+                        shouldTouch: true,
+                        shouldValidate: true,
+                      })
+                    }
+                    className="mt-2 h-11 w-full rounded-md border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  >
+                    <option value="">Select a physical branch</option>
+                    {physicalBranches.map((branch) => (
+                      <option key={branch.id} value={String(branch.id)}>
+                        {branch.branch_code || branch.tax_mode}
+                        {branch.branch_name ? ` - ${branch.branch_name}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+                    Consolidated is a combined view only. Suppliers and racks are
+                    loaded from the physical branch selected here.
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-sky-200 bg-white/80 p-4 text-sm text-slate-700 dark:border-sky-500/20 dark:bg-slate-900/60 dark:text-slate-200">
+                  Branch is automatically selected from the global branch
+                  filter.
+                  {!selectedBranch ? (
+                    <p className="mt-2 font-semibold text-amber-700 dark:text-amber-300">
+                      Select a physical branch from the top branch filter
+                      before saving this product.
+                    </p>
+                  ) : null}
+                </div>
+              )}
+            </div>
+
+        </section>
+
         <section className="overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/70 shadow-xl shadow-black/10">
           <div className="border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.025] px-6 py-4">
             <h2 className="text-lg font-semibold text-slate-950 dark:text-white">
-              Product information
+              2. Product information
             </h2>
 
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-              Basic catalogue details, branch assignment and storage location.
+              Enter the product details after choosing its destination branch.
             </p>
           </div>
 
@@ -1160,14 +1222,14 @@ export default function ProductFormPage() {
               </div>
 
               <div>
-                <Label>Supplier</Label>
-
+                <Label htmlFor="product-supplier">Supplier</Label>
                 <select
+                  id="product-supplier"
                   {...register("supplier")}
-                  disabled={!selectedBranch}
+                  disabled={!selectedBranch || suppliersLoading}
                   className="mt-2 h-11 w-full rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 >
-                  <option value="">No supplier</option>
+                  <option value="">{!selectedBranch ? "Select branch first" : suppliersLoading ? "Loading branch suppliers…" : "No supplier"}</option>
 
                   {suppliers.map((item) => (
                     <option key={item.id} value={String(item.id)}>
@@ -1175,59 +1237,11 @@ export default function ProductFormPage() {
                     </option>
                   ))}
                 </select>
+                <p className="mt-2 min-h-4 text-xs text-slate-500 dark:text-slate-400">Only suppliers from the selected physical branch are listed.</p>
+                {selectedBranch && !suppliersLoading && suppliers.length === 0 ? (
+                  <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">No active suppliers found for this branch. Create a supplier in Purchases → Suppliers first.</p>
+                ) : null}
               </div>
-            </div>
-
-            <div className="rounded-xl border border-blue-500/15 bg-blue-500/[0.035] p-5">
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold text-blue-100">Branch</h3>
-
-                <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                  The product branch is selected from the global branch filter.
-                  Rack locations are assigned separately inside each product
-                  variant below.
-                </p>
-              </div>
-
-              {isCombinedHeader ? (
-                <div>
-                  <Label>Target physical branch *</Label>
-                  <select
-                    value={selectedBranch || ""}
-                    onChange={(event) =>
-                      setValue("branch", event.target.value, {
-                        shouldDirty: true,
-                        shouldTouch: true,
-                        shouldValidate: true,
-                      })
-                    }
-                    className="mt-2 h-11 w-full rounded-md border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                  >
-                    <option value="">Select a physical branch</option>
-                    {physicalBranches.map((branch) => (
-                      <option key={branch.id} value={String(branch.id)}>
-                        {branch.branch_code || branch.tax_mode}
-                        {branch.branch_name ? ` - ${branch.branch_name}` : ""}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-                    Consolidated is a combined view only. Suppliers and racks are
-                    loaded from the physical branch selected here.
-                  </p>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
-                  Branch is automatically selected from the global branch
-                  filter.
-                  {!selectedBranch ? (
-                    <p className="mt-2 font-semibold text-amber-700 dark:text-amber-300">
-                      Select a physical branch from the top branch filter
-                      before saving this product.
-                    </p>
-                  ) : null}
-                </div>
-              )}
             </div>
 
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -1422,8 +1436,8 @@ export default function ProductFormPage() {
               </h2>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                 {hasVariants
-                  ? "Create attribute combinations such as RAM, color and storage."
-                  : "Manage stock and pricing for this non-variant product."}
+                  ? "Define each configuration, then set its stock, prices and rack locations in separate panels."
+                  : "Set the opening stock, selling prices and rack locations in clearly separated panels."}
               </p>
             </div>
 
@@ -1484,7 +1498,9 @@ export default function ProductFormPage() {
                   {(!hasVariants || !collapsedVariants.includes(variantIndex)) && (
                   <div className="space-y-5 p-5">
                     {hasVariants ? (
-                      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900/60 dark:shadow-none">
+                      <div className="rounded-xl border border-blue-200 bg-blue-50/40 p-4 shadow-sm dark:border-blue-500/20 dark:bg-blue-500/[0.04] dark:shadow-none">
+                        <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Variant attributes</h3>
+                        <p className="mb-3 mt-1 text-xs text-slate-500">Describe this configuration (for example RAM: 16 GB or Colour: Black). Pricing is set separately below.</p>
                         <div className="space-y-3">
                           {variant.attributes.map(
                             (attribute, attributeIndex) => (
@@ -1551,11 +1567,9 @@ export default function ProductFormPage() {
                       </div>
                     ) : null}
 
-                    <div>
-                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Stock & pricing</h3>
-                      <p className="mb-3 text-xs text-slate-500">Prices in AED. {isEdit ? "Current stock is read-only." : "Opening quantity is recorded when created."}</p>
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/[0.04]">
+                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Stock quantity</h3>
+                      <p className="mb-3 mt-1 text-xs text-slate-500">{isEdit ? "Current quantity is read-only; use stock adjustments to change it." : "Set the opening quantity for this configuration."}</p>
                       <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.035] p-3">
                         <Label className="text-emerald-700 dark:text-emerald-100">
                           {isEdit ? "Current quantity (read-only)" : "Initial quantity"}
@@ -1575,7 +1589,12 @@ export default function ProductFormPage() {
                           className="mt-2 h-11 border-emerald-500/20 bg-white dark:bg-slate-950/80"
                         />
                       </div>
+                    </div>
 
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-white/10 dark:bg-white/[0.025]">
+                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Product pricing</h3>
+                      <p className="mt-1 mb-4 text-xs text-slate-500">All amounts in AED. Purchase cost and selling price levels are managed independently from stock and variant attributes.</p>
+                      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                       <div>
                         <Label>
                           Purchase price
@@ -1653,8 +1672,7 @@ export default function ProductFormPage() {
                           className="mt-2 h-11 border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-900/80"
                         />
                       </div>
-
-
+                      </div>
                     </div>
 
                     {/* Rack assignments are separate from prices and quantity. */}
