@@ -162,7 +162,7 @@ export default function RackFormPage() {
 
 
   React.useEffect(() => {
-    if (!rack) return;
+    if (!isEdit || !rack) return;
 
     reset({
       rack_code: rack.rack_code || "",
@@ -170,7 +170,7 @@ export default function RackFormPage() {
       branch: getBranchId(rack) || sourceBranchId || "",
       is_active: typeof rack.is_active === "boolean" ? rack.is_active : true,
     });
-  }, [rack, reset]);
+  }, [isEdit, rack, sourceBranchId, reset]);
 
   React.useEffect(() => {
     if (isEdit && !canManage) {
