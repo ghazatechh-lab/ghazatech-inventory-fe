@@ -215,21 +215,24 @@ export default function TransferFormPage() {
 
   const branches = React.useMemo(() => list(branchData), [branchData]);
   const physicalBranches = React.useMemo(
-    () => branches.filter((branch) => ["BR01", "BR02"].includes(String(branch.branch_code || "").toUpperCase())),
+    () => branches.filter((branch) =>
+      ["VAT", "NON_VAT"].includes(String(branch.tax_mode || "").toUpperCase()) ||
+      ["BR01", "BR02"].includes(String(branch.branch_code || "").toUpperCase())
+    ),
     [branches],
   );
   const activeBranch = React.useMemo(
     () => branches.find((branch) => String(branch.id) === String(activeBranchId || "")),
     [branches, activeBranchId],
   );
-  const isCombinedBranch = String(activeBranch?.branch_code || "").toUpperCase() === "BR03";
+  const isCombinedBranch = Boolean(activeBranch) &&
+    !physicalBranches.some((branch) => String(branch.id) === String(activeBranch.id));
 
   React.useEffect(() => {
     if (!activeBranch) return;
-    const code = String(activeBranch.branch_code || "").toUpperCase();
-    if (["BR01", "BR02"].includes(code)) {
+    if (physicalBranches.some((branch) => String(branch.id) === String(activeBranch.id))) {
       setFrom(String(activeBranch.id));
-    } else if (code === "BR03") {
+    } else {
       setFrom((current) => physicalBranches.some((branch) => String(branch.id) === String(current)) ? current : "");
     }
     setTo("");
@@ -260,8 +263,8 @@ export default function TransferFormPage() {
   const stockRows = list(stockData);
 
   const products = React.useMemo(
-    () =>
-      stockRows
+    () => {
+      const mapped = stockRows
         .map((row) => {
           const branchStock = Array.isArray(row.branch_stocks)
             ? row.branch_stocks.find(
@@ -298,7 +301,21 @@ export default function TransferFormPage() {
             ),
           };
         })
-        .filter((product) => product.product && product.available_quantity > 0),
+        .filter((product) => product.product && product.available_quantity > 0);
+
+      // Stock Overview may return multiple warehouse rows for one product/variant.
+      // Show one selectable transfer item for each product/variant pair.
+      const unique = new Map();
+      for (const product of mapped) {
+        const existing = unique.get(product.stock_key);
+        if (!existing) {
+          unique.set(product.stock_key, { ...product });
+        } else {
+          existing.available_quantity += product.available_quantity;
+        }
+      }
+      return [...unique.values()];
+    },
     [stockRows, from],
   );
 

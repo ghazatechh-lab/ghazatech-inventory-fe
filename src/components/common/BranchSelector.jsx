@@ -1,5 +1,5 @@
-﻿import React from "react";
-import { useQuery } from "@tanstack/react-query";
+import React from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building2, Check, ChevronDown, Loader2 } from "lucide-react";
 
 import api, { unwrap } from "@/lib/api";
@@ -34,6 +34,7 @@ const getBranchLabel = (branch) =>
 
 export function BranchSelector() {
   const { user, branchOverride, setBranchOverride } = useAuth();
+  const queryClient = useQueryClient();
 
   const canSwitch = canChangeActiveBranch(user);
   const assignedBranchId = getAssignedBranchId(user);
@@ -66,8 +67,8 @@ export function BranchSelector() {
 
   /*
    * The frontend no longer has an "All branches" state.
-   * BR03 is the explicit combined/virtual branch and replaces the old
-   * null/all-branches selection. Always keep one concrete branch selected.
+   * Use the current consolidated branch code, not legacy BR03.
+   * Always keep one concrete branch selected.
    */
   React.useEffect(() => {
     if (!canSwitch || isLoading || !branches.length) {
@@ -83,7 +84,7 @@ export function BranchSelector() {
     }
 
     const combinedBranch = branches.find(
-      (branch) => branch.branch_code === "BR03",
+      (branch) => branch.branch_code === "CONSOLIDATED" || branch.branch_type === "MASTER",
     );
 
     const fallbackId =
@@ -119,7 +120,16 @@ export function BranchSelector() {
       return;
     }
 
+    if (String(effectiveBranchId) === String(branchId)) return;
     setBranchOverride(Number(branchId));
+    // Other modules sometimes use static query keys; clear their cached data
+    // immediately so tenant A records are never shown while tenant B loads.
+    queryClient.removeQueries({
+      predicate: (query) => query.queryKey[0] !== "branches-select",
+    });
+    queryClient.invalidateQueries({
+      predicate: (query) => query.queryKey[0] !== "branches-select",
+    });
   };
 
   return (
@@ -149,8 +159,8 @@ export function BranchSelector() {
         <DropdownMenuLabel>Active working branch</DropdownMenuLabel>
 
         <div className="px-2 pb-2 text-[11px] leading-4 text-muted-foreground">
-          Select the branch you are currently working in. Use BR03 for the
-          combined VAT + Non-VAT view.
+          Select a physical branch or GhazaTech Consolidated for the
+          combined VAT + NON-VAT view.
         </div>
 
         <DropdownMenuSeparator />

@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
@@ -6,11 +6,13 @@ import api, { unwrap } from "@/lib/api";
 import { DataTable } from "@/components/common/DataTable";
 import { SearchInput } from "@/components/common/SearchInput";
 import { useDebouncedValue } from "@/hooks/useDebounce";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 
 export const LIST_PAGE_SIZE = 12;
 
 export function useListQuery(key, endpoint, extraParams = {}) {
   const [params, setParams] = useSearchParams();
+  const { branchId } = useActiveBranchFilter();
 
   const page = Math.max(1, Number(params.get("page") || 1));
 
@@ -103,17 +105,18 @@ export function useListQuery(key, endpoint, extraParams = {}) {
   }, [params, debouncedQ, page, ordering, extraParams]);
 
   const query = useQuery({
-    queryKey: [key, endpoint, requestParams],
+    queryKey: [key, endpoint, branchId ?? "unselected", requestParams],
 
     queryFn: async () => {
       const response = await api.get(endpoint, {
         params: requestParams,
+        headers: branchId != null ? { "X-Branch-ID": String(branchId) } : undefined,
       });
 
       return unwrap(response);
     },
 
-    placeholderData: (previousData) => previousData,
+    // Do not display data from another branch during a branch switch.
   });
 
   return {

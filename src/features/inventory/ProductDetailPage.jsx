@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -16,7 +16,7 @@ import {
   Truck,
 } from "lucide-react";
 
-import api, { unwrap } from "@/lib/api";
+import api, { unwrap, getApiErrorMessage } from "@/lib/api";
 import ProductBarcode from "@/components/common/ProductBarcode";
 import { Button } from "@/components/ui/button";
 
@@ -43,13 +43,18 @@ const DetailItem = ({ icon: Icon, label, value }) => (
 
 export default function ProductDetailPage() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const sourceBranchId = searchParams.get("branch") || "";
   const {
     data: product,
     isLoading,
     isError,
+    error,
   } = useQuery({
-    queryKey: ["product", id],
-    queryFn: async () => unwrap(await api.get(`/products/${id}/`)),
+    queryKey: ["product", id, sourceBranchId],
+    queryFn: async () => unwrap(await api.get(`/products/${id}/`, {
+      params: sourceBranchId ? { branch: sourceBranchId } : {},
+    })),
   });
 
   if (isLoading) {
@@ -72,7 +77,7 @@ export default function ProductDetailPage() {
           Product not found
         </h2>
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-          The product may have been removed or you may not have access.
+          {isError ? getApiErrorMessage(error) : "The product may have been removed or you may not have access."}
         </p>
         <Button asChild variant="outline" className="mt-5">
           <Link to="/inventory/products">
@@ -138,15 +143,17 @@ export default function ProductDetailPage() {
                 Products
               </Link>
             </Button>
-            <Button
-              asChild
-              className="h-11 rounded-xl bg-amber-400 px-5 font-bold text-slate-950 shadow-lg hover:bg-amber-300"
-            >
-              <Link to={`/inventory/products/${id}/edit`}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit product
-              </Link>
-            </Button>
+            {(sourceBranchId || product?.branch_id || product?.branch) && (
+              <Button
+                asChild
+                className="h-11 rounded-xl bg-amber-400 px-5 font-bold text-slate-950 shadow-lg hover:bg-amber-300"
+              >
+                <Link to={`/inventory/products/${id}/edit?branch=${encodeURIComponent(sourceBranchId || product.source_branch_id || product.branch_id || product.branch)}`}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit product
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
       </section>

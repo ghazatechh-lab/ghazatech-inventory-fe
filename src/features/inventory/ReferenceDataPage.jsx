@@ -1,7 +1,8 @@
 import { StatusBadge } from "@/components/common/StatusBadge";
 import React from "react";
 import { useLocation } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import {
   AlertTriangle,
   Archive,
@@ -68,6 +69,23 @@ export default function ReferenceDataPage({
   const HeaderIcon = navigationMatch?.item?.icon || FolderTree;
   const { user } = useAuth();
   const canManage = isAdmin(user);
+  const { branchId: selectedHeaderBranch } = useActiveBranchFilter();
+  const { data: availableBranches = [] } = useQuery({
+    queryKey: ["inventory", "physical-branch-create-options"],
+    queryFn: async () => {
+      const response = await api.get("/branches/", { params: { page_size: 500, is_active: true } });
+      const value = response?.data?.data ?? response?.data;
+      return Array.isArray(value) ? value : (value?.results || []);
+    },
+  });
+  const physicalBranches = React.useMemo(() => availableBranches.filter(
+    (branch) => ["VAT", "NON_VAT"].includes(String(branch.tax_mode || "").toUpperCase())
+  ), [availableBranches]);
+  const isConsolidated = !physicalBranches.some(
+    (branch) => String(branch.id) === String(selectedHeaderBranch || "")
+  );
+  const [targetBranch, setTargetBranch] = React.useState("");
+  const [branchError, setBranchError] = React.useState("");
 
   const { query, page, setPage, q, setQ } = useListQuery(queryKey, endpoint);
 
@@ -77,6 +95,8 @@ export default function ReferenceDataPage({
   };
 
   const rows = data.results || [];
+  // Consolidated catalog rows carry their physical source branch.
+  const showSourceBranch = rows.some((item) => item.source_branch_id != null || item.source_branch_name);
   const activeCount = rows.filter((item) => item.is_active !== false).length;
   const inactiveCount = rows.filter((item) => item.is_active === false).length;
 
@@ -88,26 +108,35 @@ export default function ReferenceDataPage({
 
   const openCreate = () => {
     setEditingItem(null);
+    setTargetBranch(isConsolidated ? "" : String(selectedHeaderBranch || ""));
+    setBranchError("");
     setForm(emptyForm);
     setFieldError("");
     setFormOpen(true);
   };
 
-  const openEdit = (item) => {
+  const openEdit = React.useCallback((item) => {
     setEditingItem(item);
+    setTargetBranch(String(item.source_branch_id || selectedHeaderBranch || ""));
+    setBranchError("");
     setForm({
       name: item.name || "",
       is_active: item.is_active !== false,
     });
     setFieldError("");
     setFormOpen(true);
-  };
+  }, [selectedHeaderBranch]);
 
   const saveMutation = useMutation({
-    mutationFn: (payload) =>
-      editingItem?.id
-        ? api.patch(`${endpoint}${editingItem.id}/`, payload)
-        : api.post(endpoint, payload),
+    mutationFn: ({ payload, branch }) => {
+      const config = {
+        params: { branch, ...(editingItem?.source_branch_id ? { source_branch_id: branch } : {}) },
+        headers: { "X-Branch-ID": String(branch) },
+      };
+      return editingItem?.id
+        ? api.patch(`${endpoint}${editingItem.id}/`, payload, config)
+        : api.post(endpoint, payload, config);
+    },
 
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: [queryKey] });
@@ -134,7 +163,13 @@ export default function ReferenceDataPage({
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => api.delete(`${endpoint}${id}/`),
+    mutationFn: (item) => {
+      const branch = item.source_branch_id || selectedHeaderBranch;
+      return api.delete(`${endpoint}${item.id}/`, {
+        params: { branch, source_branch_id: branch },
+        headers: { "X-Branch-ID": String(branch) },
+      });
+    },
 
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: [queryKey] });
@@ -159,10 +194,16 @@ export default function ReferenceDataPage({
       return;
     }
 
+    const branch = editingItem?.source_branch_id || targetBranch;
+    if (!physicalBranches.some((item) => String(item.id) === String(branch))) {
+      setBranchError("Select a physical branch before saving.");
+      return;
+    }
     setFieldError("");
+    setBranchError("");
     saveMutation.mutate({
-      name,
-      is_active: Boolean(form.is_active),
+      payload: { name, is_active: Boolean(form.is_active), branch: Number(branch) },
+      branch: Number(branch),
     });
   };
 
@@ -188,6 +229,18 @@ export default function ReferenceDataPage({
           </div>
         ),
       },
+      ...(showSourceBranch
+        ? [{
+            key: "source_branch_name",
+            header: "Branch",
+            sortable: false,
+            cell: (row) => (
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                {row.source_branch_name || (row.source_branch_id != null ? `Branch ${row.source_branch_id}` : "—")}
+              </span>
+            ),
+          }]
+        : []),
       {
         key: "is_active",
         header: "Status",
@@ -243,7 +296,7 @@ export default function ReferenceDataPage({
           ),
       },
     ],
-    [canManage, singular],
+    [canManage, singular, showSourceBranch, openEdit],
   );
 
   return (
@@ -405,6 +458,24 @@ export default function ReferenceDataPage({
 
           <form onSubmit={submit}>
             <div className="space-y-5 px-6 py-6">
+              {isConsolidated && (
+                <div>
+                  <Label className="text-sm font-bold">Physical branch *</Label>
+                  <select
+                    className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 dark:border-white/10 dark:bg-slate-900 dark:text-white"
+                    value={targetBranch}
+                    onChange={(event) => { setTargetBranch(event.target.value); setBranchError(""); }}
+                    disabled={Boolean(editingItem?.source_branch_id)}
+                    required
+                  >
+                    <option value="">Select a physical branch</option>
+                    {physicalBranches.map((branch) => (
+                      <option key={branch.id} value={String(branch.id)}>{branch.branch_name} ({branch.tax_mode})</option>
+                    ))}
+                  </select>
+                  {branchError && <p className="mt-2 text-xs text-red-600">{branchError}</p>}
+                </div>
+              )}
               <div>
                 <Label className="text-sm font-bold text-slate-700 dark:text-slate-200">
                   {singular} name
@@ -520,7 +591,7 @@ export default function ReferenceDataPage({
 
             <Button
               variant="destructive"
-              onClick={() => deleteMutation.mutate(deleteItem.id)}
+              onClick={() => deleteMutation.mutate(deleteItem)}
               disabled={deleteMutation.isPending}
               className="h-10 rounded-xl px-5 font-bold"
             >

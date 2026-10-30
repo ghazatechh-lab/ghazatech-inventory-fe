@@ -44,8 +44,21 @@ const getResults = (response) => {
   return data?.results || [];
 };
 
-const getProductImage = (product) =>
-  product?.product_image_url || product?.product_image || null;
+const getProductImage = (product) => {
+  const image = product?.product_image_url || product?.product_image;
+  if (!image) return null;
+  if (/^(https?:|data:|blob:)/i.test(image)) return image;
+  const apiBase = api.defaults.baseURL || window.location.origin;
+  const origin = new URL(apiBase, window.location.origin).origin;
+  return new URL(image.startsWith("/") ? image : `/${image}`, origin).href;
+};
+
+const getProductDetailUrl = (product, isAllBranches) => {
+  const branchId = product?.source_branch_id || product?.branch_id || product?.branch;
+  const base = `/inventory/products/${product.id}`;
+  // Always carry source branch: numeric product IDs overlap across tenants.
+  return branchId ? `${base}?branch=${encodeURIComponent(branchId)}` : base;
+};
 
 const getAvailableQuantity = (product) => {
   // The backend calculates this value from ProductStock rows belonging to
@@ -110,7 +123,7 @@ export default function ProductListPage() {
   };
 
   const brandsQuery = useQuery({
-    queryKey: ["brands", "product-filter"],
+    queryKey: ["brands", "product-filter", isAllBranches ? "consolidated" : branchId],
     queryFn: async () =>
       getResults(
         await api.get("/brands/", {
@@ -123,7 +136,7 @@ export default function ProductListPage() {
   });
 
   const categoriesQuery = useQuery({
-    queryKey: ["categories", "product-filter"],
+    queryKey: ["categories", "product-filter", isAllBranches ? "consolidated" : branchId],
     queryFn: async () =>
       getResults(
         await api.get("/categories/", {
@@ -167,7 +180,7 @@ export default function ProductListPage() {
       brand,
       category,
     ],
-    enabled: isAllBranches,
+    enabled: false,
     queryFn: async () =>
       unwrap(
         await api.get("/inventory/stock/", {
@@ -183,166 +196,21 @@ export default function ProductListPage() {
     refetchOnMount: "always",
   });
 
+  // The API combines physical tenant products and carries a stable
+  // resource_key (branch ID + product ID). Never reconstruct products from
+  // stock rows: that hides zero-stock products and merges colliding IDs.
   const productData = useMemo(() => {
     const data = productsQuery.data;
     const products = Array.isArray(data) ? data : data?.results || [];
-
     if (!isAllBranches) {
-      return {
-        results: products,
-        count: data?.count || products.length,
-      };
+      return { results: products, count: data?.count ?? products.length };
     }
-
-    const stockData = allBranchStockQuery.data;
-    const stockGroups = Array.isArray(stockData)
-      ? stockData
-      : stockData?.results || [];
-
-    const productById = new Map(
-      products.map((product) => [String(product.id), product]),
-    );
-
-    const productBySku = new Map(
-      products
-        .filter((product) => product.sku)
-        .map((product) => [String(product.sku), product]),
-    );
-
-    /*
-     * All branches mode:
-     * Aggregate all base-stock and attribute rows into one Product + Branch
-     * row. This prevents the same product from appearing multiple times in
-     * the same branch.
-     */
-    const branchRowMap = new Map();
-
-    stockGroups.forEach((group) => {
-      const productId = group.product_id ?? group.product?.id ?? group.id;
-
-      const product = productById.get(String(productId)) ||
-        productBySku.get(String(group.sku || group.product_sku || "")) || {
-          id: productId,
-          product_name: group.product_name,
-          sku: group.sku || group.product_sku,
-          barcode: group.barcode,
-          brand_name: group.brand_name,
-          category_name: group.category_name,
-          retail_price: group.retail_price,
-          is_active: group.is_active !== false,
-        };
-
-      const branchStocks = Array.isArray(group.branch_stocks)
-        ? group.branch_stocks
-        : [];
-
-      branchStocks.forEach((stock) => {
-        const branchIdValue =
-          stock.branch_id ?? stock.branch?.id ?? stock.branch;
-
-        if (!branchIdValue) {
-          return;
-        }
-
-        const rowKey = `${product.id}-${branchIdValue}`;
-
-        const currentRow = branchRowMap.get(rowKey) || {
-          ...product,
-          row_key: rowKey,
-          branch_id: branchIdValue,
-          branch_code:
-            stock.branch_code ||
-            stock.branch?.branch_code ||
-            stock.branch?.code ||
-            "",
-          branch_name:
-            stock.branch_name ||
-            stock.branch?.branch_name ||
-            stock.branch?.name ||
-            "",
-          rack_codes: new Set(),
-          rack_names: new Set(),
-          total_available_qty: 0,
-          stock_row_count: 0,
-        };
-
-        const availableQuantity = Number(
-          stock.total_available_quantity ??
-            stock.available_stock ??
-            stock.available_qty ??
-            stock.current_stock ??
-            stock.quantity ??
-            0,
-        );
-
-        const rackCode =
-          stock.rack_code || stock.rack?.rack_code || stock.rack?.code || "";
-
-        const rackName =
-          stock.rack_name || stock.rack?.rack_name || stock.rack?.name || "";
-
-        if (rackCode) {
-          currentRow.rack_codes.add(rackCode);
-        }
-
-        if (rackName) {
-          currentRow.rack_names.add(rackName);
-        }
-
-        currentRow.total_available_qty += Number.isFinite(availableQuantity)
-          ? Math.max(0, availableQuantity)
-          : 0;
-
-        currentRow.stock_row_count += 1;
-
-        branchRowMap.set(rowKey, currentRow);
-      });
-    });
-
-    const rows = Array.from(branchRowMap.values()).map((row) => ({
-      ...row,
-      rack_code: Array.from(row.rack_codes).join(", "),
-      rack_name: Array.from(row.rack_names).join(", "),
-    }));
-
-    products.forEach((product) => {
-      const alreadyIncluded = rows.some(
-        (row) => String(row.id) === String(product.id),
-      );
-
-      if (!alreadyIncluded) {
-        rows.push({
-          ...product,
-          row_key: `${product.id}-unassigned`,
-          branch_code: product.branch_code || product.branch?.branch_code || "",
-          branch_name: product.branch_name || product.branch?.branch_name || "",
-          total_available_qty: 0,
-          stock_row_count: 0,
-        });
-      }
-    });
-
-    rows.sort((first, second) => {
-      const nameCompare = String(first.product_name || "").localeCompare(
-        String(second.product_name || ""),
-      );
-
-      if (nameCompare !== 0) {
-        return nameCompare;
-      }
-
-      return String(first.branch_code || first.branch_name || "").localeCompare(
-        String(second.branch_code || second.branch_name || ""),
-      );
-    });
-
     const start = (page - 1) * 12;
-
     return {
-      results: rows.slice(start, start + 12),
-      count: rows.length,
+      results: products.slice(start, start + 12),
+      count: data?.count ?? products.length,
     };
-  }, [productsQuery.data, allBranchStockQuery.data, isAllBranches, page]);
+  }, [productsQuery.data, isAllBranches, page]);
 
   const productSummary = useMemo(() => {
     const rows = productData.results || [];
@@ -433,7 +301,9 @@ export default function ProductListPage() {
   };
 
   const deleteMutation = useMutation({
-    mutationFn: async (productId) => api.delete(`/products/${productId}/`),
+    mutationFn: async (product) => api.delete(`/products/${product.id}/`, {
+      params: { branch: product.source_branch_id || product.branch_id || product.branch },
+    }),
     onSuccess: () => {
       toast.success("Product deleted successfully.");
       queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -456,10 +326,7 @@ export default function ProductListPage() {
         const image = getProductImage(product);
 
         return (
-          <Link
-            to={`/inventory/products/${product.id}`}
-            className="group flex items-center gap-3"
-          >
+          <div className="group flex items-center gap-3">
             {image ? (
               <img
                 src={image}
@@ -473,16 +340,20 @@ export default function ProductListPage() {
             )}
 
             <div className="min-w-0">
-              <div className="truncate font-bold text-slate-900 group-hover:text-blue-600 dark:text-white dark:group-hover:text-blue-400">
+              <Link
+                to={getProductDetailUrl(product, isAllBranches)}
+                className="block truncate font-bold text-slate-900 transition hover:text-blue-600 hover:underline focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 dark:text-white dark:hover:text-blue-400"
+                title={`View ${product.product_name}`}
+              >
                 {product.product_name}
-              </div>
+              </Link>
 
               <div className="mt-0.5 flex items-center gap-2 text-[10px] text-slate-500">
                 <BarcodeIcon className="h-3 w-3" />
                 {product.barcode || "No barcode"}
               </div>
             </div>
-          </Link>
+          </div>
         );
       },
     },
@@ -554,6 +425,7 @@ export default function ProductListPage() {
       align: "right",
       cell: (product) => (
         <div className="flex justify-end gap-1">
+          <>
           <Button
             asChild
             type="button"
@@ -561,7 +433,7 @@ export default function ProductListPage() {
             size="icon"
             title="View product"
           >
-            <Link to={`/inventory/products/${product.id}`}>
+            <Link to={getProductDetailUrl(product, isAllBranches)}>
               <Eye className="h-4 w-4" />
             </Link>
           </Button>
@@ -573,7 +445,7 @@ export default function ProductListPage() {
             size="icon"
             title="Edit product"
           >
-            <Link to={`/inventory/products/${product.id}/edit`}>
+            <Link to={`${getProductDetailUrl(product, isAllBranches).split("?")[0]}/edit?branch=${encodeURIComponent(product.source_branch_id || product.branch_id || product.branch)}`}>
               <Pencil className="h-4 w-4" />
             </Link>
           </Button>
@@ -589,6 +461,7 @@ export default function ProductListPage() {
           >
             <Trash2 className="h-4 w-4" />
           </Button>
+          </>
         </div>
       ),
     },
@@ -845,7 +718,7 @@ export default function ProductListPage() {
         destructive
         onConfirm={() => {
           if (deleteTarget?.id) {
-            deleteMutation.mutate(deleteTarget.id);
+            deleteMutation.mutate(deleteTarget);
           }
         }}
       />

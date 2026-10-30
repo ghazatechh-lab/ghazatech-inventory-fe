@@ -6,6 +6,7 @@ import {
   Building2,
   CheckCircle2,
   Edit3,
+  Eye,
   Layers3,
   MapPin,
   Plus,
@@ -97,6 +98,7 @@ export default function RackListPage() {
   const payload = query.data || { results: [], count: 0 };
   const rows = React.useMemo(() => payload.results || [], [payload.results]);
   const [deleteRack, setDeleteRack] = React.useState(null);
+  const [viewRack, setViewRack] = React.useState(null);
 
   React.useEffect(() => {
     setPage(1);
@@ -106,7 +108,7 @@ export default function RackListPage() {
   const inactiveOnPage = rows.filter((row) => !row.is_active).length;
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => api.delete(`/racks/${id}/`),
+    mutationFn: (rack) => api.delete(`/racks/${rack.id}/`, { params: { branch: rack.source_branch_id || selectedBranchId } }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["racks"] });
       toast.success("Rack deleted successfully.");
@@ -122,14 +124,15 @@ export default function RackListPage() {
       {
         key: "rack_code",
         header: "Rack",
+        align: "left",
         sortKey: "rack_code",
         sortType: "text",
         cell: (row) => (
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 ring-1 ring-blue-100 dark:bg-blue-500/10 dark:text-blue-300 dark:ring-blue-500/20">
               <Layers3 className="h-4.5 w-4.5" />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 text-left">
               <p className="truncate font-bold text-slate-950 dark:text-white">
                 {row.rack_code || "—"}
               </p>
@@ -143,22 +146,23 @@ export default function RackListPage() {
       {
         key: "branch_code",
         header: "Branch location",
+        align: "left",
         sortKey: "branch__branch_code",
         sortType: "text",
         cell: (row) => {
           const branchCode = row.branch_code || row.branch?.branch_code;
           const branchName =
-            row.branch_name || row.branch?.branch_name || row.branch?.name;
+            row.source_branch_name || row.branch_name || row.branch?.branch_name || row.branch?.name;
 
           return (
-            <div className="flex items-start gap-2.5">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+            <div className="flex items-center gap-2.5">
+              <MapPin className="h-4 w-4 shrink-0 text-slate-400" />
               <div>
-                <p className="font-semibold text-slate-800 dark:text-slate-200">
+                <p className="text-left font-semibold text-slate-800 dark:text-slate-200">
                   {branchName || branchCode || "—"}
                 </p>
                 {branchCode && branchName && (
-                  <p className="mt-0.5 text-xs font-medium text-slate-500">
+                  <p className="mt-0.5 text-left text-xs font-medium text-slate-500">
                     {branchCode}
                   </p>
                 )}
@@ -170,6 +174,7 @@ export default function RackListPage() {
       {
         key: "is_active",
         header: "Status",
+        align: "center",
         sortKey: "is_active",
         sortType: "active",
         cell: (row) => (
@@ -179,6 +184,7 @@ export default function RackListPage() {
       {
         key: "created_at",
         header: "Created",
+        align: "center",
         sortKey: "created_at",
         sortType: "datetime",
         cell: (row) => (
@@ -196,13 +202,16 @@ export default function RackListPage() {
               align: "right",
               cell: (row) => (
                 <div className="flex justify-end gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => setViewRack(row)}>
+                    <Eye className="mr-1.5 h-3.5 w-3.5" /> View
+                  </Button>
                   <Button
                     asChild
                     size="sm"
                     variant="outline"
                     className="h-9 rounded-lg border-slate-200 bg-white font-semibold shadow-sm hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-blue-500/10 dark:hover:text-blue-300"
                   >
-                    <Link to={`/inventory/racks/${row.id}/edit`}>
+                    <Link to={`/inventory/racks/${row.id}/edit?branch=${row.source_branch_id || selectedBranchId}`}>
                       <Edit3 className="mr-1.5 h-3.5 w-3.5" />
                       Edit
                     </Link>
@@ -223,12 +232,13 @@ export default function RackListPage() {
           ]
         : []),
     ],
-    [canManage],
+    [canManage, selectedBranchId],
   );
 
-  const branchSubtitle = selectedBranchId
-    ? "Manage storage racks for the currently selected branch."
-    : "View and manage storage racks across all branches.";
+  const isConsolidatedView = rows.some((row) => row.source_branch_id != null);
+  const branchSubtitle = isConsolidatedView
+    ? "View storage racks across all branches."
+    : "Manage storage racks for the currently selected branch.";
 
   return (
     <div className="space-y-6 pb-10">
@@ -284,7 +294,7 @@ export default function RackListPage() {
           label="Total racks"
           value={payload.count || 0}
           helper={
-            selectedBranchId ? "In selected branch" : "Across all branches"
+            isConsolidatedView ? "Across all branches" : "In selected branch"
           }
           icon={Building2}
           tone="blue"
@@ -343,6 +353,23 @@ export default function RackListPage() {
         </div>
       </section>
 
+      <Dialog open={Boolean(viewRack)} onOpenChange={(open) => !open && setViewRack(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rack details</DialogTitle>
+            <DialogDescription>Storage rack and physical branch information.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2 text-sm">
+            <p><strong>Code:</strong> {viewRack?.rack_code || "—"}</p>
+            <p><strong>Name:</strong> {viewRack?.rack_name || "—"}</p>
+            <p><strong>Branch:</strong> {viewRack?.source_branch_name || viewRack?.branch_name || viewRack?.branch_code || "—"}</p>
+            <p><strong>Status:</strong> {viewRack?.is_active ? "Active" : "Inactive"}</p>
+            <p><strong>Created:</strong> {formatDate(viewRack?.created_at)}</p>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setViewRack(null)}>Close</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog
         open={Boolean(deleteRack)}
         onOpenChange={(open) => !open && setDeleteRack(null)}
@@ -395,7 +422,7 @@ export default function RackListPage() {
               variant="destructive"
               disabled={deleteMutation.isPending}
               onClick={() =>
-                deleteRack?.id && deleteMutation.mutate(deleteRack.id)
+                deleteRack?.id && deleteMutation.mutate(deleteRack)
               }
             >
               {deleteMutation.isPending ? "Deleting..." : "Delete rack"}

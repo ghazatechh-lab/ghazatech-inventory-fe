@@ -1,5 +1,5 @@
-﻿import React from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import React from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Controller, useForm } from "react-hook-form";
 import {
@@ -64,6 +64,8 @@ function FieldMessage({ error, children }) {
 
 export default function RackFormPage() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const sourceBranchId = searchParams.get("branch");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -118,17 +120,17 @@ export default function RackFormPage() {
     [branches, branchId],
   );
   const physicalBranches = React.useMemo(
-    () => branches.filter((branch) => ["BR01", "BR02"].includes(String(branch.branch_code || "").toUpperCase())),
+    () => branches.filter((branch) => ["VAT", "NON_VAT"].includes(String(branch.tax_mode || "").toUpperCase())),
     [branches],
   );
-  const isCombinedBranch = String(activeBranch?.branch_code || "").toUpperCase() === "BR03";
+  const isCombinedBranch = Boolean(activeBranch) && !["VAT", "NON_VAT"].includes(String(activeBranch.tax_mode || "").toUpperCase());
 
   React.useEffect(() => {
     if (isEdit || !activeBranch) return;
-    const code = String(activeBranch.branch_code || "").toUpperCase();
+    const code = String(activeBranch.tax_mode || "").toUpperCase();
     reset((current) => ({
       ...current,
-      branch: ["BR01", "BR02"].includes(code) ? String(activeBranch.id) : "",
+      branch: ["VAT", "NON_VAT"].includes(code) ? String(activeBranch.id) : "",
     }));
   }, [activeBranch, isEdit, reset]);
 
@@ -137,8 +139,8 @@ export default function RackFormPage() {
     isLoading: rackLoading,
     isError: rackError,
   } = useQuery({
-    queryKey: ["rack", id],
-    queryFn: async () => unwrap(await api.get(`/racks/${id}/`)),
+    queryKey: ["rack", id, sourceBranchId],
+    queryFn: async () => unwrap(await api.get(`/racks/${id}/`, { params: { branch: sourceBranchId || branchId } })),
     enabled: isEdit,
     staleTime: 0,
   });
@@ -164,8 +166,8 @@ export default function RackFormPage() {
   const saveMutation = useMutation({
     mutationFn: async (payload) =>
       isEdit
-        ? api.patch(`/racks/${id}/`, payload)
-        : api.post("/racks/", payload),
+        ? api.patch(`/racks/${id}/`, payload, { params: { branch: sourceBranchId || payload.branch } })
+        : api.post("/racks/", payload, { params: { branch: payload.branch }, headers: { "X-Branch-ID": String(payload.branch) } }),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["racks"] }),
@@ -378,7 +380,7 @@ export default function RackFormPage() {
                     </Select>
                   )}
                 />
-                <FieldMessage error={errors.branch}>Branch 3 cannot own racks.</FieldMessage>
+                <FieldMessage error={errors.branch}>Consolidated cannot own racks; select a physical branch.</FieldMessage>
               </div>
             ) : (
               <div className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">

@@ -4,6 +4,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import {
   ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Search,
   Boxes,
   CheckCircle2,
   ImagePlus,
@@ -95,7 +99,8 @@ function variantFromApi(item) {
       value,
     })),
     racks: (item.racks || []).map((rack) => String(rack)),
-    initial_stock: item.available_qty ?? item.total_quantity ?? 0,
+    // Existing stock is a balance, not a new opening quantity.
+    initial_stock: item.current_stock ?? item.available_qty ?? item.total_quantity ?? 0,
     purchase_price: item.purchase_price ?? "",
     retail_price: item.retail_price ?? 0,
     wholesale_price: item.wholesale_price ?? 0,
@@ -126,6 +131,8 @@ export default function ProductFormPage() {
   const [pendingFormValues, setPendingFormValues] = React.useState(null);
   const [pendingStockChanges, setPendingStockChanges] = React.useState([]);
   const [variants, setVariants] = React.useState([{ ...emptyBaseStock }]);
+  const [collapsedVariants, setCollapsedVariants] = React.useState([]);
+  const [rackSearch, setRackSearch] = React.useState("");
 
   const {
     register,
@@ -140,27 +147,34 @@ export default function ProductFormPage() {
   const selectedBranch = watch("branch");
   const hasVariants = Boolean(watch("has_variants"));
 
+  // Product IDs can overlap across physical tenants. An edit link must
+  // fetch the product from its source branch, not the active Consolidated view.
+  const editSourceBranch = searchParams.get("branch") || (
+    branchOverride && String(branchOverride) !== "1" ? String(branchOverride) : ""
+  );
   const { data: product, isLoading: productLoading } = useQuery({
-    queryKey: ["product", id],
-    queryFn: async () => unwrap(await api.get(`/products/${id}/`)),
+    queryKey: ["product", id, editSourceBranch],
+    queryFn: async () => unwrap(await api.get(`/products/${id}/`, {
+      params: editSourceBranch ? { branch: editSourceBranch } : {},
+    })),
     enabled: isEdit,
     staleTime: 0,
   });
   const { data: brands = [], isLoading: brandsLoading } = useQuery({
-    queryKey: ["brands", "product-options"],
+    queryKey: ["brands", "product-options", selectedBranch],
     queryFn: async () =>
       list(
         await api.get("/brands/", {
-          params: { page_size: 500, is_active: true },
+          params: { page_size: 500, is_active: true, branch: selectedBranch },
         }),
       ),
   });
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
-    queryKey: ["categories", "product-options"],
+    queryKey: ["categories", "product-options", selectedBranch],
     queryFn: async () =>
       list(
         await api.get("/categories/", {
-          params: { page_size: 500, is_active: true },
+          params: { page_size: 500, is_active: true, branch: selectedBranch },
         }),
       ),
   });
@@ -172,9 +186,7 @@ export default function ProductFormPage() {
   const physicalBranches = React.useMemo(
     () =>
       branches.filter((branch) =>
-        ["BR01", "BR02"].includes(
-          String(branch.branch_code || "").toUpperCase(),
-        ),
+        ["VAT", "NON_VAT"].includes(String(branch.tax_mode || "").toUpperCase()),
       ),
     [branches],
   );
@@ -188,16 +200,16 @@ export default function ProductFormPage() {
   );
 
   const isCombinedHeader =
-    String(activeHeaderBranch?.branch_code || "").toUpperCase() === "BR03";
+    Boolean(activeHeaderBranch) && !["VAT", "NON_VAT"].includes(String(activeHeaderBranch.tax_mode || "").toUpperCase());
 
   const physicalBranchLabel = React.useCallback(
     (branchId) => {
       const branch = branches.find(
         (item) => String(item.id) === String(branchId || ""),
       );
-      const code = String(branch?.branch_code || "").toUpperCase();
-      if (code === "BR01") return "Branch 1";
-      if (code === "BR02") return "Branch 2";
+      const code = String(branch?.tax_mode || "").toUpperCase();
+      if (code === "VAT") return branch?.branch_name || "VAT branch";
+      if (code === "NON_VAT") return branch?.branch_name || "Non-VAT branch";
       return branch?.branch_name || "selected branch";
     },
     [branches],
@@ -278,7 +290,7 @@ export default function ProductFormPage() {
       return;
     }
 
-    if (String(matchingBranch.branch_code || "").toUpperCase() === "BR03") {
+    if (!["VAT", "NON_VAT"].includes(String(matchingBranch.tax_mode || "").toUpperCase())) {
       // BR03 is virtual. Product writes must explicitly target BR01 or BR02.
       setValue("branch", "", {
         shouldDirty: true,
@@ -476,7 +488,20 @@ export default function ProductFormPage() {
     console.groupEnd();
     reset(values);
     const apiVariants = (product.variants || []).map(variantFromApi);
-    setVariants(apiVariants.length ? apiVariants : [{ ...emptyBaseStock }]);
+    // For non-variant products stock is stored with variant_id=null.
+    // Use the actual stock balance when supplied by the detail API.
+    const stockRows = Array.isArray(product.stocks) ? product.stocks : [];
+    const hydratedVariants = apiVariants.map((variant) => {
+      const matchingStock = stockRows.find((stock) =>
+        product.has_variants
+          ? String(stock.variant_id ?? stock.variant ?? "") === String(variant.id)
+          : (stock.variant_id == null && stock.variant == null)
+      );
+      return matchingStock
+        ? { ...variant, initial_stock: Number(matchingStock.current_stock ?? variant.initial_stock ?? 0) }
+        : variant;
+    });
+    setVariants(hydratedVariants.length ? hydratedVariants : [{ ...emptyBaseStock }]);
     setImagePreview(product.product_image_url || product.product_image || "");
     previousBranchRef.current = String(values.branch || "");
     hydratedRef.current = true;
@@ -598,8 +623,32 @@ export default function ProductFormPage() {
       { ...emptyBaseStock, attributes: [{ name: "", value: "" }] },
     ]);
   };
-  const removeVariant = (index) =>
+  const duplicateVariant = (index) => {
+    const source = variants[index];
+    if (!source) return;
+    // Do not copy the database ID or existing stock balance into a new row.
+    const duplicate = {
+      ...source,
+      id: undefined,
+      attributes: (source.attributes || []).map((a) => ({ ...a })),
+      racks: [...(source.racks || [])],
+      initial_stock: 0,
+    };
+    setVariants((current) => [...current.slice(0, index + 1), duplicate, ...current.slice(index + 1)]);
+    setCollapsedVariants([]);
+    toast.info("Variant duplicated. Change its attributes before saving.");
+  };
+  const removeVariant = (index) => {
+    if (variants.length < 2) return;
+    const variant = variants[index];
+    if (variant?.id && !window.confirm("Remove this saved variant? Its existing configuration may be affected when you save.")) return;
     setVariants((current) => current.filter((_, i) => i !== index));
+    setCollapsedVariants([]);
+  };
+  const toggleCollapsedVariant = (index) =>
+    setCollapsedVariants((current) => current.includes(index)
+      ? current.filter((value) => value !== index)
+      : [...current, index]);
   const addAttribute = (variantIndex) => {
     const variant = variants[variantIndex];
     const attributes = variant?.attributes || [];
@@ -711,7 +760,9 @@ export default function ProductFormPage() {
           ...(variant.id ? { id: variant.id } : {}),
           attributes: hasVariants ? attributes : {},
           racks: (variant.racks || []).map((rackId) => Number(rackId)),
-          initial_stock: Math.max(0, Number(variant.initial_stock || 0)),
+          // Initial quantity is only valid at creation. Existing stock must
+          // never be resubmitted as opening stock during a price edit.
+          ...(!isEdit ? { initial_stock: Math.max(0, Number(variant.initial_stock || 0)) } : {}),
           purchase_price:
             variant.purchase_price === "" || variant.purchase_price == null
               ? null
@@ -722,6 +773,19 @@ export default function ProductFormPage() {
           is_active: variant.is_active ?? true,
         };
       });
+
+      if (hasVariants) {
+        const seen = new Set();
+        for (const [index, variant] of normalizedVariants.entries()) {
+          const signature = JSON.stringify(Object.entries(variant.attributes || {})
+            .map(([name, value]) => [name.trim().toLowerCase(), String(value).trim().toLowerCase()])
+            .sort(([a], [b]) => a.localeCompare(b)));
+          if (seen.has(signature)) {
+            throw new Error(`Variant ${index + 1} duplicates another attribute combination. Change its attributes before saving.`);
+          }
+          seen.add(signature);
+        }
+      }
 
       const formData = new FormData();
       const payload = {
@@ -758,7 +822,9 @@ export default function ProductFormPage() {
       console.groupEnd();
 
       if (isEdit) {
-        await api.patch(`/products/${id}/`, formData);
+        await api.patch(`/products/${id}/`, formData, {
+          params: { branch: Number(values.branch) },
+        });
       } else {
         await api.post("/products/", formData);
       }
@@ -1137,18 +1203,16 @@ export default function ProductFormPage() {
                     }
                     className="mt-2 h-11 w-full rounded-md border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                   >
-                    <option value="">Select Branch 1 or Branch 2</option>
+                    <option value="">Select a physical branch</option>
                     {physicalBranches.map((branch) => (
                       <option key={branch.id} value={String(branch.id)}>
-                        {branch.branch_code === "BR01"
-                          ? "Branch 1"
-                          : "Branch 2"}
+                        {branch.branch_code || branch.tax_mode}
                         {branch.branch_name ? ` - ${branch.branch_name}` : ""}
                       </option>
                     ))}
                   </select>
                   <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-                    Branch 3 is a combined view only. Suppliers and racks are
+                    Consolidated is a combined view only. Suppliers and racks are
                     loaded from the physical branch selected here.
                   </p>
                 </div>
@@ -1158,7 +1222,7 @@ export default function ProductFormPage() {
                   filter.
                   {!selectedBranch ? (
                     <p className="mt-2 font-semibold text-amber-700 dark:text-amber-300">
-                      Select Branch 1 or Branch 2 from the top branch filter
+                      Select a physical branch from the top branch filter
                       before saving this product.
                     </p>
                   ) : null}
@@ -1353,8 +1417,8 @@ export default function ProductFormPage() {
             <div>
               <h2 className="text-lg font-semibold text-slate-950 dark:text-white">
                 {hasVariants
-                  ? "Attributes, stock and pricing"
-                  : "Stock and pricing"}
+                  ? "Product variants"
+                  : "Stock & pricing"}
               </h2>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                 {hasVariants
@@ -1387,26 +1451,37 @@ export default function ProductFormPage() {
                     <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3 dark:border-white/10 dark:bg-white/[0.025]">
                       <div>
                         <p className="text-sm font-semibold text-slate-950 dark:text-white">
-                          Attribute combination {variantIndex + 1}
+                          Variant {variantIndex + 1}
                         </p>
-                        <p className="mt-0.5 text-xs text-slate-500">
-                          Define one or more attribute values.
+                        <p className="mt-0.5 max-w-xl break-words text-xs text-slate-500">
+                          {(variant.attributes || []).filter((a) => a.name && a.value)
+                            .map((a) => `${a.name}: ${a.value}`).join(" · ") || "Add configuration attributes"}
                         </p>
                       </div>
 
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => removeVariant(variantIndex)}
-                        disabled={variants.length === 1}
-                        className="text-red-400 hover:bg-red-500/10 hover:text-red-300"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button type="button" size="sm" variant="ghost"
+                          aria-label={`Duplicate variant ${variantIndex + 1}`}
+                          title="Duplicate variant" onClick={() => duplicateVariant(variantIndex)}>
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button type="button" size="sm" variant="ghost"
+                          aria-label={`${collapsedVariants.includes(variantIndex) ? "Expand" : "Collapse"} variant ${variantIndex + 1}`}
+                          onClick={() => toggleCollapsedVariant(variantIndex)}>
+                          {collapsedVariants.includes(variantIndex) ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                        </Button>
+                        <Button type="button" size="sm" variant="ghost"
+                          aria-label={`Remove variant ${variantIndex + 1}`}
+                          onClick={() => removeVariant(variantIndex)}
+                          disabled={variants.length === 1}
+                          className="text-red-500 hover:bg-red-500/10">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   ) : null}
 
+                  {(!hasVariants || !collapsedVariants.includes(variantIndex)) && (
                   <div className="space-y-5 p-5">
                     {hasVariants ? (
                       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-900/60 dark:shadow-none">
@@ -1476,15 +1551,20 @@ export default function ProductFormPage() {
                       </div>
                     ) : null}
 
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Stock & pricing</h3>
+                      <p className="mb-3 text-xs text-slate-500">Prices in AED. {isEdit ? "Current stock is read-only." : "Opening quantity is recorded when created."}</p>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
                       <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.035] p-3">
                         <Label className="text-emerald-700 dark:text-emerald-100">
-                          Initial quantity
+                          {isEdit ? "Current quantity (read-only)" : "Initial quantity"}
                         </Label>
                         <Input
                           type="number"
                           min="0"
                           value={variant.initial_stock ?? 0}
+                          readOnly={isEdit}
                           onChange={(event) =>
                             updateVariant(
                               variantIndex,
@@ -1574,11 +1654,15 @@ export default function ProductFormPage() {
                         />
                       </div>
 
-                      <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-500/20 dark:bg-blue-500/[0.06]">
+
+                    </div>
+
+                    {/* Rack assignments are separate from prices and quantity. */}
+                    <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-4 dark:border-blue-500/20 dark:bg-blue-500/[0.06]">
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
-                              <Label className="font-semibold">Rack</Label>
+                              <Label className="text-sm font-semibold">Rack locations</Label>
                               {(variant.racks || []).length ? (
                                 <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">
                                   {(variant.racks || []).length}
@@ -1586,7 +1670,7 @@ export default function ProductFormPage() {
                               ) : null}
                             </div>
                             <p className="mt-0.5 text-[11px] text-muted-foreground">
-                              Multiple racks allowed
+                              Assign one or more rack locations for this {hasVariants ? "variant" : "product"}.
                             </p>
                           </div>
 
@@ -1607,6 +1691,12 @@ export default function ProductFormPage() {
                           </Button>
                         </div>
 
+                        <div className="relative mt-3">
+                          <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                          <Input value={rackSearch} onChange={(event) => setRackSearch(event.target.value)}
+                            aria-label="Search rack locations" placeholder="Search rack code or name"
+                            className="h-10 pl-9" disabled={!selectedBranch || racksLoading} />
+                        </div>
                         <Select
                           value=""
                           disabled={!selectedBranch || racksLoading || Boolean(racksError)}
@@ -1618,7 +1708,7 @@ export default function ProductFormPage() {
                         >
                           <SelectTrigger
                             aria-label={`Add rack to ${hasVariants ? `variant ${variantIndex + 1}` : "product"}`}
-                            className="mt-2 h-11 border-blue-200 bg-white text-left dark:border-blue-500/20 dark:bg-slate-950/70"
+                            className="mt-3 h-11 w-full border-blue-200 bg-white text-left dark:border-blue-500/20 dark:bg-slate-950/70"
                           >
                             <SelectValue
                               placeholder={
@@ -1629,13 +1719,14 @@ export default function ProductFormPage() {
                                     : racksError
                                       ? "Unable to load racks"
                                       : racks.length
-                                        ? "Select rack"
+                                        ? "Add a rack location"
                                         : "No racks available"
                               }
                             />
                           </SelectTrigger>
                           <SelectContent>
-                            {racks.map((rack) => (
+                            {racks.filter((rack) => `${rack.rack_code || ""} ${rack.rack_name || ""}`
+                              .toLowerCase().includes(rackSearch.trim().toLowerCase())).map((rack) => (
                               <SelectItem
                                 key={rack.id}
                                 value={String(rack.id)}
@@ -1679,7 +1770,15 @@ export default function ProductFormPage() {
                               );
                             })}
                           </div>
-                        ) : null}
+                        ) : (
+                          <p className="mt-3 rounded-lg border border-dashed border-blue-200 px-3 py-3 text-xs text-slate-500 dark:border-blue-500/20">
+                            No rack locations selected yet.
+                          </p>
+                        )}
+
+                        <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                          Rack assignments are shared locations for this configuration. Stock quantity is not divided by rack in the current inventory model.
+                        </p>
 
                         {racksError ? (
                           <p className="mt-2 text-xs text-red-500">
@@ -1687,8 +1786,8 @@ export default function ProductFormPage() {
                           </p>
                         ) : null}
                       </div>
-                    </div>
                   </div>
+                  )}
                 </div>
               ),
             )}
