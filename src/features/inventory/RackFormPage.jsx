@@ -41,7 +41,7 @@ const normalizeList = (value) => {
 };
 
 const getBranchId = (rack) => {
-  const value = rack?.branch_id ?? rack?.branch?.id ?? rack?.branch ?? "";
+  const value = rack?.source_branch_id ?? rack?.branch_id ?? rack?.branch?.id ?? rack?.branch ?? "";
   return value === null || value === undefined ? "" : String(value);
 };
 
@@ -95,6 +95,7 @@ export default function RackFormPage() {
   const watchedCode = watch("rack_code");
   const watchedName = watch("rack_name");
   const watchedActive = watch("is_active");
+  const watchedBranch = watch("branch");
 
   const {
     data: branchResponse,
@@ -124,7 +125,6 @@ export default function RackFormPage() {
     [branches],
   );
   const isCombinedBranch = Boolean(activeBranch) && !["VAT", "NON_VAT"].includes(String(activeBranch.tax_mode || "").toUpperCase());
-
   React.useEffect(() => {
     if (isEdit || !activeBranch) return;
     const code = String(activeBranch.tax_mode || "").toUpperCase();
@@ -145,13 +145,29 @@ export default function RackFormPage() {
     staleTime: 0,
   });
 
+  // A rack is owned by one tenant schema. Editing must show its actual
+  // persisted branch even when the global filter is Consolidated or changed.
+  const rackBranchId = isEdit
+    ? String(getBranchId(rack) || sourceBranchId || "")
+    : String(watchedBranch || "");
+  const rackOwner = React.useMemo(
+    () => branches.find((branch) => String(branch.id) === rackBranchId),
+    [branches, rackBranchId],
+  );
+  const rackOwnerLabel = rackOwner
+    ? `${rackOwner.branch_code} · ${rackOwner.branch_name || rackOwner.name}`
+    : rack?.branch_code || rack?.branch_name
+      ? [rack.branch_code, rack.branch_name].filter(Boolean).join(" · ")
+      : rackBranchId ? `Branch #${rackBranchId}` : "Branch unavailable";
+
+
   React.useEffect(() => {
     if (!rack) return;
 
     reset({
       rack_code: rack.rack_code || "",
       rack_name: rack.rack_name || "",
-      branch: getBranchId(rack),
+      branch: getBranchId(rack) || sourceBranchId || "",
       is_active: typeof rack.is_active === "boolean" ? rack.is_active : true,
     });
   }, [rack, reset]);
@@ -166,7 +182,10 @@ export default function RackFormPage() {
   const saveMutation = useMutation({
     mutationFn: async (payload) =>
       isEdit
-        ? api.patch(`/racks/${id}/`, payload, { params: { branch: sourceBranchId || payload.branch } })
+        ? api.patch(`/racks/${id}/`, payload, {
+            params: { branch: getBranchId(rack) || sourceBranchId || branchId },
+            headers: { "X-Branch-ID": String(getBranchId(rack) || sourceBranchId || branchId) },
+          })
         : api.post("/racks/", payload, { params: { branch: payload.branch }, headers: { "X-Branch-ID": String(payload.branch) } }),
     onSuccess: async () => {
       await Promise.all([
@@ -217,17 +236,20 @@ export default function RackFormPage() {
       return;
     }
 
-    if (!values.branch || Number.isNaN(selectedBranch)) {
+    if (!values.branch || !Number.isInteger(selectedBranch) || selectedBranch <= 0) {
       setError("branch", { type: "manual", message: "Branch is required." });
       return;
     }
 
-    await saveMutation.mutateAsync({
+    // Do not submit an editable branch FK on PATCH. Ownership is immutable;
+    // the branch query parameter chooses the existing tenant schema.
+    const payload = {
       rack_code: rackCode,
       rack_name: rackName,
-      branch: selectedBranch,
       is_active: Boolean(values.is_active),
-    });
+    };
+    if (!isEdit) payload.branch = selectedBranch;
+    await saveMutation.mutateAsync(payload);
   };
 
   const busy = branchesLoading || (isEdit && rackLoading);
@@ -358,7 +380,25 @@ export default function RackFormPage() {
               </div>
             </div>
 
-            {isCombinedBranch ? (
+            {isEdit ? (
+              <div>
+                <Label className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  Branch
+                </Label>
+                <div className="relative mt-2">
+                  <Building2 className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    value={rackOwnerLabel}
+                    readOnly
+                    aria-label="Rack branch (read only)"
+                    className="h-12 cursor-not-allowed rounded-xl border-slate-200 bg-slate-100 pl-10 font-semibold text-slate-700 dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-200"
+                  />
+                </div>
+                <FieldMessage error={errors.branch}>
+                  Branch is assigned when the rack is created and cannot be changed during editing.
+                </FieldMessage>
+              </div>
+            ) : isCombinedBranch ? (
               <div>
                 <Label className="text-sm font-bold text-slate-800 dark:text-slate-200">Branch <span className="text-red-500">*</span></Label>
                 <Controller
