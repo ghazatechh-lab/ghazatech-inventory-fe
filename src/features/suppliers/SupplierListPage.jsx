@@ -4,13 +4,9 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
-  Info,
   Plus,
   Building2,
   Users,
-  WalletCards,
-  CreditCard,
-  ArrowUpRight,
   Trash2,
   Pencil,
 } from "lucide-react";
@@ -69,27 +65,6 @@ const getOutstanding = (supplier) =>
     supplier.total_outstanding,
   );
 
-const getPayable = (supplier) =>
-  numberValue(
-    supplier.payable_balance,
-    supplier.total_payable,
-    supplier.payable,
-    supplier.outstanding_balance,
-    supplier.outstanding,
-  );
-
-const getCreditLimit = (supplier) =>
-  numberValue(supplier.credit_limit, supplier.credit_limit_amount);
-
-const getCreditUsed = (supplier) =>
-  numberValue(
-    supplier.credit_used,
-    supplier.used_credit,
-    supplier.total_credit_used,
-    supplier.outstanding_balance,
-    supplier.outstanding,
-  );
-
 const getStatus = (supplier) => {
   const rawStatus = textValue(
     supplier.status,
@@ -137,38 +112,6 @@ function MetricCard({
   );
 }
 
-
-function CreditUsage({ used, limit }) {
-  const safeUsed = Math.max(0, numberValue(used));
-  const safeLimit = Math.max(0, numberValue(limit));
-  const percentage =
-    safeLimit > 0
-      ? Math.min(100, Math.round((safeUsed / safeLimit) * 100))
-      : safeUsed > 0
-        ? 100
-        : 0;
-
-  const barClass =
-    percentage >= 75
-      ? "bg-red-500"
-      : percentage >= 40
-        ? "bg-amber-600"
-        : "bg-indigo-600";
-
-  return (
-    <div className="min-w-[120px]">
-      <div className="h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
-        <div
-          className={`h-full rounded-full ${barClass}`}
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-      <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-        {safeUsed.toLocaleString("en-US")} / {safeLimit.toLocaleString("en-US")}
-      </p>
-    </div>
-  );
-}
 
 export default function SupplierListPage() {
   const queryClient = useQueryClient();
@@ -232,11 +175,9 @@ export default function SupplierListPage() {
       (totals, supplier) => {
         totals.active += getStatus(supplier) === "Active" ? 1 : 0;
         totals.outstanding += getOutstanding(supplier);
-        totals.payable += getPayable(supplier);
-        totals.creditUsed += getCreditUsed(supplier);
         return totals;
       },
-      { active: 0, outstanding: 0, payable: 0, creditUsed: 0 },
+      { active: 0, outstanding: 0 },
     );
 
     return {
@@ -255,16 +196,6 @@ export default function SupplierListPage() {
         payload.summary?.total_outstanding,
         fallback.outstanding,
       ),
-      payable: numberValue(
-        payload.total_payable,
-        payload.summary?.total_payable,
-        fallback.payable,
-      ),
-      creditUsed: numberValue(
-        payload.total_credit_used,
-        payload.summary?.credit_used,
-        fallback.creditUsed,
-      ),
     };
   }, [payload, rows]);
 
@@ -275,7 +206,7 @@ export default function SupplierListPage() {
       <PageHeader
         showSourceFilter
         title="Suppliers"
-        subtitle={`Manage vendor identities, tax records, commercial terms, credit exposure and payment readiness.${
+        subtitle={`Find suppliers and manage their records.${
           normalizedBranchId
             ? " Showing suppliers for the selected branch."
             : " Showing suppliers from all branches."
@@ -290,206 +221,65 @@ export default function SupplierListPage() {
         }
       />
 
-      <section className="flex items-start gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-950 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-200">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-300" />
-        <p>
-          Fields captured per supplier: legal name, TRN/tax ID, contact person,
-          phone/email, address, payment terms, bank details, credit limit, and
-          linked purchase history.
-        </p>
-      </section>
-
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <MetricCard
-          label="Total Suppliers"
-          value={summary.totalSuppliers}
-          icon={Users}
-        />
-        <MetricCard
-          label="Active"
-          value={summary.active}
-          tone="text-emerald-600 dark:text-emerald-400"
-          icon={Building2}
-        />
-        <MetricCard
-          label="Total Outstanding"
-          value={formatCurrency(summary.outstanding)}
-          tone="text-amber-700 dark:text-amber-400"
-          icon={WalletCards}
-        />
-        <MetricCard
-          label="Total Payable"
-          value={formatCurrency(summary.payable)}
-          tone="text-red-600 dark:text-red-400"
-          icon={CreditCard}
-        />
-        <MetricCard
-          label="Credit Used"
-          value={formatCurrency(summary.creditUsed)}
-          icon={ArrowUpRight}
-        />
+      <section className="grid gap-4 sm:grid-cols-3">
+        <MetricCard label="Total Suppliers" value={summary.totalSuppliers} icon={Users} />
+        <MetricCard label="Active" value={summary.active} tone="text-emerald-600 dark:text-emerald-400" icon={Building2} />
+        <MetricCard label="Outstanding" value={formatCurrency(summary.outstanding)} icon={AlertCircle} />
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/60">
         <SearchInput
           value={q}
           onChange={setQ}
-          placeholder="Search supplier name, contact, email, phone or TRN..."
+          placeholder="Search supplier name, code, phone or email..."
         />
       </section>
 
       <section className="supplier-table-card">
         <div className="overflow-x-auto">
-          <table className="min-w-[1280px] w-full border-collapse text-sm">
+          <table className="min-w-[840px] w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:border-white/10 dark:bg-white/[0.025] dark:text-slate-400">
-                <th className="px-4 py-3">Source Branch</th>
+                <th className="px-4 py-3">Branch</th>
                 <th className="px-4 py-3">Supplier</th>
-                <th className="px-4 py-3">Contact</th>
-                <th className="px-4 py-3">Email</th>
                 <th className="px-4 py-3">Phone</th>
-                <th className="px-4 py-3">Terms</th>
-                <th className="px-4 py-3">TRN</th>
-                <th className="px-4 py-3 text-right">Balance</th>
-                <th className="px-4 py-3 text-right">Payable</th>
-                <th className="px-4 py-3">Credit Used</th>
+                <th className="px-4 py-3 text-right">Outstanding</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
-
             <tbody>
               {query.isLoading ? (
-                <tr>
-                  <td
-                    colSpan={12}
-                    className="px-4 py-14 text-center text-slate-500"
-                  >
-                    Loading suppliers...
-                  </td>
-                </tr>
+                <tr><td colSpan={6} className="px-4 py-14 text-center text-slate-500">Loading suppliers...</td></tr>
               ) : rows.length ? (
                 rows.map((supplier) => {
-                  const outstanding = getOutstanding(supplier);
-                  const payable = getPayable(supplier);
-                  const creditLimit = getCreditLimit(supplier);
-                  const creditUsed = getCreditUsed(supplier);
+                  const key = supplier.resource_key || supplier.id;
                   const status = getStatus(supplier);
-                  const paymentTerms =
-                    textValue(
-                      supplier.payment_terms,
-                      supplier.payment_terms_display,
-                    ) || `Net ${numberValue(supplier.payment_terms_days)}`;
-
                   return (
-                    <tr
-                      key={supplier.resource_key || supplier.id}
-                      className="border-b border-slate-100 transition last:border-0 hover:bg-slate-50/80 dark:border-white/5 dark:hover:bg-white/[0.025]"
-                    >
-                      <td className="px-4 py-4 font-semibold text-slate-700 dark:text-slate-200">
-                        {branchName(supplier)}
-                      </td>
-
+                    <tr key={key} className="border-b border-slate-100 transition last:border-0 hover:bg-slate-50/80 dark:border-white/5 dark:hover:bg-white/[0.025]">
+                      <td className="px-4 py-4 font-semibold text-slate-700 dark:text-slate-200">{branchName(supplier)}</td>
                       <td className="px-4 py-4">
-                        <Link
-                          to={`/suppliers/${supplier.resource_key || supplier.id}`}
-                          className="font-bold text-slate-950 transition hover:text-blue-600 dark:text-white dark:hover:text-blue-300"
-                        >
-                          {textValue(
-                            supplier.supplier_name,
-                            supplier.legal_name,
-                            supplier.name,
-                            "Unnamed supplier",
-                          )}
+                        <Link to={`/suppliers/${encodeURIComponent(key)}`} className="font-bold text-slate-950 transition hover:text-blue-600 dark:text-white dark:hover:text-blue-300">
+                          {textValue(supplier.supplier_name, supplier.legal_name, supplier.name, "Unnamed supplier")}
                         </Link>
-                        {(supplier.trade_name || supplier.supplier_code) && (
-                          <p className="mt-1 text-xs text-slate-500">
-                            {textValue(
-                              supplier.trade_name,
-                              supplier.supplier_code,
-                            )}
-                          </p>
-                        )}
+                        {supplier.supplier_code && <p className="mt-1 text-xs text-slate-500">{supplier.supplier_code}</p>}
                       </td>
-
-                      <td className="px-4 py-4">
-                        {textValue(
-                          supplier.contact_person,
-                          supplier.primary_contact_name,
-                          "—",
-                        )}
-                      </td>
-
-                      <td className="px-4 py-4">
-                        {supplier.email ? (
-                          <a
-                            href={`mailto:${supplier.email}`}
-                            className="font-medium text-blue-600 hover:underline dark:text-blue-300"
-                          >
-                            {supplier.email}
-                          </a>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-
-                      <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
-                        {textValue(supplier.phone, supplier.mobile, "—")}
-                      </td>
-
-                      <td className="px-4 py-4">{paymentTerms}</td>
-
-                      <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
-                        {textValue(
-                          supplier.trn,
-                          supplier.tax_registration_number,
-                          supplier.tax_id,
-                          "—",
-                        )}
-                      </td>
-
-                      <td className="px-4 py-4 text-right font-medium">
-                        <CurrencyText value={outstanding} />
-                      </td>
-
-                      <td className="px-4 py-4 text-right font-medium">
-                        <CurrencyText value={payable} />
-                      </td>
-
-                      <td className="px-4 py-4">
-                        <CreditUsage used={creditUsed} limit={creditLimit} />
-                      </td>
-
-                      <td className="px-4 py-4">
-                        <StatusBadge status={status} />
-                      </td>
-
+                      <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{textValue(supplier.phone, supplier.mobile, "—")}</td>
+                      <td className="px-4 py-4 text-right font-medium"><CurrencyText value={getOutstanding(supplier)} /></td>
+                      <td className="px-4 py-4"><StatusBadge status={status} /></td>
                       <td className="px-4 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Button
-                            asChild
-                            size="sm"
-                            variant="outline"
-                            className="h-8 px-4"
-                          >
-                            <Link to={`/suppliers/${supplier.resource_key || supplier.id}`}>View</Link>
+                          <Button asChild size="sm" variant="outline" className="h-8 px-3">
+                            <Link to={`/suppliers/${encodeURIComponent(key)}`}>View</Link>
                           </Button>
                           <Button asChild size="sm" variant="outline" className="h-8 gap-1">
-                            <Link to={`/suppliers/${encodeURIComponent(supplier.resource_key || supplier.id)}/edit`}>
-                              <Pencil className="h-3.5 w-3.5" /> Edit
-                            </Link>
+                            <Link to={`/suppliers/${encodeURIComponent(key)}/edit`}><Pencil className="h-3.5 w-3.5" /> Edit</Link>
                           </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
+                          <Button type="button" size="sm" variant="outline"
                             className="h-8 gap-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900/60 dark:hover:bg-red-950/30"
-                            onClick={() => setSupplierToDelete(supplier)}
-                            disabled={deleteSupplier.isPending}
-                            aria-label={`Delete ${textValue(supplier.supplier_name, supplier.name, "supplier")}`}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            Delete
+                            onClick={() => setSupplierToDelete(supplier)} disabled={deleteSupplier.isPending}
+                            aria-label={`Delete ${textValue(supplier.supplier_name, supplier.name, "supplier")}`}>
+                            <Trash2 className="h-3.5 w-3.5" /> Delete
                           </Button>
                         </div>
                       </td>
@@ -497,16 +287,11 @@ export default function SupplierListPage() {
                   );
                 })
               ) : (
-                <tr>
-                  <td colSpan={12} className="px-4 py-14 text-center">
-                    <AlertCircle className="mx-auto h-7 w-7 text-slate-400" />
-                    <p className="mt-3 font-medium">No suppliers found</p>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Add a supplier for the selected branch or change the
-                      search.
-                    </p>
-                  </td>
-                </tr>
+                <tr><td colSpan={6} className="px-4 py-14 text-center">
+                  <AlertCircle className="mx-auto h-7 w-7 text-slate-400" />
+                  <p className="mt-3 font-medium">No suppliers found</p>
+                  <p className="mt-1 text-sm text-slate-500">Add a supplier for the selected branch or change the search.</p>
+                </td></tr>
               )}
             </tbody>
           </table>
