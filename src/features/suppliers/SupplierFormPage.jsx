@@ -154,7 +154,7 @@ export default function SupplierFormPage() {
   const navigate = useNavigate();
   const backTarget = edit ? `/suppliers/${id}` : "/suppliers";
   const queryClient = useQueryClient();
-  const { formBranchId, isCombinedBranch } = usePurchaseBranchScope();
+  const { formBranchId, isCombinedBranch, physicalBranches } = usePurchaseBranchScope();
 
   const [selectedFiles, setSelectedFiles] = React.useState([]);
 
@@ -244,7 +244,25 @@ export default function SupplierFormPage() {
 
     onSuccess: async (response) => {
       const savedSupplier = unwrap(response);
-      const supplierId = edit ? id : (savedSupplier?.resource_key || savedSupplier?.id);
+      // Create responses contain a local numeric ID, while consolidated detail
+      // endpoints require a source-qualified resource key (BRANCH_CODE:id).
+      const savedBranchId = savedSupplier?.source_branch_id
+        || savedSupplier?.branch?.id
+        || savedSupplier?.branch
+        || watch("branch")
+        || formBranchId;
+      const sourceBranch = physicalBranches.find(
+        (branch) => String(branch.id) === String(savedBranchId)
+      );
+      const sourceCode = savedSupplier?.source_branch_code
+        || savedSupplier?.source_branch
+        || sourceBranch?.branch_code;
+      const supplierId = edit
+        ? id
+        : savedSupplier?.resource_key
+          || (sourceCode && savedSupplier?.id != null
+            ? `${String(sourceCode).trim().toUpperCase()}:${savedSupplier.id}`
+            : null);
 
       await Promise.all([
         queryClient.invalidateQueries({
@@ -270,7 +288,10 @@ export default function SupplierFormPage() {
 
       toast.success(edit ? "Supplier updated." : "Supplier created.");
 
-      navigate(supplierId ? `/suppliers/${supplierId}` : "/suppliers");
+      if (!supplierId && !edit) {
+        toast.info("Supplier saved. Open it from the Suppliers list.");
+      }
+      navigate(supplierId ? `/suppliers/${encodeURIComponent(supplierId)}` : "/suppliers");
     },
 
     onError: (error) => {
