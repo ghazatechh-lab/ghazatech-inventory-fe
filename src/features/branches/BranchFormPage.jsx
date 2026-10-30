@@ -1,4 +1,5 @@
 import React from "react";
+import { Loader2, DatabaseZap, CheckCircle2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
@@ -115,7 +116,10 @@ export default function BranchFormPage() {
     });
   }, [branchData, managersLoading, reset]);
 
+  const [provisioning, setProvisioning] = React.useState(false);
+
   const submit = async (values) => {
+    if (provisioning) return;
     clearErrors();
 
     if (!isEdit && !["VAT", "NON_VAT"].includes(values.tax_mode)) {
@@ -158,6 +162,7 @@ export default function BranchFormPage() {
       is_active: Boolean(values.is_active),
     };
 
+    setProvisioning(true);
     try {
       const requestConfig = {
         skipGlobalErrorToast: true,
@@ -232,15 +237,58 @@ export default function BranchFormPage() {
           details.message ||
           "Please correct the highlighted fields.",
       });
+    } finally {
+      setProvisioning(false);
     }
   };
 
   const selectedManager = watch("manager");
 
-  const saving = isSubmitting || branchLoading;
+  const saving = isSubmitting || provisioning || branchLoading;
 
   return (
-    <div className="branch-module-page branch-workspace w-full space-y-5 pb-10">
+    <div className="branch-module-page branch-workspace w-full space-y-5 pb-10" aria-busy={provisioning}>
+      {provisioning && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-[3px]"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="branch-provisioning-title"
+          aria-describedby="branch-provisioning-description"
+          data-testid="branch-provisioning-loader"
+          onKeyDown={(event) => { if (event.key === "Escape") event.preventDefault(); }}
+        >
+          <div className="w-full max-w-md rounded-[24px] border border-slate-200 bg-white p-7 text-center shadow-2xl dark:border-white/10 dark:bg-slate-900 sm:p-9">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-50 dark:bg-amber-400/10">
+              <DatabaseZap className="h-8 w-8 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+            </div>
+            <Loader2 className="mx-auto mt-5 h-8 w-8 animate-spin text-amber-500" aria-hidden="true" />
+            <h2 id="branch-provisioning-title" className="mt-4 text-xl font-bold text-slate-900 dark:text-white">
+              {isEdit ? "Saving branch changes" : "Creating your branch"}
+            </h2>
+            <p id="branch-provisioning-description" className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+              {isEdit
+                ? "Updating branch details. Please keep this page open until the request finishes."
+                : "Preparing the branch and requesting its isolated database schema. Please keep this page open until the server responds."}
+            </p>
+            {!isEdit && (
+              <div className="mt-5 space-y-2 rounded-xl bg-slate-50 p-4 text-left dark:bg-slate-800/70">
+                <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                  <CheckCircle2 className="h-4 w-4 text-amber-600" aria-hidden="true" />
+                  <span>Tax type: {watch("tax_mode") === "VAT" ? "VAT" : "Non-VAT"}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                  <Loader2 className="h-4 w-4 animate-spin text-amber-600" aria-hidden="true" />
+                  <span>Waiting for branch provisioning response…</span>
+                </div>
+              </div>
+            )}
+            <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
+              Avoid refreshing or submitting the form again during this operation.
+            </p>
+          </div>
+        </div>
+      )}
       <PageHeader
         variant="hero"
         eyebrow="Branch Management"
@@ -457,7 +505,7 @@ export default function BranchFormPage() {
             className="min-w-40 bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
             data-testid="branch-save-btn"
           >
-            {saving ? "Saving..." : isEdit ? "Save changes" : "Create branch"}
+            {saving ? <><Loader2 className="mr-2 inline-block h-4 w-4 animate-spin" aria-hidden="true" />{isEdit ? "Saving..." : "Creating branch..."}</> : isEdit ? "Save changes" : "Create branch"}
           </Button>
 
           <Button
