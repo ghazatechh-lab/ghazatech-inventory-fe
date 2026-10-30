@@ -12,6 +12,7 @@ import {
   CreditCard,
   ArrowUpRight,
   Trash2,
+  Pencil,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -188,8 +189,15 @@ export default function SupplierListPage() {
       toast.error(getApiErrorDetails(error)?.title || error.message || "Unable to delete supplier");
     },
   });
-  const { branchId, listBranchParams: branchParams } = usePurchaseBranchScope();
+  const { branchId, physicalBranches, listBranchParams: branchParams } = usePurchaseBranchScope();
 
+  const branchName = (supplier) => {
+    const sid = supplier.source_branch_id || (typeof supplier.branch === "object" ? supplier.branch?.id : supplier.branch);
+    const code = supplier.source_branch_code || supplier.branch_code;
+    const found = physicalBranches.find(b => String(b.id) === String(sid) || b.branch_code === code);
+    return found ? `${found.branch_code} — ${found.branch_name || found.name}` :
+      (supplier.source_branch_name || supplier.branch_name || code || "—");
+  };
   const normalizedBranchId =
     branchId && String(branchId).trim().toLowerCase() !== "all"
       ? String(branchId)
@@ -379,7 +387,7 @@ export default function SupplierListPage() {
                       className="border-b border-slate-100 transition last:border-0 hover:bg-slate-50/80 dark:border-white/5 dark:hover:bg-white/[0.025]"
                     >
                       <td className="px-4 py-4 font-semibold text-slate-700 dark:text-slate-200">
-                        {supplier.source_branch_code || supplier.branch_code || supplier.branch_name || "—"}
+                        {branchName(supplier)}
                       </td>
 
                       <td className="px-4 py-4">
@@ -465,6 +473,11 @@ export default function SupplierListPage() {
                             className="h-8 px-4"
                           >
                             <Link to={`/suppliers/${supplier.resource_key || supplier.id}`}>View</Link>
+                          </Button>
+                          <Button asChild size="sm" variant="outline" className="h-8 gap-1">
+                            <Link to={`/suppliers/${encodeURIComponent(supplier.resource_key || supplier.id)}/edit`}>
+                              <Pencil className="h-3.5 w-3.5" /> Edit
+                            </Link>
                           </Button>
                           <Button
                             type="button"

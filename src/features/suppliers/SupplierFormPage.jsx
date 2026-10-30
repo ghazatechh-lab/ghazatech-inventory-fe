@@ -154,7 +154,7 @@ export default function SupplierFormPage() {
   const navigate = useNavigate();
   const backTarget = edit ? `/suppliers/${id}` : "/suppliers";
   const queryClient = useQueryClient();
-  const { formBranchId } = usePurchaseBranchScope();
+  const { formBranchId, isCombinedBranch } = usePurchaseBranchScope();
 
   const [selectedFiles, setSelectedFiles] = React.useState([]);
 
@@ -178,9 +178,9 @@ export default function SupplierFormPage() {
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: ["supplier", id],
+    queryKey: ["supplier", id, isCombinedBranch],
 
-    queryFn: async () => unwrap(await api.get(`/suppliers/${id}/`)),
+    queryFn: async () => unwrap(await api.get(`/suppliers/${encodeURIComponent(id)}/`)),
 
     enabled: edit,
     staleTime: 0,
@@ -202,7 +202,7 @@ export default function SupplierFormPage() {
     reset({
       ...defaults,
       ...data,
-      branch: String(data.branch?.id || data.branch || formBranchId || ""),
+      branch: String(data.source_branch_id || data.branch?.id || data.branch || formBranchId || ""),
       payment_terms_days: Number(data.payment_terms_days ?? 0),
     });
   }, [data, reset, formBranchId]);
@@ -238,13 +238,13 @@ export default function SupplierFormPage() {
       };
 
       return edit
-        ? api.patch(`/suppliers/${id}/`, formData, config)
+        ? api.patch(`/suppliers/${encodeURIComponent(id)}/`, formData, config)
         : api.post("/suppliers/", formData, config);
     },
 
     onSuccess: async (response) => {
       const savedSupplier = unwrap(response);
-      const supplierId = savedSupplier?.id || id;
+      const supplierId = edit ? id : (savedSupplier?.resource_key || savedSupplier?.id);
 
       await Promise.all([
         queryClient.invalidateQueries({
@@ -402,6 +402,7 @@ export default function SupplierFormPage() {
                   })}
                 />
                 <PurchaseBranchField
+                  locked={edit}
                   value={String(watch("branch") || "")}
                   onChange={(value) =>
                     setValue("branch", value, {

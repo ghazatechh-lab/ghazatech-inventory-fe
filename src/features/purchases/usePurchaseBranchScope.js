@@ -1,7 +1,6 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-
 import api, { unwrap } from "@/lib/api";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 
@@ -12,74 +11,48 @@ function normalizeList(value) {
   if (Array.isArray(value?.data?.results)) return value.data.results;
   return [];
 }
-
-function codeOf(branch) {
-  return String(branch?.branch_code || "").trim().toUpperCase();
-}
+const codeOf = (branch) => String(branch?.branch_code || "").trim().toUpperCase();
+const isPhysical = (branch) => branch?.is_active !== false &&
+  ["VAT", "NON_VAT"].includes(String(branch?.tax_mode || "").toUpperCase());
+const isMaster = (branch) => Boolean(branch) &&
+  (codeOf(branch) === "CONSOLIDATED" ||
+    (String(branch.branch_type || "").toUpperCase() === "MASTER" && !isPhysical(branch)));
 
 export function usePurchaseBranchScope() {
   const active = useActiveBranchFilter();
   const [searchParams, setSearchParams] = useSearchParams();
-
-  const { data } = useQuery({
+  const { data, isLoading: branchesLoading } = useQuery({
     queryKey: ["purchase-physical-branches"],
     queryFn: async () => unwrap(await api.get("/branches/selector-options/")),
     staleTime: 60_000,
   });
-
   const branches = React.useMemo(() => normalizeList(data), [data]);
-  const physicalBranches = React.useMemo(
-    () => branches.filter((branch) => ["BR01", "BR02"].includes(codeOf(branch))),
-    [branches],
-  );
-
-  const activeBranch = React.useMemo(
-    () => branches.find((branch) => String(branch.id) === String(active.branchId ?? "")) || null,
-    [active.branchId, branches],
-  );
-
-  const activeCode = codeOf(activeBranch);
-  const isCombinedBranch = activeCode === "BR03";
-  const isPhysicalBranch = ["BR01", "BR02"].includes(activeCode);
+  const physicalBranches = React.useMemo(() => branches.filter(isPhysical), [branches]);
+  const activeBranch = React.useMemo(() => branches.find(
+    (branch) => String(branch.id) === String(active.branchId ?? "")
+  ) || null, [active.branchId, branches]);
+  const isCombinedBranch = isMaster(activeBranch);
+  const isPhysicalBranch = isPhysical(activeBranch);
   const formBranchId = isPhysicalBranch ? String(activeBranch.id) : "";
-
-  const sourceBranch = String(searchParams.get("source_branch") || "ALL").toUpperCase();
-  const normalizedSource = ["ALL", "BR01", "BR02"].includes(sourceBranch)
-    ? sourceBranch
-    : "ALL";
-
-  const listBranchParams = React.useMemo(() => {
-    const params = { ...(active.branchParams || {}) };
-    if (isCombinedBranch) {
-      params.source_branch = normalizedSource;
-    }
-    return params;
-  }, [active.branchParams, isCombinedBranch, normalizedSource]);
-
-  const setSourceBranch = React.useCallback(
-    (value) => {
-      const next = new URLSearchParams(searchParams);
-      const normalized = String(value || "ALL").toUpperCase();
-      if (normalized === "ALL") next.delete("source_branch");
-      else next.set("source_branch", normalized);
-      setSearchParams(next, { replace: true });
-    },
-    [searchParams, setSearchParams],
-  );
-
+  const requestedSource = String(searchParams.get("source_branch") || "ALL").toUpperCase();
+  const sourceBranch = requestedSource === "ALL" || physicalBranches.some(
+    (branch) => codeOf(branch) === requestedSource
+  ) ? requestedSource : "ALL";
+  const listBranchParams = React.useMemo(() => ({
+    ...(active.branchParams || {}),
+    ...(isCombinedBranch && sourceBranch !== "ALL" ? { source_branch: sourceBranch } : {}),
+  }), [active.branchParams, isCombinedBranch, sourceBranch]);
+  const setSourceBranch = React.useCallback((value) => {
+    const next = new URLSearchParams(searchParams);
+    const code = String(value || "ALL").toUpperCase();
+    if (code === "ALL") next.delete("source_branch");
+    else next.set("source_branch", code);
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
   return {
-    ...active,
-    branches,
-    physicalBranches,
-    activeBranch,
-    activeBranchCode: activeCode,
-    isCombinedBranch,
-    isPhysicalBranch,
-    formBranchId,
-    sourceBranch: normalizedSource,
-    setSourceBranch,
-    listBranchParams,
+    ...active, branches, physicalBranches, activeBranch,
+    activeBranchCode: codeOf(activeBranch), isCombinedBranch, isPhysicalBranch,
+    formBranchId, sourceBranch, setSourceBranch, listBranchParams, branchesLoading,
   };
 }
-
 export default usePurchaseBranchScope;
