@@ -91,6 +91,16 @@ function relatedId(item, key) {
   return value === null || value === undefined ? "" : String(value);
 }
 
+function normalizedRackIds(items) {
+  if (!Array.isArray(items)) return [];
+  return [...new Set(items.map((item) => {
+    const id = item && typeof item === "object"
+      ? (item.id ?? item.rack_id ?? item.rack?.id)
+      : item;
+    return id == null || id === "" ? "" : String(id);
+  }).filter(Boolean))];
+}
+
 function variantFromApi(item) {
   return {
     id: item.id,
@@ -98,7 +108,7 @@ function variantFromApi(item) {
       name,
       value,
     })),
-    racks: (item.racks || []).map((rack) => String(rack)),
+    racks: normalizedRackIds(item.racks?.length ? item.racks : item.rack_details),
     // Existing stock is a balance, not a new opening quantity.
     initial_stock: item.current_stock ?? item.available_qty ?? item.total_quantity ?? 0,
     purchase_price: item.purchase_price ?? "",
@@ -349,6 +359,7 @@ export default function ProductFormPage() {
           page_size: 500,
           branch: selectedBranch,
         },
+        headers: { "X-Branch-ID": String(selectedBranch) },
       });
 
       const result = list(response);
@@ -381,9 +392,10 @@ export default function ProductFormPage() {
         const rackBranchId =
           rack?.branch_id ?? rack?.branch?.id ?? rack?.branch ?? "";
 
-        return (
-          !selectedBranch || String(rackBranchId) === String(selectedBranch)
-        );
+        // Some tenant-scoped rack endpoints omit the branch field.
+        // Those rows are already scoped by the selected branch request.
+        return !rackBranchId || !selectedBranch ||
+          String(rackBranchId) === String(selectedBranch);
       }),
     [rackResponse, selectedBranch],
   );
@@ -489,6 +501,14 @@ export default function ProductFormPage() {
     console.groupEnd();
     reset(values);
     const apiVariants = (product.variants || []).map(variantFromApi);
+    // For older single-configuration products, the detail API may expose
+    // rack IDs on the base stock row rather than its variant relation.
+    const productRackIds = normalizedRackIds(product.racks);
+    const stockRackIds = normalizedRackIds(
+      Array.isArray(product.stocks)
+        ? product.stocks.flatMap((stock) => stock.racks || stock.rack_details || [])
+        : [],
+    );
     // For non-variant products stock is stored with variant_id=null.
     // Use the actual stock balance when supplied by the detail API.
     const stockRows = Array.isArray(product.stocks) ? product.stocks : [];
@@ -502,7 +522,14 @@ export default function ProductFormPage() {
         ? { ...variant, initial_stock: Number(matchingStock.current_stock ?? variant.initial_stock ?? 0) }
         : variant;
     });
-    setVariants(hydratedVariants.length ? hydratedVariants : [{ ...emptyBaseStock }]);
+    const savedVariants = hydratedVariants.length ? hydratedVariants : [{ ...emptyBaseStock }];
+    if (!product.has_variants && savedVariants.length === 1 && !savedVariants[0].racks.length) {
+      savedVariants[0] = {
+        ...savedVariants[0],
+        racks: productRackIds.length ? productRackIds : stockRackIds,
+      };
+    }
+    setVariants(savedVariants);
     setImagePreview(product.product_image_url || product.product_image || "");
     previousBranchRef.current = String(values.branch || "");
     hydratedRef.current = true;
@@ -1762,7 +1789,9 @@ export default function ProductFormPage() {
                             {(variant.racks || []).map((rackId) => {
                               const selectedRack = racks.find(
                                 (rack) => String(rack.id) === String(rackId),
-                              );
+                              ) || (product?.variants || []).flatMap(
+                                (item) => item.rack_details || [],
+                              ).find((rack) => String(rack.id ?? rack.rack_id) === String(rackId));
 
                               return (
                                 <span
