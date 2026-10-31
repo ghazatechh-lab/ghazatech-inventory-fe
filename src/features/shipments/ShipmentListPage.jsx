@@ -126,7 +126,28 @@ function ShipmentSummaryCard({
 }
 
 export default function ShipmentListPage() {
-  const { branchId, listBranchParams: branchParams } = usePurchaseBranchScope();
+  const {
+    branchId,
+    listBranchParams: branchParams,
+    physicalBranches,
+    branchesLoading,
+  } = usePurchaseBranchScope();
+
+  // A browser can retain a removed branch ID after a fresh database reset.
+  // Never send that ID to the Shipment API.
+  const validatedBranchParams = React.useMemo(() => {
+    if (branchesLoading) return {};
+    const supplied = { ...(branchParams || {}) };
+    const rawId = supplied.branch ?? branchId;
+    if (rawId !== null && rawId !== undefined && String(rawId) !== "all") {
+      const matched = physicalBranches.find(
+        (branch) => String(branch.id) === String(rawId),
+      );
+      if (!matched) delete supplied.branch;
+      else supplied.branch = matched.id;
+    }
+    return supplied;
+  }, [branchParams, branchId, physicalBranches, branchesLoading]);
 
   const [search, setSearch] = React.useState("");
 
@@ -153,14 +174,9 @@ export default function ShipmentListPage() {
             search: debouncedSearch,
           }
         : {}),
-      ...(branchParams || {}),
-      ...(branchId && String(branchId) !== "all"
-        ? {
-            branch: branchId,
-          }
-        : {}),
+      ...validatedBranchParams,
     }),
-    [page, debouncedSearch, branchParams, branchId],
+    [page, debouncedSearch, validatedBranchParams],
   );
 
   const query = useQuery({
@@ -201,6 +217,7 @@ export default function ShipmentListPage() {
     refetchOnMount: "always",
     refetchOnWindowFocus: false,
     retry: false,
+    enabled: !branchesLoading,
   });
 
   React.useEffect(() => {

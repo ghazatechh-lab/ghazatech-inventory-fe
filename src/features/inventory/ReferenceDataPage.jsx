@@ -37,6 +37,7 @@ import {
 
 const emptyForm = {
   name: "",
+  image: null,
   is_active: true,
 };
 
@@ -113,12 +114,14 @@ export default function ReferenceDataPage({
   const [deleteItem, setDeleteItem] = React.useState(null);
   const [form, setForm] = React.useState(emptyForm);
   const [fieldError, setFieldError] = React.useState("");
+  const [imagePreview, setImagePreview] = React.useState(null);
 
   const openCreate = () => {
     setEditingItem(null);
     setTargetBranch(isConsolidated ? "" : String(selectedHeaderBranch || ""));
     setBranchError("");
     setForm(emptyForm);
+    setImagePreview(null);
     setFieldError("");
     setFormOpen(true);
   };
@@ -129,21 +132,27 @@ export default function ReferenceDataPage({
     setBranchError("");
     setForm({
       name: item.name || "",
+      image: null,
       is_active: item.is_active !== false,
     });
+    setImagePreview(item.image_url || item.image || null);
     setFieldError("");
     setFormOpen(true);
   }, [selectedHeaderBranch]);
 
   const saveMutation = useMutation({
     mutationFn: ({ payload, branch }) => {
+      const formData = new FormData();
+      Object.entries(payload).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) formData.append(key, value);
+      });
       const config = {
         params: { branch, ...(editingItem?.source_branch_id ? { source_branch_id: branch } : {}) },
         headers: { "X-Branch-ID": String(branch) },
       };
       return editingItem?.id
-        ? api.patch(`${endpoint}${editingItem.id}/`, payload, config)
-        : api.post(endpoint, payload, config);
+        ? api.patch(`${endpoint}${editingItem.id}/`, formData, config)
+        : api.post(endpoint, formData, config);
     },
 
     onSuccess: async () => {
@@ -210,7 +219,7 @@ export default function ReferenceDataPage({
     setFieldError("");
     setBranchError("");
     saveMutation.mutate({
-      payload: { name, is_active: Boolean(form.is_active), branch: Number(branch) },
+      payload: { name, is_active: Boolean(form.is_active), branch: Number(branch), image: form.image },
       branch: Number(branch),
     });
   };
@@ -224,7 +233,12 @@ export default function ReferenceDataPage({
         cell: (row) => (
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-700 dark:border-blue-400/20 dark:bg-blue-500/10 dark:text-blue-300">
-              <FolderTree className="h-4.5 w-4.5" />
+              <img
+                src={row.image_url || row.image || (singular === "Brand" ? "/images/default-brand.svg" : "/images/default-category.svg")}
+                alt=""
+                className="h-full w-full rounded-xl object-cover"
+                onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = singular === "Brand" ? "/images/default-brand.svg" : "/images/default-category.svg"; }}
+              />
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-bold text-slate-900 dark:text-white">
@@ -509,6 +523,31 @@ export default function ReferenceDataPage({
                 )}
               </div>
 
+              <div className="space-y-2">
+                <Label className="text-sm font-bold text-slate-700 dark:text-slate-200">{singular} image (optional)</Label>
+                <div className="flex items-center gap-4 rounded-xl border border-dashed border-slate-300 p-3 dark:border-white/20">
+                  <img
+                    src={imagePreview || (singular === "Brand" ? "/images/default-brand.svg" : "/images/default-category.svg")}
+                    alt={`${singular} preview`}
+                    className="h-20 w-20 shrink-0 rounded-xl border border-slate-200 object-cover"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <Input type="file" accept="image/png,image/jpeg,image/webp,image/gif"
+                      aria-label={`${singular} image`}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > 5 * 1024 * 1024) { toast.error("Image must be 5 MB or smaller."); event.target.value = ""; return; }
+                        setForm((previous) => ({ ...previous, image: file }));
+                        const reader = new FileReader();
+                        reader.onload = () => setImagePreview(String(reader.result));
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                    <p className="mt-1 text-xs text-slate-500">JPG, PNG, WebP or GIF · up to 5 MB. Without an image, a default illustration is shown.</p>
+                  </div>
+                </div>
+              </div>
               <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/[0.03]">
                 <div className="pr-4">
                   <p className="text-sm font-bold text-slate-900 dark:text-white">
