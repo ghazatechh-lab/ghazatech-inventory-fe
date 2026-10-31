@@ -19,7 +19,7 @@ export function usePhysicalBranchScope() {
 
   const { data } = useQuery({
     queryKey: ["physical-branch-scope-options"],
-    queryFn: async () => unwrap(await api.get("/branches/selector-options/")),
+    queryFn: async () => unwrap(await api.get("/branches/", { params: { page_size: 1000, is_active: true } })),
     staleTime: 60_000,
   });
 
@@ -29,10 +29,10 @@ export function usePhysicalBranchScope() {
     [branches, active.branchId],
   );
   const physicalBranches = React.useMemo(
-    () => branches.filter((item) => ["BR01", "BR02"].includes(String(item.branch_code || "").toUpperCase())),
+    () => branches.filter((item) => item.is_active !== false && ["VAT", "NON_VAT"].includes(String(item.tax_mode || "").toUpperCase())),
     [branches],
   );
-  const isCombined = String(activeBranch?.branch_code || "").toUpperCase() === "BR03";
+  const isCombined = !active.branchId || String(activeBranch?.branch_code || "").toUpperCase() === "CONSOLIDATED" || String(activeBranch?.branch_type || "").toUpperCase() === "MASTER";
 
   React.useEffect(() => {
     setSourceBranch("ALL");
@@ -60,9 +60,11 @@ export function usePhysicalBranchScope() {
 export function BranchSourceFilter({ scope, className = "" }) {
   if (!scope?.isCombined) return null;
   const options = [
-    ["ALL", "All"],
-    ["BR01", "Branch 1"],
-    ["BR02", "Branch 2"],
+    ["ALL", "All physical branches"],
+    ...scope.physicalBranches.map((branch) => [
+      String(branch.branch_code).toUpperCase(),
+      `${branch.branch_code} — ${branch.branch_name}`,
+    ]),
   ];
   return (
     <div className={`flex flex-wrap items-center gap-2 ${className}`}>
@@ -90,17 +92,17 @@ export function BranchSourceFilter({ scope, className = "" }) {
 
 export function PhysicalBranchField({ scope, value, onChange, label = "Branch", disabled = false }) {
   React.useEffect(() => {
-    if (!scope?.isCombined && scope?.branchId && String(value || "") !== String(scope.branchId)) {
+    if (!scope?.isCombined && scope?.branchId && !disabled && String(value || "") !== String(scope.branchId)) {
       onChange?.(String(scope.branchId));
     }
-  }, [scope?.isCombined, scope?.branchId, value, onChange]);
+  }, [scope?.isCombined, scope?.branchId, value, onChange, disabled]);
 
-  if (!scope?.isCombined) {
+  if (!scope?.isCombined || disabled) {
     return (
       <div>
         <div className="text-sm font-medium">{label}</div>
         <div className="mt-1 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-          {scope?.activeBranch?.branch_name || scope?.activeBranch?.branch_code || "Current branch"}
+          {(disabled && scope?.physicalBranches?.find((item) => String(item.id) === String(value))?.branch_name) || scope?.activeBranch?.branch_name || scope?.activeBranch?.branch_code || "Current branch"}
         </div>
       </div>
     );
@@ -115,10 +117,10 @@ export function PhysicalBranchField({ scope, value, onChange, label = "Branch", 
         disabled={disabled}
         onChange={(event) => onChange?.(event.target.value)}
       >
-        <option value="">Select Branch 1 or Branch 2</option>
+        <option value="">Select a physical branch</option>
         {scope.physicalBranches.map((branch) => (
           <option key={branch.id} value={branch.id}>
-            {branch.branch_code === "BR01" ? "Branch 1" : "Branch 2"} — {branch.branch_name}
+            {branch.branch_code} — {branch.branch_name} ({branch.tax_mode === "VAT" ? "VAT" : "NON-VAT"})
           </option>
         ))}
       </select>

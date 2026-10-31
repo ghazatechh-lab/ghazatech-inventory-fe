@@ -6,7 +6,6 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useListQuery, DataTable, SearchInput } from "@/hooks/useListQuery";
 import { BranchSourceFilter, usePhysicalBranchScope } from "@/components/common/PhysicalBranchScope";
-import { CurrencyText } from "@/components/common/CurrencyText";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { ListingRowActions } from "@/components/common/ListingRowActions";
 
@@ -73,25 +72,13 @@ export default function EmployeeListPage() {
     }
   }, [branchId, setPage]);
 
-  const columns = React.useMemo(
-    () => [
-      {
-        key: "employee_code",
-        header: "Code",
-        cell: (row) => (
-          <span className="font-mono text-xs font-semibold text-slate-200">
-            {row.employee_code || "—"}
-          </span>
-        ),
-      },
+  const columns = React.useMemo(() => {
+    const baseColumns = [
       {
         key: "employee",
         header: "Employee",
         cell: (row) => (
-          <Link
-            to={`/hrms/employees/${row.id}`}
-            className="flex min-w-0 items-center gap-3"
-          >
+          <Link to={`/hrms/employees/${row.resource_key || row.id}`} className="flex min-w-0 items-center gap-3">
             {row.profile_image_url || row.profile_image ? (
               <img
                 src={row.profile_image_url || row.profile_image}
@@ -103,14 +90,12 @@ export default function EmployeeListPage() {
                 <Users className="h-4 w-4" />
               </div>
             )}
-
             <div className="min-w-0">
               <p className="truncate font-medium text-blue-500 hover:underline dark:text-blue-300">
                 {row.full_name || "Unnamed employee"}
               </p>
-
               <p className="truncate text-xs text-muted-foreground">
-                {row.designation_name || "No designation"}
+                {row.employee_code || "No employee code"}
               </p>
             </div>
           </Link>
@@ -118,39 +103,26 @@ export default function EmployeeListPage() {
       },
       {
         key: "department_name",
-        header: "Department",
-        cell: (row) => row.department_name || "—",
-      },
-      {
-        key: "branch_name",
-        header: "Branch",
+        header: "Department / Designation",
         cell: (row) => (
-          <div>
-            <p className="font-medium">{row.branch_name || "Unassigned"}</p>
-            {row.branch_code && (
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {row.branch_code}
-              </p>
-            )}
+          <div className="min-w-0">
+            <p className="truncate font-medium">{row.department_name || "—"}</p>
+            <p className="truncate text-xs text-muted-foreground">{row.designation_name || "—"}</p>
           </div>
         ),
       },
-      {
-        key: "passport_number",
-        header: "Passport",
-        cell: (row) => row.passport_number || "—",
-      },
-      {
-        key: "emirates_id_number",
-        header: "Emirates ID",
-        cell: (row) => row.emirates_id_number || "—",
-      },
-      {
-        key: "total_salary",
-        header: "Package",
-        align: "right",
-        cell: (row) => <CurrencyText value={row.total_salary} />,
-      },
+      ...(isCombined ? [{
+        key: "branch_name",
+        header: "Branch",
+        cell: (row) => (
+          <div className="min-w-0">
+            <p className="truncate font-medium">{row.source_branch_name || row.branch_name || row.source_branch_code || row.branch_code || "—"}</p>
+            {(row.source_branch_code || row.branch_code) && (
+              <p className="truncate text-xs text-muted-foreground">{row.source_branch_code || row.branch_code}</p>
+            )}
+          </div>
+        ),
+      }] : []),
       {
         key: "employment_status",
         header: "Status",
@@ -160,32 +132,29 @@ export default function EmployeeListPage() {
         key: "actions",
         header: "Actions",
         align: "right",
-        cell: (row) => (
-          <div className="flex items-center justify-end gap-1">
-            <Button
-              asChild
-              size="icon"
-              variant="ghost"
-              title="Salary Certificate"
-            >
-              <Link to={`/hrms/salary-certificates?employee=${row.id}`}>
-                <FileBadge2 className="h-4 w-4" />
-              </Link>
-            </Button>
-
-            <ListingRowActions
-              viewTo={`/hrms/employees/${row.id}`}
-              editTo={`/hrms/employees/${row.id}/edit`}
-              deleteUrl={`/hrms/employees/${row.id}/`}
-              queryKey="employees"
-              itemLabel={row.full_name}
-            />
-          </div>
-        ),
+        cell: (row) => {
+          const employeeKey = row.resource_key || row.id;
+          return (
+            <div className="flex items-center justify-end gap-1">
+              <Button asChild size="icon" variant="ghost" title="Salary Certificate">
+                <Link to={`/hrms/salary-certificates?employee=${encodeURIComponent(employeeKey)}`}>
+                  <FileBadge2 className="h-4 w-4" />
+                </Link>
+              </Button>
+              <ListingRowActions
+                viewTo={`/hrms/employees/${employeeKey}`}
+                editTo={`/hrms/employees/${employeeKey}/edit`}
+                deleteUrl={`/hrms/employees/${employeeKey}/`}
+                queryKey="employees"
+                itemLabel={row.full_name}
+              />
+            </div>
+          );
+        },
       },
-    ],
-    [],
-  );
+    ];
+    return baseColumns;
+  }, [isCombined]);
 
   const handlePageChange = React.useCallback(
     (nextPage) => {
@@ -209,7 +178,7 @@ export default function EmployeeListPage() {
         title="Employees"
         subtitle={
           isCombined
-            ? "Combined employee directory for Branch 1 and Branch 2"
+            ? "Combined employee directory across all active physical branches"
             : "Employees assigned to the selected branch"
         }
         actions={

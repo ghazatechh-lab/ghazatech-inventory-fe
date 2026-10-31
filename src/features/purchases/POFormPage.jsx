@@ -135,7 +135,7 @@ export default function POFormPage() {
   const edit = Boolean(id);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { formBranchId } = usePurchaseBranchScope();
+  const { formBranchId, isPhysicalBranch } = usePurchaseBranchScope();
   const activeBranchId = normalizeBranchId(formBranchId);
 
   const [form, setForm] = React.useState({
@@ -162,13 +162,22 @@ export default function POFormPage() {
   const [productSearchOpen, setProductSearchOpen] = React.useState({});
 
   React.useEffect(() => {
-    if (!edit && activeBranchId) {
-      setForm((current) => ({
-        ...current,
-        branch: activeBranchId,
-      }));
+    if (!edit && isPhysicalBranch && activeBranchId) {
+      setForm((current) => {
+        if (current.branch === activeBranchId) return current;
+        return {
+          ...current,
+          branch: activeBranchId,
+          supplier: "",
+          items: current.items.map((item) => ({
+            ...item, product: "", variant: "", unit_price: 0,
+          })),
+        };
+      });
+      setSupplierSearch("");
+      setProductSearches({});
     }
-  }, [activeBranchId, edit]);
+  }, [activeBranchId, edit, isPhysicalBranch]);
 
   const {
     data: supplierResponse,
@@ -359,6 +368,26 @@ export default function POFormPage() {
       [field]: "",
     }));
   };
+
+  const handleBranchChange = React.useCallback((branchId) => {
+    const nextBranch = normalizeBranchId(branchId);
+    setForm((current) => {
+      if (String(current.branch || "") === nextBranch) return current;
+      return {
+        ...current,
+        branch: nextBranch,
+        supplier: "",
+        items: current.items.map((item) => ({
+          ...item, product: "", variant: "", unit_price: 0,
+        })),
+      };
+    });
+    setSupplierSearch("");
+    setSupplierSearchOpen(false);
+    setProductSearches({});
+    setProductSearchOpen({});
+    setErrors((current) => ({ ...current, branch: "", supplier: "", items: "" }));
+  }, []);
 
   const updateItem = (index, patch) => {
     setForm((current) => ({
@@ -647,6 +676,26 @@ export default function POFormPage() {
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_290px]">
         <div className="space-y-5">
           <section className="card-surface p-5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-sm font-bold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">1</div>
+              <div className="min-w-0 flex-1">
+                <h2 className="font-semibold text-slate-950 dark:text-white">Select purchase branch</h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Choose the physical branch before selecting its suppliers and products.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 max-w-xl">
+              <PurchaseBranchField
+                value={form.branch}
+                onChange={handleBranchChange}
+                disabled={edit}
+              />
+              {errors.branch && <p className="mt-1 text-xs text-red-500">{errors.branch}</p>}
+            </div>
+          </section>
+
+          <section className="card-surface p-5">
             <h2 className="font-semibold text-slate-950 dark:text-white">
               Order details
             </h2>
@@ -789,26 +838,7 @@ export default function POFormPage() {
               </div>
             </div>
 
-            <div className="mt-4 grid gap-4 md:grid-cols-3">
-              <PurchaseBranchField
-                value={form.branch}
-                onChange={(value) => {
-                  setSupplierSearch("");
-                  setSupplierSearchOpen(false);
-                  setProductSearches({});
-                  setProductSearchOpen({});
-                  setForm((current) => ({
-                    ...current,
-                    branch: value,
-                    supplier: "",
-                    items: current.items.map((item) => ({
-                      ...item, product: "", variant: "", unit_price: 0,
-                    })),
-                  }));
-                  setErrors((current) => ({ ...current, branch: "", supplier: "", items: "" }));
-                }}
-              />
-
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
               <div>
                 <Label>Currency</Label>
                 <Select

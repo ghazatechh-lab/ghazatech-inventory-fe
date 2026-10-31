@@ -8,7 +8,7 @@ import {
   ChevronUp,
   Copy,
   Search,
-  Boxes,
+  Package,
   CheckCircle2,
   ImagePlus,
   Plus,
@@ -971,8 +971,8 @@ export default function ProductFormPage() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.14),transparent_36%),radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.08),transparent_30%)]" />
         <div className="relative flex flex-col gap-5 px-6 py-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-500/20">
-              <Boxes className="h-7 w-7" />
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-300/35 bg-amber-300/10 text-amber-300 shadow-inner backdrop-blur">
+              <Package className="h-6 w-6" />
             </div>
             <div>
               <p

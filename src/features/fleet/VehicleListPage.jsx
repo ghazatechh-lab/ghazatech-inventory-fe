@@ -676,18 +676,44 @@ export default function VehicleListPage() {
         <MetricCard label="Available" value={vehicles.filter((v) => v.status === "AVAILABLE").length} description="Ready for use" icon={CheckCircle2} tone="green" />
         <MetricCard label="In Service" value={vehicles.filter((v) => v.status === "IN_SERVICE").length} description="Under maintenance" icon={Wrench} tone="amber" />
         <MetricCard label="Out of Service" value={vehicles.filter((v) => v.status === "OUT_OF_SERVICE").length} description="Not available" icon={AlertCircle} tone="red" />
-        <MetricCard label="Total Mileage" value={`${vehicles.reduce((sum,v)=>sum+Number(v.odometer_km||0),0).toLocaleString()} km`} description="Current combined odometers" icon={Gauge} />
+        <MetricCard label="Total Mileage" value={vehicles.reduce((sum,v)=>sum+Number(v.odometer_km||0),0).toLocaleString()} description="km · Combined odometers" icon={Gauge} />
       </div>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/70">
-        <div className="grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(220px,2fr)_minmax(160px,1fr)_minmax(160px,1fr)_minmax(160px,1fr)]">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input aria-label="Search vehicles" className="h-10 pl-9" placeholder="Search vehicle name, code, plate number..." value={query} onChange={(e)=>setQuery(e.target.value)} />
+      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/70 sm:p-5">
+        {branchScope.isCombined ? (
+          <div className="border-b border-slate-200 pb-4 dark:border-white/10">
+            <BranchSourceFilter
+              scope={branchScope}
+              className="w-full [&>span]:shrink-0 [&>button]:whitespace-nowrap"
+            />
           </div>
-          <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Vehicle Type</label><select aria-label="Vehicle type" className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" value={vehicleTypeFilter} onChange={(e)=>setVehicleTypeFilter(e.target.value)}><option value="ALL">All Types</option>{[...new Set(vehicles.map((v)=>v.vehicle_type).filter(Boolean))].sort().map((v)=><option key={v} value={v}>{v}</option>)}</select></div>
-          <div><label className="mb-1 block text-xs font-medium text-muted-foreground">Status</label><select aria-label="Vehicle status" className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm" value={statusFilter} onChange={(e)=>setStatusFilter(e.target.value)}><option value="ALL">All Statuses</option>{[...new Set(vehicles.map((v)=>v.status).filter(Boolean))].sort().map((v)=><option key={v} value={v}>{v.replace(/_/g," ")}</option>)}</select></div>
-          <div className="flex items-end gap-2"><div className="min-w-0 flex-1"><BranchSourceFilter scope={branchScope} /></div><Button variant="outline" type="button" onClick={()=>{setQuery("");setVehicleTypeFilter("ALL");setStatusFilter("ALL")}}>Reset</Button></div>
+        ) : null}
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] xl:items-end">
+          <label className="block min-w-0">
+            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Search vehicles</span>
+            <span className="relative block">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input aria-label="Search vehicles" className="h-11 w-full pl-9" placeholder="Name, code, plate number..." value={query} onChange={(e)=>setQuery(e.target.value)} />
+            </span>
+          </label>
+          <label className="block min-w-0">
+            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Vehicle type</span>
+            <select aria-label="Vehicle type" className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm" value={vehicleTypeFilter} onChange={(e)=>setVehicleTypeFilter(e.target.value)}>
+              <option value="ALL">All types</option>
+              {[...new Set(vehicles.map((v)=>v.vehicle_type).filter(Boolean))].sort().map((v)=><option key={v} value={v}>{v}</option>)}
+            </select>
+          </label>
+          <label className="block min-w-0">
+            <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Status</span>
+            <select aria-label="Vehicle status" className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm" value={statusFilter} onChange={(e)=>setStatusFilter(e.target.value)}>
+              <option value="ALL">All statuses</option>
+              {[...new Set(vehicles.map((v)=>v.status).filter(Boolean))].sort().map((v)=><option key={v} value={v}>{v.replace(/_/g," ")}</option>)}
+            </select>
+          </label>
+          <Button className="h-11 w-full sm:w-auto" variant="outline" type="button" onClick={()=>{setQuery("");setVehicleTypeFilter("ALL");setStatusFilter("ALL")}}>
+            Reset
+          </Button>
         </div>
       </section>
 

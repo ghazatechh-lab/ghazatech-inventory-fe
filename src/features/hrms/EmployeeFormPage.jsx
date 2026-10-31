@@ -113,7 +113,7 @@ export default function EmployeeFormPage() {
   }, [employee]);
 
   React.useEffect(() => {
-    if (isEdit) return;
+    if (isEdit || isCombined) return;
 
     setForm((current) => ({
       ...current,
@@ -122,7 +122,7 @@ export default function EmployeeFormPage() {
           ? String(branchId)
           : "",
     }));
-  }, [branchId, isEdit]);
+  }, [branchId, isEdit, isCombined]);
 
 
   const update = (key, value) =>
@@ -366,7 +366,7 @@ export default function EmployeeFormPage() {
     mutationFn: async () => {
       if (!isEdit && !form.branch) {
         throw new Error(
-          "Select a specific branch from the header before creating an employee.",
+          "Select a VAT or NON-VAT physical branch before creating an employee.",
         );
       }
 
@@ -619,10 +619,11 @@ export default function EmployeeFormPage() {
             value={form.branch}
             onChange={(value) => update("branch", value)}
             label="Branch"
+            disabled={isEdit}
           />
           {isCombined ? (
             <p className="-mt-3 text-xs text-muted-foreground">
-              Branch 3 is a combined view. This employee must belong to Branch 1 or Branch 2.
+              Consolidated is a combined view. Select the employee’s physical VAT or NON-VAT branch.
             </p>
           ) : null}
           <div>
