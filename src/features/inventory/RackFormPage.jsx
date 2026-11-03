@@ -423,9 +423,11 @@ export default function RackFormPage() {
                 <FieldMessage error={errors.branch}>Consolidated cannot own racks; select a physical branch.</FieldMessage>
               </div>
             ) : (
-              <div className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
-                <MapPin className="mr-2 inline h-4 w-4" />
-                {activeBranch ? `Branch locked to ${activeBranch.branch_code} · ${activeBranch.branch_name || activeBranch.name}.` : "Select a physical branch from the global branch filter."}
+              <div>
+                <Label className="text-sm font-bold text-slate-800 dark:text-slate-200">Branch</Label>
+                <div className="mt-2 flex h-12 items-center rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-700 dark:border-white/10 dark:bg-slate-900/80 dark:text-slate-200">
+                  {activeBranch ? `${activeBranch.branch_code} · ${activeBranch.branch_name || activeBranch.name}` : "No physical branch selected"}
+                </div>
               </div>
             )}
 

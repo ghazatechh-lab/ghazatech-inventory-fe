@@ -159,10 +159,6 @@ export default function StockReclassificationPage() {
             </SelectContent>
           </Select>
         </div>
-        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
-          <ShieldCheck className="mr-2 inline h-4 w-4" />
-          Branch is automatically selected from the global branch filter.
-        </div>
         <div>
           <Label>Quantity *</Label>
           <Input

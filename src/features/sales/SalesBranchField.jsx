@@ -74,9 +74,6 @@ export function SalesBranchField({
             </option>
           ))}
         </select>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Branch 3 is a combined interface and cannot own sales data.
-        </p>
       </div>
     );
   }

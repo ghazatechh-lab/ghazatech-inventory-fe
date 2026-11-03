@@ -268,7 +268,7 @@ export default function PayrollPage() {
   const branches = physicalBranches.length
     ? physicalBranches
     : normalizeList(employeeOptions.branches).filter((item) =>
-        ["VAT", "NON_VAT"].includes(String(item.tax_mode || "").toUpperCase()),
+        ["BR01", "BR02"].includes(String(item.branch_code || "").toUpperCase()),
       );
   const eligible = normalizeList(eligibleResponse);
   const advanceEmployees = normalizeList(advanceOptions.employees);
@@ -1837,21 +1837,16 @@ export default function PayrollPage() {
                     }}
                   >
                     <SelectTrigger className="mt-2">
-                      <SelectValue placeholder={isCombined ? "Select a physical branch" : "Current branch"} />
+                      <SelectValue placeholder={isCombined ? "Select Branch 1 or Branch 2" : "Current branch"} />
                     </SelectTrigger>
                     <SelectContent>
                       {branches.map((branch) => (
                         <SelectItem key={branch.id} value={String(branch.id)}>
-                          {branch.branch_code} — {branch.branch_name}
+                          {String(branch.branch_code).toUpperCase() === "BR01" ? "Branch 1" : "Branch 2"} — {branch.branch_name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {isCombined
-                      ? "Consolidated cannot own payroll. Select a physical VAT or NON-VAT branch."
-                      : "Payroll uses the current physical branch automatically."}
-                  </p>
                 </div>
 
                 <div>

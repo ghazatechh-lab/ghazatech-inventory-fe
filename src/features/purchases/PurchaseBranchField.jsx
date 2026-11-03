@@ -59,9 +59,6 @@ export function PurchaseBranchField({
             </option>
           ))}
         </select>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Consolidated is a combined view. Select a physical branch to save purchase records.
-        </p>
       </div>
     );
   }

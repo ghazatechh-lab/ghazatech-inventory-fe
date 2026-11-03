@@ -1035,7 +1035,7 @@ export default function ProductFormPage() {
               {isEdit ? (
                 <div className="rounded-xl border border-sky-200 bg-white/90 p-4 text-sm font-medium text-slate-800 dark:border-sky-500/20 dark:bg-slate-900 dark:text-slate-100">
                   {physicalBranches.find((b) => String(b.id) === String(selectedBranch))?.branch_code || "Branch"} — {physicalBranchLabel(selectedBranch)}
-                  <p className="mt-1 text-xs font-normal text-slate-500 dark:text-slate-400">Branch ownership is fixed after product creation.</p>
+                  
                 </div>
               ) : isCombinedHeader ? (
                 <div>
@@ -1066,8 +1066,7 @@ export default function ProductFormPage() {
                 </div>
               ) : (
                 <div className="rounded-xl border border-sky-200 bg-white/80 p-4 text-sm text-slate-700 dark:border-sky-500/20 dark:bg-slate-900/60 dark:text-slate-200">
-                  Branch is automatically selected from the global branch
-                  filter.
+                  {physicalBranchLabel(selectedBranch)}
                   {!selectedBranch ? (
                     <p className="mt-2 font-semibold text-amber-700 dark:text-amber-300">
                       Select a physical branch from the top branch filter

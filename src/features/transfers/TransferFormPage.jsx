@@ -489,16 +489,10 @@ export default function TransferFormPage() {
         </div>
       </section>
 
-      {!from && isCombinedBranch ? (
-        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
-          Branch 3 is a combined interface. Select Branch 1 or Branch 2 as the source before adding transfer items.
-        </section>
-      ) : null}
-
       <form onSubmit={submit} className="space-y-5">
         <FormSection
           title="Transfer route"
-          description={isCombinedBranch ? "Select the physical source branch for this transfer." : "The source branch is locked to the active physical branch."}
+          description={isCombinedBranch ? "Choose a source branch to create the transfer." : "Transfer between physical branches."}
           icon={Warehouse}
         >
           <div className="grid gap-4 md:grid-cols-3">

@@ -1095,11 +1095,6 @@ export default function StockAdjustmentPage() {
 
           <div className="space-y-5 p-5">
             <div className="space-y-5">
-              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
-                <Warehouse className="mr-2 inline h-4 w-4" />
-                Branch is automatically selected from the global branch filter.
-              </div>
-
               <div>
                 <Label>Product *</Label>
                 <Controller
