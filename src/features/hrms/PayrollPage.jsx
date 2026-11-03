@@ -108,6 +108,9 @@ export default function PayrollPage() {
 
   const [activeTab, setActiveTab] = React.useState("previous");
   const [period, setPeriod] = React.useState(currentPeriod);
+  // History defaults to all periods; payroll generation keeps its own required period.
+  const [historyPeriodMode, setHistoryPeriodMode] = React.useState("ALL");
+  const [historyPeriod, setHistoryPeriod] = React.useState(currentPeriod);
   const [advancePeriod, setAdvancePeriod] = React.useState(currentPeriod);
   const [advanceSearch, setAdvanceSearch] = React.useState("");
   const [advancePage, setAdvancePage] = React.useState(1);
@@ -152,7 +155,9 @@ export default function PayrollPage() {
 
   const params = {
     ...branchParams,
-    period,
+    ...(historyPeriodMode === "MONTH" && historyPeriod
+      ? { period: historyPeriod }
+      : {}),
     ...(statusFilter ? { status: statusFilter } : {}),
   };
 
@@ -872,7 +877,7 @@ export default function PayrollPage() {
     const url = URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `payroll-${period}.csv`;
+    link.download = `payroll-${historyPeriodMode === "MONTH" ? historyPeriod : "all-records"}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -1258,15 +1263,39 @@ export default function PayrollPage() {
 
         <TabsContent value="previous" className="mt-4">
           <section className="card-surface overflow-hidden">
-            <div className="grid gap-3 border-b p-4 md:grid-cols-[200px_minmax(280px,1fr)_200px] md:items-center">
-              <MonthYearPicker
-                max={nextPayrollPeriod}
-                value={period}
-                onChange={(value) => {
-                  setPeriod(value);
-                  setPage(1);
-                }}
-              />
+            <div className="grid gap-3 border-b p-4 md:grid-cols-[minmax(240px,1.2fr)_minmax(230px,1fr)_180px] md:items-end">
+              <div className="space-y-2">
+                <Label>Payroll period</Label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select
+                    value={historyPeriodMode}
+                    onValueChange={(value) => {
+                      setHistoryPeriodMode(value);
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="min-w-[135px] flex-1">
+                      <SelectValue placeholder="Select period" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">All Records</SelectItem>
+                      <SelectItem value="MONTH">Select Month</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {historyPeriodMode === "MONTH" ? (
+                    <div className="min-w-[155px] flex-1">
+                      <MonthYearPicker
+                        max={nextPayrollPeriod}
+                        value={historyPeriod}
+                        onChange={(value) => {
+                          setHistoryPeriod(value);
+                          setPage(1);
+                        }}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              </div>
 
               <div>
                 <SearchInput
