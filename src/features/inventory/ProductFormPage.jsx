@@ -143,6 +143,8 @@ export default function ProductFormPage() {
   const [variants, setVariants] = React.useState([{ ...emptyBaseStock }]);
   const [collapsedVariants, setCollapsedVariants] = React.useState([]);
   const [rackSearch, setRackSearch] = React.useState("");
+  const [variantColumns, setVariantColumns] = React.useState(["Color", "RAM", "Storage"]);
+  const [newColumnName, setNewColumnName] = React.useState("");
 
   const {
     register,
@@ -447,7 +449,7 @@ export default function ProductFormPage() {
       setRackForm({ rack_code: "", rack_name: "" });
       setShowRackForm(false);
       setRackTargetVariantIndex(null);
-      toast.success("Rack added and assigned to the variant.");
+      toast.success("Rack added and assigned.");
     } catch (error) {
       const message =
         error?.response?.data?.rack_code?.[0] ||
@@ -530,6 +532,12 @@ export default function ProductFormPage() {
       };
     }
     setVariants(savedVariants);
+    if (product.has_variants) {
+      const names = [...new Set(savedVariants.flatMap((variant) =>
+        (variant.attributes || []).map((attr) => String(attr.name || "").trim()).filter(Boolean)
+      ))];
+      setVariantColumns(names.length ? names : ["Color", "RAM", "Storage"]);
+    }
     setImagePreview(product.product_image_url || product.product_image || "");
     previousBranchRef.current = String(values.branch || "");
     hydratedRef.current = true;
@@ -603,34 +611,46 @@ export default function ProductFormPage() {
     );
   };
   const getVariantCombinationError = (variant, index) => {
-    const combinationNumber = index + 1;
-    const attributes = variant.attributes || [];
-
-    if (!attributes.length) {
-      return `Complete attribute combination ${combinationNumber} first.`;
+    const number = index + 1;
+    if (!variantColumns.length) return "Add at least one attribute column.";
+    for (const name of variantColumns) {
+      const attribute = (variant.attributes || []).find(
+        (item) => String(item.name).toLowerCase() === name.toLowerCase(),
+      );
+      if (!String(attribute?.value || "").trim()) {
+        return `Variant ${number}: ${name} is required.`;
+      }
     }
-
-    const hasEmptyAttribute = attributes.some(
-      (attribute) =>
-        !String(attribute.name || "").trim() ||
-        !String(attribute.value || "").trim(),
-    );
-
-    if (hasEmptyAttribute) {
-      return `Complete all attribute names and values in combination ${combinationNumber} first.`;
-    }
-
-    const normalizedNames = attributes.map((attribute) =>
-      String(attribute.name || "")
-        .trim()
-        .toLowerCase(),
-    );
-
-    if (new Set(normalizedNames).size !== normalizedNames.length) {
-      return `Combination ${combinationNumber} contains duplicate attribute names.`;
-    }
-
     return "";
+  };
+
+  const setVariantAttributeCell = (variantIndex, name, value) => {
+    setVariants((current) => current.map((variant, index) => {
+      if (index !== variantIndex) return variant;
+      const other = (variant.attributes || []).filter(
+        (attribute) => String(attribute.name).toLowerCase() !== name.toLowerCase(),
+      );
+      return { ...variant, attributes: [...other, { name, value }] };
+    }));
+  };
+
+  const addVariantColumn = () => {
+    const name = newColumnName.trim();
+    if (!name) return toast.error("Enter an attribute name first.");
+    if (variantColumns.some((column) => column.toLowerCase() === name.toLowerCase())) {
+      return toast.error("This attribute already exists.");
+    }
+    setVariantColumns((current) => [...current, name]);
+    setNewColumnName("");
+  };
+
+  const removeVariantColumn = (name) => {
+    if (variantColumns.length === 1) return toast.error("Keep at least one attribute.");
+    setVariantColumns((current) => current.filter((column) => column !== name));
+    setVariants((current) => current.map((variant) => ({
+      ...variant,
+      attributes: (variant.attributes || []).filter((a) => a.name !== name),
+    })));
   };
 
   const addVariant = () => {
@@ -647,7 +667,7 @@ export default function ProductFormPage() {
 
     setVariants((current) => [
       ...current,
-      { ...emptyBaseStock, attributes: [{ name: "", value: "" }] },
+      { ...emptyBaseStock, attributes: variantColumns.map((name) => ({ name, value: "" })) },
     ]);
   };
   const duplicateVariant = (index) => {
@@ -768,6 +788,28 @@ export default function ProductFormPage() {
         // Do not block saving if the availability lookup itself fails. The
         // backend still performs authoritative same-database validation.
         console.warn("[Product Form] SKU preflight failed:", preflightError);
+      }
+
+      {
+        for (const [index, variant] of (hasVariants ? variants : [variants[0] || emptyBaseStock]).entries()) {
+          const label = hasVariants ? `Variant ${index + 1}` : "Base product";
+          if (hasVariants) {
+            const attributeError = getVariantCombinationError(variant, index);
+            if (attributeError) throw new Error(attributeError);
+          }
+          if (!(variant.racks || []).length) throw new Error(`${label}: select at least one rack.`);
+          for (const [field, label] of [
+            ["purchase_price", "Purchase price"],
+            ["retail_price", "Retail price"],
+            ["wholesale_price", "Wholesale price"],
+            ["minimum_selling_price", "Minimum selling price"],
+          ]) {
+            const value = variant[field];
+            if (value === "" || value == null || !Number.isFinite(Number(value)) || Number(value) < 0) {
+              throw new Error(`${hasVariants ? `Variant ${index + 1}` : "Base product"}: ${label} is required (zero is allowed).`);
+            }
+          }
+        }
       }
 
       const normalizedVariants = (
@@ -1419,12 +1461,7 @@ export default function ProductFormPage() {
                       setVariants([
                         {
                           ...variants[0],
-                          attributes: [
-                            {
-                              name: "",
-                              value: "",
-                            },
-                          ],
+                          attributes: variantColumns.map((name) => ({ name, value: "" })),
                         },
                       ]);
                     }
@@ -1462,8 +1499,8 @@ export default function ProductFormPage() {
               </h2>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                 {hasVariants
-                  ? "Define each configuration, then set its stock, prices and rack locations in separate panels."
-                  : "Set the opening stock, selling prices and rack locations in clearly separated panels."}
+                  ? "One row per variant: attributes, rack, stock, and individual prices."
+                  : "Set the rack, opening quantity, and prices for the base product in one place."}
               </p>
             </div>
 
@@ -1475,368 +1512,133 @@ export default function ProductFormPage() {
                 className="border-blue-500/30 bg-blue-500/5 text-blue-700 hover:bg-blue-500/10 hover:text-blue-800 dark:text-blue-200 dark:hover:text-blue-100"
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Add combination
+                Add variant row
               </Button>
             ) : null}
           </div>
 
-          <div className="space-y-5 p-6">
-            {(hasVariants ? variants : [variants[0] || emptyBaseStock]).map(
-              (variant, variantIndex) => (
-                <div
-                  key={variant.id || variantIndex}
-                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/60 dark:border-white/10 dark:bg-gradient-to-br dark:from-slate-900/90 dark:to-slate-950 dark:shadow-black/10"
-                >
-                  {hasVariants ? (
-                    <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3 dark:border-white/10 dark:bg-white/[0.025]">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-950 dark:text-white">
-                          Variant {variantIndex + 1}
-                        </p>
-                        <p className="mt-0.5 max-w-xl break-words text-xs text-slate-500">
-                          {(variant.attributes || []).filter((a) => a.name && a.value)
-                            .map((a) => `${a.name}: ${a.value}`).join(" · ") || "Add configuration attributes"}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-1">
-                        <Button type="button" size="sm" variant="ghost"
-                          aria-label={`Duplicate variant ${variantIndex + 1}`}
-                          title="Duplicate variant" onClick={() => duplicateVariant(variantIndex)}>
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                        <Button type="button" size="sm" variant="ghost"
-                          aria-label={`${collapsedVariants.includes(variantIndex) ? "Expand" : "Collapse"} variant ${variantIndex + 1}`}
-                          onClick={() => toggleCollapsedVariant(variantIndex)}>
-                          {collapsedVariants.includes(variantIndex) ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                        </Button>
-                        <Button type="button" size="sm" variant="ghost"
-                          aria-label={`Remove variant ${variantIndex + 1}`}
-                          onClick={() => removeVariant(variantIndex)}
-                          disabled={variants.length === 1}
-                          className="text-red-500 hover:bg-red-500/10">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {(!hasVariants || !collapsedVariants.includes(variantIndex)) && (
-                  <div className="space-y-5 p-5">
-                    {hasVariants ? (
-                      <div className="rounded-xl border border-blue-200 bg-blue-50/40 p-4 shadow-sm dark:border-blue-500/20 dark:bg-blue-500/[0.04] dark:shadow-none">
-                        <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Variant attributes</h3>
-                        <p className="mb-3 mt-1 text-xs text-slate-500">Describe this configuration (for example RAM: 16 GB or Colour: Black). Pricing is set separately below.</p>
-                        <div className="space-y-3">
-                          {variant.attributes.map(
-                            (attribute, attributeIndex) => (
-                              <div
-                                key={attributeIndex}
-                                className="grid gap-3 md:grid-cols-[1fr_1fr_auto]"
-                              >
-                                <Input
-                                  placeholder="Attribute, e.g. RAM"
-                                  value={attribute.name}
-                                  onChange={(event) =>
-                                    updateAttribute(
-                                      variantIndex,
-                                      attributeIndex,
-                                      "name",
-                                      event.target.value,
-                                    )
-                                  }
-                                  className="h-11 border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-900/80"
-                                />
-
-                                <Input
-                                  placeholder="Value, e.g. 16 GB"
-                                  value={attribute.value}
-                                  onChange={(event) =>
-                                    updateAttribute(
-                                      variantIndex,
-                                      attributeIndex,
-                                      "value",
-                                      event.target.value,
-                                    )
-                                  }
-                                  className="h-11 border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-900/80"
-                                />
-
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  onClick={() =>
-                                    removeAttribute(
-                                      variantIndex,
-                                      attributeIndex,
-                                    )
-                                  }
-                                  className="h-11 text-red-400 hover:bg-red-500/10 hover:text-red-300"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ),
-                          )}
-                        </div>
-
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => addAttribute(variantIndex)}
-                          className="mt-3 border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/[0.025]"
-                        >
-                          <Plus className="mr-2 h-4 w-4" />
-                          Add attribute
-                        </Button>
-                      </div>
-                    ) : null}
-
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/[0.04]">
-                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Stock quantity</h3>
-                      <p className="mb-3 mt-1 text-xs text-slate-500">{isEdit ? "Current quantity is read-only; use stock adjustments to change it." : "Set the opening quantity for this configuration."}</p>
-                      <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.035] p-3">
-                        <Label className="text-emerald-700 dark:text-emerald-100">
-                          {isEdit ? "Current quantity (read-only)" : "Initial quantity"}
-                        </Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={variant.initial_stock ?? 0}
-                          readOnly={isEdit}
-                          onChange={(event) =>
-                            updateVariant(
-                              variantIndex,
-                              "initial_stock",
-                              event.target.value,
-                            )
-                          }
-                          className="mt-2 h-11 border-emerald-500/20 bg-white dark:bg-slate-950/80"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-white/10 dark:bg-white/[0.025]">
-                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Product pricing</h3>
-                      <p className="mt-1 mb-4 text-xs text-slate-500">All amounts in AED. Purchase cost and selling price levels are managed independently from stock and variant attributes.</p>
-                      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                      <div>
-                        <Label>
-                          Purchase price
-                          <span className="ml-1 text-xs font-normal text-slate-500">
-                            Optional
-                          </span>
-                        </Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={variant.purchase_price ?? ""}
-                          onChange={(event) =>
-                            updateVariant(
-                              variantIndex,
-                              "purchase_price",
-                              event.target.value,
-                            )
-                          }
-                          placeholder="0.00"
-                          className="mt-2 h-11 border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-900/80"
-                        />
-                      </div>
-
-                      <div>
-                        <Label>Retail price</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={variant.retail_price ?? 0}
-                          onChange={(event) =>
-                            updateVariant(
-                              variantIndex,
-                              "retail_price",
-                              event.target.value,
-                            )
-                          }
-                          className="mt-2 h-11 border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-900/80"
-                        />
-                      </div>
-
-                      <div>
-                        <Label>Wholesale price</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={variant.wholesale_price ?? 0}
-                          onChange={(event) =>
-                            updateVariant(
-                              variantIndex,
-                              "wholesale_price",
-                              event.target.value,
-                            )
-                          }
-                          className="mt-2 h-11 border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-900/80"
-                        />
-                      </div>
-
-                      <div>
-                        <Label>Minimum selling</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={variant.minimum_selling_price ?? 0}
-                          onChange={(event) =>
-                            updateVariant(
-                              variantIndex,
-                              "minimum_selling_price",
-                              event.target.value,
-                            )
-                          }
-                          className="mt-2 h-11 border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-900/80"
-                        />
-                      </div>
-                      </div>
-                    </div>
-
-                    {/* Rack assignments are separate from prices and quantity. */}
-                    <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-4 dark:border-blue-500/20 dark:bg-blue-500/[0.06]">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <Label className="text-sm font-semibold">Rack locations</Label>
-                              {(variant.racks || []).length ? (
-                                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-[10px] font-bold text-white">
-                                  {(variant.racks || []).length}
-                                </span>
-                              ) : null}
-                            </div>
-                            <p className="mt-0.5 text-[11px] text-muted-foreground">
-                              Assign one or more rack locations for this {hasVariants ? "variant" : "product"}.
-                            </p>
-                          </div>
-
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 shrink-0 px-2 text-xs text-blue-700 hover:bg-blue-100 dark:text-blue-300 dark:hover:bg-blue-500/10"
-                            disabled={!selectedBranch}
-                            onClick={() => {
-                              setRackTargetVariantIndex(variantIndex);
-                              setRackForm({ rack_code: "", rack_name: "" });
-                              setShowRackForm(true);
-                            }}
-                          >
-                            <Plus className="mr-1 h-3.5 w-3.5" />
-                            New
-                          </Button>
-                        </div>
-
-                        <div className="relative mt-3">
-                          <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                          <Input value={rackSearch} onChange={(event) => setRackSearch(event.target.value)}
-                            aria-label="Search rack locations" placeholder="Search rack code or name"
-                            className="h-10 pl-9" disabled={!selectedBranch || racksLoading} />
-                        </div>
-                        <Select
-                          value=""
-                          disabled={!selectedBranch || racksLoading || Boolean(racksError)}
-                          onValueChange={(rackId) => {
-                            if (!(variant.racks || []).map(String).includes(rackId)) {
-                              toggleVariantRack(variantIndex, rackId);
-                            }
-                          }}
-                        >
-                          <SelectTrigger
-                            aria-label={`Add rack to ${hasVariants ? `variant ${variantIndex + 1}` : "product"}`}
-                            className="mt-3 h-11 w-full border-blue-200 bg-white text-left dark:border-blue-500/20 dark:bg-slate-950/70"
-                          >
-                            <SelectValue
-                              placeholder={
-                                racksLoading
-                                  ? "Loading racks..."
-                                  : !selectedBranch
-                                    ? "Select branch first"
-                                    : racksError
-                                      ? "Unable to load racks"
-                                      : racks.length
-                                        ? "Add a rack location"
-                                        : "No racks available"
-                              }
-                            />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {racks.filter((rack) => `${rack.rack_code || ""} ${rack.rack_name || ""}`
-                              .toLowerCase().includes(rackSearch.trim().toLowerCase())).map((rack) => (
-                              <SelectItem
-                                key={rack.id}
-                                value={String(rack.id)}
-                                disabled={(variant.racks || []).map(String).includes(String(rack.id))}
-                              >
-                                {rack.rack_code}
-                                {rack.rack_name ? ` — ${rack.rack_name}` : ""}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-
-                        {(variant.racks || []).length ? (
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            {(variant.racks || []).map((rackId) => {
-                              const selectedRack = racks.find(
-                                (rack) => String(rack.id) === String(rackId),
-                              ) || (product?.variants || []).flatMap(
-                                (item) => item.rack_details || [],
-                              ).find((rack) => String(rack.id ?? rack.rack_id) === String(rackId));
-
-                              return (
-                                <span
-                                  key={rackId}
-                                  className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-blue-200 bg-white px-2 py-1 text-xs font-medium text-blue-700 dark:border-blue-500/20 dark:bg-slate-950/60 dark:text-blue-300"
-                                >
-                                  <span className="min-w-0 break-all">
-                                    {selectedRack?.rack_code ||
-                                      `Rack #${rackId}`}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-blue-600 hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-blue-300 dark:hover:bg-red-500/10"
-                                    title="Remove rack"
-                                    aria-label={`Remove rack ${selectedRack?.rack_code || rackId}`}
-                                    onClick={() =>
-                                      toggleVariantRack(variantIndex, rackId)
-                                    }
-                                  >
-                                    <X className="h-3.5 w-3.5" aria-hidden="true" />
-                                  </button>
-                                </span>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <p className="mt-3 rounded-lg border border-dashed border-blue-200 px-3 py-3 text-xs text-slate-500 dark:border-blue-500/20">
-                            No rack locations selected yet.
-                          </p>
-                        )}
-
-                        <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                          Rack assignments are shared locations for this configuration. Stock quantity is not divided by rack in the current inventory model.
-                        </p>
-
-                        {racksError ? (
-                          <p className="mt-2 text-xs text-red-500">
-                            Unable to load racks for this branch.
-                          </p>
-                        ) : null}
-                      </div>
-                  </div>
-                  )}
+          <div className="space-y-4 p-4 sm:p-6">
+              {hasVariants && <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-slate-900/60">
+                <div className="min-w-44 flex-1">
+                  <Label htmlFor="new-variant-attribute">Add attribute column</Label>
+                  <Input id="new-variant-attribute" value={newColumnName}
+                    onChange={(event) => setNewColumnName(event.target.value)}
+                    onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addVariantColumn(); } }}
+                    placeholder="e.g. Processor" className="mt-1 h-10 bg-white dark:bg-slate-950" />
                 </div>
-              ),
-            )}
+                <Button type="button" variant="outline" className="h-10" onClick={addVariantColumn}>
+                  <Plus className="mr-1.5 h-4 w-4" /> Add attribute
+                </Button>
+                <p className="w-full text-xs text-slate-500">Each row represents one sellable variant. Fill the attributes, rack, and all prices for every row. Scroll horizontally for more columns.</p>
+              </div>}
+              <div className="w-full overflow-x-auto rounded-xl border border-slate-200 shadow-sm dark:border-white/10" role="region" aria-label={hasVariants ? "Product variants" : "Base product stock and pricing"} tabIndex={0}>
+                <table className={`w-full border-separate border-spacing-0 text-left text-sm ${hasVariants ? "min-w-max" : "min-w-[1100px] table-fixed"}`}>
+                  <thead className="bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                    <tr>
+                      <th scope="col" className={`sticky left-0 z-10 border-b bg-slate-100 px-4 py-3 dark:border-white/10 dark:bg-slate-900 ${hasVariants ? "min-w-20" : "w-[90px]"}`}>{hasVariants ? "#" : "Product"}</th>
+                      {hasVariants && variantColumns.map((name) => (
+                        <th scope="col" key={name} className="min-w-36 border-b px-3 py-3 dark:border-white/10">
+                          <div className="flex items-center justify-between gap-2">
+                            <span>{name} <span className="text-red-500">*</span></span>
+                            <button type="button" title={`Remove ${name} column`} aria-label={`Remove ${name} column`}
+                              onClick={() => removeVariantColumn(name)}
+                              className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10">
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </th>
+                      ))}
+                      <th scope="col" className={`border-b px-3 py-3 dark:border-white/10 ${hasVariants ? "min-w-56" : "w-[260px]"}`}>Rack <span className="text-red-500">*</span></th>
+                      <th scope="col" className={`border-b px-3 py-3 dark:border-white/10 ${hasVariants ? "min-w-28" : "w-[145px]"}`}>{isEdit ? "Current stock" : "Opening stock"}</th>
+                      {[["purchase_price", "Purchase"], ["retail_price", "Retail"], ["wholesale_price", "Wholesale"], ["minimum_selling_price", "Min. selling"]].map(([field, name]) => (
+                        <th key={field} scope="col" className={`border-b px-3 py-3 dark:border-white/10 ${hasVariants ? "min-w-32" : "w-[151px]"}`}>{name} (AED) <span className="text-red-500">*</span></th>
+                      ))}
+                      {hasVariants && <th scope="col" className="min-w-28 border-b px-3 py-3 text-center dark:border-white/10">Actions</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 bg-white dark:divide-white/10 dark:bg-slate-950/70">
+                    {(hasVariants ? variants : [variants[0] || emptyBaseStock]).map((variant, index) => (
+                      <tr key={variant.id || `new-${index}`} className="align-top hover:bg-slate-50/70 dark:hover:bg-white/[0.025]">
+                        <td className="sticky left-0 z-10 bg-white px-4 py-4 font-semibold text-slate-700 dark:bg-slate-950 dark:text-slate-200">{hasVariants ? index + 1 : "Base"}</td>
+                        {hasVariants && variantColumns.map((name) => (
+                          <td key={name} className="px-2 py-2">
+                            <Input aria-label={`Variant ${index + 1} ${name}`} placeholder={name}
+                              value={(variant.attributes || []).find((a) => a.name.toLowerCase() === name.toLowerCase())?.value || ""}
+                              onChange={(event) => setVariantAttributeCell(index, name, event.target.value)}
+                              className="h-10 min-w-32 bg-white dark:bg-slate-900" />
+                          </td>
+                        ))}
+                        <td className="px-3 py-3 align-top">
+                          <div className="space-y-2">
+                            <Select value="" disabled={!selectedBranch || racksLoading || Boolean(racksError)}
+                              onValueChange={(value) => { if (!(variant.racks || []).map(String).includes(value)) toggleVariantRack(index, value); }}>
+                              <SelectTrigger className="h-11 w-full min-w-0 bg-white px-3 text-left dark:bg-slate-900">
+                                <SelectValue placeholder={racksLoading ? "Loading racks..." : "Select rack"} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {racks.map((rack) => (
+                                  <SelectItem key={rack.id} value={String(rack.id)} disabled={(variant.racks || []).map(String).includes(String(rack.id))}>
+                                    {rack.rack_code}{rack.rack_name ? ` — ${rack.rack_name}` : ""}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {(variant.racks || []).length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {(variant.racks || []).map((rackId) => {
+                                  const rack = racks.find((r) => String(r.id) === String(rackId)) ||
+                                    (product?.variants || []).flatMap((v) => v.rack_details || []).find((r) => String(r.id ?? r.rack_id) === String(rackId));
+                                  return <span key={rackId} className="inline-flex max-w-full items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200">
+                                    <span className="truncate">{rack?.rack_code || `#${rackId}`}</span>
+                                    <button type="button" className="shrink-0 rounded-sm hover:text-red-600" aria-label={`Remove rack ${rack?.rack_code || rackId}`} onClick={() => toggleVariantRack(index, rackId)}><X className="h-3.5 w-3.5" /></button>
+                                  </span>;
+                                })}
+                              </div>
+                            )}
+                            <div className="flex min-h-8 items-center justify-between gap-2">
+                              {!(variant.racks || []).length ? <span className="text-xs font-medium text-red-600">Rack required</span> : <span className="text-xs text-slate-500">{variant.racks.length} selected</span>}
+                              <Button type="button" variant="ghost" size="sm" className="h-8 shrink-0 px-2 text-xs font-medium"
+                                disabled={!selectedBranch}
+                                onClick={() => {
+                                  setRackTargetVariantIndex(index);
+                                  setRackForm({ rack_code: "", rack_name: "" });
+                                  setShowRackForm(true);
+                                }}>
+                                <Plus className="mr-1 h-3.5 w-3.5" /> New rack
+                              </Button>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 align-top"><Input type="number" min="0" step="1" readOnly={isEdit}
+                          title={isEdit ? "Use stock adjustments to change existing quantity" : "Opening quantity"}
+                          aria-label={hasVariants ? `Variant ${index + 1} quantity` : "Product opening quantity"} value={variant.initial_stock ?? 0}
+                          onChange={(event) => updateVariant(index, "initial_stock", event.target.value)} className="h-11 w-full min-w-0 bg-white dark:bg-slate-900" /></td>
+                        {["purchase_price", "retail_price", "wholesale_price", "minimum_selling_price"].map((field) => (
+                          <td key={field} className="px-3 py-3 align-top"><Input type="number" min="0" step="0.01" required
+                            aria-label={hasVariants ? `Variant ${index + 1} ${field.replaceAll("_", " ")}` : `Product ${field.replaceAll("_", " ")}`}
+                            value={variant[field] ?? ""} onChange={(event) => updateVariant(index, field, event.target.value)}
+                            className="h-11 w-full min-w-0 bg-white dark:bg-slate-900" /></td>
+                        ))}
+                        {hasVariants && <td className="px-2 py-2">
+                          <div className="flex justify-center gap-1">
+                            <Button type="button" variant="ghost" size="icon" title="Duplicate variant" aria-label={`Duplicate variant ${index + 1}`} onClick={() => duplicateVariant(index)}><Copy className="h-4 w-4" /></Button>
+                            <Button type="button" variant="ghost" size="icon" title="Remove variant" aria-label={`Remove variant ${index + 1}`}
+                              disabled={variants.length === 1} onClick={() => removeVariant(index)} className="text-red-600"><Trash2 className="h-4 w-4" /></Button>
+                          </div>
+                        </td>}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {hasVariants ? (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs text-slate-500">{variants.length} variant{variants.length !== 1 ? "s" : ""} · Each requires a rack and four prices.</span>
+                  <Button type="button" variant="outline" onClick={addVariant}><Plus className="mr-2 h-4 w-4" /> Add variant row</Button>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500">All four prices and at least one rack are required. For existing products, update quantities through Stock Adjustments.</p>
+              )}
           </div>
         </section>
 
@@ -1856,7 +1658,7 @@ export default function ProductFormPage() {
                 <DialogTitle>Add New Rack</DialogTitle>
                 <DialogDescription>
                   Create a rack for the selected branch. It will be assigned
-                  automatically to this variant.
+                  automatically to the selected product configuration.
                 </DialogDescription>
               </DialogHeader>
 
