@@ -78,7 +78,7 @@ export default function EmployeeListPage() {
         key: "employee",
         header: "Employee",
         cell: (row) => (
-          <Link to={`/hrms/employees/${row.resource_key || row.id}`} className="flex min-w-0 items-center gap-3">
+          <Link to={`/hrms/employees/${row.id}`} className="flex min-w-0 items-center gap-3">
             {row.profile_image_url || row.profile_image ? (
               <img
                 src={row.profile_image_url || row.profile_image}
@@ -154,7 +154,7 @@ export default function EmployeeListPage() {
         header: "Actions",
         align: "right",
         cell: (row) => {
-          const employeeKey = row.resource_key || row.id;
+          const employeeKey = row.id;
           return (
             <div className="flex items-center justify-end gap-1">
               <Button asChild size="icon" variant="ghost" title="Salary Certificate">

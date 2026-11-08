@@ -39,6 +39,9 @@ import {
 } from "@/components/ui/select";
 export default function EmployeeDetailPage() {
   const { id } = useParams();
+  // HRMS employees live in the shared default database. Legacy links may
+  // contain BRANCH_CODE:id; the Employee profile endpoint expects only the ID.
+  const employeeId = String(id || "").split(":").pop();
   const queryClient = useQueryClient();
   const [revisionOpen, setRevisionOpen] = React.useState(false);
   const [selectedPayroll, setSelectedPayroll] = React.useState(null);
@@ -51,10 +54,11 @@ export default function EmployeeDetailPage() {
     approved_by_name: "",
   });
 
-  const { data: profile } = useQuery({
-    queryKey: ["employee-profile", id],
+  const { data: profile, isPending: profileLoading, isError: profileError, error: profileFailure } = useQuery({
+    queryKey: ["employee-profile", employeeId],
+    enabled: Boolean(employeeId),
     queryFn: async () =>
-      unwrap(await api.get(`/hrms/employees/${id}/profile/`)),
+      unwrap(await api.get(`/hrms/employees/${encodeURIComponent(employeeId)}/profile/`)),
   });
 
   const employee = profile?.employee;
@@ -63,7 +67,7 @@ export default function EmployeeDetailPage() {
   const payrollHistoryQuery = useQuery({
     queryKey: ["employee-payroll-history", id, payrollBranchId],
     queryFn: ({ signal }) =>
-      fetchEmployeePayrollHistory(api, id, payrollBranchId, signal),
+      fetchEmployeePayrollHistory(api, employeeId, payrollBranchId, signal),
     enabled: activeTab === "payroll" && Boolean(employee),
     staleTime: 0,
     refetchOnMount: "always",
@@ -72,12 +76,12 @@ export default function EmployeeDetailPage() {
   const { data: legacyHistory = [] } = useQuery({
     queryKey: ["salary-history", id],
     queryFn: async () =>
-      unwrap(await api.get(`/hrms/employees/${id}/salary-history/`)),
+      unwrap(await api.get(`/hrms/employees/${employeeId}/salary-history/`)),
   });
 
   const addRevision = useMutation({
     mutationFn: () =>
-      api.post(`/hrms/employees/${id}/salary-revisions/`, {
+      api.post(`/hrms/employees/${employeeId}/salary-revisions/`, {
         ...revision,
         basic_salary: Number(revision.basic_salary || 0),
         allowances: Number(revision.allowances || 0),
@@ -93,8 +97,22 @@ export default function EmployeeDetailPage() {
     },
   });
 
-  if (!employee)
+  if (profileLoading)
     return <div className="card-surface p-6">Loading employee...</div>;
+
+  if (profileError || !employee) {
+    return (
+      <div className="card-surface space-y-3 p-6">
+        <h2 className="font-semibold">Employee details unavailable</h2>
+        <p className="text-sm text-muted-foreground">
+          {profileFailure?.response?.data?.message ||
+            profileFailure?.response?.data?.detail ||
+            "This employee could not be loaded from the selected workspace."}
+        </p>
+        <Button asChild variant="outline"><Link to="/hrms/employees">Back to Employees</Link></Button>
+      </div>
+    );
+  }
 
   const employeeDocuments = Array.isArray(profile?.documents)
     ? profile.documents
@@ -152,7 +170,7 @@ export default function EmployeeDetailPage() {
         subtitle={`${employee.employee_code} · ${employee.designation_name || "Employee"}`}
         actions={
           <Button asChild className="bg-blue-600 text-white">
-            <Link to={`/hrms/employees/${id}/edit`}>
+            <Link to={`/hrms/employees/${employeeId}/edit`}>
               <Pencil className="mr-2 h-4 w-4" /> Edit
             </Link>
           </Button>
@@ -450,7 +468,7 @@ export default function EmployeeDetailPage() {
             </div>
 
             <Button asChild variant="outline">
-              <Link to={`/hrms/employees/${id}/edit`}>
+              <Link to={`/hrms/employees/${employeeId}/edit`}>
                 <Pencil className="mr-2 h-4 w-4" />
                 Manage Documents
               </Link>
@@ -589,7 +607,7 @@ export default function EmployeeDetailPage() {
                 asChild
                 className="mt-4 bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
               >
-                <Link to={`/hrms/employees/${id}/edit`}>
+                <Link to={`/hrms/employees/${employeeId}/edit`}>
                   <Pencil className="mr-2 h-4 w-4" />
                   Edit Employee
                 </Link>
@@ -964,7 +982,7 @@ export default function EmployeeDetailPage() {
       {activeTab === "payroll" && (
         <EmployeePayrollHistory
           entries={payrollHistoryQuery.data || []}
-          employeeId={id}
+          employeeId={employeeId}
           loading={payrollHistoryQuery.isPending}
           error={payrollHistoryQuery.isError}
           onRetry={() => payrollHistoryQuery.refetch()}
