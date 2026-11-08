@@ -124,6 +124,27 @@ export default function EmployeeListPage() {
         ),
       }] : []),
       {
+        key: "total_salary",
+        header: "Current Salary",
+        align: "right",
+        cell: (row) => {
+          // The employee API exposes total_salary = basic_salary + allowances.
+          // Only fall back to those components when the total is unavailable.
+          const total = row.total_salary != null && row.total_salary !== ""
+            ? Number(row.total_salary)
+            : row.basic_salary != null || row.allowances != null
+              ? Number(row.basic_salary || 0) + Number(row.allowances || 0)
+              : null;
+          return (
+            <div className="whitespace-nowrap text-right font-semibold tabular-nums">
+              {total !== null && Number.isFinite(total)
+                ? `AED ${total.toLocaleString("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : "—"}
+            </div>
+          );
+        },
+      },
+      {
         key: "employment_status",
         header: "Status",
         cell: (row) => <StatusBadge status={row.employment_status} />,
