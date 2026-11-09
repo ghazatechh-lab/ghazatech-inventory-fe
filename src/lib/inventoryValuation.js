@@ -8,7 +8,7 @@ export const currency = (value, currencyCode = "AED") => {
   const amount = numberValue(value);
 
   if (code === "AED") {
-    return `AED ${amount.toLocaleString("en-AE", {
+    return `⃃ ${amount.toLocaleString("en-AE", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;

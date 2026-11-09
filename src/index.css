@@ -446,3 +446,6 @@ table thead th {
 table tbody td {
   vertical-align: middle;
 }
+
+/* Final table polish shared by all ERP list modules. */
+@import "./styles/enterprise-tables.css";

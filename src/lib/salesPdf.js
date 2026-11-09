@@ -44,7 +44,7 @@ const getAedSymbolDataUrl = () => {
   context.textAlign = "left";
   context.textBaseline = "middle";
   context.direction = "rtl";
-  context.fillText("AED", 88, 24);
+  context.fillText("⃃", 88, 24);
 
   aedSymbolDataUrl = canvas.toDataURL("image/png");
   return aedSymbolDataUrl;

@@ -652,7 +652,7 @@ export default function PriceListsPage() {
                               />
                             </td>
                             <td className="p-2 font-semibold text-green-500">
-                              {form.currency === "AED" ? "AED" : form.currency}{" "}
+                              {form.currency === "AED" ? "⃃" : form.currency}{" "}
                               {finalPrice.toFixed(2)}
                             </td>
                             <td className="p-2">

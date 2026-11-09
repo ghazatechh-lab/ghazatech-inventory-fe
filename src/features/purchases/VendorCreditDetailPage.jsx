@@ -372,7 +372,7 @@ export default function VendorCreditDetailPage() {
             label="Currency"
             value={
               String(record.currency || "AED").toUpperCase() === "AED"
-                ? "AED"
+                ? "⃃"
                 : displayValue(record.currency, "AED")
             }
           />

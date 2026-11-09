@@ -793,7 +793,7 @@ function BudgetForm({
                   setForm((x) => ({ ...x, currency: e.target.value }))
                 }
               >
-                <option value="AED">AED</option>
+                <option value="AED">⃃ AED</option>
                 <option>USD</option>
               </select>
             </Field>

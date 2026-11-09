@@ -239,11 +239,11 @@ export default function ProductDetailPage() {
             <DetailItem
               icon={Barcode}
               label="Barcode"
-              value={product.barcode}
+              value={product.sku}
             />
-            {product.barcode && (
+            {product.sku && (
               <div className="md:col-span-2 lg:col-span-3">
-                <ProductBarcode value={product.barcode} productName={product.product_name || product.name} price={product.selling_price ?? product.retail_price ?? product.price} />
+                <ProductBarcode value={product.sku} productName={product.product_name || product.name} price={product.selling_price ?? product.retail_price ?? product.price} />
               </div>
             )}
             <DetailItem icon={Layers3} label="Unit" value={product.unit} />

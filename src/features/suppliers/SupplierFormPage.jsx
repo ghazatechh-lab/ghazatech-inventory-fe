@@ -570,7 +570,7 @@ export default function SupplierFormPage() {
                       <SelectContent>
                         {["AED", "USD", "EUR", "INR"].map((currency) => (
                           <SelectItem key={currency} value={currency}>
-                            {currency === "AED" ? "AED" : currency}
+                            {currency === "AED" ? "⃃" : currency}
                           </SelectItem>
                         ))}
                       </SelectContent>

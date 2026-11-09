@@ -91,6 +91,7 @@ export function ListingRowActions({
           size="sm"
           asChild
           aria-label={`View ${itemLabel}`}
+          title={`View ${itemLabel}`}
         >
           <Link to={viewTo}>
             <Eye className="w-4 h-4" />
@@ -113,6 +114,7 @@ export function ListingRowActions({
             hover:bg-red-500/10
           "
           aria-label={`Delete ${itemLabel}`}
+          title={`Delete ${itemLabel}`}
         >
           <Trash2 className="w-4 h-4" />
         </Button>

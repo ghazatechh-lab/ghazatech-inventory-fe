@@ -851,7 +851,7 @@ export default function POFormPage() {
                   <SelectContent>
                     {["AED", "USD", "EUR", "INR"].map((currency) => (
                       <SelectItem key={currency} value={currency}>
-                        {currency === "AED" ? "AED" : currency}
+                        {currency === "AED" ? "⃃" : currency}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -78,7 +78,7 @@ export default function TripLogPage() {
         <MetricCard label="Total Trips" value={rows.length} description="Loaded trip records" icon={CarFront}/>
         <MetricCard label="Distance Travelled" value={`${totals.distance.toLocaleString()} km`} description="Total distance" icon={MapPin} tone="green"/>
         <MetricCard label="Fuel Recorded" value={`${totals.fuel.toLocaleString()} L`} description="Recorded fuel use" icon={Fuel}/>
-        <MetricCard label="Total Expenses" value={`AED ${totals.expense.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`} description="Recorded trip expense" icon={Wallet} tone="amber"/>
+        <MetricCard label="Total Expenses" value={`⃃ ${totals.expense.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`} description="Recorded trip expense" icon={Wallet} tone="amber"/>
         <MetricCard label="Active Trips" value={totals.active} description="Currently on trip" icon={Clock3} tone="red"/>
       </div>
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/70">
@@ -164,7 +164,7 @@ export default function TripLogPage() {
                     </td>
 
                     <td className="whitespace-nowrap px-5 py-4 text-center align-middle font-semibold">
-                      AED {Number(trip.expense_amount || 0).toFixed(2)}
+                      ⃃ {Number(trip.expense_amount || 0).toFixed(2)}
                     </td>
 
                     <td className="px-5 py-4 text-center align-middle">

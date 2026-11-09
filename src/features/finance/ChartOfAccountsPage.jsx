@@ -950,7 +950,7 @@ export default function ChartOfAccountsPage() {
                         ))}
                       </div>
                     </Field>
-                    <Field label="Opening balance (AED)">
+                    <Field label="Opening balance (⃃)">
                       <Input
                         type="number"
                         min="0"

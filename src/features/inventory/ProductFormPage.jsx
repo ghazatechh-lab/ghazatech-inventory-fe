@@ -1538,10 +1538,10 @@ export default function ProductFormPage() {
                       <th scope="col" className={`border-b px-3 py-3 dark:border-white/10 ${hasVariants ? "w-[260px] min-w-[260px]" : "w-[280px]"}`}>Rack <span className="text-red-500">*</span></th>
                       <th scope="col" className={`border-b px-3 py-3 dark:border-white/10 ${hasVariants ? "w-[170px] min-w-[170px]" : "w-[170px]"}`}>{isEdit ? "Current stock" : "Opening stock"}</th>
                       {hasVariants && [
-                        ["Purchase (AED)", "purchase_price"],
-                        ["Retail (AED)", "retail_price"],
-                        ["Wholesale (AED)", "wholesale_price"],
-                        ["Min. selling (AED)", "minimum_selling_price"],
+                        ["Purchase (⃃)", "purchase_price"],
+                        ["Retail (⃃)", "retail_price"],
+                        ["Wholesale (⃃)", "wholesale_price"],
+                        ["Min. selling (⃃)", "minimum_selling_price"],
                       ].map(([label, field]) => (
                         <th key={field} scope="col" className="w-[175px] min-w-[175px] whitespace-nowrap border-b px-3 py-3 dark:border-white/10">
                           {label} <span className="text-red-500">*</span>
@@ -1663,7 +1663,7 @@ export default function ProductFormPage() {
                         <td colSpan={2} className="border-t border-slate-100 px-4 pb-4 pt-3 dark:border-white/10">
                           <div className="mb-2 flex flex-wrap items-center gap-2">
                             <span className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                              {hasVariants ? `Variant ${index + 1} pricing` : "Product pricing"} (AED)
+                              {hasVariants ? `Variant ${index + 1} pricing` : "Product pricing"} (⃃)
                             </span>
                             <span className="text-xs text-slate-500">Four required prices · zero is allowed</span>
                           </div>

@@ -1106,7 +1106,7 @@ export default function POSPage() {
 
                                                   <div className="shrink-0 text-right">
                                                     <p className="font-bold text-blue-600 dark:text-blue-300">
-                                                      AED{" "}
+                                                      ⃃{" "}
                                                       {getProductPrice(
                                                         product,
                                                       ).toFixed(2)}
@@ -1332,7 +1332,7 @@ export default function POSPage() {
 
                         <div className="space-y-4 p-4">
                           <div>
-                            <Label>Discount (AED)</Label>
+                            <Label>Discount (⃃)</Label>
                             <Input
                               type="number"
                               min="0"

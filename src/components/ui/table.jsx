@@ -2,10 +2,10 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const Table = React.forwardRef(({ className, ...props }, ref) => (
-  <div className="relative w-full overflow-auto">
+  <div className="ghaza-table-scroll relative w-full overflow-x-auto">
     <table
       ref={ref}
-      className={cn("w-full caption-bottom text-sm table-fixed", className)}
+      className={cn("ghaza-table w-full caption-bottom text-sm", className)}
       {...props}
     />
   </div>
@@ -15,7 +15,7 @@ Table.displayName = "Table";
 const TableHeader = React.forwardRef(({ className, ...props }, ref) => (
   <thead
     ref={ref}
-    className={cn("[&_tr]:border-b bg-slate-50/80", className)}
+    className={cn("[&_tr]:border-b bg-slate-50/90 dark:bg-slate-900/60", className)}
     {...props}
   />
 ));
@@ -46,7 +46,7 @@ const TableRow = React.forwardRef(({ className, ...props }, ref) => (
   <tr
     ref={ref}
     className={cn(
-      "border-b transition-colors hover:bg-slate-50/60 data-[state=selected]:bg-slate-50",
+      "border-b border-slate-100/90 transition-colors duration-150 hover:bg-slate-50/75 data-[state=selected]:bg-blue-50/70 dark:border-white/10 dark:hover:bg-white/[0.035] dark:data-[state=selected]:bg-blue-500/10",
       className,
     )}
     {...props}
@@ -58,7 +58,7 @@ const TableHead = React.forwardRef(({ className, ...props }, ref) => (
   <th
     ref={ref}
     className={cn(
-      "h-12 px-4 text-left align-middle font-semibold text-slate-600 whitespace-nowrap",
+      "h-11 px-4 text-left align-middle text-xs font-semibold text-slate-600 whitespace-nowrap dark:text-slate-300",
       "[&:has([role=checkbox])]:pr-0",
       className,
     )}
@@ -71,7 +71,7 @@ const TableCell = React.forwardRef(({ className, ...props }, ref) => (
   <td
     ref={ref}
     className={cn(
-      "px-4 py-3 align-middle text-slate-700",
+      "px-4 py-3 align-middle text-sm text-slate-700 dark:text-slate-200",
       "[&:has([role=checkbox])]:pr-0",
       className,
     )}

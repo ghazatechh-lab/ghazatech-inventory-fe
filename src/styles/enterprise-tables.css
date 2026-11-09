@@ -1,0 +1,95 @@
+/* GhazaTech ERP — enterprise table polish (scoped to app tables, not printable documents) */
+@media screen {
+  :root {
+    --gh-table-border: #e3eaf2;
+    --gh-table-head: #f5f8fc;
+    --gh-table-text: #334155;
+    --gh-table-muted: #64748b;
+    --gh-table-hover: #f5f9ff;
+  }
+  .dark {
+    --gh-table-border: rgba(148, 163, 184, .15);
+    --gh-table-head: rgba(148, 163, 184, .085);
+    --gh-table-text: #e2e8f0;
+    --gh-table-muted: #a9b6c8;
+    --gh-table-hover: rgba(148, 163, 184, .07);
+  }
+  .ghaza-data-table {
+    border: 1px solid var(--gh-table-border);
+    border-radius: 12px;
+    background: hsl(var(--card));
+    box-shadow: 0 2px 9px rgba(15, 23, 42, .035);
+  }
+  .ghaza-table-scroll {
+    max-width: 100%;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #a8b8ce transparent;
+  }
+  .ghaza-table-scroll:focus-visible { outline: 2px solid #3b82f6; outline-offset: -2px; }
+  /* Shared and custom listing tables receive identical compact dimensions. */
+  .app-page-frame table:not([data-editor-table]) {
+    border-collapse: separate;
+    border-spacing: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .app-page-frame table:not([data-editor-table]) > thead {
+    background: var(--gh-table-head);
+  }
+  .app-page-frame table:not([data-editor-table]) > thead th {
+    height: 44px;
+    padding: 10px 14px;
+    vertical-align: middle;
+    white-space: nowrap;
+    color: var(--gh-table-muted);
+    font-size: 12px !important;
+    font-weight: 650 !important;
+    letter-spacing: .015em !important;
+    text-transform: none !important;
+    border-bottom: 1px solid var(--gh-table-border);
+  }
+  .app-page-frame table:not([data-editor-table]) > tbody > tr {
+    transition: background-color 160ms ease;
+  }
+  .app-page-frame table:not([data-editor-table]) > tbody > tr:hover {
+    background-color: var(--gh-table-hover);
+  }
+  .app-page-frame table:not([data-editor-table]) > tbody > tr > td {
+    padding: 12px 14px;
+    vertical-align: middle;
+    color: var(--gh-table-text);
+    font-size: 13px;
+    line-height: 1.5;
+    border-bottom: 1px solid var(--gh-table-border);
+  }
+  .app-page-frame table:not([data-editor-table]) > tbody > tr:last-child > td { border-bottom: 0; }
+  .app-page-frame table:not([data-editor-table]) th[aria-sort] { white-space: nowrap; }
+  .app-page-frame table:not([data-editor-table]) td a,
+  .app-page-frame table:not([data-editor-table]) td button { outline-offset: 2px; }
+  .app-page-frame table:not([data-editor-table]) :is(a,button,input,select):focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+  .app-page-frame table:not([data-editor-table]) tbody td [class*="font-mono"],
+  .app-page-frame table:not([data-editor-table]) tbody td .font-numeric {
+    font-variant-numeric: tabular-nums;
+  }
+  .ghaza-data-table .ghaza-table-footer { min-height: 58px; }
+  .ghaza-data-table .ghaza-table-footer button[aria-current="page"] {
+    background: #e8f0ff;
+    color: #174e91;
+    font-weight: 700;
+  }
+  .dark .ghaza-data-table .ghaza-table-footer button[aria-current="page"] {
+    background: rgba(59,130,246,.18);
+    color: #bfdbfe;
+  }
+  @media (max-width: 767px) {
+    .app-page-frame table:not([data-editor-table]) > thead th,
+    .app-page-frame table:not([data-editor-table]) > tbody > tr > td { padding: 10px 12px; }
+    .ghaza-data-table .ghaza-table-footer { padding: 12px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .app-page-frame table:not([data-editor-table]) > tbody > tr { transition: none; }
+  }
+}

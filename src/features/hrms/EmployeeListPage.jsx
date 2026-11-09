@@ -138,7 +138,7 @@ export default function EmployeeListPage() {
           return (
             <div className="whitespace-nowrap text-right font-semibold tabular-nums">
               {total !== null && Number.isFinite(total)
-                ? `AED ${total.toLocaleString("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                ? `⃃ ${total.toLocaleString("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                 : "—"}
             </div>
           );

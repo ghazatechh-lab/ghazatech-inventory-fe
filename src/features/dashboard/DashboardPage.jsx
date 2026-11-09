@@ -286,7 +286,7 @@ export default function DashboardPage() {
             <h3 className="text-sm font-semibold text-slate-200">
               Stock value by branch
             </h3>
-            <p className="text-xs text-slate-500">AED</p>
+            <p className="text-xs text-slate-500">⃃</p>
           </div>
           <div className="h-56">
             <ResponsiveContainer>

@@ -1172,7 +1172,7 @@ function JournalForm({
                   }))
                 }
               >
-                <option value="AED">AED</option>
+                <option value="AED">⃃ AED</option>
                 <option value="USD">USD</option>
               </select>
             </Field>

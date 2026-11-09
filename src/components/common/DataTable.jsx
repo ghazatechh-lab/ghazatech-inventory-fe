@@ -25,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { EmptyState, LoadingState } from "@/components/common/States";
+import { EmptyState } from "@/components/common/States";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -332,6 +332,10 @@ export function DataTable({
   rowKey = "id",
   onRowClick,
   testId = "data-table",
+  error = null,
+  onRetry,
+  pageSizeOptions = [12, 20, 50],
+  onPageSizeChange,
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -448,8 +452,8 @@ export function DataTable({
   const lastVisible = Math.min(safePage * pageSize, effectiveTotal);
 
   return (
-    <div className="card-surface overflow-hidden" data-testid={testId}>
-      <div className="w-full overflow-x-auto">
+    <div className="card-surface ghaza-data-table overflow-hidden" data-testid={testId}>
+      <div className="ghaza-table-scroll w-full overflow-x-auto">
         <Table className="w-full min-w-max table-auto">
           <TableHeader>
             <TableRow className="border-white/5 hover:bg-transparent">
@@ -485,7 +489,7 @@ export function DataTable({
                           : "none"
                     }
                     className={cn(
-                      "whitespace-nowrap py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500",
+                      "whitespace-nowrap py-3 text-xs font-semibold tracking-[0.015em] text-slate-600 dark:text-slate-300",
                       alignment.text,
                       column.headerClassName,
                       column.className,
@@ -496,11 +500,12 @@ export function DataTable({
                         type="button"
                         onClick={() => handleSort(column)}
                         className={cn(
-                          "inline-flex flex-nowrap items-center gap-1.5 whitespace-nowrap rounded px-1 py-1 transition hover:bg-white/5 hover:text-slate-200",
+                          "inline-flex flex-nowrap items-center gap-1.5 whitespace-nowrap rounded-md px-1 py-1 transition-colors hover:bg-slate-200/60 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:bg-white/10 dark:hover:text-white",
                           "w-full",
                           alignment.flex,
                         )}
                         title={`${column.header}: ${nextLabel}`}
+                        aria-label={`Sort ${column.header}: ${nextLabel}`}
                       >
                         <span>{column.header}</span>
 
@@ -523,9 +528,23 @@ export function DataTable({
 
           <TableBody>
             {isLoading ? (
+              Array.from({ length: Math.min(pageSize, 5) }, (_, skeletonIndex) => (
+                <TableRow key={`loading-${skeletonIndex}`} aria-hidden="true">
+                  {columns.map((column, columnIndex) => (
+                    <TableCell key={`${column.key}-${columnIndex}`}>
+                      <div className="h-4 w-full max-w-40 animate-pulse rounded bg-slate-200/80 dark:bg-slate-700/70" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : error ? (
               <TableRow>
                 <TableCell colSpan={columns.length}>
-                  <LoadingState />
+                  <div role="alert" className="flex flex-col items-center gap-3 py-10 text-center">
+                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Unable to load records</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{typeof error === "string" ? error : error?.message || "Please try again."}</p>
+                    {typeof onRetry === "function" && <Button type="button" variant="outline" size="sm" onClick={onRetry}>Retry</Button>}
+                  </div>
                 </TableCell>
               </TableRow>
             ) : visibleData.length ? (
@@ -533,7 +552,7 @@ export function DataTable({
                 <TableRow
                   key={row[rowKey] ?? index}
                   className={cn(
-                    "table-row-hover border-white/5",
+                    "table-row-hover border-slate-100 dark:border-white/10",
                     onRowClick && "cursor-pointer",
                   )}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
@@ -545,7 +564,7 @@ export function DataTable({
                       <TableCell
                         key={column.key}
                         className={cn(
-                          "py-2.5 align-middle text-sm text-slate-200",
+                          "py-3 align-middle text-sm text-slate-700 dark:text-slate-200",
                           NON_SORTABLE_KEYS.has(column.key) && "whitespace-nowrap",
                           alignment.text,
                           column.className,
@@ -575,14 +594,30 @@ export function DataTable({
         </Table>
       </div>
 
-      <div className="flex flex-col gap-3 border-t border-white/5 px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+      <div className="ghaza-table-footer flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-xs text-slate-600 dark:border-white/10 dark:text-slate-400 sm:flex-row sm:items-center sm:justify-between">
         <div>
           Showing {firstVisible}
           {"\u2013"}
           {lastVisible} of {effectiveTotal}
-          <span className="ml-2 text-slate-600">
-            {"\u00B7"} {pageSize} entries per page
-          </span>
+          {typeof onPageSizeChange === "function" ? (
+            <label className="ml-3 inline-flex items-center gap-2">
+              <span>Rows per page</span>
+              <select
+                aria-label="Rows per page"
+                className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                value={pageSize}
+                onChange={(event) => onPageSizeChange(Number(event.target.value))}
+              >
+                {[...new Set([...pageSizeOptions, pageSize])].sort((a, b) => a - b).map((size) => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <span className="ml-2 text-slate-500 dark:text-slate-400">
+              {"\u00B7"} {pageSize} entries per page
+            </span>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-1">
@@ -593,6 +628,7 @@ export function DataTable({
             disabled={safePage <= 1}
             onClick={() => changePage(1)}
             title="First page"
+            aria-label="First page"
           >
             <ChevronsLeft className="h-4 w-4" />
           </Button>
@@ -605,6 +641,7 @@ export function DataTable({
             onClick={() => changePage(safePage - 1)}
             data-testid="pagination-prev"
             title="Previous page"
+            aria-label="Previous page"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -616,6 +653,8 @@ export function DataTable({
               variant={pageNumber === safePage ? "secondary" : "ghost"}
               size="sm"
               className="min-w-8 font-numeric"
+              aria-label={`Page ${pageNumber}`}
+              aria-current={pageNumber === safePage ? "page" : undefined}
               onClick={() => changePage(pageNumber)}
             >
               {pageNumber}
@@ -630,6 +669,7 @@ export function DataTable({
             onClick={() => changePage(safePage + 1)}
             data-testid="pagination-next"
             title="Next page"
+            aria-label="Next page"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -641,6 +681,7 @@ export function DataTable({
             disabled={safePage >= totalPages}
             onClick={() => changePage(totalPages)}
             title="Last page"
+            aria-label="Last page"
           >
             <ChevronsRight className="h-4 w-4" />
           </Button>
