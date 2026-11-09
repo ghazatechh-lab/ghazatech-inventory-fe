@@ -46,6 +46,7 @@ import RackListPage from "@/features/inventory/RackListPage";
 import RackFormPage from "@/features/inventory/RackFormPage";
 import StockPage from "@/features/inventory/StockPage";
 import LowStockPage from "@/features/inventory/LowStockPage";
+import StockAgingPage from "@/features/inventory/StockAgingPage";
 import StockMovementsPage from "@/features/inventory/StockMovementsPage";
 import StockAdjustmentPage from "@/features/inventory/StockAdjustmentPage";
 
@@ -385,6 +386,7 @@ export default function App() {
               <Route path="/inventory/stock" element={<StockPage />} />
 
               <Route path="/inventory/low-stock" element={<LowStockPage />} />
+              <Route path="/inventory/stock-aging" element={<StockAgingPage />} />
 
               <Route
                 path="/inventory/movements"

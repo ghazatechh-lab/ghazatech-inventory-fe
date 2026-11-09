@@ -22,6 +22,7 @@ import {
   PackageCheck,
   Package,
   PackageSearch,
+  Clock3,
   Warehouse,
   ArrowRightLeft,
   SlidersHorizontal,
@@ -139,6 +140,13 @@ export const modules = [
         icon: PackageSearch,
         permission: "inventory.low_stock.view",
         badge: "!",
+      },
+      {
+        id: "inventory-stock-aging",
+        label: "Stock Aging & Overstock",
+        to: "/inventory/stock-aging",
+        icon: Clock3,
+        permission: "inventory.stock.view",
       },
       {
         id: "inventory-transfers",
