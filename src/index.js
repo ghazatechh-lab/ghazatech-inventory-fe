@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import "@/index.css";
 import App from "@/App";
+import GlobalClickSound from "@/components/common/GlobalClickSound";
 import { ThemeProvider } from "@/lib/theme";
 
 const queryClient = new QueryClient({
@@ -21,6 +22,7 @@ root.render(
   <React.StrictMode>
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
+        <GlobalClickSound />
         <App />
       </QueryClientProvider>
     </ThemeProvider>
