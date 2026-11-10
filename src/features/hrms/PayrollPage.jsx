@@ -1819,11 +1819,55 @@ export default function PayrollPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-                <div>
-                  <Label>Pay Period *</Label>
+              {/* Scoped to Generate Payroll: equal-height controls regardless of picker internals. */}
+              <style>{`
+                .ghaza-payroll-equal-fields { align-items: start; }
+                .ghaza-payroll-equal-fields > div { min-width: 0; }
+                .ghaza-payroll-equal-fields > div > label {
+                  display: flex !important;
+                  align-items: center !important;
+                  height: 20px !important;
+                  min-height: 20px !important;
+                  margin: 0 !important;
+                  line-height: 20px !important;
+                }
+                .ghaza-payroll-equal-fields > div > :is(button, input, [role="combobox"]),
+                .ghaza-payroll-equal-fields > div > div > :is(button, input, [role="combobox"]),
+                .ghaza-payroll-equal-fields > div > div > div > :is(button, input, [role="combobox"]) {
+                  box-sizing: border-box !important;
+                  display: flex !important;
+                  align-items: center !important;
+                  width: 100% !important;
+                  min-width: 0 !important;
+                  height: 48px !important;
+                  min-height: 48px !important;
+                  max-height: 48px !important;
+                  margin-top: 8px !important;
+                  padding-top: 0 !important;
+                  padding-bottom: 0 !important;
+                  line-height: normal !important;
+                  vertical-align: top !important;
+                }
+                .ghaza-payroll-equal-fields > div > input { display: block !important; }
+                .ghaza-payroll-equal-fields > div > div {
+                  box-sizing: border-box !important;
+                  width: 100% !important;
+                  min-width: 0 !important;
+                }
+                .ghaza-payroll-equal-fields > div > div > div:has(> button) {
+                  width: 100% !important;
+                  min-width: 0 !important;
+                }
+                .ghaza-payroll-equal-fields > div > p {
+                  margin-top: 8px !important;
+                  line-height: 18px !important;
+                }
+              `}</style>
+              <div className="ghaza-payroll-equal-fields grid grid-cols-1 items-start gap-x-4 gap-y-4 sm:grid-cols-2 xl:grid-cols-5">
+                <div className="min-w-0">
+                  <Label className="flex h-5 items-center">Pay Period *</Label>
                   <MonthYearPicker
-                    className="mt-2"
+                    className="mt-2 !h-12 w-full"
                     value={period}
                     max={nextPayrollPeriod}
                     onChange={(value) => {
@@ -1840,23 +1884,23 @@ export default function PayrollPage() {
                       setPage(1);
                     }}
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-2 min-h-[36px] text-xs leading-[18px] text-muted-foreground">
                     Previous months, current month, and next month only.
                   </p>
                 </div>
 
-                <div>
-                  <Label>Payroll Date *</Label>
+                <div className="min-w-0">
+                  <Label className="flex h-5 items-center">Payroll Date *</Label>
                   <Input
                     type="date"
-                    className="mt-2"
+                    className="mt-2 !h-12 w-full"
                     value={payrollDate}
                     onChange={(event) => setPayrollDate(event.target.value)}
                   />
                 </div>
 
-                <div>
-                  <Label>Branch</Label>
+                <div className="min-w-0">
+                  <Label className="flex h-5 items-center">Branch</Label>
                   <Select
                     value={selectedBranch || undefined}
                     disabled={!isCombined}
@@ -1865,7 +1909,7 @@ export default function PayrollPage() {
                       setSelectedEmployees([]);
                     }}
                   >
-                    <SelectTrigger className="mt-2">
+                    <SelectTrigger className="mt-2 !h-12 w-full">
                       <SelectValue placeholder={isCombined ? "Select Branch 1 or Branch 2" : "Current branch"} />
                     </SelectTrigger>
                     <SelectContent>
@@ -1878,8 +1922,8 @@ export default function PayrollPage() {
                   </Select>
                 </div>
 
-                <div>
-                  <Label>Payroll Status *</Label>
+                <div className="min-w-0">
+                  <Label className="flex h-5 items-center">Payroll Status *</Label>
 
                   <Select
                     value={payrollStatus}
@@ -1891,7 +1935,7 @@ export default function PayrollPage() {
                       }
                     }}
                   >
-                    <SelectTrigger className="mt-2">
+                    <SelectTrigger className="mt-2 !h-12 w-full">
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
 
@@ -1902,20 +1946,20 @@ export default function PayrollPage() {
                     </SelectContent>
                   </Select>
 
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-2 min-h-[36px] text-xs leading-[18px] text-muted-foreground">
                     Pending can be reviewed later. Paid finalizes the salary
                     immediately.
                   </p>
                 </div>
 
-                <div>
-                  <Label>
+                <div className="min-w-0">
+                  <Label className="flex h-5 items-center">
                     Paid By
                     {payrollStatus === "PAID" ? " *" : ""}
                   </Label>
 
                   <Input
-                    className="mt-2"
+                    className="mt-2 !h-12 w-full"
                     value={paidBy}
                     onChange={(event) => setPaidBy(event.target.value)}
                     placeholder={
@@ -1926,7 +1970,7 @@ export default function PayrollPage() {
                     disabled={payrollStatus !== "PAID"}
                   />
 
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-2 min-h-[36px] text-xs leading-[18px] text-muted-foreground">
                     {payrollStatus === "PAID"
                       ? "Required because the payroll will be settled immediately."
                       : "Use Mark Paid later after reviewing the payroll."}
@@ -1983,8 +2027,9 @@ export default function PayrollPage() {
 
               <div className="mt-3 overflow-hidden rounded-xl border">
                 <div className="overflow-x-auto">
-                  <div className="min-w-[980px]">
-                    <div className="grid grid-cols-[36px_minmax(260px,1fr)_130px_145px_145px_165px] items-center gap-4 border-b bg-muted/35 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <div className="min-w-[1050px]">
+                    <div className="grid items-center gap-4 border-b bg-muted/35 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                      style={{ gridTemplateColumns: "36px minmax(260px, 1fr) 130px 145px 145px 165px" }}>
                       <div />
                       <div>Employee</div>
                       <div>Payable Days</div>
@@ -2024,13 +2069,15 @@ export default function PayrollPage() {
                           );
 
                           return (
-                            <label
+                            <div
                               key={employee.id}
-                              className="grid grid-cols-[36px_minmax(260px,1fr)_130px_145px_145px_165px] items-center gap-4 px-4 py-4 transition-colors hover:bg-muted/30"
+                              className="grid min-h-[108px] items-center gap-4 px-4 py-4 transition-colors hover:bg-muted/30"
+                              style={{ gridTemplateColumns: "36px minmax(260px, 1fr) 130px 145px 145px 165px" }}
                             >
                               <div className="flex items-center justify-center">
                                 <input
                                   type="checkbox"
+                                  aria-label={`Select payroll for ${employee.full_name}`}
                                   checked={selectedEmployees.includes(
                                     employee.id,
                                   )}
@@ -2070,7 +2117,7 @@ export default function PayrollPage() {
                               <div>
                                 <Input
                                   type="number"
-                                  className="h-10 text-center"
+                                  className="h-10 w-full min-w-0 text-center tabular-nums"
                                   value={
                                     payableDays[employee.id] ??
                                     employee.suggested_payable_days ??
@@ -2086,22 +2133,22 @@ export default function PayrollPage() {
                                 />
                               </div>
 
-                              <div className="text-right">
-                                <p className="whitespace-nowrap font-semibold tabular-nums text-amber-600">
+                              <div className="min-w-0 text-right">
+                                <p className="flex items-center justify-end whitespace-nowrap font-semibold tabular-nums text-amber-600">
                                   <CurrencyText
                                     value={employee.advance_received}
                                   />
                                 </p>
                               </div>
 
-                              <div className="text-right">
-                                <p className="whitespace-nowrap font-semibold tabular-nums text-orange-600">
+                              <div className="min-w-0 text-right">
+                                <p className="flex items-center justify-end whitespace-nowrap font-semibold tabular-nums text-orange-600">
                                   <CurrencyText value={loanDeduction} />
                                 </p>
                               </div>
 
-                              <div className="text-right">
-                                <p className="whitespace-nowrap font-semibold tabular-nums text-emerald-600">
+                              <div className="min-w-0 text-right">
+                                <p className="flex items-center justify-end whitespace-nowrap font-semibold tabular-nums text-emerald-600">
                                   <CurrencyText value={remaining} />
                                 </p>
                                 {employee.already_generated && (
@@ -2110,7 +2157,7 @@ export default function PayrollPage() {
                                   </p>
                                 )}
                               </div>
-                            </label>
+                            </div>
                           );
                         })
                       ) : (

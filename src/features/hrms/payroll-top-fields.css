@@ -1,0 +1,36 @@
+/* GhazaTech Payroll / Generate Payroll: five equal-height field controls. */
+/* Scoped to the generate modal only; does not affect other HRMS inputs. */
+.ghaza-payroll-top-fields > div {
+  min-width: 0;
+}
+.ghaza-payroll-top-fields > div > label {
+  display: flex !important;
+  align-items: center !important;
+  min-height: 20px !important;
+  height: 20px !important;
+  margin: 0 !important;
+}
+.ghaza-payroll-top-fields > div > :is(button, input, [role="combobox"]) {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  max-height: 48px !important;
+  margin-top: 8px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: normal !important;
+  vertical-align: top !important;
+  align-items: center !important;
+}
+.ghaza-payroll-top-fields > div > :is(button, [role="combobox"]) {
+  display: flex !important;
+}
+.ghaza-payroll-top-fields > div > :is(button, input, [role="combobox"]) svg {
+  flex-shrink: 0;
+}
+.ghaza-payroll-top-fields > div > p {
+  margin-top: 8px !important;
+  line-height: 18px;
+}
