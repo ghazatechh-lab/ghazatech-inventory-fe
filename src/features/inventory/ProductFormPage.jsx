@@ -92,12 +92,19 @@ function relatedId(item, key) {
 
 function normalizedRackIds(items) {
   if (!Array.isArray(items)) return [];
-  return [...new Set(items.map((item) => {
-    const id = item && typeof item === "object"
-      ? (item.id ?? item.rack_id ?? item.rack?.id)
-      : item;
-    return id == null || id === "" ? "" : String(id);
-  }).filter(Boolean))];
+  return [
+    ...new Set(
+      items
+        .map((item) => {
+          const id =
+            item && typeof item === "object"
+              ? (item.id ?? item.rack_id ?? item.rack?.id)
+              : item;
+          return id == null || id === "" ? "" : String(id);
+        })
+        .filter(Boolean),
+    ),
+  ];
 }
 
 function variantFromApi(item) {
@@ -107,9 +114,12 @@ function variantFromApi(item) {
       name,
       value,
     })),
-    racks: normalizedRackIds(item.racks?.length ? item.racks : item.rack_details),
+    racks: normalizedRackIds(
+      item.racks?.length ? item.racks : item.rack_details,
+    ),
     // Existing stock is a balance, not a new opening quantity.
-    initial_stock: item.current_stock ?? item.available_qty ?? item.total_quantity ?? 0,
+    initial_stock:
+      item.current_stock ?? item.available_qty ?? item.total_quantity ?? 0,
     purchase_price: item.purchase_price ?? "",
     retail_price: item.retail_price ?? 0,
     wholesale_price: item.wholesale_price ?? 0,
@@ -142,7 +152,11 @@ export default function ProductFormPage() {
   const [variants, setVariants] = React.useState([{ ...emptyBaseStock }]);
   const [collapsedVariants, setCollapsedVariants] = React.useState([]);
   const [rackSearch, setRackSearch] = React.useState("");
-  const [variantColumns, setVariantColumns] = React.useState(["Color", "RAM", "Storage"]);
+  const [variantColumns, setVariantColumns] = React.useState([
+    "Color",
+    "RAM",
+    "Storage",
+  ]);
   const [newColumnName, setNewColumnName] = React.useState("");
 
   const {
@@ -160,14 +174,19 @@ export default function ProductFormPage() {
 
   // Product IDs can overlap across physical tenants. An edit link must
   // fetch the product from its source branch, not the active Consolidated view.
-  const editSourceBranch = searchParams.get("branch") || (
-    branchOverride && String(branchOverride) !== "1" ? String(branchOverride) : ""
-  );
+  const editSourceBranch =
+    searchParams.get("branch") ||
+    (branchOverride && String(branchOverride) !== "1"
+      ? String(branchOverride)
+      : "");
   const { data: product, isLoading: productLoading } = useQuery({
     queryKey: ["product", id, editSourceBranch],
-    queryFn: async () => unwrap(await api.get(`/products/${id}/`, {
-      params: editSourceBranch ? { branch: editSourceBranch } : {},
-    })),
+    queryFn: async () =>
+      unwrap(
+        await api.get(`/products/${id}/`, {
+          params: editSourceBranch ? { branch: editSourceBranch } : {},
+        }),
+      ),
     enabled: isEdit,
     staleTime: 0,
   });
@@ -197,7 +216,9 @@ export default function ProductFormPage() {
   const physicalBranches = React.useMemo(
     () =>
       branches.filter((branch) =>
-        ["VAT", "NON_VAT"].includes(String(branch.tax_mode || "").toUpperCase()),
+        ["VAT", "NON_VAT"].includes(
+          String(branch.tax_mode || "").toUpperCase(),
+        ),
       ),
     [branches],
   );
@@ -211,7 +232,10 @@ export default function ProductFormPage() {
   );
 
   const isCombinedHeader =
-    Boolean(activeHeaderBranch) && !["VAT", "NON_VAT"].includes(String(activeHeaderBranch.tax_mode || "").toUpperCase());
+    Boolean(activeHeaderBranch) &&
+    !["VAT", "NON_VAT"].includes(
+      String(activeHeaderBranch.tax_mode || "").toUpperCase(),
+    );
 
   const physicalBranchLabel = React.useCallback(
     (branchId) => {
@@ -239,7 +263,9 @@ export default function ProductFormPage() {
           headers: { "X-Branch-ID": String(selectedBranch) },
         }),
       ),
-    enabled: Boolean(selectedBranch) && physicalBranches.some((b) => String(b.id) === String(selectedBranch)),
+    enabled:
+      Boolean(selectedBranch) &&
+      physicalBranches.some((b) => String(b.id) === String(selectedBranch)),
     staleTime: 0,
     refetchOnMount: "always",
   });
@@ -302,7 +328,11 @@ export default function ProductFormPage() {
       return;
     }
 
-    if (!["VAT", "NON_VAT"].includes(String(matchingBranch.tax_mode || "").toUpperCase())) {
+    if (
+      !["VAT", "NON_VAT"].includes(
+        String(matchingBranch.tax_mode || "").toUpperCase(),
+      )
+    ) {
       // BR03 is virtual. Product writes must explicitly target BR01 or BR02.
       setValue("branch", "", {
         shouldDirty: true,
@@ -395,8 +425,11 @@ export default function ProductFormPage() {
 
         // Some tenant-scoped rack endpoints omit the branch field.
         // Those rows are already scoped by the selected branch request.
-        return !rackBranchId || !selectedBranch ||
-          String(rackBranchId) === String(selectedBranch);
+        return (
+          !rackBranchId ||
+          !selectedBranch ||
+          String(rackBranchId) === String(selectedBranch)
+        );
       }),
     [rackResponse, selectedBranch],
   );
@@ -506,7 +539,9 @@ export default function ProductFormPage() {
     const productRackIds = normalizedRackIds(product.racks);
     const stockRackIds = normalizedRackIds(
       Array.isArray(product.stocks)
-        ? product.stocks.flatMap((stock) => stock.racks || stock.rack_details || [])
+        ? product.stocks.flatMap(
+            (stock) => stock.racks || stock.rack_details || [],
+          )
         : [],
     );
     // For non-variant products stock is stored with variant_id=null.
@@ -515,15 +550,27 @@ export default function ProductFormPage() {
     const hydratedVariants = apiVariants.map((variant) => {
       const matchingStock = stockRows.find((stock) =>
         product.has_variants
-          ? String(stock.variant_id ?? stock.variant ?? "") === String(variant.id)
-          : (stock.variant_id == null && stock.variant == null)
+          ? String(stock.variant_id ?? stock.variant ?? "") ===
+            String(variant.id)
+          : stock.variant_id == null && stock.variant == null,
       );
       return matchingStock
-        ? { ...variant, initial_stock: Number(matchingStock.current_stock ?? variant.initial_stock ?? 0) }
+        ? {
+            ...variant,
+            initial_stock: Number(
+              matchingStock.current_stock ?? variant.initial_stock ?? 0,
+            ),
+          }
         : variant;
     });
-    const savedVariants = hydratedVariants.length ? hydratedVariants : [{ ...emptyBaseStock }];
-    if (!product.has_variants && savedVariants.length === 1 && !savedVariants[0].racks.length) {
+    const savedVariants = hydratedVariants.length
+      ? hydratedVariants
+      : [{ ...emptyBaseStock }];
+    if (
+      !product.has_variants &&
+      savedVariants.length === 1 &&
+      !savedVariants[0].racks.length
+    ) {
       savedVariants[0] = {
         ...savedVariants[0],
         racks: productRackIds.length ? productRackIds : stockRackIds,
@@ -531,9 +578,15 @@ export default function ProductFormPage() {
     }
     setVariants(savedVariants);
     if (product.has_variants) {
-      const names = [...new Set(savedVariants.flatMap((variant) =>
-        (variant.attributes || []).map((attr) => String(attr.name || "").trim()).filter(Boolean)
-      ))];
+      const names = [
+        ...new Set(
+          savedVariants.flatMap((variant) =>
+            (variant.attributes || [])
+              .map((attr) => String(attr.name || "").trim())
+              .filter(Boolean),
+          ),
+        ),
+      ];
       setVariantColumns(names.length ? names : ["Color", "RAM", "Storage"]);
     }
     setImagePreview(product.product_image_url || product.product_image || "");
@@ -623,19 +676,26 @@ export default function ProductFormPage() {
   };
 
   const setVariantAttributeCell = (variantIndex, name, value) => {
-    setVariants((current) => current.map((variant, index) => {
-      if (index !== variantIndex) return variant;
-      const other = (variant.attributes || []).filter(
-        (attribute) => String(attribute.name).toLowerCase() !== name.toLowerCase(),
-      );
-      return { ...variant, attributes: [...other, { name, value }] };
-    }));
+    setVariants((current) =>
+      current.map((variant, index) => {
+        if (index !== variantIndex) return variant;
+        const other = (variant.attributes || []).filter(
+          (attribute) =>
+            String(attribute.name).toLowerCase() !== name.toLowerCase(),
+        );
+        return { ...variant, attributes: [...other, { name, value }] };
+      }),
+    );
   };
 
   const addVariantColumn = () => {
     const name = newColumnName.trim();
     if (!name) return toast.error("Enter an attribute name first.");
-    if (variantColumns.some((column) => column.toLowerCase() === name.toLowerCase())) {
+    if (
+      variantColumns.some(
+        (column) => column.toLowerCase() === name.toLowerCase(),
+      )
+    ) {
       return toast.error("This attribute already exists.");
     }
     setVariantColumns((current) => [...current, name]);
@@ -643,12 +703,15 @@ export default function ProductFormPage() {
   };
 
   const removeVariantColumn = (name) => {
-    if (variantColumns.length === 1) return toast.error("Keep at least one attribute.");
+    if (variantColumns.length === 1)
+      return toast.error("Keep at least one attribute.");
     setVariantColumns((current) => current.filter((column) => column !== name));
-    setVariants((current) => current.map((variant) => ({
-      ...variant,
-      attributes: (variant.attributes || []).filter((a) => a.name !== name),
-    })));
+    setVariants((current) =>
+      current.map((variant) => ({
+        ...variant,
+        attributes: (variant.attributes || []).filter((a) => a.name !== name),
+      })),
+    );
   };
 
   const addVariant = () => {
@@ -665,7 +728,10 @@ export default function ProductFormPage() {
 
     setVariants((current) => [
       ...current,
-      { ...emptyBaseStock, attributes: variantColumns.map((name) => ({ name, value: "" })) },
+      {
+        ...emptyBaseStock,
+        attributes: variantColumns.map((name) => ({ name, value: "" })),
+      },
     ]);
   };
   const duplicateVariant = (index) => {
@@ -679,21 +745,33 @@ export default function ProductFormPage() {
       racks: [...(source.racks || [])],
       initial_stock: 0,
     };
-    setVariants((current) => [...current.slice(0, index + 1), duplicate, ...current.slice(index + 1)]);
+    setVariants((current) => [
+      ...current.slice(0, index + 1),
+      duplicate,
+      ...current.slice(index + 1),
+    ]);
     setCollapsedVariants([]);
     toast.info("Variant duplicated. Change its attributes before saving.");
   };
   const removeVariant = (index) => {
     if (variants.length < 2) return;
     const variant = variants[index];
-    if (variant?.id && !window.confirm("Remove this saved variant? Its existing configuration may be affected when you save.")) return;
+    if (
+      variant?.id &&
+      !window.confirm(
+        "Remove this saved variant? Its existing configuration may be affected when you save.",
+      )
+    )
+      return;
     setVariants((current) => current.filter((_, i) => i !== index));
     setCollapsedVariants([]);
   };
   const toggleCollapsedVariant = (index) =>
-    setCollapsedVariants((current) => current.includes(index)
-      ? current.filter((value) => value !== index)
-      : [...current, index]);
+    setCollapsedVariants((current) =>
+      current.includes(index)
+        ? current.filter((value) => value !== index)
+        : [...current, index],
+    );
   const addAttribute = (variantIndex) => {
     const variant = variants[variantIndex];
     const attributes = variant?.attributes || [];
@@ -789,13 +867,17 @@ export default function ProductFormPage() {
       }
 
       {
-        for (const [index, variant] of (hasVariants ? variants : [variants[0] || emptyBaseStock]).entries()) {
+        for (const [index, variant] of (hasVariants
+          ? variants
+          : [variants[0] || emptyBaseStock]
+        ).entries()) {
           const label = hasVariants ? `Variant ${index + 1}` : "Base product";
           if (hasVariants) {
             const attributeError = getVariantCombinationError(variant, index);
             if (attributeError) throw new Error(attributeError);
           }
-          if (!(variant.racks || []).length) throw new Error(`${label}: select at least one rack.`);
+          if (!(variant.racks || []).length)
+            throw new Error(`${label}: select at least one rack.`);
           for (const [field, label] of [
             ["purchase_price", "Purchase price"],
             ["retail_price", "Retail price"],
@@ -803,8 +885,15 @@ export default function ProductFormPage() {
             ["minimum_selling_price", "Minimum selling price"],
           ]) {
             const value = variant[field];
-            if (value === "" || value == null || !Number.isFinite(Number(value)) || Number(value) < 0) {
-              throw new Error(`${hasVariants ? `Variant ${index + 1}` : "Base product"}: ${label} is required (zero is allowed).`);
+            if (
+              value === "" ||
+              value == null ||
+              !Number.isFinite(Number(value)) ||
+              Number(value) < 0
+            ) {
+              throw new Error(
+                `${hasVariants ? `Variant ${index + 1}` : "Base product"}: ${label} is required (zero is allowed).`,
+              );
             }
           }
         }
@@ -829,7 +918,9 @@ export default function ProductFormPage() {
           racks: (variant.racks || []).map((rackId) => Number(rackId)),
           // Initial quantity is only valid at creation. Existing stock must
           // never be resubmitted as opening stock during a price edit.
-          ...(!isEdit ? { initial_stock: Math.max(0, Number(variant.initial_stock || 0)) } : {}),
+          ...(!isEdit
+            ? { initial_stock: Math.max(0, Number(variant.initial_stock || 0)) }
+            : {}),
           purchase_price:
             variant.purchase_price === "" || variant.purchase_price == null
               ? null
@@ -844,11 +935,18 @@ export default function ProductFormPage() {
       if (hasVariants) {
         const seen = new Set();
         for (const [index, variant] of normalizedVariants.entries()) {
-          const signature = JSON.stringify(Object.entries(variant.attributes || {})
-            .map(([name, value]) => [name.trim().toLowerCase(), String(value).trim().toLowerCase()])
-            .sort(([a], [b]) => a.localeCompare(b)));
+          const signature = JSON.stringify(
+            Object.entries(variant.attributes || {})
+              .map(([name, value]) => [
+                name.trim().toLowerCase(),
+                String(value).trim().toLowerCase(),
+              ])
+              .sort(([a], [b]) => a.localeCompare(b)),
+          );
           if (seen.has(signature)) {
-            throw new Error(`Variant ${index + 1} duplicates another attribute combination. Change its attributes before saving.`);
+            throw new Error(
+              `Variant ${index + 1} duplicates another attribute combination. Change its attributes before saving.`,
+            );
           }
           seen.add(signature);
         }
@@ -1059,63 +1157,76 @@ export default function ProductFormPage() {
       >
         <section aria-label="Product branch selection" className="space-y-3">
           <div className="flex items-center gap-3 px-1">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0d4678] text-sm font-bold text-white">1</span>
-            <div><h2 className="font-semibold text-slate-900 dark:text-slate-100">Choose product branch</h2><p className="text-xs text-slate-500 dark:text-slate-400">All subsequent options belong to this branch.</p></div>
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0d4678] text-sm font-bold text-white">
+              1
+            </span>
+            <div>
+              <h2 className="font-semibold text-slate-900 dark:text-slate-100">
+                Choose product branch
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                All subsequent options belong to this branch.
+              </p>
+            </div>
           </div>
-            <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-5 shadow-sm dark:border-sky-500/20 dark:bg-sky-500/[0.07] sm:p-6">
-              <div className="mb-4">
-                <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Branch</h3>
+          <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-5 shadow-sm dark:border-sky-500/20 dark:bg-sky-500/[0.07] sm:p-6">
+            <div className="mb-4">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                Branch
+              </h3>
 
-                <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                  Choose the physical branch first. Brand, category, supplier and rack options use its tenant schema.
-                </p>
-              </div>
-
-              {isEdit ? (
-                <div className="rounded-xl border border-sky-200 bg-white/90 p-4 text-sm font-medium text-slate-800 dark:border-sky-500/20 dark:bg-slate-900 dark:text-slate-100">
-                  {physicalBranches.find((b) => String(b.id) === String(selectedBranch))?.branch_code || "Branch"} — {physicalBranchLabel(selectedBranch)}
-                  
-                </div>
-              ) : isCombinedHeader ? (
-                <div>
-                  <Label>Target physical branch *</Label>
-                  <select
-                    value={selectedBranch || ""}
-                    onChange={(event) =>
-                      setValue("branch", event.target.value, {
-                        shouldDirty: true,
-                        shouldTouch: true,
-                        shouldValidate: true,
-                      })
-                    }
-                    className="mt-2 h-11 w-full rounded-md border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                  >
-                    <option value="">Select a physical branch</option>
-                    {physicalBranches.map((branch) => (
-                      <option key={branch.id} value={String(branch.id)}>
-                        {branch.branch_code || branch.tax_mode}
-                        {branch.branch_name ? ` - ${branch.branch_name}` : ""}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-                    Consolidated is a combined view only. Suppliers and racks are
-                    loaded from the physical branch selected here.
-                  </p>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-sky-200 bg-white/80 p-4 text-sm text-slate-700 dark:border-sky-500/20 dark:bg-slate-900/60 dark:text-slate-200">
-                  {physicalBranchLabel(selectedBranch)}
-                  {!selectedBranch ? (
-                    <p className="mt-2 font-semibold text-amber-700 dark:text-amber-300">
-                      Select a physical branch from the top branch filter
-                      before saving this product.
-                    </p>
-                  ) : null}
-                </div>
-              )}
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                Choose the physical branch first. Brand, category, supplier and
+                rack options use its tenant schema.
+              </p>
             </div>
 
+            {isEdit ? (
+              <div className="rounded-xl border border-sky-200 bg-white/90 p-4 text-sm font-medium text-slate-800 dark:border-sky-500/20 dark:bg-slate-900 dark:text-slate-100">
+                {physicalBranches.find(
+                  (b) => String(b.id) === String(selectedBranch),
+                )?.branch_code || "Branch"}{" "}
+                — {physicalBranchLabel(selectedBranch)}
+              </div>
+            ) : isCombinedHeader ? (
+              <div>
+                <Label>Target physical branch *</Label>
+                <select
+                  value={selectedBranch || ""}
+                  onChange={(event) =>
+                    setValue("branch", event.target.value, {
+                      shouldDirty: true,
+                      shouldTouch: true,
+                      shouldValidate: true,
+                    })
+                  }
+                  className="mt-2 h-11 w-full rounded-md border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="">Select a physical branch</option>
+                  {physicalBranches.map((branch) => (
+                    <option key={branch.id} value={String(branch.id)}>
+                      {branch.branch_code || branch.tax_mode}
+                      {branch.branch_name ? ` - ${branch.branch_name}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+                  Consolidated is a combined view only. Suppliers and racks are
+                  loaded from the physical branch selected here.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-sky-200 bg-white/80 p-4 text-sm text-slate-700 dark:border-sky-500/20 dark:bg-slate-900/60 dark:text-slate-200">
+                {physicalBranchLabel(selectedBranch)}
+                {!selectedBranch ? (
+                  <p className="mt-2 font-semibold text-amber-700 dark:text-amber-300">
+                    Select a physical branch from the top branch filter before
+                    saving this product.
+                  </p>
+                ) : null}
+              </div>
+            )}
+          </div>
         </section>
 
         <section className="overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-950/70 shadow-xl shadow-black/10">
@@ -1215,7 +1326,10 @@ export default function ProductFormPage() {
                     {errors.sku.message}
                   </p>
                 )}
-                <p className="mt-1 text-xs text-slate-500">The SKU is also used for the product barcode and printable label. No separate barcode is needed.</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  The SKU is also used for the product barcode and printable
+                  label. No separate barcode is needed.
+                </p>
               </div>
             </div>
 
@@ -1284,7 +1398,13 @@ export default function ProductFormPage() {
                   disabled={!selectedBranch || suppliersLoading}
                   className="mt-2 h-11 w-full rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 >
-                  <option value="">{!selectedBranch ? "Select branch first" : suppliersLoading ? "Loading branch suppliers…" : "No supplier"}</option>
+                  <option value="">
+                    {!selectedBranch
+                      ? "Select branch first"
+                      : suppliersLoading
+                        ? "Loading branch suppliers…"
+                        : "No supplier"}
+                  </option>
 
                   {suppliers.map((item) => (
                     <option key={item.id} value={String(item.id)}>
@@ -1292,9 +1412,16 @@ export default function ProductFormPage() {
                     </option>
                   ))}
                 </select>
-                <p className="mt-2 min-h-4 text-xs text-slate-500 dark:text-slate-400">Only suppliers from the selected physical branch are listed.</p>
-                {selectedBranch && !suppliersLoading && suppliers.length === 0 ? (
-                  <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">No active suppliers found for this branch. Create a supplier in Purchases → Suppliers first.</p>
+                <p className="mt-2 min-h-4 text-xs text-slate-500 dark:text-slate-400">
+                  Only suppliers from the selected physical branch are listed.
+                </p>
+                {selectedBranch &&
+                !suppliersLoading &&
+                suppliers.length === 0 ? (
+                  <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                    No active suppliers found for this branch. Create a supplier
+                    in Purchases → Suppliers first.
+                  </p>
                 ) : null}
               </div>
             </div>
@@ -1448,7 +1575,10 @@ export default function ProductFormPage() {
                       setVariants([
                         {
                           ...variants[0],
-                          attributes: variantColumns.map((name) => ({ name, value: "" })),
+                          attributes: variantColumns.map((name) => ({
+                            name,
+                            value: "",
+                          })),
                         },
                       ]);
                     }
@@ -1480,9 +1610,7 @@ export default function ProductFormPage() {
           <div className="flex flex-col gap-4 border-b border-slate-200 bg-slate-50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:bg-white/[0.025]">
             <div>
               <h2 className="text-lg font-semibold text-slate-950 dark:text-white">
-                {hasVariants
-                  ? "Product variants"
-                  : "Stock & pricing"}
+                {hasVariants ? "Product variants" : "Stock & pricing"}
               </h2>
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                 {hasVariants
@@ -1505,207 +1633,470 @@ export default function ProductFormPage() {
           </div>
 
           <div className="space-y-4 p-4 sm:p-6">
-              {hasVariants && <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-slate-900/60">
+            {hasVariants && (
+              <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-slate-900/60">
                 <div className="min-w-44 flex-1">
-                  <Label htmlFor="new-variant-attribute">Add attribute column</Label>
-                  <Input id="new-variant-attribute" value={newColumnName}
+                  <Label htmlFor="new-variant-attribute">
+                    Add attribute column
+                  </Label>
+                  <Input
+                    id="new-variant-attribute"
+                    value={newColumnName}
                     onChange={(event) => setNewColumnName(event.target.value)}
-                    onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addVariantColumn(); } }}
-                    placeholder="e.g. Processor" className="mt-1 h-10 bg-white dark:bg-slate-950" />
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        addVariantColumn();
+                      }
+                    }}
+                    placeholder="e.g. Processor"
+                    className="mt-1 h-10 bg-white dark:bg-slate-950"
+                  />
                 </div>
-                <Button type="button" variant="outline" className="h-10" onClick={addVariantColumn}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10"
+                  onClick={addVariantColumn}
+                >
                   <Plus className="mr-1.5 h-4 w-4" /> Add attribute
                 </Button>
-                <p className="w-full text-xs text-slate-500">Every variant stays on a single row. Scroll to the right to access all price fields and actions.</p>
-              </div>}
-              <div className="w-full max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-slate-200 shadow-sm dark:border-white/10" role="region" aria-label={hasVariants ? "Product variants" : "Product stock and pricing"} tabIndex={0}>
-                <table className={`w-full border-separate border-spacing-0 text-left text-sm ${hasVariants ? "min-w-max" : "min-w-full table-fixed"}`}>
-                  <thead className="bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                    <tr>
-                      {hasVariants && <th scope="col" className="sticky left-0 z-10 w-14 border-b bg-slate-100 px-4 py-3 dark:border-white/10 dark:bg-slate-900">#</th>}
-                      {hasVariants && variantColumns.map((name) => (
-                        <th scope="col" key={name} className="w-[190px] min-w-[190px] border-b px-3 py-3 text-left align-middle dark:border-white/10">
+                <p className="w-full text-xs text-slate-500">
+                  Every variant stays on a single row. Scroll to the right to
+                  access all price fields and actions.
+                </p>
+              </div>
+            )}
+            <div
+              className="w-full max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-slate-200 shadow-sm dark:border-white/10"
+              role="region"
+              aria-label={
+                hasVariants ? "Product variants" : "Product stock and pricing"
+              }
+              tabIndex={0}
+            >
+              <table
+                className={`w-full border-separate border-spacing-0 text-left text-sm ${hasVariants ? "min-w-max" : "min-w-full table-fixed"}`}
+              >
+                <thead className="bg-slate-100 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                  <tr>
+                    {hasVariants && (
+                      <th
+                        scope="col"
+                        className="sticky left-0 z-10 w-14 border-b bg-slate-100 px-4 py-3 dark:border-white/10 dark:bg-slate-900"
+                      >
+                        #
+                      </th>
+                    )}
+                    {hasVariants &&
+                      variantColumns.map((name) => (
+                        <th
+                          scope="col"
+                          key={name}
+                          className="w-[190px] min-w-[190px] border-b px-3 py-3 text-left align-middle dark:border-white/10"
+                        >
                           <div className="flex items-center justify-between gap-2">
-                            <span>{name} <span className="text-red-500">*</span></span>
-                            <button type="button" title={`Remove ${name} column`} aria-label={`Remove ${name} column`}
+                            <span>
+                              {name} <span className="text-red-500">*</span>
+                            </span>
+                            <button
+                              type="button"
+                              title={`Remove ${name} column`}
+                              aria-label={`Remove ${name} column`}
                               onClick={() => removeVariantColumn(name)}
-                              className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10">
+                              className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
+                            >
                               <X className="h-3.5 w-3.5" />
                             </button>
                           </div>
                         </th>
                       ))}
-                      <th scope="col" className={`border-b px-3 py-3 dark:border-white/10 ${hasVariants ? "w-[260px] min-w-[260px]" : "w-[280px]"}`}>Rack <span className="text-red-500">*</span></th>
-                      <th scope="col" className={`border-b px-3 py-3 dark:border-white/10 ${hasVariants ? "w-[170px] min-w-[170px]" : "w-[170px]"}`}>{isEdit ? "Current stock" : "Opening stock"}</th>
-                      {hasVariants && [
+                    <th
+                      scope="col"
+                      className={`border-b px-3 py-3 dark:border-white/10 ${hasVariants ? "w-[260px] min-w-[260px]" : "w-[280px]"}`}
+                    >
+                      Rack <span className="text-red-500">*</span>
+                    </th>
+                    <th
+                      scope="col"
+                      className={`border-b px-3 py-3 dark:border-white/10 ${hasVariants ? "w-[170px] min-w-[170px]" : "w-[170px]"}`}
+                    >
+                      {isEdit ? "Current stock" : "Opening stock"}
+                    </th>
+                    {hasVariants &&
+                      [
                         ["Purchase (⃃)", "purchase_price"],
                         ["Retail (⃃)", "retail_price"],
                         ["Wholesale (⃃)", "wholesale_price"],
                         ["Min. selling (⃃)", "minimum_selling_price"],
                       ].map(([label, field]) => (
-                        <th key={field} scope="col" className="w-[175px] min-w-[175px] whitespace-nowrap border-b px-3 py-3 dark:border-white/10">
+                        <th
+                          key={field}
+                          scope="col"
+                          className="w-[175px] min-w-[175px] whitespace-nowrap border-b px-3 py-3 dark:border-white/10"
+                        >
                           {label} <span className="text-red-500">*</span>
                         </th>
                       ))}
-                      {hasVariants && <th scope="col" className="w-[108px] min-w-[108px] border-b px-3 py-3 text-center dark:border-white/10">Actions</th>}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 bg-white dark:divide-white/10 dark:bg-slate-950/70">
-                    {(hasVariants ? variants : [variants[0] || emptyBaseStock]).map((variant, index) => (
-                      <React.Fragment key={variant.id || `new-${index}`}>
+                    {hasVariants && (
+                      <th
+                        scope="col"
+                        className="w-[108px] min-w-[108px] border-b px-3 py-3 text-center dark:border-white/10"
+                      >
+                        Actions
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 bg-white dark:divide-white/10 dark:bg-slate-950/70">
+                  {(hasVariants
+                    ? variants
+                    : [variants[0] || emptyBaseStock]
+                  ).map((variant, index) => (
+                    <React.Fragment key={variant.id || `new-${index}`}>
                       <tr className="align-top hover:bg-slate-50/70 dark:hover:bg-white/[0.025]">
-                        {hasVariants && <td className="sticky left-0 z-10 bg-white px-4 py-3 align-top font-semibold leading-[44px] text-slate-700 dark:bg-slate-950 dark:text-slate-200">{index + 1}</td>}
-                        {hasVariants && variantColumns.map((name) => (
-                          <td key={name} className="w-[190px] min-w-[190px] px-3 py-3 align-top">
-                            <Input aria-label={`Variant ${index + 1} ${name}`} placeholder={name}
-                              value={(variant.attributes || []).find((a) => a.name.toLowerCase() === name.toLowerCase())?.value || ""}
-                              onChange={(event) => setVariantAttributeCell(index, name, event.target.value)}
-                              className="h-11 w-full min-w-0 bg-white dark:bg-slate-900" />
+                        {hasVariants && (
+                          <td className="sticky left-0 z-10 bg-white px-4 py-3 align-top font-semibold leading-[44px] text-slate-700 dark:bg-slate-950 dark:text-slate-200" style={{ verticalAlign: "top" }}>
+                            {index + 1}
                           </td>
-                        ))}
-                        <td className="w-[260px] min-w-[260px] px-3 py-3 align-top">
-                          <div className="flex flex-col gap-2">
-                            <Select value="" disabled={!selectedBranch || racksLoading || Boolean(racksError)}
-                              onValueChange={(value) => toggleVariantRack(index, value)}>
-                              <SelectTrigger
-                                aria-label={hasVariants ? `Variant ${index + 1} racks` : "Product racks"}
-                                className="h-11 w-full min-w-0 bg-white px-3 text-left dark:bg-slate-900"
-                              >
-                                <span className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto whitespace-nowrap text-left [scrollbar-width:thin]">
-                                  {(variant.racks || []).length ? (
-                                    (variant.racks || []).map((rackId) => {
-                                      const rack = racks.find((r) => String(r.id) === String(rackId)) ||
-                                        (product?.variants || []).flatMap((v) => v.rack_details || []).find((r) => String(r.id ?? r.rack_id) === String(rackId)) ||
-                                        (product?.rack_details || []).find((r) => String(r.id ?? r.rack_id) === String(rackId));
-                                      const rackLabel = rack?.rack_code || rack?.rack_name || `#${rackId}`;
-                                      return (
-                                        <span key={rackId} className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-1.5 text-xs font-medium text-blue-800 dark:border-blue-700 dark:bg-blue-950/50 dark:text-blue-200">
-                                          <span>{rackLabel}</span>
-                                          <span
-                                            role="button"
-                                            tabIndex={0}
-                                            aria-label={`Remove rack ${rackLabel}`}
-                                            title={`Remove ${rackLabel}`}
-                                            className="inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 dark:hover:bg-blue-900"
-                                            onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); }}
-                                            onClick={(event) => {
-                                              event.preventDefault();
-                                              event.stopPropagation();
-                                              toggleVariantRack(index, rackId);
-                                            }}
-                                            onKeyDown={(event) => {
-                                              if (event.key === "Enter" || event.key === " ") {
-                                                event.preventDefault();
-                                                event.stopPropagation();
-                                                toggleVariantRack(index, rackId);
-                                              }
-                                            }}
-                                          >
-                                            <X className="h-3.5 w-3.5" aria-hidden="true" />
-                                          </span>
+                        )}
+                        {hasVariants &&
+                          variantColumns.map((name) => (
+                            <td
+                              key={name}
+                              className="w-[190px] min-w-[190px] px-3 py-3 align-top"
+                             style={{ verticalAlign: "top" }}>
+                              <Input
+                                aria-label={`Variant ${index + 1} ${name}`}
+                                placeholder={name}
+                                value={
+                                  (variant.attributes || []).find(
+                                    (a) =>
+                                      a.name.toLowerCase() ===
+                                      name.toLowerCase(),
+                                  )?.value || ""
+                                }
+                                onChange={(event) =>
+                                  setVariantAttributeCell(
+                                    index,
+                                    name,
+                                    event.target.value,
+                                  )
+                                }
+                                className="h-11 w-full min-w-0 bg-white dark:bg-slate-900"
+                              />
+                            </td>
+                          ))}
+                        <td className="w-[260px] min-w-[260px] px-3 py-3 align-top" style={{ verticalAlign: "top" }}>
+                          <div className="flex min-w-0 items-center gap-2">
+                              <div className="min-w-0 flex-1">
+                                <Select
+                                  value=""
+                                  disabled={
+                                    !selectedBranch ||
+                                    racksLoading ||
+                                    Boolean(racksError)
+                                  }
+                                  onValueChange={(value) =>
+                                    toggleVariantRack(index, value)
+                                  }
+                                >
+                                  <SelectTrigger
+                                    aria-label={
+                                      hasVariants
+                                        ? `Variant ${index + 1} racks`
+                                        : "Product racks"
+                                    }
+                                    className="h-11 w-full min-w-0 bg-white px-3 text-left dark:bg-slate-900"
+                                  >
+                                    <span className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto whitespace-nowrap text-left [scrollbar-width:thin]">
+                                      {(variant.racks || []).length ? (
+                                        (variant.racks || []).map((rackId) => {
+                                          const rack =
+                                            racks.find(
+                                              (r) =>
+                                                String(r.id) === String(rackId),
+                                            ) ||
+                                            (product?.variants || [])
+                                              .flatMap(
+                                                (v) => v.rack_details || [],
+                                              )
+                                              .find(
+                                                (r) =>
+                                                  String(r.id ?? r.rack_id) ===
+                                                  String(rackId),
+                                              ) ||
+                                            (product?.rack_details || []).find(
+                                              (r) =>
+                                                String(r.id ?? r.rack_id) ===
+                                                String(rackId),
+                                            );
+                                          const rackLabel =
+                                            rack?.rack_code ||
+                                            rack?.rack_name ||
+                                            `#${rackId}`;
+                                          return (
+                                            <span
+                                              key={rackId}
+                                              className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-1.5 text-xs font-medium text-blue-800 dark:border-blue-700 dark:bg-blue-950/50 dark:text-blue-200"
+                                            >
+                                              <span>{rackLabel}</span>
+                                              <span
+                                                role="button"
+                                                tabIndex={0}
+                                                aria-label={`Remove rack ${rackLabel}`}
+                                                title={`Remove ${rackLabel}`}
+                                                className="inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 dark:hover:bg-blue-900"
+                                                onPointerDown={(event) => {
+                                                  event.preventDefault();
+                                                  event.stopPropagation();
+                                                }}
+                                                onClick={(event) => {
+                                                  event.preventDefault();
+                                                  event.stopPropagation();
+                                                  toggleVariantRack(
+                                                    index,
+                                                    rackId,
+                                                  );
+                                                }}
+                                                onKeyDown={(event) => {
+                                                  if (
+                                                    event.key === "Enter" ||
+                                                    event.key === " "
+                                                  ) {
+                                                    event.preventDefault();
+                                                    event.stopPropagation();
+                                                    toggleVariantRack(
+                                                      index,
+                                                      rackId,
+                                                    );
+                                                  }
+                                                }}
+                                              >
+                                                <X
+                                                  className="h-3.5 w-3.5"
+                                                  aria-hidden="true"
+                                                />
+                                              </span>
+                                            </span>
+                                          );
+                                        })
+                                      ) : (
+                                        <span className="text-sm text-slate-500">
+                                          {racksLoading
+                                            ? "Loading racks..."
+                                            : "Select rack"}
                                         </span>
-                                      );
-                                    })
-                                  ) : (
-                                    <span className="text-sm text-slate-500">{racksLoading ? "Loading racks..." : "Select rack"}</span>
-                                  )}
-                                </span>
-                              </SelectTrigger>
-                              <SelectContent>
-                                {racks.map((rack) => (
-                                  <SelectItem key={rack.id} value={String(rack.id)}>
-                                    {rack.rack_code}{rack.rack_name ? ` — ${rack.rack_name}` : ""}{(variant.racks || []).map(String).includes(String(rack.id)) ? " ✓ Selected" : ""}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <div className="flex min-h-8 flex-wrap items-center justify-between gap-x-2 gap-y-1">
-                              {!(variant.racks || []).length ? <span className="text-xs font-medium text-red-600">Rack required</span> : <span className="text-xs text-slate-500">Use × to remove a rack</span>}
-                              <Button type="button" variant="ghost" size="sm" className="h-8 shrink-0 px-2 text-xs font-medium"
+                                      )}
+                                    </span>
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {racks.map((rack) => (
+                                      <SelectItem
+                                        key={rack.id}
+                                        value={String(rack.id)}
+                                      >
+                                        {rack.rack_code}
+                                        {rack.rack_name
+                                          ? ` — ${rack.rack_name}`
+                                          : ""}
+                                        {(variant.racks || [])
+                                          .map(String)
+                                          .includes(String(rack.id))
+                                          ? " ✓ Selected"
+                                          : ""}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-11 w-11 shrink-0"
+                                title="Create new rack"
+                                aria-label={
+                                  hasVariants
+                                    ? `Create rack for variant ${index + 1}`
+                                    : "Create rack"
+                                }
                                 disabled={!selectedBranch}
                                 onClick={() => {
                                   setRackTargetVariantIndex(index);
                                   setRackForm({ rack_code: "", rack_name: "" });
                                   setShowRackForm(true);
-                                }}>
-                                <Plus className="mr-1 h-3.5 w-3.5" /> New rack
+                                }}
+                              >
+                                <Plus className="h-4 w-4" aria-hidden="true" />
                               </Button>
                             </div>
-                          </div>
                         </td>
-                        <td className="w-[170px] min-w-[170px] px-3 py-3 align-top"><Input type="number" min="0" step="1" readOnly={isEdit}
-                          title={isEdit ? "Use stock adjustments to change existing quantity" : "Opening quantity"}
-                          aria-label={hasVariants ? `Variant ${index + 1} quantity` : "Product opening quantity"} value={variant.initial_stock ?? 0}
-                          onChange={(event) => updateVariant(index, "initial_stock", event.target.value)} className="h-11 w-full min-w-0 bg-white dark:bg-slate-900" /></td>
-                        {hasVariants && [
-                          ["purchase_price", "Purchase price"],
-                          ["retail_price", "Retail price"],
-                          ["wholesale_price", "Wholesale price"],
-                          ["minimum_selling_price", "Minimum selling price"],
-                        ].map(([field, label]) => (
-                          <td key={field} className="w-[175px] min-w-[175px] px-3 py-3 align-top">
-                            <Input type="number" min="0" step="0.01" required
-                              aria-label={`Variant ${index + 1} ${label}`}
-                              value={variant[field] ?? ""}
-                              onChange={(event) => updateVariant(index, field, event.target.value)}
-                              className="h-11 w-full min-w-0 bg-white dark:bg-slate-900" />
+                        <td className="w-[170px] min-w-[170px] px-3 py-3 align-top" style={{ verticalAlign: "top" }}>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="1"
+                            readOnly={isEdit}
+                            title={
+                              isEdit
+                                ? "Use stock adjustments to change existing quantity"
+                                : "Opening quantity"
+                            }
+                            aria-label={
+                              hasVariants
+                                ? `Variant ${index + 1} quantity`
+                                : "Product opening quantity"
+                            }
+                            value={variant.initial_stock ?? 0}
+                            onChange={(event) =>
+                              updateVariant(
+                                index,
+                                "initial_stock",
+                                event.target.value,
+                              )
+                            }
+                            className="h-11 w-full min-w-0 bg-white dark:bg-slate-900"
+                          />
+                        </td>
+                        {hasVariants &&
+                          [
+                            ["purchase_price", "Purchase price"],
+                            ["retail_price", "Retail price"],
+                            ["wholesale_price", "Wholesale price"],
+                            ["minimum_selling_price", "Minimum selling price"],
+                          ].map(([field, label]) => (
+                            <td
+                              key={field}
+                              className="w-[175px] min-w-[175px] px-3 py-3 align-top"
+                             style={{ verticalAlign: "top" }}>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                required
+                                aria-label={`Variant ${index + 1} ${label}`}
+                                value={variant[field] ?? ""}
+                                onChange={(event) =>
+                                  updateVariant(
+                                    index,
+                                    field,
+                                    event.target.value,
+                                  )
+                                }
+                                className="h-11 w-full min-w-0 bg-white dark:bg-slate-900"
+                              />
+                            </td>
+                          ))}
+                        {hasVariants && (
+                          <td className="w-[108px] min-w-[108px] px-2 py-3 align-top" style={{ verticalAlign: "top" }}>
+                            <div className="flex h-11 items-center justify-center gap-1">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                title="Duplicate variant"
+                                aria-label={`Duplicate variant ${index + 1}`}
+                                onClick={() => duplicateVariant(index)}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                title="Remove variant"
+                                aria-label={`Remove variant ${index + 1}`}
+                                disabled={variants.length === 1}
+                                onClick={() => removeVariant(index)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </td>
-                        ))}
-                        {hasVariants && <td className="w-[108px] min-w-[108px] px-2 py-3 align-top">
-                          <div className="flex h-11 items-center justify-center gap-1">
-                            <Button type="button" variant="ghost" size="icon" title="Duplicate variant" aria-label={`Duplicate variant ${index + 1}`} onClick={() => duplicateVariant(index)}><Copy className="h-4 w-4" /></Button>
-                            <Button type="button" variant="ghost" size="icon" title="Remove variant" aria-label={`Remove variant ${index + 1}`}
-                              disabled={variants.length === 1} onClick={() => removeVariant(index)} className="text-red-600"><Trash2 className="h-4 w-4" /></Button>
-                          </div>
-                        </td>}
+                        )}
                       </tr>
-                      {!hasVariants && <tr className="bg-slate-50/80 dark:bg-slate-900/40">
-                        <td colSpan={2} className="border-t border-slate-100 px-4 pb-4 pt-3 dark:border-white/10">
-                          <div className="mb-2 flex flex-wrap items-center gap-2">
-                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                              {hasVariants ? `Variant ${index + 1} pricing` : "Product pricing"} (⃃)
-                            </span>
-                            <span className="text-xs text-slate-500">Four required prices · zero is allowed</span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                            {[
-                              ["purchase_price", "Purchase price"],
-                              ["retail_price", "Retail price"],
-                              ["wholesale_price", "Wholesale price"],
-                              ["minimum_selling_price", "Minimum selling"],
-                            ].map(([field, label]) => (
-                              <label key={field} className="block min-w-0 space-y-1.5">
-                                <span className="block text-xs font-medium text-slate-700 dark:text-slate-200">
-                                  {label} <span className="text-red-500">*</span>
-                                </span>
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  required
-                                  aria-label={hasVariants ? `Variant ${index + 1} ${label}` : `Product ${label}`}
-                                  value={variant[field] ?? ""}
-                                  onChange={(event) => updateVariant(index, field, event.target.value)}
-                                  className="h-11 w-full min-w-0 bg-white dark:bg-slate-900"
-                                />
-                              </label>
-                            ))}
-                          </div>
-                        </td>
-                      </tr>}
-                      </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
+                      {!hasVariants && (
+                        <tr className="bg-slate-50/80 dark:bg-slate-900/40">
+                          <td
+                            colSpan={2}
+                            className="border-t border-slate-100 px-4 pb-4 pt-3 dark:border-white/10"
+                          >
+                            <div className="mb-2 flex flex-wrap items-center gap-2">
+                              <span className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                                {hasVariants
+                                  ? `Variant ${index + 1} pricing`
+                                  : "Product pricing"}{" "}
+                                (⃃)
+                              </span>
+                              <span className="text-xs text-slate-500">
+                                Four required prices · zero is allowed
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                              {[
+                                ["purchase_price", "Purchase price"],
+                                ["retail_price", "Retail price"],
+                                ["wholesale_price", "Wholesale price"],
+                                ["minimum_selling_price", "Minimum selling"],
+                              ].map(([field, label]) => (
+                                <label
+                                  key={field}
+                                  className="block min-w-0 space-y-1.5"
+                                >
+                                  <span className="block text-xs font-medium text-slate-700 dark:text-slate-200">
+                                    {label}{" "}
+                                    <span className="text-red-500">*</span>
+                                  </span>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    required
+                                    aria-label={
+                                      hasVariants
+                                        ? `Variant ${index + 1} ${label}`
+                                        : `Product ${label}`
+                                    }
+                                    value={variant[field] ?? ""}
+                                    onChange={(event) =>
+                                      updateVariant(
+                                        index,
+                                        field,
+                                        event.target.value,
+                                      )
+                                    }
+                                    className="h-11 w-full min-w-0 bg-white dark:bg-slate-900"
+                                  />
+                                </label>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {hasVariants ? (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs text-slate-500">
+                  {variants.length} variant{variants.length !== 1 ? "s" : ""} ·
+                  Scroll horizontally to view all columns · Rack and four prices
+                  are required for every row.
+                </span>
+                <Button type="button" variant="outline" onClick={addVariant}>
+                  <Plus className="mr-2 h-4 w-4" /> Add variant row
+                </Button>
               </div>
-              {hasVariants ? (
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs text-slate-500">{variants.length} variant{variants.length !== 1 ? "s" : ""} · Scroll horizontally to view all columns · Rack and four prices are required for every row.</span>
-                  <Button type="button" variant="outline" onClick={addVariant}><Plus className="mr-2 h-4 w-4" /> Add variant row</Button>
-                </div>
-              ) : (
-                <p className="text-xs text-slate-500">All four prices and at least one rack are required. For existing products, update quantities through Stock Adjustments.</p>
-              )}
+            ) : (
+              <p className="text-xs text-slate-500">
+                All four prices and at least one rack are required. For existing
+                products, update quantities through Stock Adjustments.
+              </p>
+            )}
           </div>
         </section>
 
