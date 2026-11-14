@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import {
   Banknote,
   Download,
@@ -150,6 +151,9 @@ export default function PayrollPage() {
   const [payableDays, setPayableDays] = React.useState({});
   const [selectedPayrollIds, setSelectedPayrollIds] = React.useState([]);
   const [deletingPayrollIds, setDeletingPayrollIds] = React.useState([]);
+  const [payrollDeleteDialog, setPayrollDeleteDialog] = React.useState(null);
+  const [deleteUnreconciledAcknowledged, setDeleteUnreconciledAcknowledged] = React.useState(false);
+  const [payrollDeleteErrors, setPayrollDeleteErrors] = React.useState([]);
 
   const [advanceForm, setAdvanceForm] = React.useState({
     ...emptyAdvance,
@@ -885,73 +889,114 @@ export default function PayrollPage() {
     URL.revokeObjectURL(url);
   };
 
-  // Match the server's protected payroll delete rules. The server makes the
-  // final authorization/financial-integrity decision for every DELETE request.
-  const canDeletePayroll = (row) =>
-    !isCombined &&
-    ["PENDING", "PROCESSING", "FAILED", "CANCELLED"].includes(
-      String(row.status || "").toUpperCase(),
-    ) &&
-    !row.paid_at &&
-    numberValue(row.loan_deduction) === 0 &&
-    numberValue(row.advance_deduction) === 0;
+  // The backend authorizes deletion and reverses identifiable HR recoveries.
+  // Do not pre-disable paid payroll here: an actual DELETE request produces
+  // a specific error if an advance allocation is unsafe to reverse.
+  const canDeletePayroll = () => true;
+
+  // HRMS payroll is owned by a physical branch even in Consolidated.
+  // Resolve using the row's branch ID; never infer the owner from current UI selection.
+  const payrollSource = (row) => {
+    const branch = branches.find((item) =>
+      String(item.id) === String(row.branch?.id ?? row.branch_id ?? row.branch ?? "")
+    );
+    return {
+      code: branch?.branch_code || row.source_branch_code || row.branch_code || "",
+      name: row.branch_name || branch?.branch_name || "",
+    };
+  };
 
   const payrollRows = Array.isArray(data.results) ? data.results : [];
-  const selectablePayrollRows = payrollRows.filter(canDeletePayroll);
-  const selectablePayrollIds = selectablePayrollRows.map((row) => String(row.id));
+  // Selection is independent of deletion permission: Paid entries can be
+  // selected for review, but remain protected against destructive requests.
+  const visiblePayrollIds = payrollRows.map((row) => String(row.id));
   const selectedVisiblePayrollIds = selectedPayrollIds.filter((id) =>
-    selectablePayrollIds.includes(id),
+    visiblePayrollIds.includes(id),
   );
   const allVisibleSelected =
-    selectablePayrollIds.length > 0 &&
-    selectablePayrollIds.every((id) => selectedVisiblePayrollIds.includes(id));
+    visiblePayrollIds.length > 0 &&
+    visiblePayrollIds.every((id) => selectedVisiblePayrollIds.includes(id));
+  const selectedPayrollRows = payrollRows.filter((row) =>
+    selectedVisiblePayrollIds.includes(String(row.id)),
+  );
+  const protectedSelectionCount = selectedPayrollRows.filter(
+    (row) => !canDeletePayroll(row),
+  ).length;
 
-  const deletePayrollEntries = async (rows) => {
+  const togglePageSelection = (checked) => {
+    setSelectedPayrollIds(checked ? visiblePayrollIds : []);
+  };
+
+  const deletePayrollEntries = (rows) => {
     if (deletingPayrollIds.length) return;
-    if (isCombined) {
-      toast.error("Select a physical branch before deleting payroll.");
-      return;
-    }
     const targets = rows.filter(canDeletePayroll);
     if (!targets.length) {
-      toast.error("Only unfinalized payroll without recoveries can be deleted.");
+      toast.error("Select a payroll entry first.");
       return;
     }
-    const employeeSummary = targets.length === 1
-      ? `${targets[0].employee_name || "Employee"} (${targets[0].period || ""})`
-      : `${targets.length} selected payroll entries`;
-    if (!window.confirm(
-      `Permanently delete ${employeeSummary}?\n\nPaid payroll and records with financial recoveries cannot be deleted. This action cannot be undone.`,
-    )) return;
+    if (isCombined && targets.some((row) => !payrollSource(row).code)) {
+      toast.error("The source branch is missing for a selected payroll.");
+      return;
+    }
+    setPayrollDeleteErrors([]);
+    setDeleteUnreconciledAcknowledged(false);
+    setPayrollDeleteDialog({ rows: targets, mode: "confirm" });
+  };
 
-    const ids = targets.map((row) => String(row.id));
-    setDeletingPayrollIds(ids);
+  const confirmPayrollDelete = async () => {
+    if (!payrollDeleteDialog || deletingPayrollIds.length) return;
+    const rows = payrollDeleteDialog.rows;
+    const ids = rows.map((row) => String(row.id));
     const removedIds = [];
     const failures = [];
+    let reconciliationNeeded = false;
+    setDeletingPayrollIds(ids);
     try {
-      // Existing API exposes per-entry DELETE, not an atomic bulk-delete endpoint.
-      for (const row of targets) {
+      for (const row of rows) {
         try {
+          const params = isCombined
+            ? { source_branch: row.branch?.id ?? row.branch_id ?? row.branch ?? payrollSource(row).code }
+            : {};
+          if (payrollDeleteDialog.mode === "reconcile" && deleteUnreconciledAcknowledged) {
+            params.unreconciled_override = "CONFIRM_UNTRACKED_LOAN";
+          }
           await api.delete(`/hrms/payroll/${row.id}/`, {
+            params,
             skipGlobalErrorToast: true,
           });
           removedIds.push(String(row.id));
         } catch (error) {
+          const data = error?.response?.data || {};
+          if (data.code === "UNRECONCILED_LOAN_RECOVERY") {
+            reconciliationNeeded = true;
+          }
           const details = getApiErrorDetails(error);
-          failures.push(`${row.employee_name || row.id}: ${details.summary || details.title || error?.response?.data?.detail || "Delete rejected"}`);
+          failures.push({
+            row,
+            code: data.code || "",
+            message: data.detail || details.summary || details.title || "Delete rejected",
+            planned: data.payroll_loan_deduction,
+            recorded: data.recorded_repayments,
+            canOverride: Boolean(data.override_available),
+          });
         }
       }
-      setSelectedPayrollIds((current) =>
-        current.filter((id) => !removedIds.includes(id)),
-      );
+      setSelectedPayrollIds((current) => current.filter((id) => !removedIds.includes(id)));
       if (removedIds.length) {
         await refreshAll();
-        toast.success(`${removedIds.length} payroll entr${removedIds.length === 1 ? "y" : "ies"} deleted.`);
+        toast.success(`${removedIds.length} payroll record(s) deleted.`);
       }
       if (failures.length) {
-        toast.error(`${failures.length} payroll entr${failures.length === 1 ? "y" : "ies"} could not be deleted.`, {
-          description: failures.slice(0, 3).join(" | "),
+        setPayrollDeleteErrors(failures);
+        const eligible = failures.filter((item) => item.code === "UNRECONCILED_LOAN_RECOVERY" && item.canOverride);
+        setPayrollDeleteDialog({
+          rows: eligible.map((item) => item.row),
+          mode: eligible.length && reconciliationNeeded ? "reconcile" : "errors",
         });
+        setDeleteUnreconciledAcknowledged(false);
+      } else {
+        setPayrollDeleteDialog(null);
+        setPayrollDeleteErrors([]);
       }
     } finally {
       setDeletingPayrollIds([]);
@@ -962,167 +1007,6 @@ export default function PayrollPage() {
   React.useEffect(() => {
     setSelectedPayrollIds([]);
   }, [branchId, isCombined, historyPeriodMode, historyPeriod, statusFilter, q, page]);
-
-  const previousSalaryColumns = [
-    {
-      key: "select",
-      header: (
-        <input
-          type="checkbox"
-          aria-label="Select all deletable payroll on this page"
-          checked={allVisibleSelected}
-          disabled={isCombined || !selectablePayrollIds.length || deletingPayrollIds.length > 0}
-          onChange={(event) =>
-            setSelectedPayrollIds(event.target.checked ? selectablePayrollIds : [])
-          }
-          className="h-4 w-4 cursor-pointer accent-blue-600"
-        />
-      ),
-      cell: (row) => (
-        <input
-          type="checkbox"
-          aria-label={`Select payroll for ${row.employee_name || row.id}`}
-          title={canDeletePayroll(row) ? "Select payroll" : "Paid or financially linked payroll cannot be deleted"}
-          checked={selectedPayrollIds.includes(String(row.id))}
-          disabled={!canDeletePayroll(row) || deletingPayrollIds.length > 0}
-          onChange={(event) =>
-            setSelectedPayrollIds((current) =>
-              event.target.checked
-                ? [...new Set([...current, String(row.id)])]
-                : current.filter((id) => id !== String(row.id)),
-            )
-          }
-          className="h-4 w-4 cursor-pointer accent-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
-        />
-      ),
-    },
-    {
-      key: "employee",
-      header: "Employee",
-      cell: (row) => (
-        <div>
-          <p className="font-medium">{row.employee_name}</p>
-          <p className="text-xs text-muted-foreground">{row.employee_code}</p>
-        </div>
-      ),
-    },
-    { key: "period", header: "Period" },
-    { key: "payroll_date", header: "Payroll Date" },
-    {
-      key: "gross_salary",
-      header: "Gross Salary",
-      align: "right",
-      cell: (row) => <CurrencyText value={row.gross_salary} />,
-    },
-    {
-      key: "advance_deduction",
-      header: "Advance Deduction",
-      align: "right",
-      cell: (row) => (
-        <span className="text-amber-600">
-          <CurrencyText value={row.advance_deduction} />
-        </span>
-      ),
-    },
-    {
-      key: "loan_deduction",
-      header: "Loan Deduction",
-      align: "right",
-      cell: (row) => (
-        <span className="text-orange-600">
-          <CurrencyText value={row.loan_deduction || 0} />
-        </span>
-      ),
-    },
-    {
-      key: "net_salary",
-      header: "Remaining Payroll",
-      align: "right",
-      cell: (row) => (
-        <span className="font-semibold">
-          <CurrencyText value={row.balance_payable ?? row.net_salary} />
-        </span>
-      ),
-    },
-    { key: "paid_by", header: "Paid By" },
-    {
-      key: "status",
-      header: "Status",
-      cell: (row) => (
-        <div>
-          <StatusBadge status={row.status} />
-
-          {String(row.status || "").toUpperCase() === "PAID" && row.paid_at ? (
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Paid {String(row.paid_at).slice(0, 10)}
-            </p>
-          ) : null}
-        </div>
-      ),
-    },
-    {
-      key: "actions",
-      header: "Actions",
-      align: "right",
-      cell: (row) => (
-        <div className="flex flex-wrap justify-end gap-2">
-          {["PENDING", "PROCESSING"].includes(
-            String(row.status || "").toUpperCase(),
-          ) ? (
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => openMarkPaidModal(row)}
-              className="bg-emerald-600 text-white hover:bg-emerald-700"
-            >
-              <Banknote className="mr-2 h-4 w-4" />
-              Mark Paid
-            </Button>
-          ) : null}
-
-          {canDeletePayroll(row) ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={deletingPayrollIds.length > 0}
-              onClick={() => deletePayrollEntries([row])}
-              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </Button>
-          ) : null}
-
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => openPayrollEdit(row)}
-          >
-            <Pencil className="mr-2 h-4 w-4" />
-            Edit
-          </Button>
-
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() =>
-              window.open(
-                `/hrms/payroll/${row.id}/payslip`,
-                "_blank",
-                "noopener,noreferrer",
-              )
-            }
-          >
-            <Eye className="mr-2 h-4 w-4" />
-            Payslip
-          </Button>
-        </div>
-      ),
-    },
-  ];
 
   const advanceColumns = [
     {
@@ -1451,22 +1335,26 @@ export default function PayrollPage() {
               </Select>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                <label className="inline-flex items-center gap-2">
+            <div className="flex flex-col gap-3 border-b bg-slate-50/65 px-4 py-3 dark:bg-slate-900/30 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                <label className="inline-flex cursor-pointer select-none items-center gap-2 font-medium text-foreground">
                   <input
                     type="checkbox"
-                    aria-label="Select all deletable payroll on this page"
+                    aria-label="Select all payroll entries on this page"
                     checked={allVisibleSelected}
-                    disabled={isCombined || !selectablePayrollIds.length || deletingPayrollIds.length > 0}
-                    onChange={(event) => setSelectedPayrollIds(event.target.checked ? selectablePayrollIds : [])}
-                    className="h-4 w-4 accent-blue-600"
+                    disabled={!visiblePayrollIds.length || deletingPayrollIds.length > 0}
+                    onChange={(event) => togglePageSelection(event.target.checked)}
+                    className="h-[18px] w-[18px] cursor-pointer rounded border-slate-300 accent-blue-600"
                   />
-                  Select all on page
+                  <span>Select all on page</span>
                 </label>
-                <span>{selectedVisiblePayrollIds.length} selected</span>
-                {isCombined ? (
-                  <span>Select an individual branch to delete payroll.</span>
+                <span className="rounded-full border bg-background px-2.5 py-1 text-xs font-semibold tabular-nums text-muted-foreground">
+                  {selectedVisiblePayrollIds.length} selected
+                </span>
+                {protectedSelectionCount > 0 ? (
+                  <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                    {protectedSelectionCount} protected from deletion
+                  </span>
                 ) : null}
               </div>
               <Button
@@ -1474,30 +1362,134 @@ export default function PayrollPage() {
                 size="sm"
                 variant="outline"
                 disabled={!selectedVisiblePayrollIds.length || deletingPayrollIds.length > 0}
-                onClick={() => deletePayrollEntries(
-                  selectablePayrollRows.filter((row) => selectedVisiblePayrollIds.includes(String(row.id))),
-                )}
-                className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={() => deletePayrollEntries(selectedPayrollRows)}
+                className="h-9 shrink-0 gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
               >
-                <Trash2 className="mr-2 h-4 w-4" />
+                <Trash2 className="h-4 w-4" />
                 {deletingPayrollIds.length ? "Deleting..." : `Delete Selected (${selectedVisiblePayrollIds.length})`}
               </Button>
             </div>
 
-            <DataTable
-              columns={previousSalaryColumns}
-              data={data.results || []}
-              isLoading={query.isLoading || query.isFetching}
-              page={page}
-              pageSize={PAGE_SIZE}
-              total={Number(data.count || 0)}
-              onPageChange={(nextPage) => {
-                if (nextPage < 1 || nextPage > totalPayrollPages) {
-                  return;
-                }
-                setPage(nextPage);
-              }}
-            />
+            {/* Dedicated payroll table: fixed column sizing prevents shared DataTable
+                sort styles and action buttons from collapsing the employee column. */}
+            <div className="w-full overflow-x-auto" role="region" aria-label="Payroll salary history" tabIndex={0}>
+              <table className={`w-full ${isCombined ? "min-w-[1480px]" : "min-w-[1300px]"} table-fixed border-collapse text-[13px]`}>
+                <colgroup>
+                  <col style={{ width: "42px" }} />
+                  <col style={{ width: "190px" }} />
+                  {isCombined ? <col style={{ width: "150px" }} /> : null}
+                  <col style={{ width: "82px" }} />
+                  <col style={{ width: "106px" }} />
+                  <col style={{ width: "112px" }} />
+                  <col style={{ width: "115px" }} />
+                  <col style={{ width: "113px" }} />
+                  <col style={{ width: "124px" }} />
+                  <col style={{ width: "110px" }} />
+                  <col style={{ width: "105px" }} />
+                  <col style={{ width: "190px" }} />
+                </colgroup>
+                <thead className="border-b bg-slate-50/90 text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
+                  <tr>
+                    <th scope="col" className="px-3 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 cursor-pointer accent-blue-600"
+                        aria-label="Select all payroll records on page"
+                        checked={allVisibleSelected}
+                        disabled={!visiblePayrollIds.length || Boolean(deletingPayrollIds.length)}
+                        onChange={(event) => togglePageSelection(event.target.checked)}
+                      />
+                    </th>
+                    <th scope="col" className="px-3 py-3 text-left">Employee</th>
+                    {isCombined ? <th scope="col" className="px-3 py-3 text-left">Branch</th> : null}
+                    <th scope="col" className="px-2 py-3 text-left">Period</th>
+                    <th scope="col" className="px-2 py-3 text-left">Payroll date</th>
+                    <th scope="col" className="px-2 py-3 text-right">Gross salary</th>
+                    <th scope="col" className="px-2 py-3 text-right">Advance</th>
+                    <th scope="col" className="px-2 py-3 text-right">Loan</th>
+                    <th scope="col" className="px-2 py-3 text-right">Remaining</th>
+                    <th scope="col" className="px-2 py-3 text-left">Paid by</th>
+                    <th scope="col" className="px-2 py-3 text-center">Status</th>
+                    <th scope="col" className="px-3 py-3 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200/80 dark:divide-slate-700/50">
+                  {query.isLoading || query.isFetching ? (
+                    <tr><td colSpan={isCombined ? 12 : 11} className="px-4 py-10 text-center text-muted-foreground">Loading payroll records...</td></tr>
+                  ) : payrollRows.length === 0 ? (
+                    <tr><td colSpan={isCombined ? 12 : 11} className="px-4 py-10 text-center text-muted-foreground">No payroll records found.</td></tr>
+                  ) : payrollRows.map((row) => (
+                    <tr key={row.id} className={`align-middle transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-900/40 ${selectedPayrollIds.includes(String(row.id)) ? "bg-blue-50/60 dark:bg-blue-950/20" : ""}`}>
+                      <td className="px-3 py-4 text-center">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 cursor-pointer accent-blue-600"
+                          aria-label={`Select payroll for ${row.employee_name || row.id}`}
+                          checked={selectedPayrollIds.includes(String(row.id))}
+                          disabled={Boolean(deletingPayrollIds.length)}
+                          onChange={(event) => setSelectedPayrollIds((current) =>
+                            event.target.checked
+                              ? [...new Set([...current, String(row.id)])]
+                              : current.filter((id) => id !== String(row.id))
+                          )}
+                        />
+                      </td>
+                      <td className="px-3 py-4 text-left">
+                        <div className="min-w-0 font-semibold leading-5 text-foreground [overflow-wrap:anywhere]">{row.employee_name || "—"}</div>
+                        <div className="mt-0.5 text-xs text-muted-foreground">{row.employee_code || ""}{!isCombined && row.branch_name ? ` · ${row.branch_name}` : ""}</div>
+                      </td>
+                      {isCombined ? (
+                        <td className="px-3 py-4 text-left">
+                          <div className="font-semibold text-foreground">{payrollSource(row).code || "—"}</div>
+                          <div className="mt-0.5 text-xs leading-4 text-muted-foreground [overflow-wrap:anywhere]">{payrollSource(row).name}</div>
+                        </td>
+                      ) : null}
+                      <td className="px-2 py-4 whitespace-nowrap tabular-nums">{row.period || "—"}</td>
+                      <td className="px-2 py-4 whitespace-nowrap tabular-nums">{row.payroll_date || "—"}</td>
+                      <td className="px-2 py-4 text-right font-medium tabular-nums whitespace-nowrap"><CurrencyText value={row.gross_salary || 0} /></td>
+                      <td className="px-2 py-4 text-right tabular-nums whitespace-nowrap text-amber-600"><CurrencyText value={row.advance_deduction || 0} /></td>
+                      <td className="px-2 py-4 text-right tabular-nums whitespace-nowrap text-orange-600"><CurrencyText value={row.loan_deduction || 0} /></td>
+                      <td className="px-2 py-4 text-right font-semibold tabular-nums whitespace-nowrap"><CurrencyText value={row.balance_payable ?? row.net_salary ?? 0} /></td>
+                      <td className="px-2 py-4 text-left [overflow-wrap:anywhere]">{row.paid_by || "—"}</td>
+                      <td className="px-2 py-4 text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <StatusBadge status={row.status} />
+                          {String(row.status || "").toUpperCase() === "PAID" && row.paid_at ? (
+                            <span className="text-[10px] text-muted-foreground">{String(row.paid_at).slice(0, 10)}</span>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {["PENDING", "PROCESSING"].includes(String(row.status || "").toUpperCase()) ? (
+                            <Button type="button" size="sm" onClick={() => openMarkPaidModal(row)} className="col-span-2 h-8 rounded-md bg-emerald-600 px-2 text-[11px] text-white hover:bg-emerald-700">
+                              <Banknote className="mr-1 h-3.5 w-3.5" /> Mark Paid
+                            </Button>
+                          ) : null}
+                          <Button type="button" size="sm" variant="outline" onClick={() => openPayrollEdit(row)} className="h-8 min-w-0 rounded-md px-1.5 text-[11px]">
+                            <Pencil className="mr-1 h-3 w-3 shrink-0" /> Edit
+                          </Button>
+                          <Button type="button" size="sm" variant="outline" onClick={() => deletePayrollEntries([row])} disabled={Boolean(deletingPayrollIds.length)} title="Delete payroll (server validates recovery reversals)" className="h-8 min-w-0 rounded-md border-red-200 px-1.5 text-[11px] text-red-600 hover:bg-red-50 hover:text-red-700">
+                            <Trash2 className="mr-1 h-3 w-3 shrink-0" /> Delete
+                          </Button>
+                          <Button type="button" size="sm" variant="outline" onClick={() => window.open(`/hrms/payroll/${row.id}/payslip`, "_blank", "noopener,noreferrer")} className="col-span-2 h-8 rounded-md px-1.5 text-[11px]">
+                            <Eye className="mr-1 h-3.5 w-3.5" /> Payslip
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex flex-col gap-2 border-t px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+              <span>Showing {data.count ? (page - 1) * PAGE_SIZE + 1 : 0}–{Math.min(page * PAGE_SIZE, Number(data.count || 0))} of {Number(data.count || 0)} · {PAGE_SIZE} entries per page</span>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" size="sm" className="h-8" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button>
+                <span className="min-w-14 text-center font-medium tabular-nums">{page} / {totalPayrollPages}</span>
+                <Button type="button" variant="outline" size="sm" className="h-8" disabled={page >= totalPayrollPages} onClick={() => setPage(page + 1)}>Next</Button>
+              </div>
+            </div>
           </section>
         </TabsContent>
 
@@ -1602,92 +1594,154 @@ export default function PayrollPage() {
         </TabsContent>
       </Tabs>
 
-      {payingPayroll && (
-        <div className="hrms-modal-backdrop fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/65 p-4">
-          <div className="w-full max-w-lg overflow-hidden rounded-2xl border bg-background shadow-2xl hrms-modal-panel">
-            <div className="flex items-start justify-between border-b px-6 py-5">
+      {payrollDeleteDialog && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-4" role="presentation">
+          <div role="alertdialog" aria-modal="true" aria-labelledby="payroll-delete-title" className="flex w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-background shadow-2xl dark:border-slate-700">
+            <div className="flex items-start justify-between gap-4 border-b px-6 py-5">
               <div>
-                <h2 className="text-xl font-semibold">Mark Payroll as Paid</h2>
-
+                <h2 id="payroll-delete-title" className="text-lg font-semibold text-foreground">
+                  {payrollDeleteDialog.mode === "reconcile" ? "Unreconciled loan recovery" : payrollDeleteDialog.mode === "errors" ? "Payroll deletion blocked" : "Delete payroll records?"}
+                </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Confirm the salary payment before finalizing this payroll.
+                  {payrollDeleteDialog.mode === "confirm"
+                    ? `You are about to permanently delete ${payrollDeleteDialog.rows.length} payroll record(s).`
+                    : "Review the affected payroll records and loan-recovery amounts."}
                 </p>
               </div>
+              <Button type="button" size="icon" variant="ghost" aria-label="Close" onClick={() => setPayrollDeleteDialog(null)} disabled={Boolean(deletingPayrollIds.length)}><X className="h-4 w-4" /></Button>
+            </div>
+            <div className="max-h-[55vh] space-y-3 overflow-y-auto px-6 py-5 text-sm">
+              {payrollDeleteDialog.mode === "confirm" ? (
+                <div className="space-y-2">
+                  {payrollDeleteDialog.rows.slice(0, 6).map((row) => (
+                    <div key={row.id} className="flex items-center justify-between gap-4 rounded-lg border px-3 py-2">
+                      <span className="min-w-0 truncate font-medium">{row.employee_name || "Employee"}</span>
+                      <span className="shrink-0 text-muted-foreground">{row.period || "—"}</span>
+                    </div>
+                  ))}
+                  {payrollDeleteDialog.rows.length > 6 && <p className="text-muted-foreground">And {payrollDeleteDialog.rows.length - 6} more.</p>}
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">Recorded loan repayments will be reversed. Any unrecorded deductions require separate reconciliation.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {payrollDeleteErrors.map((item, index) => (
+                    <div key={`${item.row.id}-${index}`} className="rounded-lg border p-3">
+                      <p className="font-semibold">{item.row.employee_name || item.row.id} · {item.row.period || "—"}</p>
+                      <p className="mt-1 text-muted-foreground">{item.message}</p>
+                      {item.code === "UNRECONCILED_LOAN_RECOVERY" && (
+                        <p className="mt-2 font-medium tabular-nums">Payroll deduction: {item.planned} · Recorded recovery: {item.recorded}</p>
+                      )}
+                    </div>
+                  ))}
+                  {payrollDeleteDialog.mode === "reconcile" && (
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-950 dark:bg-amber-950/30 dark:text-amber-200">
+                      <input type="checkbox" checked={deleteUnreconciledAcknowledged} onChange={(event) => setDeleteUnreconciledAcknowledged(event.target.checked)} className="mt-1 h-4 w-4" />
+                      <span>I understand that unrecorded loan recoveries cannot be reversed automatically. Deletion will reverse only recorded repayments; loan balances may require manual reconciliation. I authorize deleting the listed payroll records.</span>
+                    </label>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 border-t bg-muted/20 px-6 py-4">
+              <Button type="button" variant="outline" onClick={() => setPayrollDeleteDialog(null)} disabled={Boolean(deletingPayrollIds.length)}>{payrollDeleteDialog.mode === "errors" ? "Close" : "Cancel"}</Button>
+              {payrollDeleteDialog.mode !== "errors" && (
+                <Button type="button" onClick={confirmPayrollDelete}
+                  disabled={Boolean(deletingPayrollIds.length) || (payrollDeleteDialog.mode === "reconcile" && !deleteUnreconciledAcknowledged)}
+                  className="bg-red-600 text-white hover:bg-red-700">
+                  {deletingPayrollIds.length ? "Deleting..." : payrollDeleteDialog.mode === "reconcile" ? "Confirm Unreconciled Delete" : "Delete Payroll"}
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
 
+      {payingPayroll && createPortal(
+        <div
+          role="presentation"
+          className="fixed inset-0 flex items-center justify-center overflow-y-auto bg-slate-950/60 px-4 py-6 backdrop-blur-[3px] sm:px-6"
+          style={{ zIndex: 9999, position: "fixed", inset: 0 }}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !markPayrollPaidMutation.isPending) {
+              setPayingPayroll(null);
+              setPayrollPaidBy("");
+            }
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="payroll-payment-title"
+            className="my-auto flex w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-[0_24px_80px_rgba(15,23,42,0.24)] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            style={{ maxHeight: "calc(100dvh - 32px)" }}
+          >
+            <header className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 dark:border-slate-800 sm:px-6 sm:py-5">
+              <div className="min-w-0">
+                <div className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                  <Banknote className="h-4 w-4" /> Payroll payment
+                </div>
+                <h2 id="payroll-payment-title" className="text-xl font-semibold tracking-tight">
+                  Confirm salary payment
+                </h2>
+                <p className="mt-1 text-sm leading-5 text-slate-500 dark:text-slate-400">
+                  Review this payroll before marking it as paid.
+                </p>
+              </div>
               <Button
                 type="button"
                 size="icon"
                 variant="ghost"
-                onClick={() => {
-                  setPayingPayroll(null);
-                  setPayrollPaidBy("");
-                }}
+                aria-label="Close payment dialog"
+                className="h-9 w-9 shrink-0 rounded-lg"
+                onClick={() => { setPayingPayroll(null); setPayrollPaidBy(""); }}
                 disabled={markPayrollPaidMutation.isPending}
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
+              ><X className="h-4 w-4" /></Button>
+            </header>
 
-            <div className="space-y-5 p-6">
-              <div className="rounded-xl border bg-muted/25 p-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Employee</p>
-                    <p className="mt-1 font-semibold">
-                      {payingPayroll.employee_name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {payingPayroll.employee_code}
-                    </p>
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/60">
+                <div className="flex flex-wrap items-start justify-between gap-4 px-4 py-4 sm:px-5">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Employee</p>
+                    <p className="mt-1 break-words text-sm font-semibold leading-5">{payingPayroll.employee_name}</p>
+                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{payingPayroll.employee_code}</p>
                   </div>
-
-                  <div className="sm:text-right">
-                    <p className="text-xs text-muted-foreground">Net Salary</p>
-                    <div className="mt-1 text-lg font-bold text-emerald-600">
-                      <CurrencyText
-                        value={
-                          payingPayroll.balance_payable ??
-                          payingPayroll.net_salary ??
-                          0
-                        }
-                      />
+                  <div className="min-w-0 text-left sm:text-right">
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Amount to pay</p>
+                    <div className="mt-1 whitespace-nowrap text-xl font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
+                      <CurrencyText value={payingPayroll.balance_payable ?? payingPayroll.net_salary ?? 0} />
                     </div>
                   </div>
                 </div>
-
-                <div className="mt-4 grid gap-3 border-t pt-4 text-sm sm:grid-cols-3">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Period</p>
-                    <p className="mt-1 font-medium">
-                      {payingPayroll.period || "—"}
-                    </p>
+                <div className="grid grid-cols-3 gap-3 border-t border-slate-200 px-4 py-3 dark:border-slate-800 sm:gap-4 sm:px-5">
+                  <div className="min-w-0">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Period</p>
+                    <p className="mt-1 text-sm font-semibold tabular-nums">{payingPayroll.period || "—"}</p>
                   </div>
-
-                  <div>
-                    <p className="text-xs text-muted-foreground">Advance</p>
-                    <div className="mt-1 font-medium text-amber-600">
-                      <CurrencyText
-                        value={payingPayroll.advance_deduction || 0}
-                      />
+                  <div className="min-w-0">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Advance</p>
+                    <div className="mt-1 whitespace-nowrap text-sm font-semibold tabular-nums text-amber-700 dark:text-amber-400">
+                      <CurrencyText value={payingPayroll.advance_deduction || 0} />
                     </div>
                   </div>
-
-                  <div>
-                    <p className="text-xs text-muted-foreground">Loan</p>
-                    <div className="mt-1 font-medium text-orange-600">
+                  <div className="min-w-0">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Loan</p>
+                    <div className="mt-1 whitespace-nowrap text-sm font-semibold tabular-nums text-orange-700 dark:text-orange-400">
                       <CurrencyText value={payingPayroll.loan_deduction || 0} />
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div>
-                <Label>Paid By *</Label>
+              <div className="space-y-2">
+                <Label htmlFor="payroll-paid-by" className="text-sm font-semibold">Paid By <span className="text-red-500">*</span></Label>
                 <Input
-                  className="mt-2"
+                  id="payroll-paid-by"
+                  className="h-11 w-full rounded-lg"
                   value={payrollPaidBy}
                   onChange={(event) => setPayrollPaidBy(event.target.value)}
-                  placeholder="Example: Bank Transfer, Cashier, Hashif Muhammed"
+                  placeholder="Name or payment source (e.g. Bank Transfer)"
                   autoFocus
                   disabled={markPayrollPaidMutation.isPending}
                   onKeyDown={(event) => {
@@ -1697,48 +1751,37 @@ export default function PayrollPage() {
                     }
                   }}
                 />
-
-                <p className="mt-1.5 text-xs text-muted-foreground">
-                  This will set the salary to PAID and apply the employee's
-                  advance/loan settlement.
+                <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+                  Required to record who confirmed or processed this payment.
                 </p>
               </div>
 
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
-                After payment is confirmed, this payroll should no longer be
-                edited. Loan repayment is deducted from the outstanding loan
-                balance at this stage.
+              <div className="rounded-lg border border-amber-200 bg-amber-50/70 px-3.5 py-3 text-xs leading-5 text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-200">
+                <span className="font-semibold">Before you confirm:</span> This finalizes the payroll and applies any linked advance or loan recovery. Review the amount and employee details carefully.
               </div>
             </div>
 
-            <div className="flex flex-col-reverse gap-2 border-t px-6 py-4 sm:flex-row sm:justify-end">
+            <footer className="flex shrink-0 flex-wrap items-center justify-end gap-2.5 border-t border-slate-200 bg-slate-50/70 px-5 py-4 dark:border-slate-800 dark:bg-slate-900/40 sm:px-6">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => {
-                  setPayingPayroll(null);
-                  setPayrollPaidBy("");
-                }}
+                className="h-10 min-w-24 rounded-lg"
+                onClick={() => { setPayingPayroll(null); setPayrollPaidBy(""); }}
                 disabled={markPayrollPaidMutation.isPending}
-              >
-                Cancel
-              </Button>
-
+              >Cancel</Button>
               <Button
                 type="button"
                 onClick={submitMarkPaid}
                 disabled={markPayrollPaidMutation.isPending}
-                className="bg-emerald-600 text-white hover:bg-emerald-700"
+                className="h-10 min-w-40 rounded-lg bg-emerald-600 font-semibold text-white hover:bg-emerald-700"
               >
                 <Banknote className="mr-2 h-4 w-4" />
-
-                {markPayrollPaidMutation.isPending
-                  ? "Marking Paid..."
-                  : "Confirm Payment"}
+                {markPayrollPaidMutation.isPending ? "Confirming..." : "Confirm Payment"}
               </Button>
-            </div>
-          </div>
-        </div>
+            </footer>
+          </section>
+        </div>,
+        document.body,
       )}
 
       {editingPayroll && (
