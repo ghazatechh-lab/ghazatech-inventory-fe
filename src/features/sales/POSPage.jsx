@@ -954,16 +954,18 @@ export default function POSPage() {
 
                                   <div className="mb-2 flex justify-end">
                                     <CameraBarcodeScanner onScan={(code) => {
-                                      const match = products.find((product) =>
-                                        String(product.barcode || "").trim().toLowerCase() === code.toLowerCase() ||
-                                        String(product.sku || "").trim().toLowerCase() === code.toLowerCase()
+                                      const scanned = String(code || "").trim().toLowerCase();
+                                      const matches = products.filter((product) =>
+                                        [product.barcode, product.sku, product.variant_sku].some(
+                                          (value) => String(value || "").trim().toLowerCase() === scanned,
+                                        ),
                                       );
-                                      if (match) {
+                                      if (matches.length === 1) {
+                                        const match = matches[0];
                                         selectProduct(index, `${match.product_id || match.id}:${match.variant_id || ""}`);
                                         toast.success("Barcode matched");
                                       } else {
-                                        searchProduct(index, code);
-                                        toast.error(`No product found for barcode: ${code}`);
+                                        toast.error(matches.length ? "Duplicate SKU/barcode: select the correct variant." : `No product found for barcode: ${code}`);
                                       }
                                     }} />
                                   </div>
@@ -977,6 +979,26 @@ export default function POSPage() {
                                       requestAnimationFrame(() =>
                                         updateProductMenuPosition(index),
                                       );
+                                    }}
+                                    onKeyDown={(event) => {
+                                      if (event.key === "Enter") {
+                                        const scanned = String(event.currentTarget.value || "").trim().toLowerCase();
+                                        const matches = products.filter((product) =>
+                                          [product.sku, product.barcode, product.variant_sku].some(
+                                            (code) => String(code || "").trim().toLowerCase() === scanned,
+                                          ),
+                                        );
+                                        if (scanned) {
+                                          event.preventDefault();
+                                          if (matches.length === 1) {
+                                            selectProduct(index, `${matches[0].product_id || matches[0].id}:${matches[0].variant_id || ""}`);
+                                          } else if (matches.length > 1) {
+                                            toast.error("Duplicate barcode: choose the correct variant.");
+                                          } else if (!item.product) {
+                                            toast.error(`No product found for SKU/barcode: ${scanned}`);
+                                          }
+                                        }
+                                      }
                                     }}
                                     onChange={(event) => {
                                       searchProduct(index, event.target.value);

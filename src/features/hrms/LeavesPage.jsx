@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, X, CalendarDays } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -30,10 +30,12 @@ export default function LeavesPage() {
   const [showLeaveTypeForm, setShowLeaveTypeForm] = React.useState(false);
   const [leaveTypeForm, setLeaveTypeForm] = React.useState({
     name: "",
-    annual_limit: "0",
+    annual_limit: "",
     is_paid: true,
   });
   const [leaveTypeSaving, setLeaveTypeSaving] = React.useState(false);
+  const [leaveTypeError, setLeaveTypeError] = React.useState("");
+  const [leaveError, setLeaveError] = React.useState("");
   const [form, setForm] = React.useState({
     employee: "",
     leave_type: "",
@@ -58,16 +60,62 @@ export default function LeavesPage() {
     await queryClient.invalidateQueries({ queryKey: ["leave-options"] });
   };
 
+  const leaveTypes = normalizeList(options.leave_types);
+  const employees = normalizeList(options.employees);
+  const leaveDays = React.useMemo(() => {
+    if (!form.from_date || !form.to_date || form.to_date < form.from_date) return 0;
+    const start = Date.parse(`${form.from_date}T00:00:00Z`);
+    const end = Date.parse(`${form.to_date}T00:00:00Z`);
+    return Number.isFinite(start) && Number.isFinite(end)
+      ? Math.round((end - start) / 86400000) + 1
+      : 0;
+  }, [form.from_date, form.to_date]);
+
+  const resetLeaveTypeForm = () => {
+    setLeaveTypeForm({ name: "", annual_limit: "", is_paid: true });
+    setLeaveTypeError("");
+    setShowLeaveTypeForm(false);
+  };
+
+  const selectAnnualLeave = () => {
+    const annual = leaveTypes.find((item) =>
+      /annual\s*leave/i.test(String(item.name || "")),
+    );
+    if (annual) {
+      setForm((current) => ({ ...current, leave_type: String(annual.id) }));
+      setShowLeaveTypeForm(false);
+      setLeaveError("");
+    } else {
+      setLeaveTypeForm({ name: "Annual Leave", annual_limit: "", is_paid: true });
+      setLeaveTypeError("");
+      setShowLeaveTypeForm(true);
+    }
+  };
+
   const addLeaveType = async () => {
-    if (!leaveTypeForm.name.trim())
-      return toast.error("Leave type name is required.");
+    const name = leaveTypeForm.name.trim();
+    const rawLimit = String(leaveTypeForm.annual_limit).trim();
+    const limit = Number(rawLimit);
+    if (!name) {
+      setLeaveTypeError("Enter a leave type name, for example Annual Leave.");
+      return;
+    }
+    if (!rawLimit || !Number.isInteger(limit) || limit < 0 || limit > 366) {
+      setLeaveTypeError("Annual entitlement must be a whole number from 0 to 366.");
+      return;
+    }
+    if (leaveTypes.some((item) => String(item.name || "").trim().toLowerCase() === name.toLowerCase())) {
+      setLeaveTypeError("This leave type already exists. Select it in the list above.");
+      return;
+    }
+    setLeaveTypeError("");
     setLeaveTypeSaving(true);
     try {
       const response = await api.post(
         "/hrms/leave-types/",
         {
-          name: leaveTypeForm.name.trim(),
-          annual_limit: Number(leaveTypeForm.annual_limit || 0),
+          name,
+          annual_limit: limit,
           is_paid: Boolean(leaveTypeForm.is_paid),
           requires_document: false,
           is_active: true,
@@ -76,51 +124,36 @@ export default function LeavesPage() {
       );
       const created = unwrap(response);
       await refreshLeaveOptions();
-      setForm((current) => ({ ...current, leave_type: String(created.id) }));
-      setLeaveTypeForm({ name: "", annual_limit: "0", is_paid: true });
-      setShowLeaveTypeForm(false);
-      toast.success("Leave type added.");
+      if (created?.id != null) {
+        setForm((current) => ({ ...current, leave_type: String(created.id) }));
+      }
+      resetLeaveTypeForm();
+      toast.success("Leave type saved and selected.");
     } catch (error) {
       const details = getApiErrorDetails(error);
-      toast.error(details.title || "Unable to add leave type", {
-        description: details.summary || details.message,
-      });
+      const message = details.summary || details.message || "Check the leave type details and try again.";
+      setLeaveTypeError(message);
+      toast.error(details.title || "Unable to add leave type");
     } finally {
       setLeaveTypeSaving(false);
     }
   };
 
-  const deleteLeaveType = async () => {
-    if (!form.leave_type) return toast.error("Select a leave type first.");
-    const item = normalizeList(options.leave_types).find(
-      (row) => String(row.id) === String(form.leave_type),
-    );
-    if (
-      !window.confirm(
-        `Delete leave type "${item?.name || "selected leave type"}"?`,
-      )
-    )
-      return;
-
-    try {
-      await api.delete(`/hrms/leave-types/${form.leave_type}/`, {
-        skipGlobalErrorToast: true,
-      });
-      setForm((current) => ({ ...current, leave_type: "" }));
-      await refreshLeaveOptions();
-      toast.success("Leave type deleted.");
-    } catch (error) {
-      const details = getApiErrorDetails(error);
-      toast.error(details.title || "Unable to delete leave type", {
-        description: details.summary || details.message,
-      });
-    }
+  const submitLeave = () => {
+    if (!form.employee) return setLeaveError("Select an employee.");
+    if (!form.leave_type) return setLeaveError("Select a leave type.");
+    if (!form.from_date || !form.to_date) return setLeaveError("Select both leave dates.");
+    if (form.to_date < form.from_date) return setLeaveError("End date cannot be before start date.");
+    if (!form.reason.trim()) return setLeaveError("Enter the reason for the leave request.");
+    setLeaveError("");
+    save.mutate();
   };
 
   const save = useMutation({
     mutationFn: () =>
       api.post("/hrms/leaves/", {
         ...form,
+        reason: form.reason.trim(),
         employee: Number(form.employee),
         leave_type: Number(form.leave_type),
       }),
@@ -128,6 +161,14 @@ export default function LeavesPage() {
       await queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
       toast.success("Leave request submitted.");
       setOpen(false);
+      resetLeaveTypeForm();
+      setLeaveError("");
+      setForm({ employee: "", leave_type: "", from_date: today(), to_date: today(), reason: "" });
+    },
+    onError: (error) => {
+      const details = getApiErrorDetails(error);
+      setLeaveError(details.summary || details.message || "Please check the form and try again.");
+      toast.error(details.title || "Unable to submit leave request");
     },
   });
 
@@ -175,7 +216,10 @@ export default function LeavesPage() {
         actions={
           <Button
             className="bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
-            onClick={() => setOpen(true)}
+            onClick={() => {
+              setLeaveError("");
+              setOpen(true);
+            }}
           >
             <Plus className="mr-2 h-4 w-4" /> Apply Leave
           </Button>
@@ -276,33 +320,29 @@ export default function LeavesPage() {
       />
 
       {open && (
-        <div className="hrms-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="hrms-modal-panel w-full max-w-xl overflow-hidden rounded-[22px] border border-slate-200 bg-background shadow-2xl dark:border-white/10">
-            <div className="border-b border-slate-200 px-5 py-4 dark:border-white/10">
-              <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-sky-600 dark:text-sky-300">
-                Leave Management
-              </p>
-              <h2 className="mt-1 text-xl font-black text-slate-950 dark:text-white">
-                Apply Leave
-              </h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Submit a leave request and manage leave type details.
-              </p>
-            </div>
-            <div className="space-y-4 px-5 py-5">
+        <div className="hrms-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-slate-950/65 p-3 sm:p-5">
+          <div className="hrms-modal-panel flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b px-5 py-4 sm:px-6">
               <div>
-                <Label>Employee</Label>
-                <Select
-                  value={form.employee}
-                  onValueChange={(value) =>
-                    setForm((c) => ({ ...c, employee: value }))
-                  }
-                >
-                  <SelectTrigger className="mt-2">
-                    <SelectValue placeholder="Select employee" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {normalizeList(options.employees).map((item) => (
+                <p className="text-xs font-semibold uppercase tracking-wider text-sky-600">HRMS / Leave Requests</p>
+                <h2 className="mt-1 text-xl font-semibold">Apply Leave</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Choose an employee, leave category and dates.</p>
+              </div>
+              <Button type="button" size="icon" variant="ghost" aria-label="Close leave form"
+                onClick={() => { setOpen(false); resetLeaveTypeForm(); }}>
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
+              <div className="space-y-2">
+                <Label>Employee <span className="text-red-500">*</span></Label>
+                <Select value={form.employee} onValueChange={(value) => {
+                  setForm((current) => ({ ...current, employee: value })); setLeaveError("");
+                }}>
+                  <SelectTrigger className="h-11 w-full"><SelectValue placeholder="Choose employee" /></SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {employees.map((item) => (
                       <SelectItem key={item.id} value={String(item.id)}>
                         {item.employee_code} — {item.full_name}
                       </SelectItem>
@@ -310,181 +350,115 @@ export default function LeavesPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>Leave Type</Label>
-                <div className="mt-2 flex gap-2">
-                  <Select
-                    value={form.leave_type}
-                    onValueChange={(value) =>
-                      setForm((c) => ({ ...c, leave_type: value }))
-                    }
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Select leave type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {normalizeList(options.leave_types).map((item) => (
-                        <SelectItem key={item.id} value={String(item.id)}>
-                          {item.name}
-                        </SelectItem>
+
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Label>Leave Type <span className="text-red-500">*</span></Label>
+                  <button type="button" onClick={selectAnnualLeave}
+                    className="text-xs font-semibold text-sky-700 underline-offset-2 hover:underline dark:text-sky-300">
+                    Use Annual Leave
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Select value={form.leave_type} onValueChange={(value) => {
+                    setForm((current) => ({ ...current, leave_type: value })); setLeaveError("");
+                  }}>
+                    <SelectTrigger className="h-11 min-w-0 flex-1"><SelectValue placeholder="Choose leave type" /></SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {leaveTypes.map((item) => (
+                        <SelectItem key={item.id} value={String(item.id)}>{item.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="outline"
-                    title="Add leave type"
-                    onClick={() => setShowLeaveTypeForm((current) => !current)}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="outline"
-                    title="Delete selected leave type"
-                    disabled={!form.leave_type}
-                    onClick={deleteLeaveType}
-                  >
-                    <Trash2 className="h-4 w-4 text-red-500" />
+                  <Button type="button" variant="outline" className="h-11 shrink-0"
+                    onClick={() => { setShowLeaveTypeForm((value) => !value); setLeaveTypeError(""); }}>
+                    <Plus className="mr-1.5 h-4 w-4" /> New type
                   </Button>
                 </div>
+                <p className="text-xs text-muted-foreground">Choose an existing type. Create a new one only if it is not listed.</p>
+
                 {showLeaveTypeForm && (
-                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm dark:border-amber-500/20 dark:bg-amber-500/5">
-                    <div className="mb-3">
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                        Add New Leave Type
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        Create the leave type without leaving this form.
-                      </p>
+                  <div className="mt-3 space-y-4 rounded-xl border border-sky-200 bg-sky-50/50 p-4 dark:border-sky-900 dark:bg-sky-950/20">
+                    <div>
+                      <h3 className="text-sm font-semibold">Create Leave Type</h3>
+                      <p className="mt-1 text-xs text-muted-foreground">This sets up a reusable category for future leave requests. It does not submit a leave request.</p>
                     </div>
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <div>
-                        <Label className="text-xs">Leave Type Name</Label>
-                        <Input
-                          className="mt-1.5"
-                          value={leaveTypeForm.name}
-                          onChange={(e) =>
-                            setLeaveTypeForm((c) => ({
-                              ...c,
-                              name: e.target.value,
-                            }))
-                          }
-                          placeholder="e.g. Annual Leave"
-                          autoFocus
-                        />
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2 sm:col-span-2">
+                        <Label>Leave Type Name <span className="text-red-500">*</span></Label>
+                        <Input className="h-11" value={leaveTypeForm.name} autoFocus
+                          onChange={(event) => setLeaveTypeForm((current) => ({ ...current, name: event.target.value }))}
+                          placeholder="Example: Annual Leave, Sick Leave" />
                       </div>
-                      <div>
-                        <Label className="text-xs">Annual Limit (Days)</Label>
-                        <Input
-                          className="mt-1.5"
-                          type="number"
-                          min="0"
+                      <div className="space-y-2">
+                        <Label>Annual Entitlement (Days) <span className="text-red-500">*</span></Label>
+                        <Input className="h-11" type="number" min="0" max="366" step="1"
                           value={leaveTypeForm.annual_limit}
-                          onChange={(e) =>
-                            setLeaveTypeForm((c) => ({
-                              ...c,
-                              annual_limit: e.target.value,
-                            }))
-                          }
-                        />
+                          onChange={(event) => setLeaveTypeForm((current) => ({ ...current, annual_limit: event.target.value }))} />
+                        <p className="text-xs text-muted-foreground">Company-approved days per year. Enter 0 if there is no fixed annual allowance.</p>
                       </div>
-                      <div>
-                        <Label className="text-xs">Salary Treatment</Label>
-                        <Select
-                          value={leaveTypeForm.is_paid ? "PAID" : "UNPAID"}
-                          onValueChange={(value) =>
-                            setLeaveTypeForm((current) => ({
-                              ...current,
-                              is_paid: value === "PAID",
-                            }))
-                          }
-                        >
-                          <SelectTrigger className="mt-1.5">
-                            <SelectValue />
-                          </SelectTrigger>
+                      <div className="space-y-2">
+                        <Label>Salary Treatment <span className="text-red-500">*</span></Label>
+                        <Select value={leaveTypeForm.is_paid ? "PAID" : "UNPAID"}
+                          onValueChange={(value) => setLeaveTypeForm((current) => ({ ...current, is_paid: value === "PAID" }))}>
+                          <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="PAID">Paid Leave</SelectItem>
-                            <SelectItem value="UNPAID">Unpaid Leave</SelectItem>
+                            <SelectItem value="PAID">Paid — salary continues</SelectItem>
+                            <SelectItem value="UNPAID">Unpaid — salary may be deducted</SelectItem>
                           </SelectContent>
                         </Select>
+                        <p className="text-xs text-muted-foreground">Controls the leave category's paid/unpaid setting.</p>
                       </div>
                     </div>
-                    <div className="mt-3 flex justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setShowLeaveTypeForm(false);
-                          setLeaveTypeForm({
-                            name: "",
-                            annual_limit: "0",
-                            is_paid: true,
-                          });
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
-                        disabled={leaveTypeSaving}
-                        onClick={addLeaveType}
-                      >
-                        {leaveTypeSaving ? "Saving..." : "Add Leave Type"}
+                    {leaveTypeError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/20 dark:text-red-300">{leaveTypeError}</p>}
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Button type="button" variant="outline" disabled={leaveTypeSaving} onClick={resetLeaveTypeForm}>Cancel</Button>
+                      <Button type="button" disabled={leaveTypeSaving} onClick={addLeaveType}>
+                        {leaveTypeSaving ? "Saving..." : "Save & Select Type"}
                       </Button>
                     </div>
                   </div>
                 )}
               </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <Label>From</Label>
-                  <Input
-                    type="date"
-                    className="mt-2"
-                    value={form.from_date}
-                    onChange={(e) =>
-                      setForm((c) => ({ ...c, from_date: e.target.value }))
-                    }
-                  />
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>From Date <span className="text-red-500">*</span></Label>
+                  <Input className="h-11" type="date" value={form.from_date}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setForm((current) => ({ ...current, from_date: value,
+                        to_date: current.to_date && current.to_date < value ? value : current.to_date }));
+                      setLeaveError("");
+                    }} />
                 </div>
-                <div>
-                  <Label>To</Label>
-                  <Input
-                    type="date"
-                    className="mt-2"
-                    value={form.to_date}
-                    onChange={(e) =>
-                      setForm((c) => ({ ...c, to_date: e.target.value }))
-                    }
-                  />
+                <div className="space-y-2">
+                  <Label>To Date <span className="text-red-500">*</span></Label>
+                  <Input className="h-11" type="date" min={form.from_date || undefined} value={form.to_date}
+                    onChange={(event) => { setForm((current) => ({ ...current, to_date: event.target.value })); setLeaveError(""); }} />
                 </div>
               </div>
-              <div>
-                <Label>Reason</Label>
-                <Textarea
-                  className="mt-2"
-                  value={form.reason}
-                  onChange={(e) =>
-                    setForm((c) => ({ ...c, reason: e.target.value }))
-                  }
-                />
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/30 px-4 py-3 text-sm">
+                <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="text-muted-foreground">Selected calendar days:</span>
+                <span className="font-semibold tabular-nums">{leaveDays}</span>
+                <span className="ml-auto text-xs text-muted-foreground">Actual leave days are calculated by HRMS</span>
               </div>
+              <div className="space-y-2">
+                <Label>Reason for Leave <span className="text-red-500">*</span></Label>
+                <Textarea rows={3} value={form.reason}
+                  onChange={(event) => { setForm((current) => ({ ...current, reason: event.target.value })); setLeaveError(""); }}
+                  placeholder="Briefly explain the reason for the request" />
+              </div>
+              {leaveError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/20 dark:text-red-300">{leaveError}</p>}
             </div>
-            <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-4 dark:border-white/10">
-              <Button variant="outline" onClick={() => setOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                className="bg-amber-400 font-bold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
-                onClick={() => save.mutate()}
-              >
-                Submit Leave
+
+            <div className="flex shrink-0 justify-end gap-2 border-t px-5 py-4 sm:px-6">
+              <Button type="button" variant="outline" disabled={save.isPending}
+                onClick={() => { setOpen(false); resetLeaveTypeForm(); }}>Cancel</Button>
+              <Button type="button" disabled={save.isPending || leaveTypeSaving} onClick={submitLeave}
+                className="bg-amber-400 font-semibold !text-slate-950 hover:bg-amber-300 hover:!text-slate-950">
+                {save.isPending ? "Submitting..." : "Submit Leave Request"}
               </Button>
             </div>
           </div>

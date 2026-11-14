@@ -51,6 +51,7 @@ import {
 import { cn } from "@/lib/utils";
 import { downloadSalesPdf, findSalesCustomer } from "@/lib/salesPdf";
 import InlineCustomerDialog from "./InlineCustomerDialog";
+import CameraBarcodeScanner from "@/components/common/CameraBarcodeScanner";
 
 const normalizeList = (value) => {
   if (Array.isArray(value)) return value;
@@ -115,6 +116,25 @@ function ProductSearchPicker({
   const searchRef = React.useRef(null);
 
   const normalizedSearch = search.trim().toLowerCase();
+
+  const selectScannedProduct = React.useCallback((rawCode) => {
+    const scanned = String(rawCode || "").trim().toLowerCase();
+    if (!scanned) return false;
+    const matches = products.filter((product) =>
+      [product.sku, product.barcode, product.variant_sku].some(
+        (code) => String(code || "").trim().toLowerCase() === scanned,
+      ),
+    );
+    if (matches.length !== 1) {
+      toast.error(matches.length ? "Duplicate SKU/barcode: select the correct variant." : `No product found for SKU/barcode: ${rawCode}`);
+      return false;
+    }
+    const product = matches[0];
+    onSelect(`${product.product_id || product.id}:${product.variant_id || ""}`);
+    setSearch("");
+    setOpen(false);
+    return true;
+  }, [products, onSelect]);
 
   const filteredProducts = React.useMemo(() => {
     if (!normalizedSearch) return products;
@@ -202,11 +222,25 @@ function ProductSearchPicker({
           focusSearch();
         }}
       >
+        <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
+          <span className="text-xs text-muted-foreground">Scan SKU or barcode to select product</span>
+          <CameraBarcodeScanner onScan={selectScannedProduct} />
+        </div>
         <Command shouldFilter={false}>
           <CommandInput
             ref={searchRef}
             value={search}
             onValueChange={setSearch}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                const code = String(event.currentTarget.value || "").trim();
+                if (code) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  selectScannedProduct(code);
+                }
+              }
+            }}
             placeholder="Search product, variant, SKU or barcode..."
           />
 

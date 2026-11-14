@@ -7,6 +7,7 @@ import {
   Landmark,
   Pencil,
   Plus,
+  Trash2,
   X,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -147,6 +148,8 @@ export default function PayrollPage() {
   );
   const [selectedEmployees, setSelectedEmployees] = React.useState([]);
   const [payableDays, setPayableDays] = React.useState({});
+  const [selectedPayrollIds, setSelectedPayrollIds] = React.useState([]);
+  const [deletingPayrollIds, setDeletingPayrollIds] = React.useState([]);
 
   const [advanceForm, setAdvanceForm] = React.useState({
     ...emptyAdvance,
@@ -882,7 +885,117 @@ export default function PayrollPage() {
     URL.revokeObjectURL(url);
   };
 
+  // Match the server's protected payroll delete rules. The server makes the
+  // final authorization/financial-integrity decision for every DELETE request.
+  const canDeletePayroll = (row) =>
+    !isCombined &&
+    ["PENDING", "PROCESSING", "FAILED", "CANCELLED"].includes(
+      String(row.status || "").toUpperCase(),
+    ) &&
+    !row.paid_at &&
+    numberValue(row.loan_deduction) === 0 &&
+    numberValue(row.advance_deduction) === 0;
+
+  const payrollRows = Array.isArray(data.results) ? data.results : [];
+  const selectablePayrollRows = payrollRows.filter(canDeletePayroll);
+  const selectablePayrollIds = selectablePayrollRows.map((row) => String(row.id));
+  const selectedVisiblePayrollIds = selectedPayrollIds.filter((id) =>
+    selectablePayrollIds.includes(id),
+  );
+  const allVisibleSelected =
+    selectablePayrollIds.length > 0 &&
+    selectablePayrollIds.every((id) => selectedVisiblePayrollIds.includes(id));
+
+  const deletePayrollEntries = async (rows) => {
+    if (deletingPayrollIds.length) return;
+    if (isCombined) {
+      toast.error("Select a physical branch before deleting payroll.");
+      return;
+    }
+    const targets = rows.filter(canDeletePayroll);
+    if (!targets.length) {
+      toast.error("Only unfinalized payroll without recoveries can be deleted.");
+      return;
+    }
+    const employeeSummary = targets.length === 1
+      ? `${targets[0].employee_name || "Employee"} (${targets[0].period || ""})`
+      : `${targets.length} selected payroll entries`;
+    if (!window.confirm(
+      `Permanently delete ${employeeSummary}?\n\nPaid payroll and records with financial recoveries cannot be deleted. This action cannot be undone.`,
+    )) return;
+
+    const ids = targets.map((row) => String(row.id));
+    setDeletingPayrollIds(ids);
+    const removedIds = [];
+    const failures = [];
+    try {
+      // Existing API exposes per-entry DELETE, not an atomic bulk-delete endpoint.
+      for (const row of targets) {
+        try {
+          await api.delete(`/hrms/payroll/${row.id}/`, {
+            skipGlobalErrorToast: true,
+          });
+          removedIds.push(String(row.id));
+        } catch (error) {
+          const details = getApiErrorDetails(error);
+          failures.push(`${row.employee_name || row.id}: ${details.summary || details.title || error?.response?.data?.detail || "Delete rejected"}`);
+        }
+      }
+      setSelectedPayrollIds((current) =>
+        current.filter((id) => !removedIds.includes(id)),
+      );
+      if (removedIds.length) {
+        await refreshAll();
+        toast.success(`${removedIds.length} payroll entr${removedIds.length === 1 ? "y" : "ies"} deleted.`);
+      }
+      if (failures.length) {
+        toast.error(`${failures.length} payroll entr${failures.length === 1 ? "y" : "ies"} could not be deleted.`, {
+          description: failures.slice(0, 3).join(" | "),
+        });
+      }
+    } finally {
+      setDeletingPayrollIds([]);
+    }
+  };
+
+  // Do not carry selection across branch, filters or page changes.
+  React.useEffect(() => {
+    setSelectedPayrollIds([]);
+  }, [branchId, isCombined, historyPeriodMode, historyPeriod, statusFilter, q, page]);
+
   const previousSalaryColumns = [
+    {
+      key: "select",
+      header: (
+        <input
+          type="checkbox"
+          aria-label="Select all deletable payroll on this page"
+          checked={allVisibleSelected}
+          disabled={isCombined || !selectablePayrollIds.length || deletingPayrollIds.length > 0}
+          onChange={(event) =>
+            setSelectedPayrollIds(event.target.checked ? selectablePayrollIds : [])
+          }
+          className="h-4 w-4 cursor-pointer accent-blue-600"
+        />
+      ),
+      cell: (row) => (
+        <input
+          type="checkbox"
+          aria-label={`Select payroll for ${row.employee_name || row.id}`}
+          title={canDeletePayroll(row) ? "Select payroll" : "Paid or financially linked payroll cannot be deleted"}
+          checked={selectedPayrollIds.includes(String(row.id))}
+          disabled={!canDeletePayroll(row) || deletingPayrollIds.length > 0}
+          onChange={(event) =>
+            setSelectedPayrollIds((current) =>
+              event.target.checked
+                ? [...new Set([...current, String(row.id)])]
+                : current.filter((id) => id !== String(row.id)),
+            )
+          }
+          className="h-4 w-4 cursor-pointer accent-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
+        />
+      ),
+    },
     {
       key: "employee",
       header: "Employee",
@@ -964,6 +1077,20 @@ export default function PayrollPage() {
             >
               <Banknote className="mr-2 h-4 w-4" />
               Mark Paid
+            </Button>
+          ) : null}
+
+          {canDeletePayroll(row) ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={deletingPayrollIds.length > 0}
+              onClick={() => deletePayrollEntries([row])}
+              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
             </Button>
           ) : null}
 
@@ -1322,6 +1449,39 @@ export default function PayrollPage() {
                   <SelectItem value="CANCELLED">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all deletable payroll on this page"
+                    checked={allVisibleSelected}
+                    disabled={isCombined || !selectablePayrollIds.length || deletingPayrollIds.length > 0}
+                    onChange={(event) => setSelectedPayrollIds(event.target.checked ? selectablePayrollIds : [])}
+                    className="h-4 w-4 accent-blue-600"
+                  />
+                  Select all on page
+                </label>
+                <span>{selectedVisiblePayrollIds.length} selected</span>
+                {isCombined ? (
+                  <span>Select an individual branch to delete payroll.</span>
+                ) : null}
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!selectedVisiblePayrollIds.length || deletingPayrollIds.length > 0}
+                onClick={() => deletePayrollEntries(
+                  selectablePayrollRows.filter((row) => selectedVisiblePayrollIds.includes(String(row.id))),
+                )}
+                className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                {deletingPayrollIds.length ? "Deleting..." : `Delete Selected (${selectedVisiblePayrollIds.length})`}
+              </Button>
             </div>
 
             <DataTable
