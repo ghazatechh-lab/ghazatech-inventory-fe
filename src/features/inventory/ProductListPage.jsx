@@ -92,6 +92,21 @@ const getRelatedName = (value, fallback) => {
   return fallback || value || "—";
 };
 
+// Present one option per visible catalogue name. Branch-specific IDs are not
+// interchangeable in Consolidated, so name choices use a separate API filter.
+const uniqueCatalogueOptions = (items) => {
+  const names = new Map();
+  for (const item of items || []) {
+    const name = String(item?.name || "").trim().replace(/\s+/g, " ");
+    if (!name) continue;
+    const key = name.toLocaleLowerCase();
+    if (!names.has(key)) names.set(key, name);
+  }
+  return Array.from(names.values())
+    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+    .map((name) => ({ name, value: `name:${name}` }));
+};
+
 export default function ProductListPage() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -148,6 +163,15 @@ export default function ProductListPage() {
       ),
   });
 
+  const brandOptions = useMemo(
+    () => uniqueCatalogueOptions(brandsQuery.data),
+    [brandsQuery.data],
+  );
+  const categoryOptions = useMemo(
+    () => uniqueCatalogueOptions(categoriesQuery.data),
+    [categoriesQuery.data],
+  );
+
   const productsQuery = useQuery({
     queryKey: [
       "products",
@@ -164,8 +188,10 @@ export default function ProductListPage() {
             page: isAllBranches ? undefined : page,
             page_size: isAllBranches ? 1000 : 12,
             search: debouncedSearch || undefined,
-            brand: brand || undefined,
-            category: category || undefined,
+            brand: brand && !brand.startsWith("name:") ? brand : undefined,
+            category: category && !category.startsWith("name:") ? category : undefined,
+            brand_name: brand.startsWith("name:") ? brand.slice(5) : undefined,
+            category_name: category.startsWith("name:") ? category.slice(5) : undefined,
             branch: branchId || undefined,
           },
         }),
@@ -187,8 +213,10 @@ export default function ProductListPage() {
           params: {
             page_size: 5000,
             search: debouncedSearch || undefined,
-            brand: brand || undefined,
-            category: category || undefined,
+            brand: brand && !brand.startsWith("name:") ? brand : undefined,
+            category: category && !category.startsWith("name:") ? category : undefined,
+            brand_name: brand.startsWith("name:") ? brand.slice(5) : undefined,
+            category_name: category.startsWith("name:") ? category.slice(5) : undefined,
           },
         }),
       ),
@@ -649,13 +677,8 @@ export default function ProductListPage() {
             <SelectContent>
               <SelectItem value="all">All brands</SelectItem>
 
-              {(brandsQuery.data || []).map((item) => (
-                <SelectItem
-                  key={`${item.source_branch_id || "physical"}:${item.id}`}
-                  value={isAllBranches && item.source_branch_id
-                    ? `${item.source_branch_id}:${item.id}`
-                    : String(item.id)}
-                >
+              {brandOptions.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
                   {item.name}
                 </SelectItem>
               ))}
@@ -675,13 +698,8 @@ export default function ProductListPage() {
             <SelectContent>
               <SelectItem value="all">All categories</SelectItem>
 
-              {(categoriesQuery.data || []).map((item) => (
-                <SelectItem
-                  key={`${item.source_branch_id || "physical"}:${item.id}`}
-                  value={isAllBranches && item.source_branch_id
-                    ? `${item.source_branch_id}:${item.id}`
-                    : String(item.id)}
-                >
+              {categoryOptions.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
                   {item.name}
                 </SelectItem>
               ))}
