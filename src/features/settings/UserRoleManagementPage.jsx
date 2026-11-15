@@ -82,6 +82,26 @@ const emptyUser = {
   is_active: true,
 };
 
+const makeRoleCode = (name, existingRoles = [], currentRoleId = null) => {
+  const base = String(name || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 44) || "ROLE";
+  const used = new Set(existingRoles
+    .filter((role) => String(role.id) !== String(currentRoleId))
+    .map((role) => String(role.code || "").toUpperCase()));
+  let code = base;
+  let index = 2;
+  while (used.has(code)) {
+    const suffix = `_${index++}`;
+    code = `${base.slice(0, 50 - suffix.length)}${suffix}`;
+  }
+  return code;
+};
+
 const emptyRole = {
   name: "",
   code: "",
@@ -226,7 +246,7 @@ export default function UserRoleManagementPage() {
 
         role: userForm.role || null,
 
-        employee: employeeRequired ? userForm.employee || null : null,
+        employee: userForm.employee || null,
 
         branch: userForm.branch || null,
 
@@ -295,6 +315,37 @@ export default function UserRoleManagementPage() {
 
     onError: (error) => showError(error, "Unable to save role"),
   });
+
+  const handleEmployeeChange = (employeeId) => {
+    const employee = employees.find((item) => String(item.id) === String(employeeId));
+    setUserForm((current) => {
+      if (!employee) {
+        // The optional Admin account can be created without employee linkage.
+        return { ...current, employee: "" };
+      }
+
+      const preferredUsername = String(employee.employee_code || employee.email?.split("@")[0] || "employee")
+        .trim().toLowerCase().replace(/[^a-z0-9._-]/g, "_");
+      const usedUsernames = new Set(users
+        .filter((user) => String(user.id) !== String(editingUser?.id))
+        .map((user) => String(user.username || "").toLowerCase()));
+      let proposedUsername = preferredUsername || "employee";
+      let suffix = 2;
+      while (usedUsernames.has(proposedUsername)) {
+        proposedUsername = `${preferredUsername}_${suffix++}`;
+      }
+
+      return {
+        ...current,
+        employee: String(employee.id),
+        full_name: employee.full_name || "",
+        email: employee.email || "",
+        phone_number: employee.phone || "",
+        username: editingUser ? current.username : proposedUsername,
+        branch: employee.branch != null ? String(employee.branch) : "",
+      };
+    });
+  };
 
   const openUser = (user = null) => {
     setEditingUser(user);
@@ -661,6 +712,28 @@ export default function UserRoleManagementPage() {
               <div className="space-y-4">
                 <h3 className="font-semibold">Account Details</h3>
 
+                <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-3 dark:border-blue-900 dark:bg-blue-950/20">
+                  <Field label={employeeRequired ? "1. Select Employee *" : "1. Select Employee (optional for Admin)"}>
+                    <select
+                      required={Boolean(employeeRequired)}
+                      className="mt-2 h-11 w-full rounded-lg border bg-background px-3 text-sm"
+                      value={userForm.employee}
+                      onChange={(event) => handleEmployeeChange(event.target.value)}
+                    >
+                      <option value="">Select employee to auto-fill account</option>
+                      {employees.map((employee) => (
+                        <option key={employee.id} value={String(employee.id)}>
+                          {employee.employee_code} · {employee.full_name}{employee.branch_name ? ` · ${employee.branch_name}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Choosing an employee fills available account details. Review and edit them before saving.
+                  </p>
+                </div>
+
+
                 <Field label="Full Name">
                   <Input
                     value={userForm.full_name}
@@ -670,6 +743,18 @@ export default function UserRoleManagementPage() {
                         full_name: event.target.value,
                       }))
                     }
+                  />
+                </Field>
+
+                <Field label="Contact Number">
+                  <Input
+                    type="tel"
+                    value={userForm.phone_number}
+                    onChange={(event) => setUserForm((current) => ({
+                      ...current,
+                      phone_number: event.target.value,
+                    }))}
+                    placeholder="Employee contact number"
                   />
                 </Field>
 
@@ -723,7 +808,6 @@ export default function UserRoleManagementPage() {
                       setUserForm((current) => ({
                         ...current,
                         role: event.target.value,
-                        employee: "",
                       }))
                     }
                   >
@@ -738,30 +822,6 @@ export default function UserRoleManagementPage() {
                       ))}
                   </select>
                 </Field>
-
-                {employeeRequired && (
-                  <Field label="Employee *">
-                    <select
-                      required
-                      className="h-10 w-full rounded-md border bg-background px-3"
-                      value={userForm.employee}
-                      onChange={(event) =>
-                        setUserForm((current) => ({
-                          ...current,
-                          employee: event.target.value,
-                        }))
-                      }
-                    >
-                      <option value="">Select employee</option>
-
-                      {employees.map((employee) => (
-                        <option key={employee.id} value={employee.id}>
-                          {employee.full_name} · {employee.employee_code}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                )}
 
                 <Field label="Default Branch">
                   <select
@@ -998,25 +1058,25 @@ export default function UserRoleManagementPage() {
                     setRoleForm((current) => ({
                       ...current,
                       name: event.target.value,
+                      code: editingRole
+                        ? current.code
+                        : makeRoleCode(event.target.value, roles),
                     }))
                   }
                 />
               </Field>
 
-              <Field label="Role Code *">
+              <Field label="Role Code (auto-generated)">
                 <Input
                   required
-                  disabled={editingRole?.code === "ADMIN"}
+                  readOnly
+                  className="bg-muted/40 font-mono"
                   value={roleForm.code}
-                  onChange={(event) =>
-                    setRoleForm((current) => ({
-                      ...current,
-                      code: event.target.value
-                        .toUpperCase()
-                        .replace(/\s+/g, "_"),
-                    }))
-                  }
+                  placeholder="Generated from role name"
                 />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Generated automatically; existing role codes remain unchanged.
+                </p>
               </Field>
 
               <div className="md:col-span-2">

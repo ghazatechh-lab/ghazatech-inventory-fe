@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import {
   BarChart3,
@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 
 import { useAuth } from "@/lib/auth";
+import { getAuthorizedLandingPath } from "@/lib/authorizedLanding";
 
 export default function LoginPage() {
   const { user, login, isLoading } = useAuth();
@@ -24,7 +25,7 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
 
   if (!isLoading && user) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={getAuthorizedLandingPath(user)} replace />;
   }
 
   const submit = async (event) => {
