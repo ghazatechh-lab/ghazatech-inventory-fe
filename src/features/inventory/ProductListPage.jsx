@@ -112,6 +112,7 @@ export default function ProductListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [importing, setImporting] = useState(false);
+  const [showImportGuide, setShowImportGuide] = useState(false);
   const importInputRef = React.useRef(null);
   const { branchId, isAllBranches } = useActiveBranchFilter();
 
@@ -317,6 +318,7 @@ export default function ProductListPage() {
       toast.success(
         `${result?.created_count || 0} product(s) imported successfully.`,
       );
+      setShowImportGuide(false);
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Unable to import product data."));
     } finally {
@@ -540,7 +542,7 @@ export default function ProductListPage() {
               type="button"
               variant="outline"
               disabled={importing || !branchId}
-              onClick={() => importInputRef.current?.click()}
+              onClick={() => setShowImportGuide(true)}
               className="inline-flex h-12 min-w-[130px] shrink-0 items-center justify-center whitespace-nowrap rounded-xl border-white/30 bg-white/10 px-5 font-semibold text-white hover:bg-white/20 hover:text-white"
               title={
                 branchId
@@ -575,6 +577,60 @@ export default function ProductListPage() {
           </div>
         </div>
       </section>
+
+      {showImportGuide && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/65 p-3 sm:p-6"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !importing) setShowImportGuide(false);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="product-import-heading"
+            className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-background text-foreground shadow-2xl"
+          >
+            <div className="flex items-start justify-between gap-4 border-b px-5 py-4 sm:px-6">
+              <div className="min-w-0">
+                <h2 id="product-import-heading" className="text-lg font-semibold">Import products from Excel</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Follow the template to add products to the selected physical branch.</p>
+              </div>
+              <button type="button" aria-label="Close import guide" disabled={importing} onClick={() => setShowImportGuide(false)} className="rounded-lg px-2 py-1.5 text-xl leading-none hover:bg-muted">×</button>
+            </div>
+            <div className="space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
+              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-100">
+                <strong>Branch:</strong> {branchId ? `Selected branch #${branchId}` : "Select a physical branch before importing."} Products and stock are imported into this branch only.
+              </div>
+              <ol className="list-decimal space-y-3 pl-5 text-sm leading-6">
+                <li><strong>Download the Excel template</strong> below. Keep its column names and the Products sheet unchanged.</li>
+                <li>Enter <strong>Product name, SKU, Brand and Category</strong>. The Brand and Category must already exist in the selected branch.</li>
+                <li>Fill <strong>Initial quantity</strong> as a whole number (0 or greater), then enter purchase, retail, wholesale and minimum-selling prices.</li>
+                <li><strong>Supplier and Rack</strong> are optional; if provided, they must exist in the selected physical branch. Use the rack code, not the rack name.</li>
+                <li>For each variant, enter its <strong>Attribute</strong> and <strong>Value</strong> (for example, Color / Black). Keep each variant on its own row. For products without variants, leave those two cells empty.</li>
+                <li>Save as <strong>.xlsx</strong>, then click <strong>Choose Excel file</strong>. Existing SKUs are rejected; this is a new-product import, not a bulk stock update.</li>
+              </ol>
+              <div className="rounded-xl border bg-muted/30 p-4 text-xs leading-5 text-muted-foreground">
+                <strong className="text-foreground">Important:</strong> In Export, “Initial quantity” is populated from the product's <strong>current physical stock</strong> for easy reimport. It is not a historical opening-stock audit. Do not reimport an export into a branch that already has the same SKUs.
+              </div>
+              <a
+                href={`${process.env.PUBLIC_URL || ""}/templates/product_import_template.xlsx`}
+                download="product_import_template.xlsx"
+                className="inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-semibold hover:bg-muted"
+              >
+                <Download className="h-4 w-4" /> Download Excel template
+              </a>
+            </div>
+            <div className="flex flex-col-reverse gap-3 border-t px-5 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6">
+              <Button type="button" variant="outline" disabled={importing} onClick={() => setShowImportGuide(false)}>Cancel</Button>
+              <Button type="button" disabled={importing || !branchId} onClick={() => importInputRef.current?.click()}>
+                <Upload className="mr-2 h-4 w-4" />{importing ? "Importing..." : "Choose Excel file"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
