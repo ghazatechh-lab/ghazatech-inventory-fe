@@ -1,6 +1,5 @@
-﻿const rules = [
-  // Dashboard
-  [/^\/dashboard(\/|$)/, "dashboard.dashboard.view"],
+const rules = [
+  // My Dashboard is available to every authenticated user.
 
   // Settings and security
   [/^\/settings\/users-roles(\/|$)/, "settings.roles.view"],
@@ -110,8 +109,22 @@
     "accounting.branch_consolidation.view",
   ],
 
-  // Reports
-  [/^\/reports(\/|$)/, "reports.reports.view"],
+  // Fleet: exact page permissions before general Fleet paths
+  [/^\/fleet\/vehicles\/new(\/|$)/, "fleet.vehicles.create"],
+  [/^\/fleet\/vehicles\/[^/]+\/edit(\/|$)/, "fleet.vehicles.edit"],
+  [/^\/fleet\/vehicles(\/|$)/, "fleet.vehicles.view"],
+  [/^\/fleet\/trips(\/|$)/, "fleet.trips.view"],
+  [/^\/fleet\/returns(\/|$)/, "fleet.trips.edit"],
+  [/^\/fleet\/checkout(\/|$)/, "fleet.trips.create"],
+  [/^\/fleet(\/|$)/, "fleet.dashboard.view"],
+
+  // Reports: each report requires its own view permission
+  [/^\/reports\/sales(\/|$)/, "reports.sales.view"],
+  [/^\/reports\/purchase(s)?(\/|$)/, "reports.purchase.view"],
+  [/^\/reports\/inventory(\/|$)/, "reports.inventory.view"],
+  [/^\/reports\/hrms(\/|$)/, "reports.hrms.view"],
+  [/^\/reports\/finance(\/|$)/, "reports.finance.view"],
+  [/^\/reports(\/|$)/, "reports.dashboard.view"],
 ];
 
 export const getRoutePermission = (pathname) => {

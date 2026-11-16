@@ -97,9 +97,9 @@ const getRelatedName = (value, fallback) => {
 const uniqueCatalogueOptions = (items) => {
   const names = new Map();
   for (const item of items || []) {
-    const name = String(item?.name || "").trim().replace(/\s+/g, " ");
+    const name = String(item?.name || "").trim();
     if (!name) continue;
-    const key = name.toLocaleLowerCase();
+    const key = name.replace(/\s+/g, " ").toLocaleLowerCase();
     if (!names.has(key)) names.set(key, name);
   }
   return Array.from(names.values())
@@ -120,20 +120,27 @@ export default function ProductListPage() {
   const brand = searchParams.get("brand") || "";
   const category = searchParams.get("category") || "";
   const debouncedSearch = useDebouncedValue(search, 350);
+  const catalogueFilterParams = {
+    brand: brand && !brand.startsWith("name:") ? brand : undefined,
+    category: category && !category.startsWith("name:") ? category : undefined,
+    brand_name: brand.startsWith("name:") ? brand.slice(5) : undefined,
+    category_name: category.startsWith("name:") ? category.slice(5) : undefined,
+  };
+
+  // React Router URL updates do not queue like React state. Keep the
+  // latest requested filters in a ref so a fast second dropdown change
+  // cannot replace the first one before the next render.
+  const filterParamsRef = React.useRef(searchParams);
+  React.useEffect(() => {
+    filterParamsRef.current = searchParams;
+  }, [searchParams]);
 
   const updateParam = (key, value) => {
-    const next = new URLSearchParams(searchParams);
-
-    if (value) {
-      next.set(key, String(value));
-    } else {
-      next.delete(key);
-    }
-
-    if (key !== "page") {
-      next.set("page", "1");
-    }
-
+    const next = new URLSearchParams(filterParamsRef.current);
+    if (value) next.set(key, String(value));
+    else next.delete(key);
+    if (key !== "page") next.set("page", "1");
+    filterParamsRef.current = next;
     setSearchParams(next);
   };
 
@@ -188,10 +195,7 @@ export default function ProductListPage() {
             page: isAllBranches ? undefined : page,
             page_size: isAllBranches ? 1000 : 12,
             search: debouncedSearch || undefined,
-            brand: brand && !brand.startsWith("name:") ? brand : undefined,
-            category: category && !category.startsWith("name:") ? category : undefined,
-            brand_name: brand.startsWith("name:") ? brand.slice(5) : undefined,
-            category_name: category.startsWith("name:") ? category.slice(5) : undefined,
+            ...catalogueFilterParams,
             branch: branchId || undefined,
           },
         }),
@@ -213,10 +217,7 @@ export default function ProductListPage() {
           params: {
             page_size: 5000,
             search: debouncedSearch || undefined,
-            brand: brand && !brand.startsWith("name:") ? brand : undefined,
-            category: category && !category.startsWith("name:") ? category : undefined,
-            brand_name: brand.startsWith("name:") ? brand.slice(5) : undefined,
-            category_name: category.startsWith("name:") ? category.slice(5) : undefined,
+            ...catalogueFilterParams,
           },
         }),
       ),
@@ -259,8 +260,7 @@ export default function ProductListPage() {
         params: {
           branch: branchId || undefined,
           search: debouncedSearch || undefined,
-          brand: brand || undefined,
-          category: category || undefined,
+          ...catalogueFilterParams,
         },
         responseType: "blob",
       });

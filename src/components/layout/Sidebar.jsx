@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   ChevronDown,
@@ -281,7 +281,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate, mobile = false }) {
 
       <nav
         ref={navRef}
-        className="sidebar-nav relative flex-1 overflow-y-auto px-3 py-3 [scrollbar-color:rgba(255,255,255,0.14)_transparent] [scrollbar-width:thin]"
+        className="sidebar-nav relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 py-3 [scrollbar-color:rgba(255,255,255,0.14)_transparent] [scrollbar-width:thin]"
       >
         {(!collapsed || mobile) && (
           <div className="mb-2 flex items-center justify-between px-2.5 py-1.5">
@@ -309,9 +309,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate, mobile = false }) {
              * even before a submenu route is selected. Direct modules still
              * follow the current URL.
              */
-            const moduleSelected = directModule
-              ? routeActive
-              : expandedModuleId === module.id;
+            const moduleSelected = routeActive || (!directModule && expandedModuleId === module.id);
 
             return (
               <div key={module.id} className="sidebar-module space-y-1">
@@ -327,7 +325,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate, mobile = false }) {
                     "sidebar-module-button group relative flex w-full items-center overflow-hidden rounded-2xl border !text-white transition-all duration-200",
                     collapsed && !mobile
                       ? "h-12 justify-center border-transparent px-2"
-                      : "gap-3 px-3.5 py-3",
+                      : "min-h-12 gap-3 px-3.5 py-2.5",
                     moduleSelected
                       ? "sidebar-module-active border-amber-200/20 bg-gradient-to-r from-amber-300/[0.14] via-white/[0.07] to-cyan-300/[0.05] shadow-[0_12px_28px_rgba(1,9,24,0.24)]"
                       : "border-transparent hover:border-white/[0.10] hover:bg-white/[0.065]",
@@ -353,7 +351,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate, mobile = false }) {
 
                   {(!collapsed || mobile) && (
                     <>
-                      <span className="sidebar-main-label min-w-0 flex-1 truncate text-left leading-5">
+                      <span className="sidebar-main-label block min-w-0 flex-1 truncate text-left text-[13px] font-semibold leading-5">
                         {module.shortTitle || module.title}
                       </span>
 
@@ -374,7 +372,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate, mobile = false }) {
                 </button>
 
                 {expanded && !module.externalUrl && !directModule && (
-                  <div className="sidebar-submenu relative ml-[27px] space-y-1 border-l border-white/[0.12] py-1 pl-4">
+                  <div className="sidebar-submenu relative ml-[30px] space-y-1 border-l border-white/[0.12] py-1 pl-3">
                     {items.map((item) => {
                       const target = normalizePath(safePath(item));
                       const bestActiveTarget = getBestActiveTarget(
@@ -408,7 +406,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate, mobile = false }) {
                           onClick={() => onNavigate?.()}
                           data-testid={createTestId(item)}
                           className={cn(
-                            "sidebar-submenu-item group relative flex items-center gap-3 rounded-xl border px-3.5 py-3 text-[13px] !text-white transition-all duration-200",
+                            "sidebar-submenu-item group relative flex min-h-10 w-full min-w-0 items-center gap-3 rounded-xl border px-3 py-2 text-[13px] !text-white transition-colors duration-200",
                             active
                               ? "border-amber-200/30 bg-gradient-to-r from-[#123d73] to-[#0d315f] font-bold shadow-[0_8px_24px_rgba(1,9,24,0.28)]"
                               : "border-transparent font-semibold hover:translate-x-0.5 hover:border-white/[0.06] hover:bg-white/[0.06]",
@@ -419,12 +417,12 @@ export function Sidebar({ collapsed, onToggle, onNavigate, mobile = false }) {
                           )}
                           <Icon
                             className={cn(
-                              "h-3.5 w-3.5 shrink-0",
+                              "h-4 w-4 shrink-0",
                               active ? "!text-amber-300" : "!text-white/80",
                             )}
                             strokeWidth={2}
                           />
-                          <span className="sidebar-sub-label min-w-0 flex-1 truncate leading-5">
+                          <span className="sidebar-sub-label block min-w-0 flex-1 truncate text-left leading-5">
                             {item.label}
                           </span>
                           {item.badge && (
@@ -484,7 +482,7 @@ export function Sidebar({ collapsed, onToggle, onNavigate, mobile = false }) {
           onClick={handleLogout}
           className={cn(
             "flex w-full items-center rounded-xl border border-transparent !text-white/85 transition duration-200 hover:border-rose-300/10 hover:bg-rose-500/[0.10] hover:!text-white",
-            collapsed && !mobile ? "h-10 justify-center" : "gap-3 px-3.5 py-3",
+            collapsed && !mobile ? "h-10 justify-center" : "min-h-12 gap-3 px-3.5 py-2.5",
           )}
           title={collapsed && !mobile ? "Logout" : undefined}
         >

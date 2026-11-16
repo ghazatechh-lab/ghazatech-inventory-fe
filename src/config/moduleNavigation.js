@@ -22,7 +22,6 @@ import {
   PackageCheck,
   Package,
   PackageSearch,
-  Clock3,
   Warehouse,
   ArrowRightLeft,
   SlidersHorizontal,
@@ -140,13 +139,6 @@ export const modules = [
         icon: PackageSearch,
         permission: "inventory.low_stock.view",
         badge: "!",
-      },
-      {
-        id: "inventory-stock-aging",
-        label: "Stock Aging & Overstock",
-        to: "/inventory/stock-aging",
-        icon: Clock3,
-        permission: "inventory.stock.view",
       },
       {
         id: "inventory-transfers",
@@ -733,30 +725,13 @@ export const getUserRoleCode = (user) => {
 export const isAdministrator = (user) => isAdmin(user);
 
 export const canAccessNavigationItem = (item, user) => {
-  if (!item || !user) {
-    return false;
-  }
-
-  if (isAdministrator(user)) {
-    return true;
-  }
-
-  if (item.adminOnly) {
-    return false;
-  }
-
-  if (
-    Array.isArray(item.allowedRoles) &&
-    !item.allowedRoles.includes(getUserRoleCode(user))
-  ) {
-    return false;
-  }
-
-  if (item.permission && !hasPermission(user, item.permission)) {
-    return false;
-  }
-
-  return true;
+  if (!item || !user) return false;
+  // My Dashboard is a workspace for every authenticated user, not a grant.
+  if (item.to === "/dashboard") return true;
+  // Every other sidebar item must have an explicit view permission.
+  // Do not use role names to grant or deny ordinary navigation access.
+  if (item.adminOnly && !isAdmin(user)) return false;
+  return Boolean(item.permission && hasPermission(user, item.permission));
 };
 
 export const getVisibleModules = (user) =>
@@ -788,7 +763,7 @@ export const getVisibleModules = (user) =>
     }))
     .filter((module) =>
       Boolean(
-        module.externalUrl || module.items.length || module.id === "dashboard",
+        module.items.length || module.id === "dashboard",
       ),
     )
     .sort(

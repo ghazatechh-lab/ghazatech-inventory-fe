@@ -13,7 +13,6 @@ import {
 import { toast } from "sonner";
 
 import { useAuth } from "@/lib/auth";
-import { getAuthorizedLandingPath } from "@/lib/authorizedLanding";
 
 export default function LoginPage() {
   const { user, login, isLoading } = useAuth();
@@ -25,7 +24,7 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
 
   if (!isLoading && user) {
-    return <Navigate to={getAuthorizedLandingPath(user)} replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   const submit = async (event) => {

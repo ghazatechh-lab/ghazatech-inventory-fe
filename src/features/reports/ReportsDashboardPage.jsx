@@ -1,4 +1,6 @@
 import React from "react";
+import { useAuth } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { Download } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -33,6 +35,8 @@ const downloadCsv = (filename, rows) => {
 };
 
 export default function ReportsDashboardPage() {
+  const { user } = useAuth();
+  const can = (code) => hasPermission(user, code);
   const scope = usePhysicalBranchScope();
   const branchParams = scope.listParams;
 
@@ -70,14 +74,13 @@ export default function ReportsDashboardPage() {
   const exportOverview = () => {
     downloadCsv("reports-overview.csv", [
       ["Metric", "Amount"],
-      ["Sales this month", kpi.sales_month || 0],
-      ["Purchases this month", kpi.purchases_month || 0],
-      ["Accounts receivable", kpi.receivables || 0],
-      ["Accounts payable", kpi.payables || 0],
-      ["Inventory value", kpi.inventory_value || 0],
+      ...(can("reports.sales.export") ? [["Sales this month", kpi.sales_month || 0]] : []),
+      ...(can("reports.purchase.export") ? [["Purchases this month", kpi.purchases_month || 0]] : []),
+      ...(can("reports.finance.export") ? [["Accounts receivable", kpi.receivables || 0], ["Accounts payable", kpi.payables || 0]] : []),
+      ...(can("reports.inventory.export") ? [["Inventory value", kpi.inventory_value || 0]] : []),
       [],
       ["Month", "Sales", "Purchases"],
-      ...trend.map((row) => [row.month, row.sales, row.purchases]),
+      ...trend.map((row) => [row.month, can("reports.sales.export") ? row.sales : "", can("reports.purchase.export") ? row.purchases : ""]),
     ]);
   };
 
@@ -88,7 +91,7 @@ export default function ReportsDashboardPage() {
         title="Reports Overview"
         subtitle="Current business performance for the active branch filter"
         actions={
-          <Button type="button" variant="outline" onClick={exportOverview}>
+          <Button type="button" variant="outline" disabled={!(["reports.sales.export", "reports.purchase.export", "reports.inventory.export", "reports.finance.export"].some(can))} onClick={exportOverview}>
             <Download className="mr-2 h-4 w-4" />
             Export CSV
           </Button>
@@ -98,29 +101,39 @@ export default function ReportsDashboardPage() {
       <BranchSourceFilter scope={scope} className="card-surface p-3" />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+{can("reports.sales.view") && (
         <MetricCard
           label="Sales This Month"
           value={<CurrencyText value={kpi.sales_month || 0} />}
         />
+        )}
+{can("reports.purchase.view") && (
         <MetricCard
           label="Purchases This Month"
           value={<CurrencyText value={kpi.purchases_month || 0} />}
         />
+        )}
+{can("reports.finance.view") && (
         <MetricCard
           label="Receivables"
           value={<CurrencyText value={kpi.receivables || 0} />}
         />
+        )}
+{can("reports.finance.view") && (
         <MetricCard
           label="Payables"
           value={<CurrencyText value={kpi.payables || 0} />}
         />
+        )}
+{can("reports.inventory.view") && (
         <MetricCard
           label="Inventory Value"
           value={<CurrencyText value={kpi.inventory_value || 0} />}
         />
+        )}
       </div>
 
-      <section className="card-surface p-5">
+      {(can("reports.sales.view") || can("reports.purchase.view")) && <section className="card-surface p-5">
         <div className="mb-4">
           <h2 className="font-semibold">Sales vs Purchases</h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -137,12 +150,12 @@ export default function ReportsDashboardPage() {
               <Tooltip
                 formatter={(value) => [new Intl.NumberFormat("en-AE", { style: "currency", currency: "AED" }).format(Number(value || 0))]}
               />
-              <Bar dataKey="sales" name="Sales" radius={[5, 5, 0, 0]} />
-              <Bar dataKey="purchases" name="Purchases" radius={[5, 5, 0, 0]} />
+              {can("reports.sales.view") && <Bar dataKey="sales" name="Sales" radius={[5, 5, 0, 0]} />}
+              {can("reports.purchase.view") && <Bar dataKey="purchases" name="Purchases" radius={[5, 5, 0, 0]} />}
             </BarChart>
           </ResponsiveContainer>
         </div>
-      </section>
+      </section>}
     </div>
   );
 }
