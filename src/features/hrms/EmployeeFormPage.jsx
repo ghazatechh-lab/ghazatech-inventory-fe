@@ -30,6 +30,258 @@ import {
 } from "@/components/ui/select";
 import { normalizeList, today } from "./hrmsUtils";
 
+const NATIONALITY_COUNTRIES = [
+  "Afghanistan",
+  "Albania",
+  "Algeria",
+  "American Samoa",
+  "Andorra",
+  "Angola",
+  "Anguilla",
+  "Antarctica",
+  "Antigua and Barbuda",
+  "Argentina",
+  "Armenia",
+  "Aruba",
+  "Australia",
+  "Austria",
+  "Azerbaijan",
+  "Bahamas",
+  "Bahrain",
+  "Bangladesh",
+  "Barbados",
+  "Belarus",
+  "Belgium",
+  "Belize",
+  "Benin",
+  "Bermuda",
+  "Bhutan",
+  "Bolivia, Plurinational State of",
+  "Bonaire, Sint Eustatius and Saba",
+  "Bosnia and Herzegovina",
+  "Botswana",
+  "Bouvet Island",
+  "Brazil",
+  "British Indian Ocean Territory",
+  "Brunei Darussalam",
+  "Bulgaria",
+  "Burkina Faso",
+  "Burundi",
+  "Cabo Verde",
+  "Cambodia",
+  "Cameroon",
+  "Canada",
+  "Cayman Islands",
+  "Central African Republic",
+  "Chad",
+  "Chile",
+  "China",
+  "Christmas Island",
+  "Cocos (Keeling) Islands",
+  "Colombia",
+  "Comoros",
+  "Congo",
+  "Congo, The Democratic Republic of the",
+  "Cook Islands",
+  "Costa Rica",
+  "Croatia",
+  "Cuba",
+  "Curaçao",
+  "Cyprus",
+  "Czechia",
+  "Côte d'Ivoire",
+  "Denmark",
+  "Djibouti",
+  "Dominica",
+  "Dominican Republic",
+  "Ecuador",
+  "Egypt",
+  "El Salvador",
+  "Equatorial Guinea",
+  "Eritrea",
+  "Estonia",
+  "Eswatini",
+  "Ethiopia",
+  "Falkland Islands (Malvinas)",
+  "Faroe Islands",
+  "Fiji",
+  "Finland",
+  "France",
+  "French Guiana",
+  "French Polynesia",
+  "French Southern Territories",
+  "Gabon",
+  "Gambia",
+  "Georgia",
+  "Germany",
+  "Ghana",
+  "Gibraltar",
+  "Greece",
+  "Greenland",
+  "Grenada",
+  "Guadeloupe",
+  "Guam",
+  "Guatemala",
+  "Guernsey",
+  "Guinea",
+  "Guinea-Bissau",
+  "Guyana",
+  "Haiti",
+  "Heard Island and McDonald Islands",
+  "Holy See (Vatican City State)",
+  "Honduras",
+  "Hong Kong",
+  "Hungary",
+  "Iceland",
+  "India",
+  "Indonesia",
+  "Iran, Islamic Republic of",
+  "Iraq",
+  "Ireland",
+  "Isle of Man",
+  "Israel",
+  "Italy",
+  "Jamaica",
+  "Japan",
+  "Jersey",
+  "Jordan",
+  "Kazakhstan",
+  "Kenya",
+  "Kiribati",
+  "Korea, Democratic People's Republic of",
+  "Korea, Republic of",
+  "Kuwait",
+  "Kyrgyzstan",
+  "Lao People's Democratic Republic",
+  "Latvia",
+  "Lebanon",
+  "Lesotho",
+  "Liberia",
+  "Libya",
+  "Liechtenstein",
+  "Lithuania",
+  "Luxembourg",
+  "Macao",
+  "Madagascar",
+  "Malawi",
+  "Malaysia",
+  "Maldives",
+  "Mali",
+  "Malta",
+  "Marshall Islands",
+  "Martinique",
+  "Mauritania",
+  "Mauritius",
+  "Mayotte",
+  "Mexico",
+  "Micronesia, Federated States of",
+  "Moldova, Republic of",
+  "Monaco",
+  "Mongolia",
+  "Montenegro",
+  "Montserrat",
+  "Morocco",
+  "Mozambique",
+  "Myanmar",
+  "Namibia",
+  "Nauru",
+  "Nepal",
+  "Netherlands",
+  "New Caledonia",
+  "New Zealand",
+  "Nicaragua",
+  "Niger",
+  "Nigeria",
+  "Niue",
+  "Norfolk Island",
+  "North Macedonia",
+  "Northern Mariana Islands",
+  "Norway",
+  "Oman",
+  "Pakistan",
+  "Palau",
+  "Palestine, State of",
+  "Panama",
+  "Papua New Guinea",
+  "Paraguay",
+  "Peru",
+  "Philippines",
+  "Pitcairn",
+  "Poland",
+  "Portugal",
+  "Puerto Rico",
+  "Qatar",
+  "Romania",
+  "Russian Federation",
+  "Rwanda",
+  "Réunion",
+  "Saint Barthélemy",
+  "Saint Helena, Ascension and Tristan da Cunha",
+  "Saint Kitts and Nevis",
+  "Saint Lucia",
+  "Saint Martin (French part)",
+  "Saint Pierre and Miquelon",
+  "Saint Vincent and the Grenadines",
+  "Samoa",
+  "San Marino",
+  "Sao Tome and Principe",
+  "Saudi Arabia",
+  "Senegal",
+  "Serbia",
+  "Seychelles",
+  "Sierra Leone",
+  "Singapore",
+  "Sint Maarten (Dutch part)",
+  "Slovakia",
+  "Slovenia",
+  "Solomon Islands",
+  "Somalia",
+  "South Africa",
+  "South Georgia and the South Sandwich Islands",
+  "South Sudan",
+  "Spain",
+  "Sri Lanka",
+  "Sudan",
+  "Suriname",
+  "Svalbard and Jan Mayen",
+  "Sweden",
+  "Switzerland",
+  "Syrian Arab Republic",
+  "Taiwan, Province of China",
+  "Tajikistan",
+  "Tanzania, United Republic of",
+  "Thailand",
+  "Timor-Leste",
+  "Togo",
+  "Tokelau",
+  "Tonga",
+  "Trinidad and Tobago",
+  "Tunisia",
+  "Turkmenistan",
+  "Turks and Caicos Islands",
+  "Tuvalu",
+  "Türkiye",
+  "Uganda",
+  "Ukraine",
+  "United Arab Emirates",
+  "United Kingdom",
+  "United States",
+  "United States Minor Outlying Islands",
+  "Uruguay",
+  "Uzbekistan",
+  "Vanuatu",
+  "Venezuela, Bolivarian Republic of",
+  "Viet Nam",
+  "Virgin Islands, British",
+  "Virgin Islands, U.S.",
+  "Wallis and Futuna",
+  "Western Sahara",
+  "Yemen",
+  "Zambia",
+  "Zimbabwe",
+  "Åland Islands"
+];
+
 const initial = {
   employee_code: "",
   branch: "",
@@ -76,6 +328,7 @@ export default function EmployeeFormPage() {
   const branchScope = usePhysicalBranchScope();
   const { branchId, isCombined } = branchScope;
   const [form, setForm] = React.useState(initial);
+  const [nationalitySearch, setNationalitySearch] = React.useState("");
   const [inlineForm, setInlineForm] = React.useState(null);
   const [inlineName, setInlineName] = React.useState("");
   const [inlineSaving, setInlineSaving] = React.useState(false);
@@ -386,7 +639,7 @@ export default function EmployeeFormPage() {
       };
 
       Object.entries(payload).forEach(([key, value]) => {
-        if (key === "profile_image") return;
+        if (key === "profile_image" || key === "employee_code") return;
 
         if (value === null || value === undefined) return;
 
@@ -580,12 +833,65 @@ export default function EmployeeFormPage() {
       {section(
         "Basic Details",
         <>
-          {field("Employee Code", "employee_code")}
+          <div className="hrms-field">
+            <Label>Employee Code</Label>
+            <Input
+              className="mt-2 h-10 bg-muted/40 font-medium"
+              value={form.employee_code || (isEdit ? "Not assigned" : "Auto-generated on save")}
+              readOnly
+              aria-label="Employee code (automatically generated)"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              {isEdit ? "Assigned by the system; cannot be edited." : "A unique code will be assigned when the employee is saved."}
+            </p>
+          </div>
           {field("First Name", "first_name")}
           {field("Last Name", "last_name")}
           {field("Email", "email", "email")}
           {field("Phone", "phone")}
-          {field("Nationality", "nationality")}
+          <div className="hrms-field min-w-0">
+            <Label>Nationality *</Label>
+            <Select
+              value={form.nationality || undefined}
+              onValueChange={(value) => {
+                update("nationality", value);
+                setNationalitySearch("");
+              }}
+            >
+              <SelectTrigger className="mt-2 h-10 w-full min-w-0">
+                <SelectValue placeholder="Select country" />
+              </SelectTrigger>
+              <SelectContent className="max-h-80 p-0">
+                <div
+                  className="sticky top-0 z-10 border-b bg-popover p-2"
+                  onKeyDown={(event) => event.stopPropagation()}
+                >
+                  <Input
+                    value={nationalitySearch}
+                    onChange={(event) => setNationalitySearch(event.target.value)}
+                    placeholder="Search countries..."
+                    className="h-9"
+                    onClick={(event) => event.stopPropagation()}
+                    aria-label="Search nationalities"
+                  />
+                </div>
+                <div className="max-h-64 overflow-y-auto p-1">
+                  {[
+                    ...(form.nationality && !NATIONALITY_COUNTRIES.includes(form.nationality)
+                      ? [form.nationality]
+                      : []),
+                    ...NATIONALITY_COUNTRIES,
+                  ]
+                    .filter((country) => country.toLowerCase().includes(nationalitySearch.trim().toLowerCase()))
+                    .map((country) => (
+                      <SelectItem key={country} value={country}>
+                        {country}
+                      </SelectItem>
+                    ))}
+                </div>
+              </SelectContent>
+            </Select>
+          </div>
           {field("Date of Birth *", "date_of_birth", "date", {
             min:
               form.date_of_birth && form.date_of_birth < "1950-01-01"
