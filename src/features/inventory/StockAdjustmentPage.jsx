@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 
 import api, { getApiErrorDetails, unwrap } from "@/lib/api";
+import { RackPicker } from "@/components/inventory/RackPicker";
 import { useListQuery, DataTable } from "@/hooks/useListQuery";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,7 @@ const emptyAdjustment = (branchId = "") => ({
   branch: branchId ? String(branchId) : "",
   product: "",
   variant: "",
+  rack_id: "",
   adjustment_type: "DEDUCT",
   quantity: 1,
   reason: "",
@@ -503,6 +505,8 @@ export default function StockAdjustmentPage() {
   const { branchId, branchParams } = useActiveBranchFilter();
 
   const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [allocationQty, setAllocationQty] = React.useState("");
+  const [allocating, setAllocating] = React.useState(false);
   const [pendingAdjustment, setPendingAdjustment] = React.useState(null);
 
   const [historyType, setHistoryType] = React.useState("__all__");
@@ -529,6 +533,7 @@ export default function StockAdjustmentPage() {
   const selectedBranchId = watch("branch");
   const selectedProductId = watch("product");
   const selectedVariantId = watch("variant");
+  const selectedRackId = watch("rack_id");
 
   const { data: branchResponse } = useQuery({
     queryKey: ["adjustment-branches"],
@@ -668,10 +673,12 @@ export default function StockAdjustmentPage() {
   React.useEffect(() => {
     setValue("product", "");
     setValue("variant", "");
+    setValue("rack_id", "");
   }, [selectedBranchId, setValue]);
 
   React.useEffect(() => {
     setValue("variant", "");
+    setValue("rack_id", "");
   }, [selectedProductId, setValue]);
 
   React.useEffect(() => {
@@ -759,6 +766,7 @@ export default function StockAdjustmentPage() {
 
   const validateValues = (values, stock, isEdit = false) => {
     const next = {};
+    if (!values.rack_id) next.rack_id = "Select a rack for this adjustment.";
 
     if (!values.branch) next.branch = "Branch is required.";
     if (!values.product) next.product = "Product is required.";
@@ -829,6 +837,7 @@ export default function StockAdjustmentPage() {
       branch: Number(values.branch),
       product: Number(values.product),
       variant: values.variant ? Number(values.variant) : null,
+      rack_id: Number(values.rack_id),
       adjustment_type: values.adjustment_type,
       quantity: Number(values.quantity),
       reason: values.reason.trim(),
@@ -847,6 +856,10 @@ export default function StockAdjustmentPage() {
   };
 
   const openEdit = (adjustment) => {
+    if (adjustment.rack_id) {
+      toast.error("Rack adjustments are immutable for audit safety. Create a corrective adjustment for the same rack instead.");
+      return;
+    }
     setEditingAdjustment(adjustment);
     setEditErrors({});
     setEditForm({
@@ -1095,6 +1108,11 @@ export default function StockAdjustmentPage() {
 
           <div className="space-y-5 p-5">
             <div className="space-y-5">
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
+                <Warehouse className="mr-2 inline h-4 w-4" />
+                Branch is automatically selected from the global branch filter.
+              </div>
+
               <div>
                 <Label>Product *</Label>
                 <Controller
@@ -1166,6 +1184,39 @@ export default function StockAdjustmentPage() {
                 />
               </div>
 
+              <div>
+                <Controller name="rack_id" control={control} rules={{ required: "Select a rack." }}
+                  render={({ field }) => <RackPicker
+                    branchId={selectedBranchId} value={field.value} onChange={field.onChange}
+                    allocations={selectedStock?.racks || []} />}
+                />
+                {errors.rack_id && <p className="text-xs text-red-500">Select a rack.</p>}
+              </div>
+              {Number(selectedStock?.unallocated_quantity || 0) > 0 && selectedRackId && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3 dark:bg-amber-500/5">
+                  <p className="text-xs font-semibold">Existing stock without a rack: {selectedStock.unallocated_quantity} units</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Allocate legacy stock before decreasing or transferring it. This does not change total stock. Administrator access required.</p>
+                  <div className="mt-3 flex items-center gap-2">
+                    <Input type="number" min="1" max={selectedStock.unallocated_quantity} step="1"
+                      className="h-10 w-28" value={allocationQty}
+                      placeholder="Units" onChange={e => setAllocationQty(e.target.value)} />
+                    <Button type="button" size="sm" disabled={allocating || !allocationQty}
+                      onClick={async () => {
+                        setAllocating(true);
+                        try {
+                          await api.post('/inventory/rack-allocations/assign-unallocated/', {
+                            branch: Number(selectedBranchId), stock_id: selectedStock.stock_id,
+                            rack_id: Number(selectedRackId), quantity: Number(allocationQty)
+                          });
+                          toast.success('Unallocated stock assigned to rack.');
+                          setAllocationQty('');
+                          await queryClient.invalidateQueries({queryKey: ['stock-adjustment-options']});
+                        } catch (e) { toast.error(getApiErrorDetails(e).summary || 'Unable to assign rack stock.'); }
+                        finally { setAllocating(false); }
+                      }}>{allocating ? 'Assigning...' : 'Assign to rack'}</Button>
+                  </div>
+                </div>
+              )}
               <div>
                 <Label>Quantity *</Label>
                 <Input

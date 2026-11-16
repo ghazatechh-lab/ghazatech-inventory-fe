@@ -37,6 +37,7 @@ const createEmptyItem = () => ({
   stock_key: "",
   product: "",
   variant: null,
+  source_rack_id: "",
   requested_quantity: 1,
   remarks: "",
 });
@@ -162,6 +163,84 @@ function SearchableProductSelect({
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+
+// Only racks with stock for this exact product/variant in the physical source
+// branch are eligible for dispatch. Never reuse the generic /racks/ picker here.
+const sourceRackQueryKey = (branchId, productId, variantId) => [
+  "transfer-available-source-racks",
+  String(branchId || ""),
+  String(productId || ""),
+  String(variantId || "base"),
+];
+
+function DispatchRackPicker({ branchId, productId, variantId, value, onChange }) {
+  const enabled = Boolean(branchId && productId);
+  const { data, isFetching, isError, error } = useQuery({
+    queryKey: sourceRackQueryKey(branchId, productId, variantId),
+    enabled,
+    queryFn: async () =>
+      unwrap(await api.get("/transfers/available-source-racks/", {
+        params: {
+          from_branch: branchId,
+          product: productId,
+          ...(variantId ? { variant: variantId } : {}),
+        },
+      })),
+  });
+
+  const racks = React.useMemo(() => list(data).filter(
+    (rack) => Number(rack.max_transferable_quantity ?? rack.available_quantity ?? 0) > 0,
+  ), [data]);
+
+  // On a new product/branch, keep no stale rack ID. Auto-select a single
+  // eligible rack only after its product-specific query has finished.
+  React.useEffect(() => {
+    if (!enabled || isFetching || isError || !data) return;
+    const currentIsValid = racks.some((rack) => String(rack.id) === String(value));
+    if (value && !currentIsValid) {
+      onChange("");
+    } else if (!value && racks.length === 1) {
+      onChange(String(racks[0].id));
+    }
+  }, [enabled, isFetching, isError, data, racks, value, onChange]);
+
+  const selectedRack = racks.find((rack) => String(rack.id) === String(value));
+  const selectedId = !isFetching && !isError && selectedRack ? String(value) : undefined;
+
+  return (
+    <div className="min-w-0 space-y-2">
+      <Label>Dispatch from rack *</Label>
+      <Select
+        value={selectedId}
+        disabled={!enabled || isFetching || isError || racks.length === 0}
+        onValueChange={onChange}
+      >
+        <SelectTrigger className="h-11 w-full">
+          <SelectValue placeholder={
+            !enabled ? "Select a product first" :
+            isFetching ? "Loading product racks..." :
+            isError ? "Unable to load racks" :
+            racks.length === 0 ? "No stock available in any rack" :
+            "Select rack"
+          } />
+        </SelectTrigger>
+        <SelectContent>
+          {racks.map((rack) => (
+            <SelectItem key={rack.id} value={String(rack.id)}>
+              {rack.rack_code}{rack.rack_name ? ` — ${rack.rack_name}` : ""}
+              {` (${rack.max_transferable_quantity ?? rack.available_quantity} available)`}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {isError && <p className="text-xs text-red-600">{getApiErrorMessage(error, "Unable to load source racks.")}</p>}
+      {enabled && !isFetching && !isError && racks.length === 0 && (
+        <p className="text-xs text-amber-600">This product has no available quantity allocated to a rack in the selected source branch.</p>
+      )}
     </div>
   );
 }
@@ -396,18 +475,43 @@ export default function TransferFormPage() {
       (item) => item.product && Number(item.requested_quantity) > 0,
     );
 
+    if (validItems.some(item => !item.source_rack_id)) {
+      toast.error("Select the source rack for every transfer item.");
+      return;
+    }
     if (!validItems.length) {
       toast.error("Add at least one product.");
       return;
     }
 
+    const rackQuantityRequests = new Map();
+    for (const item of validItems) {
+      const rackData = queryClient.getQueryData(
+        sourceRackQueryKey(from, item.product, item.variant),
+      );
+      const rack = list(rackData).find(
+        (entry) => String(entry.id) === String(item.source_rack_id),
+      );
+      if (!rack) {
+        toast.error("The selected rack has no available stock for this product. Refresh its rack selection.");
+        return;
+      }
+      const key = `${item.stock_key}:${item.source_rack_id}`;
+      const requested = (rackQuantityRequests.get(key) || 0) + Number(item.requested_quantity);
+      rackQuantityRequests.set(key, requested);
+      if (requested > Number(rack.max_transferable_quantity ?? rack.available_quantity ?? 0)) {
+        toast.error("Requested quantity exceeds the selected rack's available stock.");
+        return;
+      }
+    }
+
     const duplicateKeys = validItems
-      .map((item) => item.stock_key)
+      .map((item) => `${item.stock_key}:${item.source_rack_id}`)
       .filter((key, index, array) => array.indexOf(key) !== index);
 
     if (duplicateKeys.length) {
       toast.error(
-        "The same product and variant cannot be added more than once.",
+        "The same product, variant and source rack cannot be added twice.",
       );
       return;
     }
@@ -435,6 +539,7 @@ export default function TransferFormPage() {
       items: validItems.map((item) => ({
         product: Number(item.product),
         variant: item.variant ? Number(item.variant) : null,
+        source_rack_id: Number(item.source_rack_id),
         requested_quantity: Number(item.requested_quantity),
         remarks: item.remarks?.trim() || "",
       })),
@@ -489,10 +594,16 @@ export default function TransferFormPage() {
         </div>
       </section>
 
+      {!from && isCombinedBranch ? (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
+          Branch 3 is a combined interface. Select Branch 1 or Branch 2 as the source before adding transfer items.
+        </section>
+      ) : null}
+
       <form onSubmit={submit} className="space-y-5">
         <FormSection
           title="Transfer route"
-          description={isCombinedBranch ? "Choose a source branch to create the transfer." : "Transfer between physical branches."}
+          description={isCombinedBranch ? "Select the physical source branch for this transfer." : "The source branch is locked to the active physical branch."}
           icon={Warehouse}
         >
           <div className="grid gap-4 md:grid-cols-3">
@@ -626,6 +737,7 @@ export default function TransferFormPage() {
                             product: selected ? String(selected.product) : "",
                             variant: selected?.variant || null,
                             requested_quantity: 1,
+                            source_rack_id: "",
                           });
                         }}
                       />
@@ -667,6 +779,13 @@ export default function TransferFormPage() {
                   </div>
 
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <DispatchRackPicker
+                      branchId={from}
+                      productId={item.product}
+                      variantId={item.variant}
+                      value={item.source_rack_id}
+                      onChange={(rackId) => updateItem(index, { source_rack_id: rackId })}
+                    />
                     <div>
                       <Label>Item Remarks</Label>
 

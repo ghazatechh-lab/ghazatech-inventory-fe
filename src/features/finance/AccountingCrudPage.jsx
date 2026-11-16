@@ -113,7 +113,6 @@ export default function AccountingCrudPage({
   React.useEffect(() => {
     query.refetch();
     // query identity changes with branchId/endpoint.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branchId, endpoint]);
 
   const save = useMutation({

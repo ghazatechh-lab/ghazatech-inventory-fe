@@ -93,6 +93,13 @@ export default function ProductDetailPage() {
   const visibleVariants = product.has_variants
     ? variants.filter((item) => !item.is_base)
     : variants.slice(0, 1);
+  const rackAllocations = Array.isArray(product.rack_allocations) ? product.rack_allocations : [];
+  const physicalQuantity = Number(product.physical_quantity ?? (product.stocks || []).reduce((total, stock) => total + Number(stock.current_stock || 0), 0));
+  const allocatedQuantity = rackAllocations.reduce((total, row) => total + Number(row.quantity || 0), 0);
+  const unallocatedQuantity = physicalQuantity - allocatedQuantity;
+  const rackLocationLabel = rackAllocations.length
+    ? Array.from(new Set(rackAllocations.map((row) => row.rack_code))).join(", ")
+    : (product.rack_code || product.rack_name || "Unassigned");
   const image = product.product_image_url || product.product_image;
   const availableQty = Number(
     product.total_available_qty ?? product.available_qty ?? 0,
@@ -193,9 +200,27 @@ export default function ProductDetailPage() {
             Storage rack
           </p>
           <p className="mt-2 text-xl font-extrabold text-slate-950 dark:text-white">
-            {product.rack_code || product.rack_name || "Unassigned"}
+            {rackLocationLabel}
           </p>
           <p className="mt-1 text-xs text-slate-500">Physical location</p>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/70">
+        <h2 className="text-lg font-extrabold text-slate-950 dark:text-white">Rack-wise stock</h2>
+        <p className="mt-1 text-sm text-slate-500">Saved physical rack allocations for this branch</p>
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <div className="rounded-lg bg-slate-50 p-3 dark:bg-white/5">Physical stock: <strong>{physicalQuantity}</strong></div>
+          <div className="rounded-lg bg-slate-50 p-3 dark:bg-white/5">Allocated: <strong>{allocatedQuantity}</strong></div>
+          <div className="rounded-lg bg-slate-50 p-3 dark:bg-white/5">Unallocated: <strong>{unallocatedQuantity}</strong></div>
+        </div>
+        <div className="mt-4 space-y-2">
+          {rackAllocations.length ? rackAllocations.map((allocation) => (
+            <div key={`${allocation.stock_id}-${allocation.rack_id}`} className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-white/10">
+              <span>{allocation.rack_code}{allocation.variant_id != null ? ` · Variant ${allocation.variant_id}` : ""}</span>
+              <strong>{allocation.quantity} units</strong>
+            </div>
+          )) : <p className="text-sm text-slate-500">No saved rack allocations. Assign existing stock in Product Edit.</p>}
         </div>
       </section>
 
@@ -224,7 +249,7 @@ export default function ProductDetailPage() {
             <DetailItem
               icon={MapPin}
               label="Rack"
-              value={product.rack_code || product.rack_name}
+              value={rackLocationLabel}
             />
             <DetailItem
               icon={Truck}

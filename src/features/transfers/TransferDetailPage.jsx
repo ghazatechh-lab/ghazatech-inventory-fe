@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 
 import api, { getApiErrorMessage, unwrap } from "@/lib/api";
+import { RackPicker } from "@/components/inventory/RackPicker";
 import { useAuth } from "@/lib/auth";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { LoadingState, EmptyState } from "@/components/common/States";
@@ -139,6 +140,7 @@ export default function TransferDetailPage() {
   const [actionName, setActionName] = React.useState("");
 
   const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [destinationRacks, setDestinationRacks] = React.useState({});
 
   const isAdmin =
     Boolean(user?.is_superuser) ||
@@ -176,14 +178,16 @@ export default function TransferDetailPage() {
       : [];
 
   const status = normalizeStatus(transfer.status);
-
   const destinationBranchId =
-    transfer.to_branch_id ?? transfer.to_branch?.id ?? transfer.to_branch ?? null;
+    transfer.to_branch_id ??
+    transfer.to_branch?.id ??
+    transfer.to_branch ??
+    null;
 
   const canReceiveInActiveBranch =
     Boolean(activeBranchId) &&
     Boolean(destinationBranchId) &&
-    String(activeBranchId) === String(destinationBranchId);
+    (String(activeBranchId) === String(destinationBranchId) || isAdmin);
 
   const deleteTransfer = async () => {
     try {
@@ -219,7 +223,28 @@ export default function TransferDetailPage() {
           ? { params: { branch: activeBranchId } }
           : undefined;
 
-      await api.post(`/transfers/${id}/${path}/`, {}, actionConfig);
+      // The source rack was already chosen when the transfer was created.
+      // Dispatch uses the stored source_rack_id; only receipt needs a new rack choice.
+      const payload =
+        path === "receive"
+          ? {
+              racks: Object.fromEntries(
+                transferItems.map((item) => [
+                  String(item.id),
+                  destinationRacks[item.id] || item.destination_rack_id,
+                ]),
+              ),
+            }
+          : {};
+      if (
+        path === "receive" &&
+        transferItems.some((item) => !payload.racks[String(item.id)])
+      ) {
+        toast.error("Select a destination rack for each received item.");
+        setActionName("");
+        return;
+      }
+      await api.post(`/transfers/${id}/${path}/`, payload, actionConfig);
 
       await Promise.all([
         refetch(),
@@ -267,6 +292,7 @@ export default function TransferDetailPage() {
   return (
     <div
       data-stock-module="stock-transfer-detail"
+      data-transfer-detail-version="receive-rack-only-v2"
       className="stock-module-page stock-workspace w-full space-y-5 pb-10"
     >
       <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
@@ -354,7 +380,46 @@ export default function TransferDetailPage() {
               </Button>
             ) : null}
 
-            {["DISPATCHED", "IN_TRANSIT"].includes(status) && canReceiveInActiveBranch ? (
+            {["DISPATCHED", "IN_TRANSIT"].includes(status) &&
+            canReceiveInActiveBranch ? (
+              <div className="w-full rounded-xl border bg-muted/20 p-4">
+                <p className="mb-3 text-sm font-semibold">
+                  Choose destination racks before receiving
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {transferItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="rounded-lg border bg-background p-3"
+                    >
+                      <p className="mb-2 text-xs font-medium">
+                        {item.sku || item.product_name} —{" "}
+                        {item.dispatched_quantity || item.requested_quantity}{" "}
+                        units
+                      </p>
+                      <RackPicker
+                        branchId={destinationBranchId}
+                        title="Receive into rack *"
+                        value={
+                          destinationRacks[item.id] ||
+                          (item.destination_rack_id
+                            ? String(item.destination_rack_id)
+                            : "")
+                        }
+                        onChange={(v) =>
+                          setDestinationRacks((old) => ({
+                            ...old,
+                            [item.id]: v,
+                          }))
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {["DISPATCHED", "IN_TRANSIT"].includes(status) &&
+            canReceiveInActiveBranch ? (
               <Button
                 className="bg-amber-400 !text-slate-950 hover:bg-amber-300 hover:!text-slate-950"
                 disabled={Boolean(actionName)}
@@ -469,6 +534,12 @@ export default function TransferDetailPage() {
                         {item.sku || "—"}
 
                         {item.variant_label ? ` · ${item.variant_label}` : ""}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        From rack: {item.source_rack_code || "—"}
+                        {item.destination_rack_code
+                          ? ` · To rack: ${item.destination_rack_code}`
+                          : ""}
                       </p>
                     </td>
 

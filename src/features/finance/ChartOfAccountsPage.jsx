@@ -353,7 +353,6 @@ export default function ChartOfAccountsPage() {
     groupedQuery.refetch();
     // Query keys already include branchId; this guarantees immediate refresh
     // when the active branch selector changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [branchId]);
 
   React.useEffect(() => {
