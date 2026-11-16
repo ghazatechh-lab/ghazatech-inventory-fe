@@ -273,17 +273,26 @@ export const getApiErrorDetails = (error) => {
     };
   }
 
+  // Different endpoints return DRF errors in several shapes:
+  // {field: [...]}, {errors: {field: [...]}}, or {data: {errors: ...}}.
+  const payload = responseData?.data && typeof responseData.data === "object"
+    ? responseData.data
+    : responseData;
   const errorContainer =
-    responseData?.errors ||
-    responseData?.validation_errors ||
-    responseData?.error ||
-    {};
+    payload?.errors ??
+    payload?.validation_errors ??
+    (payload?.error && typeof payload.error === "object" ? payload.error : null) ??
+    (payload && typeof payload === "object"
+      ? Object.fromEntries(
+          Object.entries(payload).filter(([key]) =>
+            !["success", "message", "detail", "error", "code", "status"].includes(key),
+          ),
+        )
+      : {});
 
   const errors = flattenValidationErrors(errorContainer).map((item) => ({
     field: item.field,
-
     label: item.field ? humanizeFieldName(item.field) : "",
-
     message: item.message,
   }));
 
@@ -297,7 +306,7 @@ export const getApiErrorDetails = (error) => {
 
     .join("\n");
 
-  const backendMessage = responseData?.message || responseData?.detail || "";
+  const backendMessage = payload?.message || payload?.detail || payload?.error || "";
 
   const fallback =
     status === 400
@@ -319,7 +328,7 @@ export const getApiErrorDetails = (error) => {
   const summary = fieldSummary || backendMessage || fallback;
 
   return {
-    title: statusTitle(status),
+    title: errors.length ? (status >= 500 ? "Request could not be completed" : "Please correct the following") : statusTitle(status),
 
     message: errors[0]?.message || backendMessage || fallback,
 

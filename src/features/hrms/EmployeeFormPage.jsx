@@ -370,6 +370,11 @@ export default function EmployeeFormPage() {
         );
       }
 
+      // Match the required field already enforced by the backend serializer.
+      if (!form.date_of_birth) {
+        throw new Error("Date of birth is required.");
+      }
+
       const body = new FormData();
       const payload = {
         ...form,
@@ -437,7 +442,9 @@ export default function EmployeeFormPage() {
     onError: (error) => {
       const details = getApiErrorDetails(error);
       toast.error(
-        error?.message || details.title || "Unable to save employee",
+        details.errors?.length
+          ? "Please correct the employee details"
+          : error?.response ? details.title : (error?.message || details.title),
         {
           description: details.summary || details.message,
         },
@@ -579,7 +586,7 @@ export default function EmployeeFormPage() {
           {field("Email", "email", "email")}
           {field("Phone", "phone")}
           {field("Nationality", "nationality")}
-          {field("Date of Birth (Optional)", "date_of_birth", "date", {
+          {field("Date of Birth *", "date_of_birth", "date", {
             min:
               form.date_of_birth && form.date_of_birth < "1950-01-01"
                 ? form.date_of_birth
@@ -620,6 +627,11 @@ export default function EmployeeFormPage() {
             onChange={(value) => update("branch", value)}
             label="Branch"
           />
+          {isCombined ? (
+            <p className="-mt-3 text-xs text-muted-foreground">
+              Branch 3 is a combined view. This employee must belong to Branch 1 or Branch 2.
+            </p>
+          ) : null}
           <div>
             <Label>Department</Label>
             <div className="mt-2 flex gap-2">
