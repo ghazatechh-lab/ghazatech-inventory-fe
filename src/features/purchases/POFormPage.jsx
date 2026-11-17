@@ -189,6 +189,9 @@ export default function POFormPage() {
     queryFn: async () =>
       normalizePayload(
         await api.get("/suppliers/", {
+          // Supplier options belong to the physical purchase branch, even
+          // when the UI is currently in the consolidated branch.
+          headers: { "X-Branch-ID": String(form.branch) },
           params: {
             page_size: 500,
             is_active: true,
@@ -849,9 +852,14 @@ export default function POFormPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {["AED", "USD", "EUR", "INR"].map((currency) => (
-                      <SelectItem key={currency} value={currency}>
-                        {currency === "AED" ? "⃃" : currency}
+                    {[
+                      { code: "AED", label: "AED — UAE Dirham" },
+                      { code: "USD", label: "USD — US Dollar" },
+                      { code: "EUR", label: "EUR — Euro" },
+                      { code: "INR", label: "INR — Indian Rupee" },
+                    ].map(({ code, label }) => (
+                      <SelectItem key={code} value={code}>
+                        {label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -885,10 +893,10 @@ export default function POFormPage() {
 
                 <p className="text-[11px] font-medium text-blue-600 dark:text-blue-400">
                   Net {selectedSupplier.payment_terms_days || 0} · Credit used{" "}
-                  <CurrencyText
+                  <CurrencyText displayCode
                     value={selectedSupplier.outstanding_balance || 0}
                   />{" "}
-                  / <CurrencyText value={selectedSupplier.credit_limit || 0} />
+                  / <CurrencyText displayCode value={selectedSupplier.credit_limit || 0} />
                 </p>
               </div>
             )}
@@ -1125,7 +1133,7 @@ export default function POFormPage() {
                         />
 
                         <div className="flex h-10 items-center justify-end rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-medium dark:border-white/10 dark:bg-white/[0.025]">
-                          <CurrencyText
+                          <CurrencyText displayCode
                             value={calculations[index]?.total || 0}
                             currency={form.currency}
                           />
@@ -1175,22 +1183,22 @@ export default function POFormPage() {
               <div className="mt-6 ml-auto max-w-xs space-y-2 border-t border-slate-200 pt-4 text-sm dark:border-white/10">
                 <div className="flex justify-between">
                   <span className="text-slate-500">Subtotal</span>
-                  <CurrencyText value={subtotal} currency={form.currency} />
+                  <CurrencyText displayCode value={subtotal} currency={form.currency} />
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">VAT (5%)</span>
-                  <CurrencyText value={vat} currency={form.currency} />
+                  <CurrencyText displayCode value={vat} currency={form.currency} />
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Shipping</span>
-                  <CurrencyText
+                  <CurrencyText displayCode
                     value={form.shipping_amount}
                     currency={form.currency}
                   />
                 </div>
                 <div className="flex justify-between border-t border-slate-200 pt-3 font-semibold dark:border-white/10">
                   <span>Total</span>
-                  <CurrencyText value={total} currency={form.currency} />
+                  <CurrencyText displayCode value={total} currency={form.currency} />
                 </div>
               </div>
             </div>
@@ -1249,15 +1257,15 @@ export default function POFormPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Subtotal</span>
-                <CurrencyText value={subtotal} currency={form.currency} />
+                <CurrencyText displayCode value={subtotal} currency={form.currency} />
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">VAT</span>
-                <CurrencyText value={vat} currency={form.currency} />
+                <CurrencyText displayCode value={vat} currency={form.currency} />
               </div>
               <div className="flex justify-between border-t border-slate-200 pt-3 font-semibold dark:border-white/10">
                 <span>Total amount</span>
-                <CurrencyText value={total} currency={form.currency} />
+                <CurrencyText displayCode value={total} currency={form.currency} />
               </div>
               <div className="flex items-center justify-between border-t border-slate-200 pt-3 dark:border-white/10">
                 <span className="text-slate-500">Status</span>

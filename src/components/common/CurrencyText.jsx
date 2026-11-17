@@ -2,8 +2,11 @@ import React from "react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { DirhamSymbol } from "@/components/common/DirhamSymbol";
 
-export function CurrencyText({ value, currency = "AED", className = "" }) {
+export function CurrencyText({ value, currency = "AED", className = "", displayCode = false }) {
   const code = String(currency || "AED").toUpperCase();
+  if (displayCode) {
+    return <span className={`whitespace-nowrap font-numeric ${className}`}>{formatCurrency(value, code)}</span>;
+  }
   if (code === "AED") {
     const number = Number(value ?? 0);
     const formatted = Number.isFinite(number)
