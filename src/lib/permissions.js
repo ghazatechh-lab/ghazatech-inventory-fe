@@ -1,21 +1,33 @@
-﻿const normalizeCode = (value) => String(value || "").trim();
+const normalizeCode = (value) => String(value || "").trim();
 
-export const getRoleCode = (user) =>
-  String(
-    user?.role?.code ||
-      user?.role_detail?.code ||
-      user?.role_code ||
-      user?.role_name ||
-      "",
-  )
+// Different authentication responses expose the administrator role under
+// different fields. Normalize all supported identifiers consistently so
+// sidebar visibility and route guards agree for real super administrators.
+const normalizeRole = (value) =>
+  String(value || "")
     .trim()
     .toUpperCase()
-    .replace(/\s+/g, "_");
+    .replace(/[\s-]+/g, "_");
+
+const getRoleCandidates = (user) => [
+  user?.role?.code,
+  user?.role_detail?.code,
+  user?.role_code,
+  user?.role_name,
+  user?.role?.name,
+  user?.role_detail?.name,
+]
+  .map(normalizeRole)
+  .filter(Boolean);
+
+export const getRoleCode = (user) => getRoleCandidates(user)[0] || "";
 
 export const isAdmin = (user) =>
   Boolean(
     user?.is_superuser === true ||
-    ["ADMIN", "SUPER_ADMIN"].includes(getRoleCode(user)),
+    getRoleCandidates(user).some((role) =>
+      ["ADMIN", "SUPER_ADMIN", "SUPERADMIN", "ADMINISTRATOR"].includes(role),
+    ),
   );
 
 const addPermission = (target, value) => {
