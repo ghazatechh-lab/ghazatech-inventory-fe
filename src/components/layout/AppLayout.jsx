@@ -1,5 +1,6 @@
 import "@/styles/inventory-alignment-fix.css";
 import React from "react";
+import { ExternalLink } from "lucide-react";
 import { Outlet } from "react-router-dom";
 
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -61,6 +62,10 @@ export function AppLayout() {
         <main className="fade-in-up min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain bg-slate-50 p-4 transition-colors sm:p-6 lg:p-8 dark:bg-transparent">
           <div className="app-page-frame">
             <Outlet />
+            <footer className="mt-8 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/80 px-2 py-5 text-xs text-slate-500 dark:border-white/10 dark:text-slate-400">
+              <span>© {new Date().getFullYear()} GhazaTech. All rights reserved.</span>
+              <a href="https://www.ghazatech.com/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-semibold text-sky-700 hover:underline dark:text-sky-300">Visit GhazaTech website <ExternalLink className="h-3.5 w-3.5" /></a>
+            </footer>
           </div>
         </main>
       </div>

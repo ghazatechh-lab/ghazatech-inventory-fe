@@ -178,3 +178,15 @@ html.dark header.sticky.top-0 {
     letter-spacing: inherit;
   }
 }
+
+/* Dashboard is an immersive application workspace rather than a narrow article. */
+.app-page-frame:has(> .ghaza-dashboard) { max-width: none !important; width: 100%; margin: 0; }
+.app-page-frame:has(> .ghaza-dashboard) .ghaza-dashboard { width: 100%; max-width: none; }
+.ghaza-dashboard section:not([class*="bg-gradient"]) { min-width: 0; }
+.ghaza-dashboard section:not([class*="bg-gradient"]) h2,
+.ghaza-dashboard section:not([class*="bg-gradient"]) strong { color: #0f172a; }
+html.dark .ghaza-dashboard section:not([class*="bg-gradient"]) h2,
+html.dark .ghaza-dashboard section:not([class*="bg-gradient"]) strong { color: #f8fafc; }
+.ghaza-dashboard > section:first-child h1 { color: #fff !important; }
+.ghaza-dashboard > section:first-child p { color: #e2e8f0; }
+@media (max-width: 768px) { .ghaza-dashboard { font-size: 14px; } }
