@@ -874,9 +874,9 @@ export default function App() {
               <Route path="/fleet/returns" element={<VehicleCheckoutPage />} />
               <Route path="/fleet/trips" element={<TripLogPage />} />
 
-              {/* Sales · Service & Repair */}
+              {/* Standalone Service & Repair workspace */}
               <Route
-                path="/sales/service"
+                path="/service-repairs"
                 element={
                   <ProtectedRoute permission="sales.invoices.view">
                     <ServiceManagementPage />
@@ -884,7 +884,7 @@ export default function App() {
                 }
               />
               <Route
-                path="/sales/service/history"
+                path="/service-repairs/history"
                 element={
                   <ProtectedRoute permission="sales.invoices.view">
                     <ServiceHistoryPage />
@@ -892,14 +892,14 @@ export default function App() {
                 }
               />
 
-              {/* Backward-compatible redirects for old service bookmarks */}
+              {/* Legacy Sales links continue to work. */}
               <Route
-                path="/service-repairs"
-                element={<Navigate to="/sales/service" replace />}
+                path="/sales/service"
+                element={<Navigate to="/service-repairs" replace />}
               />
               <Route
-                path="/service-repairs/history"
-                element={<Navigate to="/sales/service/history" replace />}
+                path="/sales/service/history"
+                element={<Navigate to="/service-repairs/history" replace />}
               />
 
               {/* Reports */}

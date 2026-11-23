@@ -237,7 +237,7 @@ export const modules = [
     title: "Sales",
     shortTitle: "Sales",
     description:
-      "Manage customers, quotations, orders, invoices, direct sales, service & repair, payments, returns, and pricing.",
+      "Manage customers, quotations, orders, invoices, direct sales, payments, returns, and pricing.",
     icon: BarChart3,
     path: "/sales",
     landingPath: "/sales/quotations",
@@ -287,20 +287,6 @@ export const modules = [
         permission: "sales.orders.view",
       },
       {
-        id: "sales-service",
-        label: "Service & Repair",
-        to: "/sales/service",
-        icon: Wrench,
-        permission: "sales.invoices.view",
-      },
-      {
-        id: "sales-service-history",
-        label: "Service History",
-        to: "/sales/service/history",
-        icon: History,
-        permission: "sales.invoices.view",
-      },
-      {
         id: "sales-payments",
         label: "Sales Payments",
         to: "/sales/payments",
@@ -320,6 +306,37 @@ export const modules = [
         to: "/sales/price-lists",
         icon: Tag,
         permission: "sales.price_lists.view",
+      },
+    ],
+  },
+
+  {
+    id: "service-repairs",
+    key: "service-repairs",
+    order: 4.5,
+    title: "Service & Repair",
+    shortTitle: "Service & Repair",
+    description: "Manage customer service jobs, technician assignments, repairs, and job history.",
+    icon: Wrench,
+    path: "/service-repairs",
+    landingPath: "/service-repairs",
+    color: "violet",
+    // Preserve existing backend authorization until dedicated service permissions are introduced.
+    permissionModule: "sales",
+    items: [
+      {
+        id: "service-jobs",
+        label: "Service Jobs",
+        to: "/service-repairs",
+        icon: Wrench,
+        permission: "sales.invoices.view",
+      },
+      {
+        id: "service-history",
+        label: "Service History",
+        to: "/service-repairs/history",
+        icon: History,
+        permission: "sales.invoices.view",
       },
     ],
   },
@@ -822,6 +839,16 @@ export const getModuleByPath = (pathname = "") => {
     safePath.startsWith("/purchases/")
   ) {
     return getModuleById("purchase");
+  }
+
+  // Service & Repair has its own workspace, independent from Sales navigation.
+  if (
+    safePath === "/service-repairs" ||
+    safePath.startsWith("/service-repairs/") ||
+    safePath === "/sales/service" ||
+    safePath.startsWith("/sales/service/")
+  ) {
+    return getModuleById("service-repairs");
   }
 
   if (

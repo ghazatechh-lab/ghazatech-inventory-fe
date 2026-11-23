@@ -50,6 +50,10 @@ const rules = [
   [/^\/sales\/payments(\/|$)/, "sales.sales_payments.view"],
   [/^\/sales\/credit-notes(\/|$)/, "sales.credit_notes.view"],
 
+  // Standalone Service & Repair (existing service job authorization)
+  [/^\/service-repairs(\/|$)/, "sales.invoices.view"],
+  [/^\/sales\/service(\/|$)/, "sales.invoices.view"],
+
   // Purchase
   [/^\/suppliers\/new(\/|$)/, "purchase.suppliers.create"],
   [/^\/suppliers\/[^/]+\/edit(\/|$)/, "purchase.suppliers.edit"],
