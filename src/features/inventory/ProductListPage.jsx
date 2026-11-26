@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 
 import api, { getApiErrorMessage, unwrap } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import { useDebouncedValue } from "@/hooks/useDebounce";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
 import { DataTable } from "@/components/common/DataTable";
@@ -109,6 +111,12 @@ const uniqueCatalogueOptions = (items) => {
 
 export default function ProductListPage() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const canCreate = hasPermission(user, "inventory.products.create");
+  const canEdit = hasPermission(user, "inventory.products.edit");
+  const canDelete = hasPermission(user, "inventory.products.delete");
+  const canImport = hasPermission(user, "inventory.products.import");
+  const canExport = hasPermission(user, "inventory.products.export");
   const [searchParams, setSearchParams] = useSearchParams();
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [importing, setImporting] = useState(false);
@@ -468,7 +476,7 @@ export default function ProductListPage() {
             </Link>
           </Button>
 
-          <Button
+          {canEdit && <Button
             asChild
             type="button"
             variant="ghost"
@@ -478,9 +486,9 @@ export default function ProductListPage() {
             <Link to={`${getProductDetailUrl(product, isAllBranches).split("?")[0]}/edit?branch=${encodeURIComponent(product.source_branch_id || product.branch_id || product.branch)}`}>
               <Pencil className="h-4 w-4" />
             </Link>
-          </Button>
+          </Button>}
 
-          <Button
+          {canDelete && <Button
             type="button"
             variant="ghost"
             size="icon"
@@ -490,7 +498,7 @@ export default function ProductListPage() {
             disabled={deleteMutation.isPending}
           >
             <Trash2 className="h-4 w-4" />
-          </Button>
+          </Button>}
           </>
         </div>
       ),
@@ -538,7 +546,7 @@ export default function ProductListPage() {
               }
             />
 
-            <Button
+            {canImport && <Button
               type="button"
               variant="outline"
               disabled={importing || !branchId}
@@ -552,9 +560,9 @@ export default function ProductListPage() {
             >
               <Upload className="mr-2 h-4 w-4" />
               {importing ? "Importing..." : "Import"}
-            </Button>
+            </Button>}
 
-            <Button
+            {canExport && <Button
               type="button"
               variant="outline"
               onClick={exportProducts}
@@ -562,9 +570,9 @@ export default function ProductListPage() {
             >
               <Download className="mr-2 h-4 w-4" />
               Export
-            </Button>
+            </Button>}
 
-            <Button
+            {canCreate && <Button
               asChild
               className="inline-flex h-12 min-w-[176px] shrink-0 items-center justify-center whitespace-nowrap rounded-xl bg-amber-400 px-5 font-bold text-slate-950 shadow-lg hover:bg-amber-300"
               data-testid="new-product-btn"
@@ -573,7 +581,7 @@ export default function ProductListPage() {
                 <Plus className="mr-2 h-4 w-4" />
                 Add product
               </Link>
-            </Button>
+            </Button>}
           </div>
         </div>
       </section>

@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import api, { unwrap } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
-import { isAdmin } from "@/lib/permissions";
+import { hasPermission } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,11 +68,11 @@ export default function RackFormPage() {
   const sourceBranchId = searchParams.get("branch");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { branchId } = useActiveBranchFilter();
 
   const isEdit = Boolean(id);
-  const canManage = isAdmin(user);
+  const canManage = hasPermission(user, isEdit ? "inventory.racks.edit" : "inventory.racks.create");
 
   const {
     register,
@@ -173,11 +173,11 @@ export default function RackFormPage() {
   }, [isEdit, rack, sourceBranchId, reset]);
 
   React.useEffect(() => {
-    if (isEdit && !canManage) {
-      toast.error("Only Admin can edit racks.");
+    if (!authLoading && !canManage) {
+      toast.error("You do not have permission to create or edit racks.");
       navigate("/inventory/racks", { replace: true });
     }
-  }, [isEdit, canManage, navigate]);
+  }, [authLoading, canManage, navigate]);
 
   const saveMutation = useMutation({
     mutationFn: async (payload) =>

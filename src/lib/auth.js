@@ -290,7 +290,11 @@ export function AuthProvider({ children }) {
             authenticatedUser?.branch_id ??
             null;
 
-          if (userBranchId && readStoredBranchOverride() === null) {
+          const codes = getUserPermissions(authenticatedUser);
+          const canSwitchBranch = authenticatedUser?.is_superuser ||
+            normalizeRoleCode(authenticatedUser) === "ADMIN" ||
+            codes.some((p) => ["*", "branches.*", "branches.switch", "branches.view_all"].includes(p));
+          if (userBranchId && (!canSwitchBranch || readStoredBranchOverride() === null)) {
             setBranchOverride(userBranchId);
           }
         } else {

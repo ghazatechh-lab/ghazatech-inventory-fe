@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 
 import api, { unwrap, getApiErrorMessage } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { hasPermission } from "@/lib/permissions";
 import ProductBarcode from "@/components/common/ProductBarcode";
 import { Button } from "@/components/ui/button";
 
@@ -43,6 +45,8 @@ const DetailItem = ({ icon: Icon, label, value }) => (
 );
 
 export default function ProductDetailPage() {
+  const { user } = useAuth();
+  const canEdit = hasPermission(user, "inventory.products.edit");
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const sourceBranchId = searchParams.get("branch") || "";
@@ -152,7 +156,7 @@ export default function ProductDetailPage() {
                 Products
               </Link>
             </Button>
-            {(sourceBranchId || product?.branch_id || product?.branch) && (
+            {canEdit && (sourceBranchId || product?.branch_id || product?.branch) && (
               <Button
                 asChild
                 className="h-11 rounded-xl bg-amber-400 px-5 font-bold text-slate-950 shadow-lg hover:bg-amber-300"

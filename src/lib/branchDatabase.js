@@ -5,6 +5,24 @@ export const BRANCH_DATABASE_MODES = {
 };
 
 export function getStoredBranchId() {
+  // Non-switching users must always request their assigned branch, even if
+  // another account previously stored a branch override in this browser.
+  try {
+    const user = JSON.parse(window.localStorage.getItem("user") || "null");
+    if (user) {
+      const permissions = Array.isArray(user.permissions) ? user.permissions : [];
+      const role = String(user.role_code || user.role_detail?.code || user.role?.code || "").toUpperCase();
+      const privileged = user.is_superuser || role === "ADMIN" ||
+        permissions.some((p) => ["*", "branches.*", "branches.switch", "branches.view_all"].includes(p));
+      if (!privileged) {
+        const assigned = user.branch_id ?? user.branch?.id ?? user.branch ?? user.branch_detail?.id;
+        if (assigned) return String(assigned);
+        return "";
+      }
+    }
+  } catch (_) {
+    // Fall through to the normal selected branch lookup.
+  }
   // AuthProvider stores the currently selected branch in branch_override.
   // Prefer it over legacy keys so API headers always match the branch shown in
   // the global selector.

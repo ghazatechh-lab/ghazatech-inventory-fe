@@ -19,7 +19,7 @@ import { toast } from "sonner";
 
 import api from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { isAdmin } from "@/lib/permissions";
+import { hasPermission } from "@/lib/permissions";
 import { useListQuery, DataTable, SearchInput } from "@/hooks/useListQuery";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,7 +69,11 @@ export default function ReferenceDataPage({
   );
   const HeaderIcon = navigationMatch?.item?.icon || FolderTree;
   const { user } = useAuth();
-  const canManage = isAdmin(user);
+  const resource = endpoint.includes("brands") ? "brands" : "categories";
+  const canCreate = hasPermission(user, `inventory.${resource}.create`);
+  const canEdit = hasPermission(user, `inventory.${resource}.edit`);
+  const canDelete = hasPermission(user, `inventory.${resource}.delete`);
+  const canManage = canEdit || canDelete;
   const { branchId: selectedHeaderBranch } = useActiveBranchFilter();
   const { data: availableBranches = [] } = useQuery({
     queryKey: ["inventory", "physical-branch-create-options"],
@@ -291,7 +295,7 @@ export default function ReferenceDataPage({
         cell: (row) =>
           canManage ? (
             <div className="flex justify-end gap-2">
-              <Button
+              {canEdit && <Button
                 size="sm"
                 variant="outline"
                 onClick={() => openEdit(row)}
@@ -299,9 +303,9 @@ export default function ReferenceDataPage({
               >
                 <Edit3 className="mr-1.5 h-3.5 w-3.5" />
                 Edit
-              </Button>
+              </Button>}
 
-              <Button
+              {canDelete && <Button
                 size="sm"
                 variant="outline"
                 onClick={() => setDeleteItem(row)}
@@ -309,16 +313,16 @@ export default function ReferenceDataPage({
               >
                 <Trash2 className="mr-1.5 h-3.5 w-3.5" />
                 Delete
-              </Button>
+              </Button>}
             </div>
           ) : (
             <span className="text-xs font-medium text-slate-400">
-              Admin only
+              View only
             </span>
           ),
       },
     ],
-    [canManage, singular, showSourceBranch, openEdit],
+    [canManage, canEdit, canDelete, singular, showSourceBranch, openEdit],
   );
 
   return (
@@ -355,7 +359,7 @@ export default function ReferenceDataPage({
             </div>
           </div>
 
-          {canManage && (
+          {canCreate && (
             <Button
               onClick={openCreate}
               className="h-11 rounded-xl bg-amber-400 px-5 font-bold text-slate-950 shadow-lg hover:bg-amber-300"

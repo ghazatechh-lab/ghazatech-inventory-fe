@@ -20,7 +20,7 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useActiveBranchFilter } from "@/hooks/useActiveBranchFilter";
-import { isAdmin } from "@/lib/permissions";
+import { hasPermission } from "@/lib/permissions";
 import { useListQuery, DataTable, SearchInput } from "@/hooks/useListQuery";
 import { Button } from "@/components/ui/button";
 import {
@@ -82,7 +82,10 @@ export default function RackListPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { branchId: selectedBranchId } = useActiveBranchFilter();
-  const canManage = isAdmin(user);
+  const canCreate = hasPermission(user, "inventory.racks.create");
+  const canEdit = hasPermission(user, "inventory.racks.edit");
+  const canDelete = hasPermission(user, "inventory.racks.delete");
+  const canManage = canEdit || canDelete;
 
   const listParams = React.useMemo(
     () => ({ branch: selectedBranchId || undefined }),
@@ -205,7 +208,7 @@ export default function RackListPage() {
                   <Button type="button" size="sm" variant="outline" onClick={() => setViewRack(row)}>
                     <Eye className="mr-1.5 h-3.5 w-3.5" /> View
                   </Button>
-                  <Button
+                  {canEdit && <Button
                     asChild
                     size="sm"
                     variant="outline"
@@ -215,8 +218,8 @@ export default function RackListPage() {
                       <Edit3 className="mr-1.5 h-3.5 w-3.5" />
                       Edit
                     </Link>
-                  </Button>
-                  <Button
+                  </Button>}
+                  {canDelete && <Button
                     type="button"
                     size="sm"
                     variant="outline"
@@ -225,14 +228,14 @@ export default function RackListPage() {
                   >
                     <Trash2 className="mr-1.5 h-3.5 w-3.5" />
                     Delete
-                  </Button>
+                  </Button>}
                 </div>
               ),
             },
           ]
         : []),
     ],
-    [canManage, selectedBranchId],
+    [canManage, canEdit, canDelete, selectedBranchId],
   );
 
   const isConsolidatedView = rows.some((row) => row.source_branch_id != null);
@@ -275,7 +278,7 @@ export default function RackListPage() {
             </div>
           </div>
 
-          {canManage && (
+          {canCreate && (
             <Button
               asChild
               className="h-11 rounded-xl bg-amber-400 px-5 font-bold text-slate-950 shadow-lg hover:bg-amber-300"
