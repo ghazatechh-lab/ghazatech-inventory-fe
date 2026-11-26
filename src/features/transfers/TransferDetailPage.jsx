@@ -1,4 +1,5 @@
 import React from "react";
+import { UpdatedByMeta } from "@/components/common/UpdatedByMeta";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -295,6 +296,7 @@ export default function TransferDetailPage() {
       data-transfer-detail-version="receive-rack-only-v2"
       className="stock-module-page stock-workspace w-full space-y-5 pb-10"
     >
+      <UpdatedByMeta record={transfer} />
       <section className="relative overflow-hidden rounded-[28px] border border-slate-200/20 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] px-6 py-7 text-white shadow-xl sm:px-8 sm:py-9">
         <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-400/20 blur-3xl" />
 

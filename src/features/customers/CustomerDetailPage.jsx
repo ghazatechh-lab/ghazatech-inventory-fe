@@ -151,6 +151,7 @@ export default function CustomerDetailPage() {
   return (
     <div className="customer-module-page customer-workspace w-full space-y-5 pb-10">
       <PageHeader
+        auditRecord={c}
         variant="hero"
         eyebrow="Customer Profile"
         icon={Building2}

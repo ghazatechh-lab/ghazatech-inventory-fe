@@ -111,6 +111,7 @@ function variantFromApi(item) {
         .map(rackIdOf).filter(Boolean)
     )),
     rack_quantities: {},
+    rack_allocation_dirty: false,
     rack_details: item.rack_details || [],
     // Existing stock is a balance, not a new opening quantity.
     initial_stock: item.current_stock ?? item.available_qty ?? item.total_quantity ?? 0,
@@ -157,6 +158,7 @@ export default function ProductFormPage() {
     formState: { errors, isSubmitting },
   } = useForm({ defaultValues: defaults });
   const selectedBranch = watch("branch");
+  const selectedSupplier = watch("supplier");
   const hasVariants = Boolean(watch("has_variants"));
 
   // Product IDs can overlap across physical tenants. An edit link must
@@ -202,17 +204,6 @@ export default function ProductFormPage() {
       ),
     [branches],
   );
-
-  const activeHeaderBranch = React.useMemo(
-    () =>
-      branches.find(
-        (branch) => String(branch.id) === String(branchOverride || ""),
-      ) || null,
-    [branches, branchOverride],
-  );
-
-  const isCombinedHeader =
-    Boolean(activeHeaderBranch) && !["VAT", "NON_VAT"].includes(String(activeHeaderBranch.tax_mode || "").toUpperCase());
 
   const physicalBranchLabel = React.useCallback(
     (branchId) => {
@@ -439,6 +430,7 @@ export default function ProductFormPage() {
                     new Set([...(variant.racks || []), String(created.id)]),
                   ),
                   rack_quantities: { ...(variant.rack_quantities || {}), [String(created.id)]: 0 },
+                  rack_allocation_dirty: isEdit ? true : variant.rack_allocation_dirty,
                 }
               : variant,
           ),
@@ -476,8 +468,8 @@ export default function ProductFormPage() {
       barcode: product.barcode || "",
       brand: relatedId(product, "brand"),
       category: relatedId(product, "category"),
-      branch: relatedId(product, "branch"),
-      supplier: relatedId(product, "supplier"),
+      branch: relatedId(product, "branch") || editSourceBranch,
+      supplier: relatedId(product, "supplier") || relatedId(product, "preferred_supplier"),
       has_variants: Boolean(product.has_variants),
       compatible_models: product.compatible_models || "",
       condition: product.condition || "NEW",
@@ -512,15 +504,26 @@ export default function ProductFormPage() {
           ? String(stock.variant_id ?? stock.variant ?? "") === String(variant.id)
           : (stock.variant_id == null && stock.variant == null)
       );
-      const allocated = physicalRackQuantities[String(product.has_variants ? variant.id : "base")] || {};
-      const selectedRacks = Array.from(new Set([
-        ...(variant.racks || []).map(String), ...Object.keys(allocated),
-      ]));
+      const variantStocks = stockRows.filter((stock) =>
+        product.has_variants
+          ? String(stock.variant_id ?? stock.variant ?? "") === String(variant.id)
+          : (stock.variant_id == null && stock.variant == null)
+      );
+      const selectedStock = variantStocks[0];
+      const allocated = selectedStock
+        ? Object.fromEntries((product.rack_allocations || [])
+            .filter((item) => String(item.stock_id) === String(selectedStock.id))
+            .map((item) => [String(item.rack_id), Number(item.quantity)]))
+        : {};
+      const selectedRacks = Object.keys(allocated);
       return {
         ...variant,
         racks: selectedRacks,
         rack_quantities: allocated,
-        initial_stock: Number(matchingStock?.current_stock ?? variant.initial_stock ?? 0),
+        rack_allocation_dirty: false,
+        warehouse_stocks: variantStocks,
+        warehouse_stock_id: selectedStock?.id ?? null,
+        initial_stock: Number(selectedStock?.current_stock ?? variant.initial_stock ?? 0),
       };
     });
     // Base products may return racks on the product instead of a variant.
@@ -529,13 +532,21 @@ export default function ProductFormPage() {
       ...(product.racks || []), ...(product.rack_details || []),
       ...(product.rack ? [product.rack] : []),
     ].map(rackIdOf).filter(Boolean);
+    const baseStocks = stockRows.filter((stock) => stock.variant_id == null && stock.variant == null);
+    const selectedBaseStock = baseStocks[0];
+    const baseAllocations = selectedBaseStock
+      ? Object.fromEntries((product.rack_allocations || [])
+          .filter((item) => String(item.stock_id) === String(selectedBaseStock.id))
+          .map((item) => [String(item.rack_id), Number(item.quantity)]))
+      : {};
     const baseVariant = {
       ...emptyBaseStock,
-      racks: Array.from(new Set([...baseRackIds, ...Object.keys(physicalRackQuantities.base || {})])),
-      rack_quantities: physicalRackQuantities.base || {},
-      initial_stock: Number(stockRows.find((stock) =>
-        stock.variant_id == null && stock.variant == null
-      )?.current_stock ?? product.current_stock ?? 0),
+      racks: Object.keys(baseAllocations),
+      rack_quantities: baseAllocations,
+      rack_allocation_dirty: false,
+      warehouse_stocks: baseStocks,
+      warehouse_stock_id: selectedBaseStock?.id ?? null,
+      initial_stock: Number(selectedBaseStock?.current_stock ?? product.current_stock ?? 0),
     };
     setVariants(hydratedVariants.length ? hydratedVariants : [baseVariant]);
     setImagePreview(product.product_image_url || product.product_image || "");
@@ -607,7 +618,7 @@ export default function ProductFormPage() {
       const initial_stock = (variant.racks || []).reduce(
         (sum, id) => sum + Number(rack_quantities[String(id)] || 0), 0,
       );
-      return { ...variant, rack_quantities, initial_stock: isEdit ? variant.initial_stock : initial_stock };
+      return { ...variant, rack_quantities, rack_allocation_dirty: isEdit ? true : variant.rack_allocation_dirty, initial_stock: isEdit ? variant.initial_stock : initial_stock };
     }));
   };
 
@@ -629,6 +640,7 @@ export default function ProductFormPage() {
           ...variant,
           racks: nextRacks,
           rack_quantities: quantities,
+          rack_allocation_dirty: isEdit ? true : variant.rack_allocation_dirty,
           initial_stock: isEdit ? variant.initial_stock : nextRacks.reduce(
             (sum, id) => sum + Number(quantities[id] || 0), 0
           ),
@@ -695,6 +707,9 @@ export default function ProductFormPage() {
       racks: [...(source.racks || [])],
       initial_stock: 0,
       rack_quantities: {},
+      warehouse_stock_id: null,
+      warehouse_stocks: [],
+      rack_allocation_dirty: false,
     };
     setVariants((current) => [...current.slice(0, index + 1), duplicate, ...current.slice(index + 1)]);
     setCollapsedVariants([]);
@@ -703,7 +718,10 @@ export default function ProductFormPage() {
   const removeVariant = (index) => {
     if (variants.length < 2) return;
     const variant = variants[index];
-    if (variant?.id && !window.confirm("Remove this saved variant? Its existing configuration may be affected when you save.")) return;
+    if (variant?.id) {
+      toast.error("Saved variants cannot be removed from product edit. Use a dedicated stock-safe removal workflow.");
+      return;
+    }
     setVariants((current) => current.filter((_, i) => i !== index));
     setCollapsedVariants([]);
   };
@@ -820,7 +838,10 @@ export default function ProductFormPage() {
           throw new Error(`Variant ${index + 1}: add at least one attribute.`);
         // Rack allocation only redistributes existing stock on edit. Never
         // submit it as opening stock or create an ADD stock adjustment.
-        if (isEdit) {
+        if (isEdit && variant.rack_allocation_dirty) {
+          if (!variant.warehouse_stock_id) {
+            throw new Error(`Variant ${index + 1}: select a warehouse stock row before changing rack allocations.`);
+          }
           const allocationTotal = (variant.racks || []).reduce(
             (sum, rackId) => sum + Number((variant.rack_quantities || {})[String(rackId)] || 0), 0
           );
@@ -835,10 +856,18 @@ export default function ProductFormPage() {
         return {
           ...(variant.id ? { id: variant.id } : {}),
           attributes: hasVariants ? attributes : {},
-          racks: (variant.racks || []).map((rackId) => Number(rackId)),
-          ...(isEdit ? { rack_quantities: Object.fromEntries(
-            (variant.racks || []).map((rackId) => [String(rackId), Number((variant.rack_quantities || {})[String(rackId)] || 0)])
-          ) } : {}),
+          // For existing products, only send rack fields when the user changed
+          // that warehouse's allocations. Ordinary price/details edits must not
+          // rewrite any physical stock row or its rack associations.
+          ...(!isEdit || variant.rack_allocation_dirty ? {
+            racks: (variant.racks || []).map((rackId) => Number(rackId)),
+          } : {}),
+          ...(isEdit && variant.rack_allocation_dirty ? {
+            warehouse_stock_id: Number(variant.warehouse_stock_id),
+            rack_quantities: Object.fromEntries(
+              (variant.racks || []).map((rackId) => [String(rackId), Number((variant.rack_quantities || {})[String(rackId)] || 0)])
+            ),
+          } : {}),
           ...(!isEdit ? { rack_quantities: (() => {
             const ids = (variant.racks || []).map(String);
             const quantities = { ...(variant.rack_quantities || {}) };
@@ -1104,11 +1133,57 @@ export default function ProductFormPage() {
             </h2>
 
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-              Basic catalogue details, branch assignment and storage location.
+              Select the physical branch first, then complete the catalogue details and storage locations.
             </p>
           </div>
 
           <div className="space-y-7 p-6">
+            <div className="rounded-xl border border-blue-500/15 bg-blue-500/[0.035] p-5">
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-blue-100">Branch selection</h3>
+
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                  Select the physical branch before choosing suppliers and
+                  product details. Rack locations are assigned for that branch.
+                </p>
+              </div>
+
+              {!isEdit ? (
+                <div>
+                  <Label>Target physical branch *</Label>
+                  <select
+                    value={selectedBranch || ""}
+                    onChange={(event) =>
+                      setValue("branch", event.target.value, {
+                        shouldDirty: true,
+                        shouldTouch: true,
+                        shouldValidate: true,
+                      })
+                    }
+                    className="mt-2 h-11 w-full rounded-md border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  >
+                    <option value="">Select a physical branch</option>
+                    {physicalBranches.map((branch) => (
+                      <option key={branch.id} value={String(branch.id)}>
+                        {branch.branch_code || branch.tax_mode}
+                        {branch.branch_name ? ` - ${branch.branch_name}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+                    Only VAT and NON-VAT physical branches are available.
+                    Suppliers, brands, categories and racks load for the selected branch.
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
+                  This product belongs to {physicalBranchLabel(selectedBranch)}.
+                  Its source branch is preserved while editing.
+                </div>
+              )}
+            </div>
+
+
             <div className="rounded-xl border border-dashed border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.02] p-4">
               <Label className="flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-slate-200">
                 <ImagePlus className="h-4 w-4 text-blue-500" /> Product image
@@ -1270,16 +1345,22 @@ export default function ProductFormPage() {
 
                 <select
                   {...register("supplier")}
+                  value={selectedSupplier == null ? "" : String(selectedSupplier)}
+                  onChange={(event) => setValue("supplier", event.target.value, {
+                    shouldDirty: true,
+                    shouldTouch: true,
+                    shouldValidate: true,
+                  })}
                   disabled={!selectedBranch}
                   className="mt-2 h-11 w-full rounded-md border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-50 dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 >
                   <option value="">{selectedBranch ? "No supplier" : "Choose a physical branch first"}</option>
 
-                  {isEdit && watch("supplier") &&
-                    !suppliers.some((item) => String(item.id) === String(watch("supplier"))) && (
-                      <option value={String(watch("supplier"))}>
+                  {isEdit && selectedSupplier &&
+                    !suppliers.some((item) => String(item.id) === String(selectedSupplier)) && (
+                      <option value={String(selectedSupplier)}>
                         {product?.supplier_name || product?.supplier_detail?.supplier_name ||
-                          `Saved supplier #${watch("supplier")}`}
+                          `Saved supplier #${selectedSupplier}`}
                       </option>
                     )}
                   {suppliers.map((item) => (
@@ -1289,58 +1370,6 @@ export default function ProductFormPage() {
                   ))}
                 </select>
               </div>
-            </div>
-
-            <div className="rounded-xl border border-blue-500/15 bg-blue-500/[0.035] p-5">
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold text-blue-100">Branch</h3>
-
-                <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                  The product branch is selected from the global branch filter.
-                  Rack locations are assigned separately inside each product
-                  variant below.
-                </p>
-              </div>
-
-              {isCombinedHeader ? (
-                <div>
-                  <Label>Target physical branch *</Label>
-                  <select
-                    value={selectedBranch || ""}
-                    onChange={(event) =>
-                      setValue("branch", event.target.value, {
-                        shouldDirty: true,
-                        shouldTouch: true,
-                        shouldValidate: true,
-                      })
-                    }
-                    className="mt-2 h-11 w-full rounded-md border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900/80 px-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                  >
-                    <option value="">Select a physical branch</option>
-                    {physicalBranches.map((branch) => (
-                      <option key={branch.id} value={String(branch.id)}>
-                        {branch.branch_code || branch.tax_mode}
-                        {branch.branch_name ? ` - ${branch.branch_name}` : ""}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-                    Consolidated is a combined view only. Suppliers and racks are
-                    loaded from the physical branch selected here.
-                  </p>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
-                  Branch is automatically selected from the global branch
-                  filter.
-                  {!selectedBranch ? (
-                    <p className="mt-2 font-semibold text-amber-700 dark:text-amber-300">
-                      Select a physical branch from the top branch filter
-                      before saving this product.
-                    </p>
-                  ) : null}
-                </div>
-              )}
             </div>
 
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -1586,7 +1615,8 @@ export default function ProductFormPage() {
                         <Button type="button" size="sm" variant="ghost"
                           aria-label={`Remove variant ${variantIndex + 1}`}
                           onClick={() => removeVariant(variantIndex)}
-                          disabled={variants.length === 1}
+                          disabled={variants.length === 1 || Boolean(variant.id)}
+                          title={variant.id ? "Saved variants require a separate stock-safe removal workflow" : "Remove new variant"}
                           className="text-red-500 hover:bg-red-500/10">
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -1783,6 +1813,38 @@ export default function ProductFormPage() {
                         </Button>
                       </div>
 
+                      {isEdit && (variant.warehouse_stocks || []).length > 0 && (
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-white p-3 dark:border-blue-500/20 dark:bg-slate-950/70">
+                          <Label className="text-sm font-semibold">Warehouse stock row</Label>
+                          <select
+                            aria-label={`Warehouse for variant ${variantIndex + 1}`}
+                            className="mt-2 h-11 w-full rounded-md border border-slate-200 bg-background px-3 text-sm dark:border-white/20"
+                            value={String(variant.warehouse_stock_id ?? "")}
+                            onChange={(event) => {
+                              const stock = (variant.warehouse_stocks || []).find((entry) => String(entry.id) === event.target.value);
+                              if (!stock) return;
+                              const allocated = Object.fromEntries((product?.rack_allocations || [])
+                                .filter((entry) => String(entry.stock_id) === String(stock.id))
+                                .map((entry) => [String(entry.rack_id), Number(entry.quantity)]));
+                              setVariants((current) => current.map((entry, index) => index !== variantIndex ? entry : {
+                                ...entry,
+                                warehouse_stock_id: stock.id,
+                                initial_stock: Number(stock.current_stock || 0),
+                                racks: Object.keys(allocated),
+                                rack_quantities: allocated,
+                                rack_allocation_dirty: false,
+                              }));
+                            }}
+                          >
+                            {(variant.warehouse_stocks || []).map((stock) => (
+                              <option key={stock.id} value={String(stock.id)}>
+                                {stock.warehouse || "Default warehouse"} — Stock #{stock.id} — {stock.current_stock} units
+                              </option>
+                            ))}
+                          </select>
+                          <p className="mt-2 text-xs text-muted-foreground">Only rack quantities belonging to the selected warehouse stock row will be changed. Other warehouses remain untouched.</p>
+                        </div>
+                      )}
                       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
                           <div className="min-w-0 space-y-1.5">
                             <Label className="text-xs">Select rack to add</Label>

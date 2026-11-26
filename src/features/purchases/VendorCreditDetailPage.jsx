@@ -268,6 +268,7 @@ export default function VendorCreditDetailPage() {
   return (
     <div className="purchase-module-page purchase-workspace w-full space-y-6 pb-10 max-w-none">
       <PageHeader
+        auditRecord={record}
         title={record.credit_number || `Vendor Credit ${id}`}
         subtitle="Complete vendor credit information, linked documents, financial values, and audit history."
         actions={

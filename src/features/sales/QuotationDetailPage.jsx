@@ -1,4 +1,5 @@
 ﻿import React from "react";
+import { UpdatedByMeta } from "@/components/common/UpdatedByMeta";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Download, Edit } from "lucide-react";
@@ -164,6 +165,7 @@ export default function QuotationDetailPage() {
 
   return (
     <div className="sales-module-page sales-workspace w-full space-y-5">
+      <UpdatedByMeta record={quotation} />
       <SalesHeroHeader
         title={quotation.quote_number}
         subtitle="Quotation details and customer pricing"

@@ -196,6 +196,7 @@ export default function PODetailPage() {
   return (
     <div className="purchase-module-page purchase-workspace w-full space-y-6 pb-10">
       <PageHeader
+        auditRecord={purchaseOrder}
         title={purchaseOrder.po_number || "Purchase Order"}
         subtitle="Purchase-order details, products, receiving progress, and workflow status."
         actions={

@@ -130,6 +130,7 @@ export default function SupplierReturnDetailPage() {
   return (
     <div className="purchase-module-page purchase-workspace w-full space-y-6 pb-10">
       <PageHeader
+        auditRecord={record}
         title={record.return_number || `Return ${id}`}
         subtitle="Review the return, complete approval, and finalize the vendor credit workflow."
         actions={

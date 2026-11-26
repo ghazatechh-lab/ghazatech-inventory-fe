@@ -1,4 +1,5 @@
 ﻿import React from "react";
+import { UpdatedByMeta } from "@/components/common/UpdatedByMeta";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CreditCard, Download, Edit, Mail } from "lucide-react";
@@ -103,6 +104,7 @@ export default function InvoiceDetailPage() {
 
   return (
     <div className="sales-module-page sales-workspace w-full space-y-5">
+      <UpdatedByMeta record={invoice} />
       <SalesHeroHeader
         title={invoice.invoice_number}
         subtitle="Invoice details, balance, and payment status"

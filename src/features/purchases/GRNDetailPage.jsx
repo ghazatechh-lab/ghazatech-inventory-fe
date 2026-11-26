@@ -188,6 +188,7 @@ export default function GRNDetailPage() {
   return (
     <div className="purchase-module-page purchase-workspace w-full space-y-6 pb-10">
       <PageHeader
+        auditRecord={record}
         title={record.grn_number || `GRN ${id}`}
         subtitle="Complete document information and related records."
         actions={

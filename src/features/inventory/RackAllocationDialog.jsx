@@ -48,6 +48,7 @@ export default function RackAllocationDialog({ target, onClose }) {
         allocations: allocations.map((a) => ({ rack_code: a.rack_code, quantity: Number(a.quantity) })),
       }, { params });
       await queryClient.invalidateQueries({ queryKey: ["rack-allocations"] });
+      await queryClient.invalidateQueries({ queryKey: ["product"] });
       toast.success("Rack quantities saved. Total stock was not changed.");
       onClose();
     } catch (err) {
@@ -67,7 +68,7 @@ export default function RackAllocationDialog({ target, onClose }) {
         ) : (
           <div className="space-y-4">
             <div className="rounded-lg border p-3 text-sm dark:border-white/20">
-              Physical stock: <strong>{physical}</strong> · Assigned: <strong>{total}</strong> · Unassigned: <strong>{physical - total}</strong>
+              Warehouse: <strong>{data?.warehouse || "Default warehouse"}</strong> · Physical stock: <strong>{physical}</strong> · Assigned: <strong>{total}</strong> · Unassigned: <strong>{physical - total}</strong>
             </div>
             <div className="grid gap-2">
               {allocations.map((entry) => (

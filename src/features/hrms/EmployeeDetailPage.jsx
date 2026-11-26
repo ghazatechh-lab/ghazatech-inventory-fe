@@ -165,6 +165,7 @@ export default function EmployeeDetailPage() {
   return (
     <div className="hrms-module-page hrms-workspace w-full space-y-5 pb-10">
       <PageHeader
+        auditRecord={employee}
         variant="hero"
         title={employee.full_name}
         subtitle={`${employee.employee_code} · ${employee.designation_name || "Employee"}`}

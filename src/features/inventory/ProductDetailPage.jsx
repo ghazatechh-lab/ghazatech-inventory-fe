@@ -1,4 +1,5 @@
 import React from "react";
+import { UpdatedByMeta } from "@/components/common/UpdatedByMeta";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -107,6 +108,7 @@ export default function ProductDetailPage() {
 
   return (
     <div className="w-full space-y-6 pb-10">
+      <UpdatedByMeta record={product} />
       <section className="relative overflow-hidden rounded-3xl border border-slate-200/20 bg-gradient-to-r from-[#082a4a] via-[#0d4678] to-[#2e7197] text-white shadow-xl">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.14),transparent_36%),radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.08),transparent_32%)]" />
         <div className="relative flex flex-col gap-6 px-6 py-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">

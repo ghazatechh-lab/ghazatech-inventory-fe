@@ -18,6 +18,7 @@ export default function BranchDetailPage() {
   return (
     <div className="branch-module-page branch-workspace w-full space-y-5 pb-10">
       <PageHeader
+        auditRecord={b}
         variant="hero"
         eyebrow="Branch Management"
         title={b.branch_name || "Branch"}

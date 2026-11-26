@@ -339,6 +339,40 @@ export function DataTable({
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // Cross-module actor fields supplied by the API audit middleware. Historical
+  // records without an authenticated actor stay explicitly unidentified.
+  const displayColumns = React.useMemo(() => {
+    const next = [...columns];
+    const actorColumns = [
+      ["added_by_display", "Added By", "added_by_name", "created_by", "added_by"],
+      ["updated_by_display", "Updated By", "updated_by_name", "updated_by"],
+    ];
+    const resolveName = (record, keys) => {
+      for (const key of keys) {
+        const value = record?.[key];
+        if (typeof value === "string" && value.trim() && !/^\d+$/.test(value.trim())) return value;
+        if (value && typeof value === "object") {
+          const name = value.full_name || value.name || value.username || value.email;
+          if (name) return name;
+        }
+      }
+      return "Not recorded";
+    };
+    const actionIndex = next.findIndex((column) => ["actions", "action"].includes(column.key));
+    let index = actionIndex < 0 ? next.length : actionIndex;
+    for (const [key, header, ...fallbacks] of actorColumns) {
+      if (next.some((col) => [key, ...fallbacks].includes(col.key))) continue;
+      next.splice(index++, 0, {
+        key, header, sortable: false, align: "left",
+        cell: (record) => {
+          const label = resolveName(record, fallbacks);
+          return <span className={label === "Not recorded" ? "text-slate-400" : "font-medium"}>{label}</span>;
+        },
+      });
+    }
+    return next;
+  }, [columns]);
+
   const ordering = searchParams.get("ordering") || "";
 
   const isServerPaginated = typeof onPageChange === "function";
@@ -391,7 +425,7 @@ export function DataTable({
 
     const sortKey = descending ? ordering.slice(1) : ordering;
 
-    const column = columns.find(
+    const column = displayColumns.find(
       (item) => (item.sortKey || item.key) === sortKey,
     );
 
@@ -412,7 +446,7 @@ export function DataTable({
 
       return descending ? -comparison : comparison;
     });
-  }, [data, columns, ordering]);
+  }, [data, displayColumns, ordering]);
 
   const effectiveTotal = isServerPaginated
     ? Number(total) || 0
@@ -457,7 +491,7 @@ export function DataTable({
         <Table className="w-full min-w-max table-auto">
           <TableHeader>
             <TableRow className="border-white/5 hover:bg-transparent">
-              {columns.map((column) => {
+              {displayColumns.map((column) => {
                 const sortKey = column.sortKey || column.key;
                 const alignment = alignmentStyles[getColumnAlignment(column)];
 
@@ -530,7 +564,7 @@ export function DataTable({
             {isLoading ? (
               Array.from({ length: Math.min(pageSize, 5) }, (_, skeletonIndex) => (
                 <TableRow key={`loading-${skeletonIndex}`} aria-hidden="true">
-                  {columns.map((column, columnIndex) => (
+                  {displayColumns.map((column, columnIndex) => (
                     <TableCell key={`${column.key}-${columnIndex}`}>
                       <div className="h-4 w-full max-w-40 animate-pulse rounded bg-slate-200/80 dark:bg-slate-700/70" />
                     </TableCell>
@@ -539,7 +573,7 @@ export function DataTable({
               ))
             ) : error ? (
               <TableRow>
-                <TableCell colSpan={columns.length}>
+                <TableCell colSpan={displayColumns.length}>
                   <div role="alert" className="flex flex-col items-center gap-3 py-10 text-center">
                     <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Unable to load records</p>
                     <p className="text-xs text-slate-500 dark:text-slate-400">{typeof error === "string" ? error : error?.message || "Please try again."}</p>
@@ -558,7 +592,7 @@ export function DataTable({
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                   data-testid={`row-${row[rowKey] ?? index}`}
                 >
-                  {columns.map((column) => {
+                  {displayColumns.map((column) => {
                     const alignment = alignmentStyles[getColumnAlignment(column)];
                     return (
                       <TableCell
@@ -582,7 +616,7 @@ export function DataTable({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length}>
+                <TableCell colSpan={displayColumns.length}>
                   <EmptyState
                     title={emptyTitle}
                     description={emptyDescription}

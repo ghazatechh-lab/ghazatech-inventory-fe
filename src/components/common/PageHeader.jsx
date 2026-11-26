@@ -1,6 +1,7 @@
 import React from "react";
 import { useLocation } from "react-router-dom";
 import { Boxes } from "lucide-react";
+import { UpdatedByMeta } from "@/components/common/UpdatedByMeta";
 
 import {
   getModuleByPath,
@@ -38,6 +39,7 @@ export function PageHeader({
   className = "",
   children,
   variant = "hero",
+  auditRecord,
 }) {
   const location = useLocation();
 
@@ -85,6 +87,7 @@ export function PageHeader({
               </p>
             ) : null}
 
+            {auditRecord && <UpdatedByMeta record={auditRecord} compact />}
             {children}
           </div>
         </div>
@@ -146,6 +149,7 @@ export function PageHeader({
               </p>
             ) : null}
 
+            {auditRecord && <UpdatedByMeta record={auditRecord} compact />}
             {children}
           </div>
         </div>

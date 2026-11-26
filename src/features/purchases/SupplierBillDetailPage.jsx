@@ -122,6 +122,7 @@ export default function SupplierBillDetailPage() {
   return (
     <div className="purchase-module-page purchase-workspace w-full space-y-5 pb-10">
       <PageHeader
+        auditRecord={bill}
         title={bill.bill_number || `Supplier Bill ${id}`}
         subtitle="Supplier invoice, received items, payments and outstanding balance"
         actions={

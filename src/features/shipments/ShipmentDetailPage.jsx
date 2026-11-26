@@ -171,6 +171,7 @@ export default function ShipmentDetailPage() {
   return (
     <div className="purchase-module-page purchase-workspace w-full space-y-6 pb-10">
       <PageHeader
+        auditRecord={shipment}
         title={shipment.shipment_number || `Shipment ${id}`}
         subtitle="Complete shipment and received-product information."
         actions={

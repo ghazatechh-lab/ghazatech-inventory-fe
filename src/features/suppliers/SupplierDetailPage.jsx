@@ -445,6 +445,7 @@ export default function SupplierDetailPage() {
   return (
     <div className="purchase-module-page purchase-workspace w-full space-y-6 pb-10">
       <PageHeader
+        auditRecord={s}
         title={supplierName}
         subtitle="Supplier identity, payment readiness, credit exposure and operational records."
         eyebrow="Purchase Management"

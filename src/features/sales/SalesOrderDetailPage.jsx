@@ -1,4 +1,5 @@
 ﻿import React from "react";
+import { UpdatedByMeta } from "@/components/common/UpdatedByMeta";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, CheckCircle2, Download, Edit } from "lucide-react";
@@ -56,6 +57,7 @@ export default function SalesOrderDetailPage() {
 
   return (
     <div className="sales-module-page sales-workspace w-full space-y-5">
+      <UpdatedByMeta record={order} />
       <SalesHeroHeader
         title={order.order_number}
         subtitle="Sales order details, fulfillment, and invoice conversion"
